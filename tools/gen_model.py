@@ -24,7 +24,7 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
-TEX_W = TEX_H = 128
+TEX_W = TEX_H = 256
 random.seed(7)
 
 
@@ -85,9 +85,62 @@ BONES = [
     ]),
     bone('taco_a', [-2.5, 6, -15], 'grill', [cube([-4.5, 6, -16], [4, 3, 2], [40, 96])]),
     bone('taco_b', [2.5, 6, -15], 'grill', [cube([0.5, 6, -16], [4, 3, 2], [40, 96])]),
+
+    # --- eyelids: closed for sleep and blinks
+    bone('eyelids', [0, 20.2, -8], 'body', [
+        cube([-6.5, 18.7, -8.15], [4, 1.5, 0.1], [244, 32]),
+        cube([2.5, 18.7, -8.15], [4, 1.5, 0.1], [244, 32]),
+    ]),
+
+    # --- llama raft. Water level is y=0 (the entity's feet while rafting); he sits on its back.
+    bone('raft', [0, 0, 0], None, [cube([-9, -4, -10], [18, 7, 24], [128, 0])]),
+    bone('llama_neck', [0, 2, -10], 'raft', [cube([-3, 1, -16], [6, 7, 6], [212, 0])]),
+    bone('llama_head', [0, 8, -14], 'llama_neck', [
+        cube([-3.5, 7, -21], [7, 6, 8], [128, 32]),
+        cube([-2.5, 7, -25], [5, 4, 4], [160, 32]),
+        cube([-3.5, 13, -16], [2, 3, 1], [180, 32]),
+        cube([1.5, 13, -16], [2, 3, 1], [180, 32]),
+    ]),
+    bone('llama_leg_fr', [-9, -1, -6], 'raft', [cube([-17, -2.5, -7.5], [8, 3, 3], [188, 32])]),
+    bone('llama_leg_fl', [9, -1, -6], 'raft', [cube([9, -2.5, -7.5], [8, 3, 3], [188, 32])]),
+    bone('llama_leg_br', [-9, -1, 10], 'raft', [cube([-17, -2.5, 8.5], [8, 3, 3], [188, 32])]),
+    bone('llama_leg_bl', [9, -1, 10], 'raft', [cube([9, -2.5, 8.5], [8, 3, 3], [188, 32])]),
+    bone('llama_tail', [0, 1, 14], 'raft', [cube([-1.5, 0, 14], [3, 3, 4], [212, 32])]),
+    bone('paddle_r', [-10, 4, 0], 'arm_r', [
+        cube([-10.5, -6, -0.5], [1, 10, 1], [228, 32]),
+        cube([-11.5, -10, -0.5], [3, 4, 1], [234, 32]),
+    ]),
+    bone('paddle_l', [10, 4, 0], 'arm_l', [
+        cube([9.5, -6, -0.5], [1, 10, 1], [228, 32]),
+        cube([8.5, -10, -0.5], [3, 4, 1], [234, 32]),
+    ]),
+
+    # --- Jarritos, one bone per flavour; the renderer hides all but the one he was given.
+] + [
+    bone('jarrito_' + flavour, [-10, 4, 0], 'arm_r', [
+        cube([-11, 0, -1], [2, 3, 2], [192, 48]),
+        cube([-11.5, -5, -1.5], [3, 5, 3], [128 + 16 * i, 48]),
+        cube([-11, 3, -1], [2, 1, 2], [200, 48]),
+    ])
+    for i, flavour in enumerate(('red', 'orange', 'yellow', 'green'))
+] + [
+    # --- bedtime: pack set down beside him, sleeping bag laid out behind him
+    bone('backpack_ground', [-17, 0, 6], None, [
+        cube([-23, 0, 4], [12, 12, 4], [64, 0]),
+    ]),
+    # A burlap potato sack: a flattened sack underneath, and the sack itself pulled up to his chin
+    # and cinched with rope. (Bones keep their sleeping-bag names so the animations need no change.)
+    bone('sleeping_bag', [0, 0, -2], None, [cube([-13, 0, -2], [26, 1, 30], [0, 128])]),
+    bone('bag_cover', [0, 0.5, -1.5], 'sleeping_bag', [
+        cube([-12.5, 0.5, -1.5], [25, 17, 18], [0, 160]),
+        cube([-12.5, 0.5, 14.2], [25, 17, 1.2], [96, 160], inflate=0.35),
+    ]),
 ]
 
-PROP_BONES = ['grill', 'grill_hand', 'shaker', 'coupon', 'spatula']
+PROP_BONES = ['grill', 'grill_hand', 'shaker', 'coupon', 'spatula', 'eyelids', 'raft', 'paddle_r', 'paddle_l',
+              'jarrito_red', 'jarrito_orange', 'jarrito_yellow', 'jarrito_green', 'backpack_ground',
+              'sleeping_bag']
+JARRITOS = ['jarrito_red', 'jarrito_orange', 'jarrito_yellow', 'jarrito_green']
 
 
 def write_geo():
@@ -168,15 +221,15 @@ def paint(im):
         if name in ('south', 'up'):
             fill(px, (r[0] + 2, r[1], r[0] + 3, r[3]), (90, 60, 36), 0.05)
             fill(px, (r[2] - 3, r[1], r[2] - 2, r[3]), (90, 60, 36), 0.05)
-    # bedroll 12x3x3 @ (64,16): red wool with ties
+    # bedroll 12x3x3 @ (64,16): the potato sack, rolled up and tied with rope
     for name, r in faces(64, 16, 12, 3, 3).items():
-        fill(px, r, (168, 48, 44), 0.1)
+        burlap(px, r)
         if name not in ('east', 'west'):
-            fill(px, (r[0] + 2, r[1], r[0] + 3, r[3]), (70, 50, 30), 0.03)
-            fill(px, (r[2] - 3, r[1], r[2] - 2, r[3]), (70, 50, 30), 0.03)
+            fill(px, (r[0] + 2, r[1], r[0] + 3, r[3]), ROPE, 0.06)
+            fill(px, (r[2] - 3, r[1], r[2] - 2, r[3]), ROPE, 0.06)
         else:
-            fill(px, r, (196, 70, 60), 0.05)
-            px[r[0] + 1, r[1] + 1] = (120, 30, 28, 255)
+            x0, y0 = int(r[0]), int(r[1])
+            px[x0 + 1, y0 + 1] = shade(BURLAP_DK, 0.8)  # the roll's spiral end
     # grill basin 10x3x8 @ (0,84): charcoal black metal, red stripe
     metal, metal_hi = (48, 48, 54), (88, 88, 98)
     for name, r in faces(0, 84, 10, 3, 8).items():
@@ -253,11 +306,143 @@ def paint(im):
                 px[x0 + dx, y0 + dy] = c + (255,)
 
 
+BURLAP = (196, 160, 104)
+BURLAP_DK = (160, 126, 76)
+ROPE = (150, 112, 64)
+FONT = {
+    'P': ('111', '101', '111', '100', '100'),
+    'A': ('010', '101', '111', '101', '101'),
+    'S': ('111', '100', '111', '001', '111'),
+}
+
+
+def burlap(px, rect, shade_k=1.0):
+    """Coarse woven sacking: a cross-hatch weave with the odd darker fibre."""
+    x0, y0, x1, y1 = (int(round(n)) for n in rect)
+    for y in range(y0, max(y1, y0 + 1)):
+        for x in range(x0, max(x1, x0 + 1)):
+            weave = 1.06 if (x + y) % 2 == 0 else 0.94
+            if (x % 4 == 0) != (y % 4 == 0):
+                weave *= 0.9
+            if random.random() < 0.05:
+                weave *= 0.8
+            px[x, y] = shade(BURLAP, weave * shade_k * (1 + random.uniform(-0.03, 0.03)))
+
+
+def paint_journey_kit(im):
+    """Llama raft, paddles, Jarritos, eyelids, sleeping bag."""
+    px = im.load()
+    skin, lash = (206, 159, 71), (107, 82, 45)
+    for r in faces(244, 32, 4, 1.5, 0.1).values():
+        fill(px, r, skin, 0.03)
+    fill(px, (244, 33, 252, 34), lash, 0.03)
+
+    wool, wool_dk, wool_lt = (232, 220, 190), (196, 182, 150), (246, 238, 214)
+    carpet = [(196, 52, 40), (240, 196, 60), (52, 110, 190), (80, 160, 70)]
+    body = faces(128, 0, 18, 7, 24)
+    for name, r in body.items():
+        fill(px, r, wool, 0.07, spots=(wool_dk, 0.12))
+    x0, y0, x1, y1 = (int(n) for n in body['up'])
+    for y in range(y0 + 2, y1 - 2):  # trader-llama style carpet on its back
+        for x in range(x0 + 1, x1 - 1):
+            band = ((y - y0) // 2 + abs((x - x0) - 9) // 3) % 4
+            px[x, y] = shade(carpet[band], 1 + random.uniform(-0.05, 0.05))
+    for x in range(x0 + 1, x1 - 1):
+        px[x, y0 + 1] = px[x, y1 - 2] = (240, 220, 120, 255)
+    for name, r in faces(212, 0, 6, 7, 6).items():
+        fill(px, r, wool, 0.07, spots=(wool_dk, 0.12))
+    head = faces(128, 32, 7, 6, 8)
+    for name, r in head.items():
+        fill(px, r, wool_lt, 0.05)
+    n = head['north']
+    for ex in (1, 5):  # deadpan half-lidded eyes
+        px[int(n[0]) + ex, int(n[1]) + 1] = wool_dk
+        px[int(n[0]) + ex, int(n[1]) + 2] = (30, 24, 20, 255)
+    for side in ('east', 'west'):
+        r = head[side]
+        px[int(r[0]) + 2, int(r[1]) + 1] = wool_dk
+        px[int(r[0]) + 2, int(r[1]) + 2] = (30, 24, 20, 255)
+    snout = faces(160, 32, 5, 4, 4)
+    for name, r in snout.items():
+        fill(px, r, (236, 226, 200), 0.04)
+    n = snout['north']
+    px[int(n[0]) + 1, int(n[1]) + 1] = px[int(n[0]) + 3, int(n[1]) + 1] = (90, 70, 60, 255)
+    for x in range(int(n[0]) + 1, int(n[0]) + 4):
+        px[x, int(n[1]) + 3] = (120, 96, 80, 255)
+    for name, r in faces(180, 32, 2, 3, 1).items():
+        fill(px, r, wool, 0.05)
+    fill(px, faces(180, 32, 2, 3, 1)['north'], (230, 170, 170), 0.03)
+    legs = faces(188, 32, 8, 3, 3)
+    for name, r in legs.items():
+        fill(px, r, wool, 0.07, spots=(wool_dk, 0.1))
+    for end in ('east', 'west'):
+        fill(px, legs[end], (70, 56, 46), 0.05)
+    for r in faces(212, 32, 3, 3, 4).values():
+        fill(px, r, wool_lt, 0.08, spots=(wool, 0.3))
+    for r in faces(228, 32, 1, 10, 1).values():
+        fill(px, r, (126, 84, 48), 0.08)
+    for r in faces(234, 32, 3, 4, 1).values():
+        fill(px, r, (176, 128, 76), 0.06)
+
+    glass = (196, 228, 222)
+    flavours = [(214, 36, 40), (250, 132, 20), (250, 214, 40), (84, 190, 60)]
+    for i, liquid in enumerate(flavours):
+        for name, r in faces(128 + 16 * i, 48, 3, 5, 3).items():
+            fill(px, r, liquid, 0.06)
+            if name not in ('up', 'down'):
+                x0, y0, x1, y1 = (int(n) for n in r)
+                for x in range(x0, x1):  # label band and the glass shoulder
+                    px[x, y0] = shade(glass, 1.0)
+                    px[x, y0 + 2] = (250, 250, 245, 255)
+                    px[x, y0 + 3] = shade(liquid, 0.7)
+                if name == 'north':
+                    px[x0 + 1, y0 + 2] = (30, 30, 30, 255)
+    for r in faces(192, 48, 2, 3, 2).values():
+        fill(px, r, glass, 0.05)
+    for r in faces(200, 48, 2, 1, 2).values():
+        fill(px, r, (226, 196, 90), 0.05)
+
+    pad = faces(0, 128, 26, 1, 30)
+    for r in pad.values():
+        burlap(px, r, shade_k=0.82)
+    cover = faces(0, 160, 25, 17, 18)
+    for name, r in cover.items():
+        burlap(px, r)
+        x0, y0, x1, y1 = (int(n) for n in r)
+        if name in ('east', 'west', 'up', 'down'):  # side seams, stitched
+            for x in range(x0, x1, 2):
+                px[x, y1 - 1] = shade(BURLAP_DK, 0.7)
+    # the stamp on the front of the sack: PAPAS over a potato
+    x0, y0, x1, y1 = (int(n) for n in cover['up'])
+    stamp = (150, 52, 36, 255)
+    word = 'PAPAS'
+    cx = x0 + (x1 - x0 - (len(word) * 4 - 1)) // 2
+    for i, ch in enumerate(word):
+        for row, bits in enumerate(FONT[ch]):
+            for col, bit in enumerate(bits):
+                if bit == '1':
+                    px[cx + i * 4 + col, y0 + 2 + row] = stamp
+    for dy, row in enumerate(('.XXXX.', 'XXXXXX', 'XXXXXX', '.XXXX.')):
+        for dx, c in enumerate(row):
+            if c == 'X':
+                px[x0 + (x1 - x0) // 2 - 3 + dx, y0 + 9 + dy] = stamp
+    for x in range(x0 + 2, x1 - 2):  # stamped border line
+        px[x, y0 + 1] = px[x, y0 + 14] = stamp
+    # rope cinch round the mouth of the sack
+    for r in faces(96, 160, 25, 17, 1.2).values():
+        x0, y0, x1, y1 = (int(round(n)) for n in r)
+        for y in range(y0, max(y1, y0 + 1)):
+            for x in range(x0, max(x1, x0 + 1)):
+                twist = (x + y) % 3
+                px[x, y] = shade(ROPE, (1.08, 0.94, 0.82)[twist])
+
+
 def write_texture():
     base = Image.open(os.path.join(ROOT, 'tools/src/papon_base.png')).convert('RGBA')
     im = Image.new('RGBA', (TEX_W, TEX_H), (0, 0, 0, 0))
     im.paste(base, (0, 0))
     paint(im)
+    paint_journey_kit(im)
     path = os.path.join(ASSETS, 'textures/entity/wandering_papon.png')
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path)

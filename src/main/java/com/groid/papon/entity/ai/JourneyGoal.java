@@ -22,8 +22,12 @@ import java.util.List;
 
 /**
  * Walks him toward the Taco Truck a short hop at a time. The site is hundreds of blocks off, far
- * beyond any path search, so each step picks a surface waypoint ~20 blocks ahead in a fan around
- * the true bearing and only commits to one the surface-only navigator can actually reach.
+ * beyond any path search, so each step picks a surface waypoint up to ~28 blocks ahead in a fan
+ * around the true bearing and only commits to one the surface-only navigator can actually reach.
+ * Candidates are ranked by how much closer they leave him (not just by angle), and the next
+ * waypoint is chosen a few blocks before the current one is reached, so he never stops between
+ * legs. Water is only lightly penalised: deep water means the llama raft, which is as quick as
+ * walking and far shorter than going round a lake.
  *
  * Getting unstuck, in escalating order:
  *   1. a waypoint he cannot reach, or stops making progress toward, is blacklisted and another picked;
@@ -33,8 +37,13 @@ import java.util.List;
  */
 public class JourneyGoal extends Goal {
     private static final int[] FAN = {0, 20, -20, 40, -40, 65, -65, 90, -90, 125, -125};
-    private static final int[] REACH = {20, 13};
+    private static final int[] REACH = {28, 20, 12};
     private static final int MAX_PATH_TRIES = 4;
+    /** Pick the next leg this far before the end of the current one. */
+    private static final double LOOKAHEAD = 6.0;
+    /** After a pick that found nothing, wait this long before searching again. */
+    private static final int REPICK_COOLDOWN = 10;
+    private static final double WATER_PENALTY = 12;
     private static final int PROGRESS_CHECK = 40;
     private static final double MIN_PROGRESS = 0.75;
     private static final int STUCK_LIMIT = 4;
@@ -48,6 +57,7 @@ public class JourneyGoal extends Goal {
     private int ticksSinceCheck;
     private int stuckChecks;
     private int failedPicks;
+    private int repickCooldown;
 
     public JourneyGoal(WanderingPaponEntity papon) {
         this.papon = papon;
@@ -86,7 +96,9 @@ public class JourneyGoal extends Goal {
     @Override
     public void tick() {
         if (!(papon.level() instanceof ServerLevel level)) return;
-        if (waypoint == null || papon.getNavigation().isDone() || closeTo(waypoint, 2.0)) {
+        if (repickCooldown > 0) repickCooldown--;
+        boolean needLeg = waypoint == null || papon.getNavigation().isDone() || closeTo(waypoint, LOOKAHEAD);
+        if (needLeg && repickCooldown == 0) {
             pickWaypoint(level);
         }
         if (++ticksSinceCheck >= PROGRESS_CHECK) {
@@ -125,16 +137,19 @@ public class JourneyGoal extends Goal {
         List<Candidate> candidates = new ArrayList<>();
         if (dist <= REACH[0]) {
             BlockPos s = Terrain.surfaceAt(level, dest.getX(), dest.getZ());
-            if (s != null) candidates.add(new Candidate(s, -1));
+            if (s != null) candidates.add(new Candidate(s, -1000));
         }
         double bearing = Math.atan2(dz, dx);
-        for (int r : REACH) {
-            double reach = Math.min(r, Math.max(4, dist));
+        for (int i = 0; i < REACH.length; i++) {
+            double reach = Math.min(REACH[i], Math.max(4, dist));
             for (int off : FAN) {
                 double a = bearing + off * Mth.DEG_TO_RAD;
                 int x = Mth.floor(papon.getX() + Math.cos(a) * reach);
                 int z = Mth.floor(papon.getZ() + Math.sin(a) * reach);
-                Candidate c = evaluate(level, x, z, Math.abs(off) + (r == REACH[0] ? 0 : 6));
+                // Rank by distance still to go from there; shorter legs cost a little extra
+                // because each one is a stop-start risk.
+                double left = Math.sqrt(JourneyPlanner.horizontalDistSqr(new BlockPos(x, 0, z), dest));
+                Candidate c = evaluate(level, x, z, left + i * 3);
                 if (c != null) candidates.add(c);
             }
         }
@@ -152,7 +167,8 @@ public class JourneyGoal extends Goal {
             }
             blacklist(c.pos);
         }
-        waypoint = null;
+        if (papon.getNavigation().isDone()) waypoint = null;
+        repickCooldown = REPICK_COOLDOWN;
         if (++failedPicks >= FAILED_PICK_LIMIT) {
             failedPicks = 0;
             if (dist < 10) papon.arriveNearby();
@@ -168,7 +184,7 @@ public class JourneyGoal extends Goal {
         if (Math.abs(dy) > 8 || Terrain.isLava(level, s) || Terrain.isUnderground(level, s)) return null;
         boolean water = Terrain.isWaterSurface(level, s);
         if (!water && !Terrain.isDryStandable(level, s)) return null;
-        return new Candidate(s, baseScore + (water ? 60 : 0) + Math.abs(dy) * 3);
+        return new Candidate(s, baseScore + (water ? WATER_PENALTY : 0) + Math.abs(dy) * 2);
     }
 
     /** Last resort: puff over whatever is in the way onto dry ground a little further on. */

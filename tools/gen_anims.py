@@ -21,7 +21,7 @@ to sounds, so a cue can be retuned without regenerating this file.
 import json
 import os
 
-from gen_model import PROP_BONES
+from gen_model import JARRITOS, PROP_BONES
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'src/main/resources/assets/papon/animations/entity/wandering_papon.animation.json')
@@ -79,7 +79,8 @@ class Anim:
         return self
 
     def compile(self):
-        bones = {b: dict(c) for b, c in self.bones.items()}
+        bones = {b: {ch: dict(sorted(keys.items(), key=lambda kv: float(kv[0]))) for ch, keys in c.items()}
+                 for b, c in self.bones.items()}
         for prop in PROP_BONES + ['taco_a', 'taco_b']:
             if prop == 'taco_a' or prop == 'taco_b':
                 # tacos ride inside the grill; hidden with it unless keyed
@@ -138,7 +139,13 @@ def idle():
     a.rot('arm_r', [(0, [0, 0, 1]), (2.0, [-3, 0, 4]), (4.0, [0, 0, 1])])
     a.rot('arm_l', [(0, [0, 0, -1]), (2.0, [-3, 0, -4]), (4.0, [0, 0, -1])])
     a.rot('hat', [(0, [0, 0, 0]), (1.2, [0, 0, -1.5]), (2.9, [0, 0, 1.5]), (4.0, [0, 0, 0])])
+    blink(a, 2.2)
     return a
+
+
+def blink(a, t):
+    a.scale('eyelids', [(0, [0, 0, 0]), (t, [0, 0, 0]), (t + 0.05, [1, 1, 1]), (t + 0.13, [1, 1, 1]),
+                        (t + 0.18, [0, 0, 0])], 'lin')
 
 
 def sit_down():
@@ -358,7 +365,453 @@ def celebrate():
     return a
 
 
-ANIMS = [walk, idle, sit_down, grill, pack_up, receive_coupon, celebrate]
+# ---------------------------------------------------------------- the llama raft
+# While rafting the entity floats with its feet at the water line (y=0 here). He sits on the
+# llama's back (top at y=3), so root drops by 1 (his body bottom is at y=4 in the rig).
+RAFT_ROOT = [0, -1, 2]
+RAFT_LEG_POS = [0, 3, -5]
+RAFT_LEG_R = [-80, 45, 0]
+RAFT_LEG_L = [-80, -45, 0]
+ROW_READY_R = [-40, 0, 28]
+ROW_READY_L = [-40, 0, -28]
+
+
+def vis_jarritos(a, start, changes):
+    for j in JARRITOS:
+        a.vis(j, start, changes)
+
+
+def raft_sit(a, t0, t1):
+    a.pos('root', [(t0, RAFT_ROOT), (t1, RAFT_ROOT)], 'lin')
+    for leg, rot in (('leg_r', RAFT_LEG_R), ('leg_l', RAFT_LEG_L)):
+        a.rot(leg, [(t0, rot), (t1, rot)], 'lin')
+        a.pos(leg, [(t0, RAFT_LEG_POS), (t1, RAFT_LEG_POS)], 'lin')
+
+
+def bob(a, bone, length, amp, base=(0, 0, 0), cycles=1):
+    """A seamless sine-like bob on y: `cycles` full periods across `length`."""
+    p = length / cycles
+    keys = []
+    for c in range(cycles):
+        for i, dy in enumerate((0, amp, 0, -amp)):
+            keys.append((c * p + i * p / 4, [base[0], base[1] + dy, base[2]]))
+    keys.append((length, list(base)))
+    a.pos(bone, keys)
+
+
+def llama_paddle(a, length, cycles=2, amp=24):
+    """Doggy-paddle: front and back legs sweep fore and aft out of phase."""
+    p = length / cycles
+    for leg, sign, flip in (('llama_leg_fr', 1, False), ('llama_leg_fl', -1, True), ('llama_leg_br', 1, True),
+                            ('llama_leg_bl', -1, False)):
+        k0 = [0, amp * sign, 10 * sign]
+        k1 = [0, -amp * sign, -6 * sign]
+        if flip:
+            k0, k1 = k1, k0
+        keys = []
+        for c in range(cycles):
+            keys += [(c * p, k0), (c * p + p / 2, k1)]
+        keys.append((length, k0))
+        a.rot(leg, keys)
+
+
+def raft_board():
+    """In the water: pulls the llama out of his backpack, it inflates, he hops on and grabs the paddles."""
+    a = Anim('raft_board', 1.6, 'hold')
+    a.vis('raft', False, [(0.4, True)])
+    a.pos('raft', [(0, [0, 14, 12]), (0.4, [0, 14, 12]), (0.85, [0, 0, 0], 'easeOutBack:1.4'), (1.6, [0, 0, 0])], 'lin')
+    a.scale('raft', [(0, [0.05, 0.05, 0.05]), (0.4, [0.05, 0.05, 0.05]), (0.95, [1, 1, 1], 'easeOutElastic:1'),
+                     (1.28, [1, 1, 1]), (1.34, [1.12, 0.8, 1.12], 'easeOutQuad'), (1.5, [1, 1, 1], 'easeOutBack'),
+                     (1.6, [1, 1, 1])], 'lin')
+    a.rot('llama_neck', [(0, [0, 0, 0]), (0.9, [0, 0, 0]), (1.05, [-12, 0, 0]), (1.25, [6, 0, 0]),
+                         (1.45, [0, 0, 0]), (1.6, [0, 0, 0])])
+    a.rot('llama_head', [(0, [0, 0, 0]), (0.95, [0, 0, 0]), (1.1, [0, 35, 0]), (1.4, [0, 35, 0]),
+                         (1.6, [0, 0, 0])])
+    a.rot('arm_r', [(0, [0, 0, 0]), (0.3, [65, 0, 28], 'easeInOutSine'), (0.5, [-30, 0, 10], 'easeOutBack'),
+                    (1.0, [-150, 0, 20], 'easeOutQuad'), (1.3, [-60, 0, 25]), (1.45, [50, 0, 20], 'easeInOutSine'),
+                    (1.6, ROW_READY_R, 'easeOutBack')], 'lin')
+    a.rot('arm_l', [(0, [0, 0, 0]), (0.9, [0, 0, 0]), (1.0, [-150, 0, -20], 'easeOutQuad'), (1.3, [-60, 0, -25]),
+                    (1.45, [50, 0, -20], 'easeInOutSine'), (1.6, ROW_READY_L, 'easeOutBack')], 'lin')
+    a.vis('paddle_r', False, [(1.45, True)])
+    a.vis('paddle_l', False, [(1.45, True)])
+    a.pos('root', [(0, [0, 0, 0]), (0.9, [0, 0, 0]), (0.97, [0, -1, 0], 'easeOutQuad'),
+                   (1.12, [0, 8, 1], 'easeOutQuad'), (1.3, RAFT_ROOT, 'easeInQuad'), (1.6, RAFT_ROOT)], 'lin')
+    for leg, rot in (('leg_r', RAFT_LEG_R), ('leg_l', RAFT_LEG_L)):
+        a.rot(leg, [(0, [0, 0, 0]), (1.0, [0, 0, 0]), (1.3, rot, 'easeOutQuad'), (1.6, rot)], 'lin')
+        a.pos(leg, [(0, [0, 0, 0]), (1.0, [0, 0, 0]), (1.3, RAFT_LEG_POS, 'easeOutQuad'), (1.6, RAFT_LEG_POS)], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.95, [1, 1, 1]), (1.0, [1.1, 0.9, 1.1]), (1.12, [0.92, 1.1, 0.92]),
+                     (1.32, [1.12, 0.88, 1.12], 'easeOutQuad'), (1.5, [1, 1, 1], 'easeOutBack'), (1.6, [1, 1, 1])], 'lin')
+    for brow in ('brow_r', 'brow_l'):
+        a.pos(brow, [(0, [0, 0, 0]), (0.45, [0, 1.2, 0], 'easeOutBack'), (1.3, [0, 0.6, 0]), (1.6, [0, 0.4, 0])], 'lin')
+    a.sound(0.15, 'rummage').sound(0.45, 'boing').sound(0.9, 'llama').sound(1.0, 'jump').sound(1.32, 'plop')
+    return a
+
+
+def raft():
+    """Rowing loop: alternate paddles, llama doggy-paddles, everything bobs on the swell."""
+    L = 1.2
+    a = Anim('raft', L, True)
+    a.vis('raft', True, [])
+    a.vis('paddle_r', True, [])
+    a.vis('paddle_l', True, [])
+    for leg, rot in (('leg_r', RAFT_LEG_R), ('leg_l', RAFT_LEG_L)):
+        a.rot(leg, [(0, rot)], 'lin')
+        a.pos(leg, [(0, RAFT_LEG_POS)], 'lin')
+    # one stroke per half cycle: reach forward, dig, pull back
+    a.rot('arm_r', [(0, [-55, 0, 30]), (0.3, [30, 0, 34]), (0.6, [10, 0, 20]), (0.9, [-55, 0, 24]), (L, [-55, 0, 30])])
+    a.rot('arm_l', [(0, [10, 0, -20]), (0.3, [-55, 0, -24]), (0.6, [-55, 0, -30]), (0.9, [30, 0, -34]),
+                    (L, [10, 0, -20])])
+    a.rot('torso', [(0, [6, -6, 3]), (0.3, [-4, 6, -2]), (0.6, [6, 6, -3]), (0.9, [-4, -6, 2]), (L, [6, -6, 3])])
+    bob(a, 'raft', L, 0.6)
+    bob(a, 'root', L, 0.6, RAFT_ROOT)
+    a.rot('raft', [(0, [0, 0, 1.5]), (0.6, [0, 0, -1.5]), (L, [0, 0, 1.5])])
+    llama_paddle(a, L, 2)
+    a.rot('llama_neck', [(0, [4, 0, 0]), (0.3, [-3, 0, 0]), (0.6, [4, 0, 0]), (0.9, [-3, 0, 0]), (L, [4, 0, 0])])
+    a.rot('llama_head', [(0, [-4, 0, 0]), (0.3, [3, 0, 0]), (0.6, [-4, 0, 0]), (0.9, [3, 0, 0]), (L, [-4, 0, 0])])
+    a.rot('llama_tail', [(0, [0, 15, 0]), (0.3, [0, -15, 0]), (0.6, [0, 15, 0]), (0.9, [0, -15, 0]), (L, [0, 15, 0])])
+    a.pos('brow_r', [(0, [0, 0.4, 0])], 'lin')
+    a.pos('brow_l', [(0, [0, 0.4, 0])], 'lin')
+    a.rot('hat', [(0, [0, 0, -2]), (0.6, [0, 0, 2]), (L, [0, 0, -2])])
+    a.sound(0.28, 'splash').sound(0.88, 'splash')
+    return a
+
+
+def raft_idle():
+    """Nobody with him on the water: he leans back and sunbathes; the llama looks around."""
+    L = 4.0
+    a = Anim('raft_idle', L, True)
+    a.vis('raft', True, [])
+    for leg, rot in (('leg_r', RAFT_LEG_R), ('leg_l', RAFT_LEG_L)):
+        a.rot(leg, [(0, rot)], 'lin')
+        a.pos(leg, [(0, RAFT_LEG_POS)], 'lin')
+    a.rot('torso', [(0, [-14, 0, 0])], 'lin')
+    a.rot('arm_r', [(0, [-150, 0, -20])], 'lin')     # hands behind his head
+    a.rot('arm_l', [(0, [-150, 0, 20])], 'lin')
+    bob(a, 'raft', L, 0.4, cycles=2)
+    bob(a, 'root', L, 0.4, RAFT_ROOT, cycles=2)
+    a.rot('raft', [(0, [0.8, 0, 1]), (1.0, [-0.8, 0, -1]), (2.0, [0.8, 0, 1]), (3.0, [-0.8, 0, -1]),
+                   (L, [0.8, 0, 1])])
+    a.rot('llama_head', [(0, [0, 0, 0]), (0.8, [0, 0, 0]), (1.3, [0, 40, 4], 'easeInOutSine'),
+                         (2.2, [0, 40, 4], 'easeInOutSine'), (2.8, [0, -35, -4], 'easeInOutSine'),
+                         (3.5, [0, -35, -4], 'easeInOutSine'), (L, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.rot('llama_tail', [(0, [0, 0, 0]), (1.0, [0, 20, 0]), (1.2, [0, -20, 0]), (1.4, [0, 0, 0]), (L, [0, 0, 0])])
+    a.rot('hat', [(0, [22, 0, 0])], 'lin')            # hat tipped over his eyes
+    a.pos('hat', [(0, [0, -1.5, -1])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (2.0, [1.01, 1.025, 1.01]), (L, [1, 1, 1])])
+    a.sound(1.2, 'llama')
+    return a
+
+
+def raft_land():
+    """Just hopped onto the shore: shakes off, and the llama shrinks back into the pack."""
+    a = Anim('raft_land', 1.4, 'hold')
+    a.vis('raft', True, [(1.05, False)])
+    a.pos('raft', [(0, [0, -10, 18]), (0.45, [0, -10, 18]), (1.0, [0, 14, 12], 'easeInBack')], 'lin')
+    a.scale('raft', [(0, [1, 1, 1]), (0.45, [1, 1, 1]), (1.0, [0.05, 0.05, 0.05], 'easeInBack')], 'lin')
+    a.rot('llama_head', [(0, [0, 0, 0]), (0.15, [0, 0, 20]), (0.3, [0, 0, -20]), (0.45, [0, 0, 0]), (1.4, [0, 0, 0])])
+    a.vis('paddle_r', True, [(0.1, False)])
+    a.vis('paddle_l', True, [(0.1, False)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.5, [0, 0, 0]), (0.6, [0, 0, 12]), (0.7, [0, 0, -12]), (0.8, [0, 0, 10]),
+                    (0.9, [0, 0, -10]), (1.0, [0, 0, 6]), (1.1, [0, 0, -4]), (1.25, [0, 0, 0]), (1.4, [0, 0, 0])])
+    a.rot('arm_r', [(0, [0, 0, 0]), (0.5, [0, 0, 10]), (0.75, [0, 0, 30]), (1.0, [0, 0, 10]), (1.4, [0, 0, 0])])
+    a.rot('arm_l', [(0, [0, 0, 0]), (0.5, [0, 0, -10]), (0.75, [0, 0, -30]), (1.0, [0, 0, -10]), (1.4, [0, 0, 0])])
+    a.rot('hat', [(0, [0, 0, 0]), (0.6, [0, 0, -8]), (0.7, [0, 0, 8]), (0.8, [0, 0, -6]), (0.9, [0, 0, 6]),
+                  (1.1, [0, 0, 0]), (1.4, [0, 0, 0])])
+    a.scale('body', [(0, [1.1, 0.9, 1.1]), (0.15, [1, 1, 1], 'easeOutBack'), (1.4, [1, 1, 1])], 'lin')
+    a.sound(0.0, 'plop').sound(0.55, 'shake_off').sound(0.95, 'pop')
+    return a
+
+
+# ---------------------------------------------------------------- Jarritos
+CHUG_R = [-112, -52, 0]
+
+
+def run():
+    """Jarrito zoomies: faster, bigger stride, leaning into it."""
+    L = 0.5
+    a = Anim('run', L, True)
+    a.rot('leg_r', [(0, [36, 0, 0]), (L / 2, [-36, 0, 0]), (L, [36, 0, 0])])
+    a.rot('leg_l', [(0, [-36, 0, 0]), (L / 2, [36, 0, 0]), (L, [-36, 0, 0])])
+    a.rot('arm_r', [(0, [-50, 0, 10]), (L / 2, [40, 0, 6]), (L, [-50, 0, 10])])
+    a.rot('arm_l', [(0, [40, 0, -6]), (L / 2, [-50, 0, -10]), (L, [40, 0, -6])])
+    a.pos('root', [(0, [0, 0, 0]), (L / 4, [0, 2, 0]), (L / 2, [0, 0, 0]), (3 * L / 4, [0, 2, 0]), (L, [0, 0, 0])])
+    a.rot('torso', [(0, [12, 6, -4]), (L / 2, [12, -6, 4]), (L, [12, 6, -4])])
+    a.scale('body', [(0, [1.06, 0.94, 1.06]), (L / 4, [0.96, 1.05, 0.96]), (L / 2, [1.06, 0.94, 1.06]),
+                     (3 * L / 4, [0.96, 1.05, 0.96]), (L, [1.06, 0.94, 1.06])])
+    a.rot('hat', [(0, [-10, 0, 0]), (L / 4, [-16, 0, 2]), (L / 2, [-10, 0, 0]), (3 * L / 4, [-16, 0, -2]),
+                  (L, [-10, 0, 0])])
+    a.pos('hat', [(0, [0, 0, 0.5]), (L / 4, [0, 0.8, 1]), (L / 2, [0, 0, 0.5]), (3 * L / 4, [0, 0.8, 1]),
+                  (L, [0, 0, 0.5])])
+    a.pos('brow_r', [(0, [0, 0.8, 0])], 'lin')
+    a.pos('brow_l', [(0, [0, 0.8, 0])], 'lin')
+    a.pos('backpack', [(0, [0, -0.3, 0.3]), (L / 4, [0, 0.8, 0.8]), (L / 2, [0, -0.3, 0.3]),
+                       (3 * L / 4, [0, 0.8, 0.8]), (L, [0, -0.3, 0.3])])
+    return a
+
+
+def drink():
+    """Studies the bottle, chugs it in three gulps, tosses it, burps, and crouches to sprint."""
+    a = Anim('drink', 2.4, 'hold')
+    vis_jarritos(a, True, [(1.9, False)])
+    a.rot('arm_r', [(0, [-30, 0, 4]), (0.35, [-80, -45, 0], 'easeOutBack'), (0.5, [-80, -45, 0]),
+                    (0.7, CHUG_R, 'easeInOutSine'), (1.6, CHUG_R), (1.75, [-80, -10, 10], 'easeInOutSine'),
+                    (1.9, [60, 0, 30], 'easeOutQuad'), (2.15, [0, 0, 4], 'easeInOutSine'), (2.4, [20, 0, 6])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.35, [6, 0, 0]), (0.7, [-16, 0, 0], 'easeInOutSine'), (1.6, [-18, 0, 0]),
+                    (1.8, [0, 0, 0], 'easeInOutSine'), (2.0, [-6, 0, 0]), (2.15, [0, 0, 0]),
+                    (2.4, [14, 0, 0], 'easeOutBack')], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.75, [1, 1, 1]), (0.85, [1.04, 0.96, 1.04]), (0.95, [1, 1, 1]),
+                     (1.15, [1.04, 0.96, 1.04]), (1.25, [1, 1, 1]), (1.45, [1.04, 0.96, 1.04]), (1.55, [1, 1, 1]),
+                     (1.98, [1, 1, 1]), (2.05, [0.9, 1.14, 0.9], 'easeOutQuad'), (2.2, [1, 1, 1], 'easeOutBack'),
+                     (2.4, [1.05, 0.95, 1.05])], 'lin')
+    for brow in ('brow_r', 'brow_l'):
+        a.pos(brow, [(0, [0, 0, 0]), (0.35, [0, 1.0, 0], 'easeOutBack'), (0.7, [0, 0, 0]), (1.6, [0, 0, 0]),
+                     (2.0, [0, 0, 0]), (2.06, [0, 1.6, 0], 'easeOutBack'), (2.4, [0, 0.8, 0])], 'lin')
+    a.scale('eyelids', [(0, [0, 0, 0]), (0.7, [0, 0, 0]), (0.8, [1, 1, 1]), (1.6, [1, 1, 1]), (1.7, [0, 0, 0]),
+                        (2.4, [0, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (2.2, [0, 0, 0]), (2.4, [0, -1.2, 0], 'easeOutQuad')], 'lin')
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 0]), (2.2, [0, 0, 0]), (2.4, [-20 * s, 0, 0])])
+    a.rot('hat', [(0, [0, 0, 0]), (0.7, [-10, 0, 0]), (1.6, [-12, 0, 0]), (2.05, [0, 0, 8]), (2.4, [-6, 0, 0])])
+    a.sound(0.3, 'uncap').sound(0.85, 'gulp').sound(1.15, 'gulp').sound(1.45, 'gulp').sound(1.9, 'toss')
+    a.sound(2.02, 'burp')
+    return a
+
+
+def smash():
+    """The yellow one. He takes it, realises, seethes, and smashes it on the ground. Impact at 1.4s."""
+    a = Anim('smash', 3.0, 'hold')
+    vis_jarritos(a, True, [(1.42, False)])
+    a.rot('arm_r', [(0, [-30, 0, 4]), (0.35, [-80, -45, 0], 'easeOutBack'), (0.9, [-80, -45, 0]),
+                    (1.0, [-84, -45, 4]), (1.05, [-76, -45, -4]), (1.1, [-84, -45, 4]),
+                    (1.32, [-178, 0, 12], 'easeOutQuad'), (1.42, [25, 0, 6], 'easeInQuad'), (1.6, [10, 0, 4]),
+                    (2.4, [10, 0, 4]), (2.7, [-70, 30, -40], 'easeInOutSine'), (3.0, [-70, 30, -40])], 'lin')
+    a.rot('arm_l', [(0, [0, 0, 0]), (0.9, [0, 0, 0]), (1.0, [0, 0, -14]), (1.4, [0, 0, -14]),
+                    (2.4, [0, 0, -6]), (2.7, [-70, -30, 40], 'easeInOutSine'), (3.0, [-70, -30, 40])], 'lin')
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.rot(brow, [(0, [0, 0, 0]), (0.35, [0, 0, 0]), (0.6, [0, 0, 18 * s], 'easeOutBack'),
+                     (3.0, [0, 0, 18 * s])], 'lin')
+        a.pos(brow, [(0, [0, 0, 0]), (0.35, [0, 0.8, 0]), (0.6, [0, -0.4, 0]), (3.0, [0, -0.4, 0])], 'lin')
+    shake = [(0, [0, 0, 0]), (0.6, [0, 0, 0])]
+    t = 0.6
+    for i in range(6):
+        t += 0.06
+        shake.append((t, [0, 0, 2.5 if i % 2 == 0 else -2.5]))
+    shake += [(1.0, [0, 0, 0]), (1.32, [-10, 0, 0], 'easeOutQuad'), (1.42, [18, 0, 0], 'easeInQuad'),
+              (1.65, [6, 0, 0]), (2.4, [6, 0, 0]), (2.7, [-4, 0, 0]), (3.0, [-4, 0, 0])]
+    a.rot('torso', shake, 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.6, [1, 1, 1]), (0.75, [1.05, 0.97, 1.05]), (0.9, [1, 1, 1]),
+                     (1.32, [0.94, 1.08, 0.94]), (1.42, [1.12, 0.88, 1.12], 'easeInQuad'),
+                     (1.6, [1, 1, 1], 'easeOutBack'), (2.7, [1, 1, 1]), (2.8, [1.04, 0.97, 1.04]),
+                     (3.0, [1, 1, 1])], 'lin')
+    stomps = [(0, [0, 0, 0]), (1.55, [0, 0, 0])]
+    for t0, leg in ((1.6, 'r'), (1.85, 'l'), (2.1, 'r')):
+        stomps += [(t0, [0, 0, 0]), (t0 + 0.1, [0, 3, 0], 'easeOutQuad'), (t0 + 0.18, [0, 0, 0], 'easeInQuad')]
+    stomps.append((3.0, [0, 0, 0]))
+    a.pos('root', stomps, 'lin')
+    for leg, ts in (('leg_r', (1.6, 2.1)), ('leg_l', (1.85,))):
+        keys = [(0, [0, 0, 0])]
+        for t0 in ts:
+            keys += [(t0, [0, 0, 0]), (t0 + 0.1, [-40, 0, 0], 'easeOutQuad'), (t0 + 0.18, [0, 0, 0], 'easeInQuad')]
+        keys.append((3.0, [0, 0, 0]))
+        a.rot(leg, keys, 'lin')
+    a.pos('hat', [(0, [0, 0, 0]), (1.42, [0, 0, 0]), (1.5, [0, 2, 0], 'easeOutQuad'), (1.65, [0, 0, 0], 'easeInQuad'),
+                  (3.0, [0, 0, 0])], 'lin')
+    a.sound(0.4, 'notice').sound(0.65, 'grumble').sound(1.42, 'smash').sound(1.68, 'stomp').sound(1.93, 'stomp')
+    a.sound(2.18, 'stomp').sound(2.7, 'huff')
+    return a
+
+
+def tired():
+    """The Jarrito wears off: hunched, panting, wipes his brow, sighs, straightens up."""
+    a = Anim('tired', 2.6, 'hold')
+    a.rot('torso', [(0, [12, 0, 0]), (0.25, [24, 0, 0], 'easeOutQuad'), (1.1, [22, 0, 0]), (1.3, [8, 0, 0]),
+                    (1.8, [8, 0, 0]), (2.0, [26, 0, 0]), (2.35, [0, 0, 0], 'easeOutBack'), (2.6, [0, 0, 0])], 'lin')
+    a.rot('arm_r', [(0, [-20, 0, 6]), (0.25, [-18, 0, 4]), (1.1, [-18, 0, 4]), (1.35, [-160, -40, 0], 'easeOutQuad'),
+                    (1.45, [-160, -60, 0]), (1.55, [-160, -25, 0]), (1.65, [-160, -55, 0]),
+                    (1.9, [-10, 0, 4], 'easeInOutSine'), (2.6, [0, 0, 0])], 'lin')
+    a.rot('arm_l', [(0, [-20, 0, -6]), (0.25, [-18, 0, -4]), (2.0, [-18, 0, -4]), (2.6, [0, 0, 0])])
+    pant = [(0, [1, 1, 1])]
+    t = 0.0
+    while t < 1.1:
+        pant += [(t + 0.09, [1.04, 0.95, 1.04]), (t + 0.18, [1, 1, 1])]
+        t += 0.18
+    pant += [(2.0, [1.02, 0.98, 1.02]), (2.2, [0.97, 1.03, 0.97]), (2.6, [1, 1, 1])]
+    a.scale('body', pant)
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.rot(brow, [(0, [0, 0, -12 * s]), (2.2, [0, 0, -12 * s]), (2.6, [0, 0, 0])])
+    a.scale('eyelids', [(0, [0.6, 0.6, 0.6]), (2.2, [0.6, 0.6, 0.6]), (2.35, [0, 0, 0]), (2.6, [0, 0, 0])], 'lin')
+    a.rot('hat', [(0, [8, 0, 0]), (1.4, [8, 0, 0]), (1.55, [-6, 0, 4]), (1.8, [8, 0, 0]), (2.35, [0, 0, 0]),
+                  (2.6, [0, 0, 0])])
+    a.pos('root', [(0, [0, 0, 0]), (0.25, [0, -0.8, 0]), (2.2, [0, -0.8, 0]), (2.4, [0, 0, 0]), (2.6, [0, 0, 0])])
+    a.sound(0.1, 'pant').sound(0.6, 'pant').sound(1.4, 'wipe').sound(2.05, 'sigh')
+    return a
+
+
+# ---------------------------------------------------------------- bedtime
+# Lying on his back on the pad: root tipped back 90 degrees and lifted by half his depth.
+LIE_ROOT_POS = [0, 8, 0]
+LIE_ROOT_ROT = [-90, 0, 0]
+
+
+def lying(a, t0, t1):
+    a.pos('root', [(t0, LIE_ROOT_POS), (t1, LIE_ROOT_POS)], 'lin')
+    a.rot('root', [(t0, LIE_ROOT_ROT), (t1, LIE_ROOT_ROT)], 'lin')
+
+
+def sleep_setup():
+    """Yawns, sets the pack down, unrolls the bag, lies down, pulls the cover over, falls asleep."""
+    a = Anim('sleep_setup', 4.5, 'hold')
+    # yawn and stretch
+    a.rot('arm_r', [(0, [0, 0, 0]), (0.35, [-165, 0, 28], 'easeOutQuad'), (0.6, [-165, 0, 28]),
+                    (0.8, [0, 0, 6], 'easeInOutSine'), (0.95, [65, 0, 28], 'easeInOutSine'),
+                    (1.15, [-30, 0, 40], 'easeInOutSine'), (1.3, [-10, 0, 20]), (1.55, [-50, -20, 10]),
+                    (1.9, [-50, -20, 10]), (2.2, [0, 0, 6]), (4.5, [0, 0, 6])], 'lin')
+    a.rot('arm_l', [(0, [0, 0, 0]), (0.35, [-165, 0, -28], 'easeOutQuad'), (0.6, [-165, 0, -28]),
+                    (0.8, [0, 0, -6], 'easeInOutSine'), (4.5, [0, 0, -6])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.35, [0.94, 1.1, 0.94]), (0.6, [0.94, 1.1, 0.94]), (0.8, [1, 1, 1]),
+                     (2.9, [1, 1, 1]), (2.96, [1.06, 0.94, 1.06]), (3.1, [1, 1, 1]), (3.9, [1, 1, 1]),
+                     (4.2, [1.01, 1.02, 1.01]), (4.5, [1, 1, 1])])
+    a.scale('eyelids', [(0, [0, 0, 0]), (0.25, [1, 1, 1]), (0.6, [1, 1, 1]), (0.75, [0, 0, 0]), (3.8, [0, 0, 0]),
+                        (3.95, [0.5, 0.5, 0.5]), (4.05, [0.2, 0.2, 0.2]), (4.25, [1, 1, 1]), (4.5, [1, 1, 1])], 'lin')
+    # pack off his back and onto the ground beside him
+    a.vis('backpack', True, [(1.0, False)])
+    a.vis('backpack_ground', False, [(1.0, True)])
+    a.pos('backpack_ground', [(0, [14, 10, 0]), (1.0, [14, 10, 0]), (1.3, [0, 0, 0], 'easeOutBounce'),
+                              (4.5, [0, 0, 0])], 'lin')
+    # the bedroll unrolls behind him
+    a.vis('sleeping_bag', False, [(1.4, True)])
+    a.scale('sleeping_bag', [(0, [0, 0, 0]), (1.38, [0, 0, 0]), (1.4, [1, 1, 0.1], 'lin'),
+                             (1.95, [1, 1, 1], 'easeOutBack'), (4.5, [1, 1, 1])], 'lin')
+    # blanket pulled up from his feet to his chin
+    a.scale('bag_cover', [(0, [0, 0, 0]), (3.18, [0, 0, 0]), (3.2, [1, 0.25, 0.05], 'lin'),
+                          (3.65, [1, 1, 1], 'easeOutBack'), (4.5, [1, 1, 1])], 'lin')
+    # lie back onto the pad
+    a.pos('root', [(0, [0, 0, 0]), (2.3, [0, 0, 0]), (2.45, [0, -1, 0], 'easeOutQuad'),
+                   (2.9, LIE_ROOT_POS, 'easeInQuad'), (2.98, [0, 7.4, 0]), (3.1, LIE_ROOT_POS), (4.5, LIE_ROOT_POS)], 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (2.45, [0, 0, 0]), (2.9, LIE_ROOT_ROT, 'easeInQuad'), (4.5, LIE_ROOT_ROT)], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.35, [-8, 0, 0]), (0.6, [-8, 0, 0]), (0.8, [0, 0, 0]), (1.55, [10, 10, 0]),
+                    (1.9, [10, 10, 0]), (2.2, [0, 0, 0]), (4.5, [0, 0, 0])])
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.rot(brow, [(0, [0, 0, 0]), (3.8, [0, 0, 0]), (4.3, [0, 0, -8 * s]), (4.5, [0, 0, -8 * s])])
+    a.rot('hat', [(0, [0, 0, 0]), (3.0, [0, 0, 0]), (3.3, [-30, 0, 0], 'easeOutBack'), (4.5, [-30, 0, 0])], 'lin')
+    a.sound(0.15, 'yawn').sound(1.25, 'thud').sound(1.45, 'unroll').sound(2.9, 'plop').sound(3.4, 'rustle')
+    return a
+
+
+def sleep_pose(a, t0, t1):
+    lying(a, t0, t1)
+    a.vis('backpack', False, [])
+    a.vis('backpack_ground', True, [])
+    a.vis('sleeping_bag', True, [])
+    a.rot('arm_r', [(t0, [0, 0, 6])], 'lin')
+    a.rot('arm_l', [(t0, [0, 0, -6])], 'lin')
+    a.rot('hat', [(t0, [-30, 0, 0])], 'lin')
+
+
+def sleep():
+    L = 4.0
+    a = Anim('sleep', L, True)
+    sleep_pose(a, 0, L)
+    a.vis('eyelids', True, [])
+    a.scale('bag_cover', [(0, [1, 1, 1]), (L / 2, [1.01, 1.05, 1.01]), (L, [1, 1, 1])])
+    a.scale('body', [(0, [1, 1, 1]), (L / 2, [1.015, 1.03, 1.015]), (L, [1, 1, 1])])
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.rot(brow, [(0, [0, 0, -8 * s]), (2.6, [0, 0, -8 * s]), (2.7, [0, 0, -2 * s]), (2.85, [0, 0, -8 * s]),
+                     (L, [0, 0, -8 * s])])
+    a.rot('hat', [(0, [-30, 0, 0]), (L / 2, [-27, 0, 0]), (L, [-30, 0, 0])])
+    a.sound(0.4, 'snore').sound(2.4, 'snore_out')
+    return a
+
+
+def sleep_flinch():
+    """A chancla that did not wake him: a jolt, one eye flutters, back to sleep."""
+    a = Anim('sleep_flinch', 0.8, 'hold')
+    sleep_pose(a, 0, 0.8)
+    a.pos('root', [(0, LIE_ROOT_POS), (0.06, [0, 10, 0], 'easeOutQuad'), (0.25, LIE_ROOT_POS, 'easeOutBounce'),
+                   (0.8, LIE_ROOT_POS)], 'lin')
+    a.scale('bag_cover', [(0, [1, 1, 1]), (0.06, [1.1, 0.85, 1.1]), (0.3, [1, 1, 1], 'easeOutBack'), (0.8, [1, 1, 1])], 'lin')
+    a.scale('eyelids', [(0, [1, 1, 1]), (0.08, [0.3, 0.3, 0.3]), (0.3, [0.3, 0.3, 0.3]), (0.45, [1, 1, 1]),
+                        (0.8, [1, 1, 1])], 'lin')
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 0, 0]), (0.08, [0, 1.2, 0]), (0.4, [0, 0, 0]), (0.8, [0, 0, 0])])
+        a.rot(brow, [(0, [0, 0, -8 * s]), (0.08, [0, 0, 6 * s]), (0.5, [0, 0, -8 * s]), (0.8, [0, 0, -8 * s])])
+    a.rot('hat', [(0, [-30, 0, 0]), (0.06, [-18, 0, 10]), (0.3, [-30, 0, 0]), (0.8, [-30, 0, 0])])
+    a.sound(0.02, 'snort')
+    return a
+
+
+def pack_bed(a, t_roll, t_pack):
+    """Rolls the bag up and swings the pack back on."""
+    a.scale('sleeping_bag', [(0, [1, 1, 1]), (t_roll, [1, 1, 1]), (t_roll + 0.45, [1, 1, 0.1], 'easeInQuad'),
+                             (t_roll + 0.47, [0, 0, 0], 'lin')], 'lin')
+    a.vis('backpack_ground', True, [(t_pack, False)])
+    a.vis('backpack', False, [(t_pack + 0.15, True)])
+
+
+def wake_up():
+    """Morning: eyes open, stretch, throws the cover off, sits up, rolls up, pack on."""
+    a = Anim('wake_up', 4.0, 'hold')
+    a.scale('eyelids', [(0, [1, 1, 1]), (0.3, [1, 1, 1]), (0.45, [0.4, 0.4, 0.4]), (0.6, [1, 1, 1]),
+                        (0.75, [0, 0, 0]), (1.75, [0, 0, 0]), (1.85, [1, 1, 1]), (2.1, [1, 1, 1]), (2.2, [0, 0, 0])], 'lin')
+    a.scale('bag_cover', [(0, [1, 1, 1]), (0.75, [1, 1, 1]), (1.05, [1, 0.25, 0.05], 'easeInQuad'),
+                          (1.07, [0, 0, 0], 'lin')], 'lin')
+    a.pos('root', [(0, LIE_ROOT_POS), (1.0, LIE_ROOT_POS), (1.5, [0, 0, 0], 'easeOutBack'), (4.0, [0, 0, 0])], 'lin')
+    a.rot('root', [(0, LIE_ROOT_ROT), (1.0, LIE_ROOT_ROT), (1.5, [0, 0, 0], 'easeOutBack'), (4.0, [0, 0, 0])], 'lin')
+    a.rot('arm_r', [(0, [0, 0, 6]), (0.7, [0, 0, 6]), (0.95, [-90, 0, 40], 'easeOutQuad'), (1.5, [0, 0, 6]),
+                    (1.75, [-165, 0, 28], 'easeOutQuad'), (2.2, [-165, 0, 28]), (2.4, [0, 0, 6]),
+                    (3.0, [-40, -20, 20]), (3.1, [65, 0, 28], 'easeInOutSine'), (3.4, [0, 0, 3], 'easeInOutSine'),
+                    (4.0, [0, 0, 0])], 'lin')
+    a.rot('arm_l', [(0, [0, 0, -6]), (1.5, [0, 0, -6]), (1.75, [-165, 0, -28], 'easeOutQuad'), (2.2, [-165, 0, -28]),
+                    (2.4, [0, 0, -6]), (4.0, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (1.75, [0.94, 1.1, 0.94]), (2.2, [0.94, 1.1, 0.94]), (2.4, [1, 1, 1]),
+                     (3.6, [1, 1, 1]), (3.7, [1.08, 0.92, 1.08]), (3.85, [1, 1, 1], 'easeOutBack'), (4.0, [1, 1, 1])], 'lin')
+    pack_bed(a, 2.4, 3.1)
+    a.pos('backpack_ground', [(0, [0, 0, 0]), (3.0, [0, 0, 0]), (3.1, [8, 8, 0])], 'lin')
+    a.rot('hat', [(0, [-30, 0, 0]), (1.0, [-30, 0, 0]), (1.5, [6, 0, 0], 'easeOutBack'), (1.8, [0, 0, 0]),
+                  (4.0, [0, 0, 0])])
+    a.sound(0.4, 'yawn').sound(1.0, 'rustle').sound(2.4, 'unroll').sound(3.15, 'rummage')
+    return a
+
+
+def angry_wake():
+    """The 2% chancla: bolts awake, furious, shakes his fist, packs up in a huff."""
+    a = Anim('angry_wake', 2.6, 'hold')
+    a.vis('eyelids', True, [(0.05, False)])
+    a.scale('bag_cover', [(0, [1, 1, 1]), (0.35, [1, 1, 1]), (0.4, [0, 0, 0], 'lin')], 'lin')
+    a.pos('bag_cover', [(0, [0, 0, 0]), (0.35, [0, 12, 8], 'easeOutQuad')], 'lin')
+    a.rot('bag_cover', [(0, [0, 0, 0]), (0.35, [-50, 0, 25], 'easeOutQuad')], 'lin')
+    a.pos('root', [(0, LIE_ROOT_POS), (0.1, LIE_ROOT_POS), (0.4, [0, 6, 0], 'easeOutQuad'),
+                   (0.6, [0, 0, 0], 'easeInQuad'), (2.6, [0, 0, 0])], 'lin')
+    a.rot('root', [(0, LIE_ROOT_ROT), (0.1, LIE_ROOT_ROT), (0.45, [0, 0, 0], 'easeOutBack'), (2.6, [0, 0, 0])], 'lin')
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.rot(brow, [(0, [0, 0, -8 * s]), (0.08, [0, 0, 20 * s], 'easeOutBack'), (2.3, [0, 0, 18 * s]),
+                     (2.6, [0, 0, 10 * s])], 'lin')
+        a.pos(brow, [(0, [0, 0, 0]), (0.08, [0, 1.6, 0]), (0.3, [0, -0.5, 0]), (2.6, [0, -0.3, 0])], 'lin')
+    shake = [(0, [0, 0, 6]), (0.5, [0, 0, 6]), (0.7, [-160, 0, 20], 'easeOutBack')]
+    t = 0.7
+    for i in range(7):
+        t += 0.08
+        shake.append((t, [-160, 0, 30 if i % 2 == 0 else 10]))
+    shake += [(1.5, [-30, 0, 10], 'easeInOutSine'), (1.7, [-40, -20, 20]), (2.0, [65, 0, 28], 'easeInOutSine'),
+              (2.3, [0, 0, 4], 'easeInOutSine'), (2.6, [0, 0, 0])]
+    a.rot('arm_r', shake, 'lin')
+    a.rot('arm_l', [(0, [0, 0, -6]), (0.45, [0, 0, -30]), (0.7, [0, 0, -14]), (1.4, [0, 0, -14]),
+                    (2.6, [0, 0, 0])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.7, [-6, 0, 0]), (1.4, [-6, 0, 0]), (1.55, [10, 0, 0]), (1.7, [0, 0, 0]),
+                    (2.6, [0, 0, 0])])
+    a.pos('hat', [(0, [0, 0, 0]), (0.3, [0, 7, 0], 'easeOutQuad'), (0.65, [0, 0, 0], 'easeOutBounce'),
+                  (2.6, [0, 0, 0])], 'lin')
+    a.rot('hat', [(0, [-30, 0, 0]), (0.3, [0, 0, 25]), (0.65, [0, 0, 0]), (2.6, [0, 0, 0])])
+    pack_bed(a, 1.5, 2.0)
+    a.pos('backpack_ground', [(0, [0, 0, 0]), (1.95, [0, 0, 0]), (2.0, [8, 8, 0])], 'lin')
+    a.sound(0.05, 'gasp').sound(0.75, 'angry').sound(1.2, 'angry').sound(1.6, 'unroll').sound(2.0, 'rummage')
+    return a
+
+
+ANIMS = [walk, idle, sit_down, grill, pack_up, receive_coupon, celebrate,
+         raft_board, raft, raft_idle, raft_land, run, drink, smash, tired,
+         sleep_setup, sleep, sleep_flinch, wake_up, angry_wake]
+
 
 
 def build():

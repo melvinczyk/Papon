@@ -20,6 +20,8 @@ import org.jetbrains.annotations.Nullable;
  * loaded, because a heightmap or light lookup on an unloaded chunk would load it synchronously.
  */
 public final class Terrain {
+    /** The Taco Truck site keeps at least this many blocks between itself and any water. */
+    public static final int INLAND_RADIUS = 12;
     /** Sky light below this, with something overhead, counts as being in a cave. */
     private static final int CAVE_SKY_LIGHT = 8;
     /** Deeper than this below the column's top counts as underground whatever the light says. */
@@ -84,6 +86,44 @@ public final class Terrain {
 
     public static boolean isWetBiome(Holder<Biome> biome) {
         return biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN) || biome.is(BiomeTags.IS_RIVER);
+    }
+
+    /** Wet, or a beach: nowhere for a Taco Truck. */
+    public static boolean isShoreBiome(Holder<Biome> biome) {
+        return isWetBiome(biome) || biome.is(BiomeTags.IS_BEACH);
+    }
+
+    /**
+     * No water surface and no beach within {@code radius} of the spot (sampled every 3 blocks over
+     * the loaded surface). Unloaded columns count as not inland, so this never guesses.
+     */
+    public static boolean isInland(Level level, BlockPos spot, int radius) {
+        if (level.getBiome(spot).is(BiomeTags.IS_BEACH)) return false;
+        for (int dx = -radius; dx <= radius; dx += 3) {
+            for (int dz = -radius; dz <= radius; dz += 3) {
+                if (dx * dx + dz * dz > radius * radius) continue;
+                BlockPos s = surfaceAt(level, spot.getX() + dx, spot.getZ() + dz);
+                if (s == null || isWaterSurface(level, s) || isLava(level, s)) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Nearest flat, dry, open-sky spot to (x, z) that is also inland; null if none within radius. */
+    @Nullable
+    public static BlockPos findInlandSpotNear(Level level, int x, int z, int radius) {
+        for (int r = 0; r <= radius; r += 2) {
+            for (int dx = -r; dx <= r; dx += 2) {
+                for (int dz = -r; dz <= r; dz += 2) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    BlockPos s = surfaceAt(level, x + dx, z + dz);
+                    if (s == null || !isDryStandable(level, s) || isUnderground(level, s)) continue;
+                    if (!isFlat(level, s, 1) || !isInland(level, s, INLAND_RADIUS)) continue;
+                    return s;
+                }
+            }
+        }
+        return null;
     }
 
     /**

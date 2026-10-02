@@ -18,6 +18,7 @@ public final class PaponConfig {
         b.push("journey");
         JOURNEY_MIN_DISTANCE = b.comment("Closest a new Taco Truck site may be to where the coupon was handed over, in blocks.")
                 .defineInRange("minDistance", 800, 64, 100_000);
+        // Both distances can also be changed in game with /papon distance <min> [max].
         JOURNEY_MAX_DISTANCE = b.comment("Farthest a new Taco Truck site may be, in blocks.")
                 .defineInRange("maxDistance", 1200, 64, 100_000);
         REUSE_EXISTING_TRUCKS = b.comment("Send a new Wandering Papon to the nearest Taco Truck that already stands (within maxDistance) instead of a fresh site.")
