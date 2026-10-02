@@ -23,8 +23,13 @@ public class CrowdModel<T extends TacoNpc> extends GeoModel<T> {
     private final boolean turnsHead;
 
     public CrowdModel(String name, String animationFile, boolean turnsHead) {
-        this.geo = PaponMod.id("geo/entity/" + name + ".geo.json");
-        this.texture = PaponMod.id("textures/entity/" + name + ".png");
+        this(name, name, animationFile, turnsHead);
+    }
+
+    /** Geo and texture by different names: a mesh-bodied rig borrows its props' texture. */
+    public CrowdModel(String geoName, String textureName, String animationFile, boolean turnsHead) {
+        this.geo = PaponMod.id("geo/entity/" + geoName + ".geo.json");
+        this.texture = PaponMod.id("textures/entity/" + textureName + ".png");
         this.animation = PaponMod.id("animations/entity/" + animationFile + ".animation.json");
         this.turnsHead = turnsHead;
     }
