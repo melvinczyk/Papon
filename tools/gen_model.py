@@ -128,8 +128,13 @@ BONES = [
     bone('backpack_ground', [-17, 0, 6], None, [
         cube([-23, 0, 4], [12, 12, 4], [64, 0]),
     ]),
+    # A burlap potato sack: a flattened sack underneath, and the sack itself pulled up to his chin
+    # and cinched with rope. (Bones keep their sleeping-bag names so the animations need no change.)
     bone('sleeping_bag', [0, 0, -2], None, [cube([-13, 0, -2], [26, 1, 30], [0, 128])]),
-    bone('bag_cover', [0, 0.5, -1.5], 'sleeping_bag', [cube([-12.5, 0.5, -1.5], [25, 17, 18], [0, 160])]),
+    bone('bag_cover', [0, 0.5, -1.5], 'sleeping_bag', [
+        cube([-12.5, 0.5, -1.5], [25, 17, 18], [0, 160]),
+        cube([-12.5, 0.5, 14.2], [25, 17, 1.2], [96, 160], inflate=0.35),
+    ]),
 ]
 
 PROP_BONES = ['grill', 'grill_hand', 'shaker', 'coupon', 'spatula', 'eyelids', 'raft', 'paddle_r', 'paddle_l',
@@ -216,15 +221,15 @@ def paint(im):
         if name in ('south', 'up'):
             fill(px, (r[0] + 2, r[1], r[0] + 3, r[3]), (90, 60, 36), 0.05)
             fill(px, (r[2] - 3, r[1], r[2] - 2, r[3]), (90, 60, 36), 0.05)
-    # bedroll 12x3x3 @ (64,16): red wool with ties
+    # bedroll 12x3x3 @ (64,16): the potato sack, rolled up and tied with rope
     for name, r in faces(64, 16, 12, 3, 3).items():
-        fill(px, r, (168, 48, 44), 0.1)
+        burlap(px, r)
         if name not in ('east', 'west'):
-            fill(px, (r[0] + 2, r[1], r[0] + 3, r[3]), (70, 50, 30), 0.03)
-            fill(px, (r[2] - 3, r[1], r[2] - 2, r[3]), (70, 50, 30), 0.03)
+            fill(px, (r[0] + 2, r[1], r[0] + 3, r[3]), ROPE, 0.06)
+            fill(px, (r[2] - 3, r[1], r[2] - 2, r[3]), ROPE, 0.06)
         else:
-            fill(px, r, (196, 70, 60), 0.05)
-            px[r[0] + 1, r[1] + 1] = (120, 30, 28, 255)
+            x0, y0 = int(r[0]), int(r[1])
+            px[x0 + 1, y0 + 1] = shade(BURLAP_DK, 0.8)  # the roll's spiral end
     # grill basin 10x3x8 @ (0,84): charcoal black metal, red stripe
     metal, metal_hi = (48, 48, 54), (88, 88, 98)
     for name, r in faces(0, 84, 10, 3, 8).items():
@@ -299,6 +304,29 @@ def paint(im):
                               (3, 3, (214, 54, 44)), (1, 5, (196, 52, 40)), (2, 5, (196, 52, 40)),
                               (3, 5, (196, 52, 40)), (4, 5, (196, 52, 40))):
                 px[x0 + dx, y0 + dy] = c + (255,)
+
+
+BURLAP = (196, 160, 104)
+BURLAP_DK = (160, 126, 76)
+ROPE = (150, 112, 64)
+FONT = {
+    'P': ('111', '101', '111', '100', '100'),
+    'A': ('010', '101', '111', '101', '101'),
+    'S': ('111', '100', '111', '001', '111'),
+}
+
+
+def burlap(px, rect, shade_k=1.0):
+    """Coarse woven sacking: a cross-hatch weave with the odd darker fibre."""
+    x0, y0, x1, y1 = (int(round(n)) for n in rect)
+    for y in range(y0, max(y1, y0 + 1)):
+        for x in range(x0, max(x1, x0 + 1)):
+            weave = 1.06 if (x + y) % 2 == 0 else 0.94
+            if (x % 4 == 0) != (y % 4 == 0):
+                weave *= 0.9
+            if random.random() < 0.05:
+                weave *= 0.8
+            px[x, y] = shade(BURLAP, weave * shade_k * (1 + random.uniform(-0.03, 0.03)))
 
 
 def paint_journey_kit(im):
@@ -376,26 +404,37 @@ def paint_journey_kit(im):
 
     pad = faces(0, 128, 26, 1, 30)
     for r in pad.values():
-        fill(px, r, (60, 96, 160), 0.06)
-    x0, y0, x1, y1 = (int(n) for n in pad['up'])
-    for y in range(y0, y1, 4):
-        for x in range(x0, x1):
-            px[x, y] = (46, 76, 130, 255)
+        burlap(px, r, shade_k=0.82)
     cover = faces(0, 160, 25, 17, 18)
-    red, red_dk = (210, 70, 46), (160, 46, 34)
     for name, r in cover.items():
-        fill(px, r, red, 0.05)
+        burlap(px, r)
         x0, y0, x1, y1 = (int(n) for n in r)
-        for y in range(y0, y1):  # quilting
-            for x in range(x0, x1):
-                if (x - x0) % 5 == 0 or (y - y0) % 5 == 0:
-                    px[x, y] = shade(red_dk, 1 + random.uniform(-0.04, 0.04))
+        if name in ('east', 'west', 'up', 'down'):  # side seams, stitched
+            for x in range(x0, x1, 2):
+                px[x, y1 - 1] = shade(BURLAP_DK, 0.7)
+    # the stamp on the front of the sack: PAPAS over a potato
     x0, y0, x1, y1 = (int(n) for n in cover['up'])
-    for ty in range(y0 + 2, y1 - 2, 5):  # little tacos on the quilt
-        for tx in range(x0 + 2, x1 - 2, 5):
-            px[tx, ty] = px[tx + 1, ty] = (238, 190, 80, 255)
-            px[tx, ty + 1] = (96, 178, 60, 255)
-            px[tx + 1, ty + 1] = (226, 64, 50, 255)
+    stamp = (150, 52, 36, 255)
+    word = 'PAPAS'
+    cx = x0 + (x1 - x0 - (len(word) * 4 - 1)) // 2
+    for i, ch in enumerate(word):
+        for row, bits in enumerate(FONT[ch]):
+            for col, bit in enumerate(bits):
+                if bit == '1':
+                    px[cx + i * 4 + col, y0 + 2 + row] = stamp
+    for dy, row in enumerate(('.XXXX.', 'XXXXXX', 'XXXXXX', '.XXXX.')):
+        for dx, c in enumerate(row):
+            if c == 'X':
+                px[x0 + (x1 - x0) // 2 - 3 + dx, y0 + 9 + dy] = stamp
+    for x in range(x0 + 2, x1 - 2):  # stamped border line
+        px[x, y0 + 1] = px[x, y0 + 14] = stamp
+    # rope cinch round the mouth of the sack
+    for r in faces(96, 160, 25, 17, 1.2).values():
+        x0, y0, x1, y1 = (int(round(n)) for n in r)
+        for y in range(y0, max(y1, y0 + 1)):
+            for x in range(x0, max(x1, x0 + 1)):
+                twist = (x + y) % 3
+                px[x, y] = shade(ROPE, (1.08, 0.94, 0.82)[twist])
 
 
 def write_texture():
