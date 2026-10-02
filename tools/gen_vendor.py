@@ -133,12 +133,12 @@ def vendor():
         m.box([6, 10, -9], [1, 2, 1], stache, noise=0.08),
     ]))
 
-    # apron: white, red trim, tied at the sides
+    # apron: red with white trim and a pocket (low, so it never reads as a mouth under the mustache)
     def apron_paint(p, f):
-        band(p, f['front'], 0, (196, 40, 36))
+        band(p, f['front'], 0, (244, 244, 236))
         x0, y0, x1, y1 = (int(n) for n in f['front'])
-        p.fill((x0 + 4, y0 + 2, x1 - 4, y0 + 4), (226, 226, 216), 0.02)   # pocket
-    m.add(bone('apron', [0, 8, -8], 'body', [m.box([-6, 4, -9], [12, 5, 1], white, extra=apron_paint, noise=0.03)]))
+        p.fill((x0 + 4, y0 + 2, x1 - 4, y0 + 3), (150, 26, 26), 0.02)   # pocket
+    m.add(bone('apron', [0, 8, -8], 'body', [m.box([-6, 4, -9], [12, 4, 1], (186, 34, 32), extra=apron_paint, noise=0.04)]))
 
     # right hand: pencil, magnifying glass, the served taco
     pencil = m.box([-10.5, 1, -6], [1, 1, 5], (240, 196, 60),

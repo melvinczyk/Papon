@@ -34,7 +34,17 @@ quality throughout."
    **packs up and continues**.
 6. He must **never die**, **enemies never harm him**, he **avoids caves, ravines, everything**,
    **fixes his own path if stuck**, and **never despawns no matter what**.
-7. Later (not built yet): the **boss fight** at the truck, with **cutscenes**, Cataclysm-level
+7. At the truck: a **line of customers** waiting for tacos, mixing internet personalities
+   (**Don Pollo, EDP445, Badlands Chugs, Reviewbrah / The Report of the Week**) in between
+   ordinary Papons so it looks natural. The player has to **wait in line**; the **Wandering
+   Papon gets in line in front of the player**. The line is the **timer for the boss fight**
+   and the comic relief: each customer who gets food **walks past the player and does their
+   personality bit** (Don Pollo says the salsa is spicy, in Spanish; EDP445: "Yo these tacos
+   is heat bro, straight mother fuckin heat bro"; ...). The characters must look like the
+   real people (caricatures), as editable Blockbench models.
+8. What **triggers the boss fight**: the Wandering Papon reaches the window and gives the Papon
+   working the truck a **fraud taco voucher** (his Taco Coupon).
+9. Later (not built yet): the **boss fight** at the truck, with **cutscenes**, Cataclysm-level
    mechanics. Joke boss, polished fight.
 
 ## What exists (status as of 2026-10-02)
@@ -52,13 +62,48 @@ Done and compiling; tested headless on a dev server (`/papon escort true`).
 | Destination picking from biome map (no chunk loading), reuse nearest existing truck | `journey/JourneyPlanner.java`, `journey/Terrain.java` |
 | Journey/truck SavedData (`papon_journeys`) | `journey/JourneyData.java` |
 | Taco Truck template placement on arrival, ground levelling | `journey/TacoTruck.java`, `data/papon/structures/taco_truck.nbt` |
-| Admin commands `/papon locate|skip|arrive|remove|escort|placetruck` | `command/PaponCommand.java` |
-| Renderer | `client/WanderingPaponRenderer.java`, `client/ClientSetup.java` |
+| Taco Truck scene on arrival: truck + vendor + customers, best-facing site, lane levelling | `journey/TacoTruckScene.java`, `journey/TacoTruck.java`, `journey/TacoLine.java` |
+| Papon the Taquero (`papon:taco_vendor`, 1.5x): runs the line, inspects the coupon, FRAUD | `entity/npc/TacoVendorEntity.java`, `VendorState.java` |
+| Customers `papon:don_pollo|edp445|badlands_chugs|reviewbrah|customer_papon` | `entity/npc/TacoCustomerEntity.java`, `Customer.java`, `CustomerState.java` |
+| Shared NPC base (unkillable, speech, voice blips), sound cue table | `entity/npc/TacoNpc.java`, `entity/npc/SoundCues.java` |
+| Speech: lang-key lines as bubbles + chat (Spanish lines get a `.gloss` translation) | `entity/Speech.java`, `client/SpeechBubble.java`, `lang/en_us.json` `speech.papon.*` |
+| Boss hook (placeholder) | `boss/TacoBoss.java` |
+| Admin commands `/papon locate|skip|arrive|remove|escort|placetruck|tacoline|serve|fraud` | `command/PaponCommand.java` |
+| Renderers (crowd: per-type model, Papon hat variants, head turning, bubbles) | `client/WanderingPaponRenderer.java`, `client/CrowdRenderer.java`, `client/CrowdModel.java`, `client/ClientSetup.java` |
+| Spawn eggs for every new entity | `registry/ModItems.java` |
 | Carry On blacklist tag | `data/carryon/tags/entity_types/entity_blacklist.json` |
 
-**Boss hook:** `WanderingPaponEntity.onJourneyComplete(ServerLevel)` runs right after the truck
-is placed. Right-clicking him in `WAITING` shows a placeholder message. The boss, its cutscene
-and its trigger go there.
+**Boss hook:** `TacoBoss.onFraud(level, vendor, wanderer)` runs the moment the vendor declares
+the coupon a fraud (vendor enters `FRAUD`, Wandering Papon `BUSTED`, customers flee, title
+"¡FRAUDE!"). It only logs today; the fight and its cutscene start there. The vendor is the
+natural boss (already 1.5x, already furious, in his own arena).
+
+### The Taco Truck line (the boss timer)
+- On arrival (`ARRIVED` tick 22) `TacoTruckScene.open` places the truck **windowGap** blocks
+  ahead (`ceil(customers * 1.5)`), so the line fits between him and the window, spawns the
+  vendor behind the counter and the customers on their slots, and queues the Wandering Papon
+  last. `TacoTruck.bestFacing` turns him toward the flattest, driest ground first. If a vendor
+  that still takes customers is within 48 blocks, he just joins that line instead.
+- `TacoLine(window, out)`: slot i = window + out * 1.5i; served customers walk a walkway 2
+  blocks to the `side()`. The vendor owns the queue (UUIDs) and tells everyone their slot every
+  tick; anyone missing for 400 ticks drops out.
+- The line only moves while a player stands **in line** (from their spot behind the Wandering
+  Papon back down the lane, `lineSlack` = 2.5 blocks). Otherwise the action bar says to get in
+  line and green particles mark the spot. `/papon escort true` counts as a player for testing.
+  Config `[truck]`: `extraPapons` (3), `requirePlayerInLine`, `lineSlack`.
+- Per customer: `orderTicks` + `cookCycles * 80` + 30 ticks at the window, ~9-12 s each; with
+  4 regulars + 3 Papons the line is ~75 s. Order is random, Papons slotted between the stars.
+- Vendor: `IDLE → TAKING_ORDER → COOKING → SERVING(30t) → IDLE …`; with the Wandering Papon at
+  the window: `INSPECTING(150t) → FRAUD(60t) → FURIOUS`.
+- Customer: `QUEUED → ORDERING → WAITING_FOOD → RECEIVING → LEAVING → TALKING → EXITING`
+  (discarded ~22 blocks away) or `FLEEING` on the fraud. `TALKING` lasts `reactTicks` = the
+  react animation, and fires `Customer.lines` at their ticks.
+- Wandering Papon (new states, appended): `QUEUED → PRESENTING(48t) → BUSTED`. He is exempt
+  from the underground rescue at the truck (`PaponState.atTruck()`, the awning reads as a roof).
+- Dialogue is all lang keys (`speech.papon.<who>.<line>`, `.gloss` for the English under a
+  Spanish line); Reviewbrah's rating is rolled per visit. No recorded voices: each character
+  "babbles" a pitched vanilla sound (`Customer.voice`). Animation sound keys are cue names in
+  `SoundCues` (`burp`, `glug`, `ring_hi`, `slam`, `roar`, ...).
 
 ### State machine
 `RECEIVING(84t) → WALKING ⇄ SITTING_DOWN(60t) → GRILLING → PACKING_UP(48t) → WALKING …`,
@@ -91,6 +136,27 @@ Model, texture and animations are **generated by scripts** — edit the scripts,
   build; window faces +Z, `TacoTruck.WINDOW = (4,0,8)`; can be replaced by a structure-block save).
 - `tools/blockbench/wandering_papon.bbmodel` — Blockbench project with model + all animations.
 
+- `tools/gen_customers.py` → the four internet customers (`don_pollo`, `edp445`,
+  `badlands_chugs`, `reviewbrah`): geo + 128×128 texture each, one shared humanoid rig
+  (`root > leg_r/leg_l, torso > head, arm_r/arm_l > props`). Faces and jerseys are pixel grids
+  in the script (each grid reads as seen from outside that face). Caricatures from public
+  photos: Don Pollo = bald, black boxed beard, grin, yellow shirt + gold chain, King of Ohio crown
+  and cape, drumstick + phone; EDP445 = midnight-green "445" jersey ("EDP / 445" on the back),
+  green beanie, wide eyes; Badlands Chugs = biggest, bald with shine, goatee, white tee with red
+  trim, gallon jug; Reviewbrah = pale, tall slicked-back hair, charcoal suit, red tie, glass of
+  blue energy drink.
+- `tools/gen_vendor.py` → `taco_vendor` (wkcr body + toque, mustache, red apron; props notepad,
+  pencil, spatula, served_taco, fraud_coupon, magnifier) and `customer_papon` (hats `sombrero`,
+  `cap`: the renderer hides all but the entity's `Hat`).
+- `tools/gen_npc_anims.py` → `customer.animation.json` (humans) and `papon_npc.animation.json`
+  (`customer_*` and `vendor_*`). One-shot lengths are Java state durations (listed in its
+  docstring). Character props (drumstick, jug, goblet) are never pinned; held drinks are
+  counter-rotated against the arm so they stay upright.
+- `tools/geo_util.py` (shared box-UV packer, painter, grid stamping).
+- `tools/bb_preview.py` (`sheet` / `anim` / `save`) and `tools/bb_frames.py` drive Blockbench
+  over MCP: contact sheets of a model from 4 angles, animation frames, and saving
+  `tools/blockbench/<model>.bbmodel` (geometry + texture + animations) for every model.
+
 Rig conventions (verified by render): rot X < 0 swings an arm/leg forward; Y yaws in the parent
 frame (+Y = inward for `arm_l`, −Y inward for `arm_r`); `arm_r` Z > 0 / `arm_l` Z < 0 raise
 outward; position Z < 0 is forward (face is −Z).
@@ -122,6 +188,11 @@ Useful tools: `create_project` (format `geckolib_model`), `geckolib_set_project_
 `Codecs.project.compile()` to save a .bbmodel), `create_offscreen_view` + `set_camera_angle`
 (renders without moving the user's camera), `geckolib_validate_model`, `geckolib_export_*`,
 `geckolib_list_easings`. More tools appear once a project is open (the list is dynamic).
+
+**On Windows** (the second dev machine): Python is `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`
+(Pillow installed); run the tools with `PYTHONPATH=tools` and point the MCP client's temp files
+somewhere real, e.g. `export BB_SID="$TEMP/bb_mcp.sid" BB_SHOTS="$TEMP/bb_shots"`. Never run a JS
+loop waiting on `Project.close()` through `risky_eval`: it is async and freezes Blockbench.
 
 Workflow used for the Wandering Papon: generate geo/texture/animations with `tools/*.py` →
 `from_geo_json` + `create_texture` into a `geckolib_model` project → `Animator.loadFile` the
@@ -230,10 +301,11 @@ Several Claude sessions may work on this repo at once. **Never commit straight t
 ### Resolving merge conflicts
 - **Generated files** — `assets/papon/geo/**`, `assets/papon/animations/**`,
   `assets/papon/textures/entity/**`, `textures/item/taco_coupon.png`,
-  `data/papon/structures/taco_truck.nbt`, `tools/blockbench/*.bbmodel`, `preview.png`:
+  `data/papon/structures/taco_truck.nbt`, `tools/blockbench/*.bbmodel`, `preview.png`, `crowd_preview.png`:
   never hand-merge. Resolve the **scripts** (`tools/gen_*.py`) first, then regenerate:
   ```bash
   python3 tools/gen_model.py && python3 tools/gen_anims.py && python3 tools/gen_items.py && python3 tools/gen_truck.py
+  python3 tools/gen_customers.py && python3 tools/gen_vendor.py && python3 tools/gen_npc_anims.py
   git add -A
   ```
   and re-save the `.bbmodel` through Blockbench (see the workflow above). For binary files with
@@ -261,6 +333,11 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 `rcon.port=25575`; then drive it with `python3 tools/rcon.py "<command>" ...`:
 `/forceload add …`, `/papon escort true` (a virtual escort that also keeps his chunks loaded),
 `/summon papon:wandering_papon …`, `/papon locate|skip|arrive`, and watch `[debug]` log lines.
+The truck scene: `execute positioned <x y z> rotated <yaw> 0 run papon tacoline` builds the truck
+ahead, the line, and queues a Wandering Papon; with `/papon escort true` the line runs on its own
+and logs every vendor/customer state change. `/papon serve` finishes the current order,
+`/papon fraud` feeds everyone ahead of the Wandering Papon so he goes straight to the window.
+`level-type=minecraft\:flat` in `run/server.properties` gives a predictable test site.
 Walking Crops is not in the dev run, so the coupon handoff can only be tested in the real pack.
 
 ## Rules for working here

@@ -1,6 +1,8 @@
 package com.groid.papon.entity.npc;
 
+import com.groid.papon.PaponMod;
 import com.groid.papon.entity.Speech;
+import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.journey.TacoLine;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -129,6 +131,9 @@ public class TacoCustomerEntity extends TacoNpc {
     }
 
     private void setCustomerState(CustomerState s) {
+        if (WanderingPaponEntity.debugEscort && s != getCustomerState()) {
+            PaponMod.LOG.info("[debug] {} {} -> {} at {}", kind.id, getCustomerState(), s, blockPosition().toShortString());
+        }
         setStateId(s.ordinal());
         if (s != CustomerState.QUEUED) getNavigation().stop();
     }

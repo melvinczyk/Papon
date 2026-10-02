@@ -74,6 +74,12 @@ def osc(t0, t1, step, a, b, ease=None):
 REST_L = [0, 0, -3]
 REST_R = [0, 0, 3]
 HOLD_TACO = [-52, -12, 0]       # right hand out in front, taco up
+JUG_UP = [-125, 35, 0]          # Badlands' left hand raised in front of his face
+JUG_TIP = [95, 0, 0]            # jug counter-rotation there: upright, cap tipped toward his mouth
+GLASS = [-48, 18, 0]            # Reviewbrah's glass at chest height
+SIP = [-104, 32, 0]             # ...and raised to his lips
+GLASS_UP = [44, 0, 0]           # goblet counter-rotations that keep it upright in those poses
+SIP_TIP = [74, 0, 0]
 TO_MOUTH_R = [-102, -38, 0]     # right hand at the mouth
 TO_MOUTH_L = [-102, 38, 0]
 
@@ -160,9 +166,11 @@ def h_idle_badlands():
     """Gallon jug in hand. Takes a casual pull of it now and then. Breathes like a big man in the sun."""
     a = H('idle_badlands_chugs', 5.0, True)
     jug_rest = [-20, 8, -6]
-    jug_up = [-150, 30, 0]
+    jug_up = JUG_UP
     a.rot('arm_l', [(0, jug_rest), (1.3, jug_rest), (1.7, jug_up, 'easeInOutSine'), (2.5, jug_up),
                     (2.9, jug_rest, 'easeInOutSine'), (5.0, jug_rest)], 'lin')
+    a.rot('jug', [(0, [20, 0, 0]), (1.3, [20, 0, 0]), (1.7, JUG_TIP, 'easeInOutSine'), (2.5, JUG_TIP),
+                  (2.9, [20, 0, 0], 'easeInOutSine'), (5.0, [20, 0, 0])], 'lin')
     a.rot('head', [(0, [0, 0, 0]), (1.4, [0, 0, 0]), (1.75, [-28, 0, 0], 'easeInOutSine'), (2.5, [-28, 0, 0]),
                    (2.8, [0, 0, 0], 'easeInOutSine'), (5.0, [0, 0, 0])], 'lin')
     a.rot('arm_r', [(0, REST_R), (2.8, REST_R), (3.0, [-110, -40, 0], 'easeOutQuad'), (3.15, [-100, -55, 0]),
@@ -176,10 +184,11 @@ def h_idle_badlands():
 def h_idle_reviewbrah():
     """Upright as a lamp post. Glass of blue energy drink at the ready. Straightens his tie."""
     a = H('idle_reviewbrah', 6.0, True)
-    glass = [-48, 18, 0]
-    sip = [-104, 32, 0]
+    glass, sip = GLASS, SIP
     a.rot('arm_l', [(0, glass), (1.8, glass), (2.2, sip, 'easeInOutSine'), (2.8, sip), (3.2, glass, 'easeInOutSine'),
                     (6.0, glass)], 'lin')
+    a.rot('goblet', [(0, GLASS_UP), (1.8, GLASS_UP), (2.2, SIP_TIP, 'easeInOutSine'), (2.8, SIP_TIP),
+                     (3.2, GLASS_UP, 'easeInOutSine'), (6.0, GLASS_UP)], 'lin')
     a.rot('head', [(0, [0, 0, 0]), (1.9, [0, 0, 0]), (2.2, [-10, 0, 0]), (2.8, [-10, 0, 0]), (3.1, [0, 0, 0]),
                    (3.8, [8, 0, 0]), (4.4, [8, 0, 0]), (4.7, [0, 0, 0]), (6.0, [0, 0, 0])])
     a.rot('arm_r', [(0, [0, 0, 2]), (3.6, [0, 0, 2]), (3.9, [-62, -42, 0], 'easeInOutSine'), (4.05, [-66, -42, 0]),
@@ -311,13 +320,15 @@ def h_react_badlands():
     """6.0 s. "Watch this." Chugs the whole gallon, slams it down, the burp, the flex, eats the taco in one."""
     a = H('react_badlands_chugs', 6.0, 'hold')
     jug_rest = [-20, 8, -6]
-    jug_up = [-158, 30, 0]
+    jug_up = JUG_UP
     a.rot('arm_l', [(0, jug_rest), (0.5, jug_up, 'easeInOutSine'), (3.1, jug_up), (3.3, [-40, 10, -8], 'easeInQuad'),
                     (3.4, [-34, 8, -8]), (4.0, [-34, 8, -8]), (4.2, [-14, 0, -96], 'easeOutBack'),
                     (4.5, [-24, 0, -104]), (4.8, [-14, 0, -96]), (5.1, [-24, 0, -104]), (5.4, [-20, 8, -6], 'easeInOutSine'),
                     (6.0, jug_rest)], 'lin')
-    a.rot('jug', [(0, [0, 0, 0]), (0.5, [0, 0, 0]), (1.0, [-30, 0, 0]), (3.1, [-50, 0, 0]), (3.3, [0, 0, 0]),
-                  (6.0, [0, 0, 0])])
+    # counter-rotate so the jug stays upright in his raised hand, tipping further as it empties
+    a.rot('jug', [(0, [20, 0, 0]), (0.5, JUG_TIP, 'easeInOutSine'), (3.1, [JUG_TIP[0] - 25, 0, 0]),
+                  (3.3, [30, 0, 0], 'easeInQuad'), (4.0, [30, 0, 0]), (4.2, [0, 0, 0]), (5.4, [0, 0, 0]),
+                  (6.0, [20, 0, 0])], 'lin')
     head = [(0, [0, 0, 0]), (0.6, [-36, 0, 0], 'easeInOutSine'), (3.1, [-40, 0, 0])]
     torso = [(0, [0, 0, 0]), (0.6, [-10, 0, 0], 'easeInOutSine'), (3.1, [-12, 0, 0])]
     scale = [(0, [1, 1, 1]), (0.6, [1, 1, 1])]
@@ -356,10 +367,11 @@ def h_react_reviewbrah():
                     (6.0, HOLD_TACO)], 'lin')
     a.scale('taco', [(0, [1, 1, 1]), (0.8 - EPS, [1, 1, 1]), (0.8, [0.82, 0.82, 0.82], 'easeOutQuad'), (6.0, [0.82, 0.82, 0.82])], 'lin')
     a.sound(0.8, 'bite')
-    glass = [-48, 18, 0]
-    sip = [-104, 32, 0]
+    glass, sip = GLASS, SIP
     a.rot('arm_l', [(0, glass), (3.5, glass), (3.85, sip, 'easeInOutSine'), (4.35, sip), (4.7, glass, 'easeInOutSine'),
                     (6.0, glass)], 'lin')
+    a.rot('goblet', [(0, GLASS_UP), (3.5, GLASS_UP), (3.85, SIP_TIP, 'easeInOutSine'), (4.35, SIP_TIP),
+                     (4.7, GLASS_UP, 'easeInOutSine'), (6.0, GLASS_UP)], 'lin')
     a.sound(4.0, 'sip')
     a.rot('head', [(0, [0, 0, 0]), (0.6, [6, 0, 0]), (0.95, [4, 0, 0]), (1.2, [-6, 0, 5]), (1.5, [-8, 0, -4]),
                    (1.8, [-6, 0, 5]), (2.1, [0, 0, 0]), (2.4, [2, 0, 0]), (2.7, [0, 0, 0]), (3.0, [2, 0, 0]),

@@ -19,6 +19,10 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', ''
             property 'forge.logging.console.level', 'info'
+            // GeckoLib's mixins are SRG-named; remap them to the dev (official) names or the dev
+            // client dies applying TextureManagerMixin.
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
             mods { "${mod_id}" { source sourceSets.main } }
         }
         client {}

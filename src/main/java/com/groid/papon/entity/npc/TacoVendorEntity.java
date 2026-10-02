@@ -89,6 +89,10 @@ public class TacoVendorEntity extends TacoNpc {
     }
 
     private void setVendorState(VendorState s) {
+        if (WanderingPaponEntity.debugEscort && s != getVendorState()) {
+            PaponMod.LOG.info("[debug] vendor {} {} -> {} (queue {}, served {}/{})", getUUID().toString().substring(0, 8),
+                    getVendorState(), s, queue.size(), served, total);
+        }
         setStateId(s.ordinal());
     }
 
