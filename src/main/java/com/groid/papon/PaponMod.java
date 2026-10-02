@@ -1,6 +1,7 @@
 package com.groid.papon;
 
 import com.groid.papon.entity.WanderingPaponEntity;
+import com.groid.papon.entity.npc.TacoNpc;
 import com.groid.papon.registry.ModEntities;
 import com.groid.papon.registry.ModItems;
 import com.groid.papon.registry.ModParticles;
@@ -37,6 +38,12 @@ public class PaponMod {
 
     private void attributes(EntityAttributeCreationEvent event) {
         event.put(ModEntities.WANDERING_PAPON.get(), WanderingPaponEntity.createAttributes().build());
+        event.put(ModEntities.TACO_VENDOR.get(), TacoNpc.createAttributes().build());
+        event.put(ModEntities.DON_POLLO.get(), TacoNpc.createAttributes().build());
+        event.put(ModEntities.EDP445.get(), TacoNpc.createAttributes().build());
+        event.put(ModEntities.BADLANDS_CHUGS.get(), TacoNpc.createAttributes().build());
+        event.put(ModEntities.REVIEWBRAH.get(), TacoNpc.createAttributes().build());
+        event.put(ModEntities.CUSTOMER_PAPON.get(), TacoNpc.createAttributes().build());
     }
 
     private void creativeTabs(BuildCreativeModeTabContentsEvent event) {
@@ -50,7 +57,7 @@ public class PaponMod {
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.CHANCLA);
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
-            event.accept(ModItems.WANDERING_PAPON_SPAWN_EGG);
+            ModItems.SPAWN_EGGS.forEach(event::accept);
         }
     }
 }

@@ -12,6 +12,9 @@ public final class PaponConfig {
     public static final ForgeConfigSpec.IntValue RESUME_RADIUS;
     public static final ForgeConfigSpec.IntValue LONELY_DELAY_TICKS;
     public static final ForgeConfigSpec.BooleanValue SHOW_JOURNEY_BAR;
+    public static final ForgeConfigSpec.IntValue EXTRA_PAPONS;
+    public static final ForgeConfigSpec.BooleanValue REQUIRE_PLAYER_IN_LINE;
+    public static final ForgeConfigSpec.DoubleValue LINE_SLACK;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -33,6 +36,16 @@ public final class PaponConfig {
                 .defineInRange("lonelyDelayTicks", 40, 0, 20 * 60);
         SHOW_JOURNEY_BAR = b.comment("Show nearby players a boss bar with the distance left to the Taco Truck.")
                 .define("showJourneyBar", true);
+        b.pop();
+        b.push("truck");
+        EXTRA_PAPONS = b.comment("Plain Papons in line at the Taco Truck alongside Don Pollo, EDP445, Badlands Chugs and Reviewbrah.",
+                        "The line is the countdown to the boss fight: each customer adds roughly 10 seconds.")
+                .defineInRange("extraPapons", 3, 0, 8);
+        REQUIRE_PLAYER_IN_LINE = b.comment("The line only moves while a player stands in it, behind the Wandering Papon.",
+                        "If false, any player within 32 blocks of the window keeps it moving.")
+                .define("requirePlayerInLine", true);
+        LINE_SLACK = b.comment("How far from their spot in line, in blocks, a player may stand and still count as in line.")
+                .defineInRange("lineSlack", 2.5, 1.0, 8.0);
         b.pop();
         SPEC = b.build();
     }

@@ -12,8 +12,12 @@ package com.groid.papon.entity;
  *                  |  \--> SLEEP_SETUP --> SLEEPING <--> SLEEP_FLINCH  (night; chancla)
  *                  |                         |--> WAKING --> WALKING      (morning)
  *                  |                         \--> ANGRY_WAKE --> WALKING  (2% chancla)
- *                  +--> ARRIVED --> WAITING   (at the Taco Truck, forever)
+ *                  +--> ARRIVED --> QUEUED --> PRESENTING --> BUSTED   (in line at the Taco Truck,
+ *                          |                                            his coupon, the fraud)
+ *                          +--> WAITING   (a truck with nobody at the window: forever)
  * </pre>
+ *
+ * Append new states at the end: the ordinal is synced and the name is saved.
  *
  * Durations are the lengths of the matching one-shot animations in ticks, so the server hands
  * over exactly as the client's animation finishes.
@@ -37,7 +41,10 @@ public enum PaponState {
     SLEEPING(0),
     SLEEP_FLINCH(16),
     WAKING(80),
-    ANGRY_WAKE(52);
+    ANGRY_WAKE(52),
+    QUEUED(0),
+    PRESENTING(48),
+    BUSTED(0);
 
     /** Ticks this state lasts before it advances on its own; 0 = until something else moves it on. */
     public final int duration;
@@ -62,6 +69,11 @@ public enum PaponState {
 
     public boolean isAsleep() {
         return this == SLEEP_SETUP || this == SLEEPING || this == SLEEP_FLINCH;
+    }
+
+    /** States at the Taco Truck, where he is done travelling (and may stand under its awning). */
+    public boolean atTruck() {
+        return this == ARRIVED || this == WAITING || this == QUEUED || this == PRESENTING || this == BUSTED;
     }
 
     public static PaponState byId(int id) {

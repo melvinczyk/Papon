@@ -32,4 +32,11 @@ public class WanderingPaponRenderer extends GeoEntityRenderer<WanderingPaponEnti
         super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight,
                 packedOverlay, red, green, blue, alpha);
     }
+
+    @Override
+    public void render(WanderingPaponEntity entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers,
+                       int light) {
+        super.render(entity, yaw, partialTick, pose, buffers, light);
+        SpeechBubble.render(entity, entity.getSpeech(), 0.45F, pose, buffers, light, entityRenderDispatcher);
+    }
 }
