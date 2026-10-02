@@ -37,6 +37,7 @@ import java.util.UUID;
  *   remove              nearest loaded Papon within 16 blocks is deleted (the only way he goes)
  *   escort <on|off>     treat every Papon as escorted, for testing with nobody around
  *   placetruck          place the Taco Truck in front of you (testing)
+ *   target <x> <z>      send the nearest Papon somewhere else (testing)
  *   state <STATE>       force the nearest Papon into a state, to see an animation (testing)
  */
 public final class PaponCommand {
@@ -52,6 +53,10 @@ public final class PaponCommand {
                 .then(Commands.literal("escort").then(Commands.argument("on", BoolArgumentType.bool())
                         .executes(c -> escort(c, BoolArgumentType.getBool(c, "on")))))
                 .then(Commands.literal("placetruck").executes(PaponCommand::placeTruck))
+                .then(Commands.literal("target").then(Commands.argument("x", IntegerArgumentType.integer())
+                        .then(Commands.argument("z", IntegerArgumentType.integer())
+                                .executes(c -> target(c, IntegerArgumentType.getInteger(c, "x"),
+                                        IntegerArgumentType.getInteger(c, "z"))))))
                 .then(Commands.literal("state").then(Commands.argument("state", StringArgumentType.word())
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                 java.util.Arrays.stream(PaponState.values()).map(Enum::name), b))
@@ -125,6 +130,14 @@ public final class PaponCommand {
         Direction facing = Direction.fromYRot(c.getSource().getRotation().y);
         boolean ok = TacoTruck.place(c.getSource().getLevel(), BlockPos.containing(pos), facing, 2).isPresent();
         return ok ? 1 : fail(c, "Taco Truck template missing.");
+    }
+
+    private static int target(CommandContext<CommandSourceStack> c, int x, int z) {
+        WanderingPaponEntity p = nearest(c, 64);
+        if (p == null) return fail(c, "No Wandering Papon within 64 blocks.");
+        p.setDestination(new BlockPos(x, c.getSource().getLevel().getSeaLevel(), z));
+        c.getSource().sendSuccess(() -> Component.literal("Papon now heads for " + x + " " + z + "."), true);
+        return 1;
     }
 
     private static int state(CommandContext<CommandSourceStack> c, String name) {

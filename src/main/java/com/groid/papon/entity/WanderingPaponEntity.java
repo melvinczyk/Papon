@@ -283,6 +283,15 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
         return destination;
     }
 
+    /** Re-aims the journey at (x, z); for /papon target. */
+    public void setDestination(BlockPos dest) {
+        origin = blockPosition();
+        destination = dest;
+        destinationRefined = false;
+        journeyLength = Math.max(1, Math.sqrt(JourneyPlanner.horizontalDistSqr(origin, destination)));
+        track();
+    }
+
     public boolean isEscorted() {
         return escorted;
     }
