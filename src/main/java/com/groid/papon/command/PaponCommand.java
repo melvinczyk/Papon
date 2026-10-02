@@ -15,7 +15,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -80,6 +82,8 @@ public final class PaponCommand {
         BlockPos s = Terrain.findDrySpotNear(level, x, z, 16, -1);
         if (s == null) return fail(c, "No dry ground near " + x + " " + z + ".");
         p.hopTo(s);
+        // Keep the new spot loaded for a moment so he lands somewhere that ticks.
+        level.getChunkSource().addRegionTicket(TicketType.POST_TELEPORT, new ChunkPos(s), 1, p.getId());
         c.getSource().sendSuccess(() -> Component.literal("Papon skipped to " + s.toShortString() + ", "
                 + (int) p.remainingDistance() + " blocks left."), true);
         return 1;
