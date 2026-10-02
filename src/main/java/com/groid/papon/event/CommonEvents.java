@@ -3,6 +3,7 @@ package com.groid.papon.event;
 import com.groid.papon.PaponMod;
 import com.groid.papon.command.PaponCommand;
 import com.groid.papon.entity.WanderingPaponEntity;
+import com.groid.papon.entity.npc.TacoNpc;
 import com.groid.papon.registry.ModEntities;
 import com.groid.papon.registry.ModItems;
 import net.minecraft.ChatFormatting;
@@ -71,10 +72,10 @@ public final class CommonEvents {
         player.sendSystemMessage(Component.translatable("message.papon.coupon_rules").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
     }
 
-    /** Nothing may take the Wandering Papon as a target. */
+    /** Nothing may take the Wandering Papon, or anyone at the Taco Truck, as a target. */
     @SubscribeEvent
     public static void onChangeTarget(LivingChangeTargetEvent event) {
-        if (event.getNewTarget() instanceof WanderingPaponEntity) {
+        if (event.getNewTarget() instanceof WanderingPaponEntity || event.getNewTarget() instanceof TacoNpc) {
             event.setCanceled(true);
         }
     }

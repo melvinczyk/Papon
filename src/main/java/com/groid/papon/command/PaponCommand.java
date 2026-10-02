@@ -2,8 +2,11 @@ package com.groid.papon.command;
 
 import com.groid.papon.entity.PaponState;
 import com.groid.papon.entity.WanderingPaponEntity;
+import com.groid.papon.entity.npc.TacoVendorEntity;
 import com.groid.papon.journey.JourneyData;
 import com.groid.papon.journey.TacoTruck;
+import com.groid.papon.journey.TacoTruckScene;
+import com.groid.papon.registry.ModEntities;
 import com.groid.papon.journey.Terrain;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
@@ -25,6 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -35,6 +39,10 @@ import java.util.UUID;
  *   remove              nearest loaded Papon within 16 blocks is deleted (the only way he goes)
  *   escort <on|off>     treat every Papon as escorted, for testing with nobody around
  *   placetruck          place the Taco Truck in front of you (testing)
+ *   tacoline            the whole arrival in front of you: truck, vendor, line, and the nearest
+ *                       Wandering Papon (or a new one) queued at the back, you behind him
+ *   serve               the nearest truck finishes its current customer right now
+ *   fraud               everyone ahead of the Wandering Papon is served at once: straight to the coupon
  */
 public final class PaponCommand {
     private PaponCommand() {}
@@ -48,7 +56,10 @@ public final class PaponCommand {
                 .then(Commands.literal("remove").executes(PaponCommand::remove))
                 .then(Commands.literal("escort").then(Commands.argument("on", BoolArgumentType.bool())
                         .executes(c -> escort(c, BoolArgumentType.getBool(c, "on")))))
-                .then(Commands.literal("placetruck").executes(PaponCommand::placeTruck)));
+                .then(Commands.literal("placetruck").executes(PaponCommand::placeTruck))
+                .then(Commands.literal("tacoline").executes(PaponCommand::tacoLine))
+                .then(Commands.literal("serve").executes(PaponCommand::serve))
+                .then(Commands.literal("fraud").executes(PaponCommand::fraud)));
     }
 
     private static int locate(CommandContext<CommandSourceStack> c) {
@@ -116,8 +127,45 @@ public final class PaponCommand {
     private static int placeTruck(CommandContext<CommandSourceStack> c) {
         Vec3 pos = c.getSource().getPosition();
         Direction facing = Direction.fromYRot(c.getSource().getRotation().y);
-        boolean ok = TacoTruck.place(c.getSource().getLevel(), BlockPos.containing(pos), facing, 2).isPresent();
+        BlockPos window = BlockPos.containing(pos).relative(facing, 3);
+        boolean ok = TacoTruck.place(c.getSource().getLevel(), window, facing.getOpposite(), 6).isPresent();
         return ok ? 1 : fail(c, "Taco Truck template missing.");
+    }
+
+    private static int tacoLine(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getLevel();
+        Vec3 pos = c.getSource().getPosition();
+        Direction facing = Direction.fromYRot(c.getSource().getRotation().y);
+        BlockPos spot = BlockPos.containing(pos);
+        WanderingPaponEntity papon = nearest(c, 32);
+        if (papon == null) {
+            papon = ModEntities.WANDERING_PAPON.get().create(level);
+            if (papon == null) return fail(c, "Could not create a Wandering Papon.");
+            Vec3 at = Vec3.atBottomCenterOf(spot).add(facing.getStepX() * 0.5, 0, facing.getStepZ() * 0.5);
+            papon.moveTo(at.x, at.y, at.z, facing.toYRot(), 0);
+            level.addFreshEntity(papon);
+        }
+        papon.skipToTruck();
+        Optional<TacoVendorEntity> vendor = TacoTruckScene.open(level, spot, facing, papon);
+        if (vendor.isEmpty()) return fail(c, "Taco Truck template missing.");
+        c.getSource().sendSuccess(() -> Component.literal("The Taco Truck is open. Get in line behind Papon."), true);
+        return 1;
+    }
+
+    private static int serve(CommandContext<CommandSourceStack> c) {
+        TacoVendorEntity v = TacoTruckScene.vendorNear(c.getSource().getLevel(), c.getSource().getPosition(), 64);
+        if (v == null) return fail(c, "No Taco Truck within 64 blocks.");
+        v.hurryUp();
+        c.getSource().sendSuccess(() -> Component.literal("Order up."), true);
+        return 1;
+    }
+
+    private static int fraud(CommandContext<CommandSourceStack> c) {
+        TacoVendorEntity v = TacoTruckScene.vendorNear(c.getSource().getLevel(), c.getSource().getPosition(), 64);
+        if (v == null) return fail(c, "No Taco Truck within 64 blocks.");
+        v.skipToPapon(c.getSource().getLevel());
+        c.getSource().sendSuccess(() -> Component.literal("Everyone ahead of Papon has been fed."), true);
+        return 1;
     }
 
     @Nullable

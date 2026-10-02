@@ -358,7 +358,93 @@ def celebrate():
     return a
 
 
-ANIMS = [walk, idle, sit_down, grill, pack_up, receive_coupon, celebrate]
+COUPON_UP = [-100, -52, 0]    # coupon held up in front of his face, as in receive_coupon
+BUSTED_BACK = [0, 0, 3.5]     # where busted leaves him: a step back from the window; nervous keeps it
+
+
+def queue_idle():
+    """Waiting in line: taps his foot, takes the coupon out to admire it, puts it away."""
+    a = Anim('queue_idle', 6.0, True)
+    a.rot('leg_l', [(0, [0, 0, 0]), (0.4, [0, 0, 0])] + [(round(0.55 + 0.25 * i, 2), [-14 if i % 2 == 0 else 0, 0, 0])
+                                                        for i in range(6)] + [(2.2, [0, 0, 0]), (6.0, [0, 0, 0])])
+    for i in range(3):
+        a.sound(0.55 + 0.5 * i, 'tap')
+    a.vis('coupon', False, [(2.6, True), (4.3, False)])
+    a.rot('arm_r', [(0, [0, 0, 1]), (2.3, [0, 0, 1]), (2.6, [62, 0, 22], 'easeInOutSine'), (2.95, COUPON_UP, 'easeOutBack'),
+                    (3.9, COUPON_UP), (4.3, [62, 0, 22], 'easeInOutSine'), (4.6, [0, 0, 1], 'easeInOutSine'),
+                    (6.0, [0, 0, 1])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (2.9, [0, 0, 0]), (3.2, [6, 0, 0]), (3.8, [6, 0, 0]), (4.2, [0, 0, 0]), (6.0, [0, 0, 0])])
+    for brow in ('brow_r', 'brow_l'):
+        a.pos(brow, [(0, [0, 0, 0]), (3.0, [0, 0, 0]), (3.15, HAPPY_BROW), (3.3, [0, 1.2, 0], 'easeOutBack'),
+                     (3.9, [0, 1.0, 0]), (4.3, [0, 0, 0]), (6.0, [0, 0, 0])], 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (4.6, [0, 0, 0]), (5.0, [0, -14, 0], 'easeInOutSine'), (5.5, [0, -14, 0]),
+                   (6.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (3.0, [1.015, 1.03, 1.015]), (6.0, [1, 1, 1])])
+    a.rot('hat', [(0, [0, 0, 0]), (0.55, [0, 0, 1.5]), (0.8, [0, 0, -1]), (1.05, [0, 0, 1.5]), (1.3, [0, 0, -1]),
+                  (1.8, [0, 0, 0]), (6.0, [0, 0, 0])])
+    a.sound(2.6, 'rummage').sound(2.95, 'paper').sound(3.3, 'hum')
+    return a
+
+
+def present_coupon():
+    """2.4 s. At the window: stands tall and holds the coupon up to the counter. It is taken at 1.6 s."""
+    a = Anim('present_coupon', 2.4, 'hold')
+    a.vis('coupon', False, [(0.35, True), (1.6, False)])
+    a.rot('arm_r', [(0, [0, 0, 1]), (0.35, [62, 0, 22], 'easeInOutSine'), (0.8, [-165, -16, 6], 'easeOutBack'),
+                    (1.6, [-165, -16, 6]), (2.0, [-20, 0, 6], 'easeInOutSine'), (2.4, [-10, 0, 4])], 'lin')
+    a.rot('arm_l', [(0, [0, 0, 0]), (0.8, [-20, 0, -14]), (2.4, [-10, 0, -6])])
+    a.scale('body', [(0, [1, 1, 1]), (0.25, [0.95, 1.08, 0.95], 'easeOutBack'), (0.6, [1, 1.03, 1]), (2.4, [1, 1.02, 1])], 'lin')
+    for brow in ('brow_r', 'brow_l'):
+        a.pos(brow, [(0, [0, 0, 0]), (0.3, [0, 1.4, 0], 'easeOutBack'), (2.4, [0, 1.2, 0])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.8, [-6, 0, 0]), (1.6, [-6, 0, 0]), (2.0, [0, 0, 0]), (2.4, [0, 0, 0])])
+    a.pos('hat', [(0, [0, 0, 0]), (0.25, [0, 1.2, 0]), (0.5, [0, 0, 0]), (2.4, [0, 0, 0])])
+    a.sound(0.35, 'rummage').sound(0.8, 'paper').sound(1.0, 'hum')
+    return a
+
+
+def busted():
+    """3.0 s. "FRAUD!": his brows hit the hat, the hat leaves, he backs away from the window, sweating."""
+    a = Anim('busted', 3.0, 'hold')
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 1.2, 0]), (0.12, [0, 2.2, 0], 'easeOutBack'), (3.0, [0, 1.8, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, 0]), (0.2, [0, 0, -14 * s]), (3.0, [0, 0, -14 * s])])
+    a.scale('body', [(0, [1, 1.02, 1]), (0.1, [0.88, 1.16, 0.88], 'easeOutQuad'), (0.35, [1, 1, 1], 'easeOutBack'),
+                     (3.0, [1, 1, 1])], 'lin')
+    a.pos('hat', [(0, [0, 0, 0]), (0.1, [0, 0, 0]), (0.35, [0, 9, 0], 'easeOutQuad'), (0.8, [0, 0, 0], 'easeOutBounce'),
+                  (3.0, [0, 0, 0])], 'lin')
+    a.rot('hat', [(0, [0, 0, 0]), (0.1, [0, 0, 0]), (0.8, [0, 0, -30]), (1.0, [0, 0, -6]), (3.0, [0, 0, -6])])
+    a.pos('root', [(0, [0, 0, 0]), (0.4, [0, 0, 0]), (0.6, [0, 0.8, 1.6], 'easeOutQuad'), (0.8, [0, 0, 2.2], 'easeInQuad'),
+                   (1.0, [0, 0.8, 3.0], 'easeOutQuad'), (1.2, BUSTED_BACK, 'easeInQuad'), (3.0, BUSTED_BACK)], 'lin')
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 0]), (0.5, [18 * s, 0, 0]), (0.7, [-18 * s, 0, 0]), (0.9, [18 * s, 0, 0]), (1.1, [-18 * s, 0, 0]),
+                    (1.25, [0, 0, 0]), (3.0, [0, 0, 0])])
+    guard = [-80, 0, 18]
+    a.rot('arm_r', [(0, [-10, 0, 4]), (0.25, guard, 'easeOutBack'), (3.0, guard)], 'lin')
+    a.rot('arm_l', [(0, [-10, 0, -6]), (0.25, [guard[0], 0, -guard[2]], 'easeOutBack'), (3.0, [guard[0], 0, -guard[2]])], 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (1.3, [0, 0, 0]), (1.6, [0, 24, 0], 'easeInOutSine'), (2.0, [0, 24, 0]),
+                   (2.4, [0, -22, 0], 'easeInOutSine'), (2.7, [0, -22, 0]), (3.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.sound(0.05, 'gasp').sound(0.35, 'pop').sound(0.6, 'jump').sound(1.0, 'jump').sound(1.6, 'sigh')
+    return a
+
+
+def nervous():
+    """2.0 s loop after busted: still backed off, trembling, glancing about for the exit."""
+    a = Anim('nervous', 2.0, True)
+    a.pos('root', [(0, BUSTED_BACK)], 'lin')
+    a.rot('torso', [(round(0.1 * i, 2), [0, 0, 2 if i % 2 == 0 else -2]) for i in range(21)])
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 1.8, 0]), (1.0, [0, 1.6, 0]), (2.0, [0, 1.8, 0])])
+        a.rot(brow, [(0, [0, 0, -14 * s])], 'lin')
+    guard = [-80, 0, 18]
+    a.rot('arm_r', [(0, guard), (1.0, [-74, 0, 22]), (2.0, guard)])
+    a.rot('arm_l', [(0, [guard[0], 0, -guard[2]]), (1.0, [-74, 0, -22]), (2.0, [guard[0], 0, -guard[2]])])
+    a.rot('root', [(0, [0, 0, 0]), (0.4, [0, 18, 0]), (0.8, [0, 18, 0]), (1.2, [0, -16, 0]), (1.6, [0, -16, 0]),
+                   (2.0, [0, 0, 0])])
+    a.rot('hat', [(0, [0, 0, -6])], 'lin')
+    return a
+
+
+ANIMS = [walk, idle, sit_down, grill, pack_up, receive_coupon, celebrate, queue_idle, present_coupon, busted, nervous]
 
 
 def build():

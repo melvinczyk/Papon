@@ -4,8 +4,12 @@ import com.groid.papon.PaponConfig;
 import com.groid.papon.PaponMod;
 import com.groid.papon.entity.ai.JourneyGoal;
 import com.groid.papon.entity.ai.JourneyNavigation;
+import com.groid.papon.entity.npc.SoundCues;
+import com.groid.papon.entity.npc.TacoVendorEntity;
 import com.groid.papon.journey.JourneyData;
 import com.groid.papon.journey.JourneyPlanner;
+import com.groid.papon.journey.TacoLine;
+import com.groid.papon.journey.TacoTruckScene;
 import com.groid.papon.journey.TacoTruck;
 import com.groid.papon.journey.Terrain;
 import net.minecraft.ChatFormatting;
@@ -70,12 +74,18 @@ import java.util.UUID;
  * own pace, to the nearest Taco Truck. He only walks while a player is with him; left alone he
  * sits down and grills tacos until someone comes back.
  *
+ * At the truck he gets in line (the player is meant to stand behind him) and, at the window,
+ * proudly hands over the Taco Coupon. It is a fraud. That is what starts the boss fight.
+ *
  * He cannot be hurt, targeted, pushed, carried off, leashed, put in a boat, or despawned, and
  * he refuses death by any route that reaches him (see the overrides at the bottom).
  */
-public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
+public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Speech.Speaker {
     private static final EntityDataAccessor<Integer> DATA_STATE =
             SynchedEntityData.defineId(WanderingPaponEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<String> DATA_SPEECH =
+            SynchedEntityData.defineId(WanderingPaponEntity.class, EntityDataSerializers.STRING);
+    private static final Speech.Voice VOICE = new Speech.Voice(SoundEvents.WANDERING_TRADER_AMBIENT, 1.4F, 0.45F, 4);
 
     private static final String ANIM = "animation.wandering_papon.";
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop(ANIM + "walk");
@@ -85,6 +95,10 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation PACK_UP = RawAnimation.begin().thenPlayAndHold(ANIM + "pack_up");
     private static final RawAnimation RECEIVE = RawAnimation.begin().thenPlayAndHold(ANIM + "receive_coupon");
     private static final RawAnimation CELEBRATE_THEN_IDLE = RawAnimation.begin().thenPlay(ANIM + "celebrate").thenLoop(ANIM + "idle");
+    private static final RawAnimation QUEUE_IDLE = RawAnimation.begin().thenLoop(ANIM + "queue_idle");
+    private static final RawAnimation PRESENT = RawAnimation.begin().thenPlayAndHold(ANIM + "present_coupon");
+    private static final RawAnimation BUSTED_THEN_NERVOUS = RawAnimation.begin().thenPlay(ANIM + "busted").thenLoop(ANIM + "nervous");
+    private static final RawAnimation NERVOUS = RawAnimation.begin().thenLoop(ANIM + "nervous");
 
     /** Horizontal distance from the site at which he counts as arrived. */
     private static final double ARRIVE_RADIUS = 3.5;
@@ -113,6 +127,13 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
     private int undergroundTicks;
     private int inWallTicks;
     private boolean escorted;
+    // In line at the truck: set by the vendor every tick (see TacoVendorEntity#assignSlots).
+    @Nullable private UUID vendorId;
+    @Nullable private TacoLine line;
+    private int lineSlot;
+    private int lineTotal;
+    private int speechTicks;
+    private int babbleTicks;
 
     public WanderingPaponEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -144,6 +165,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_STATE, PaponState.WALKING.ordinal());
+        entityData.define(DATA_SPEECH, "");
     }
 
     @Override
@@ -261,9 +283,14 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
             case ARRIVED -> {
                 getNavigation().stop();
                 if (stateTicks == TRUCK_TICK) raiseTruck(server);
-                if (stateTicks >= state.duration) setPaponState(PaponState.WAITING);
+                if (stateTicks >= state.duration) setPaponState(vendorId != null ? PaponState.QUEUED : PaponState.WAITING);
             }
             case WAITING -> getNavigation().stop();
+            case QUEUED -> tickQueued();
+            case PRESENTING, BUSTED -> {
+                getNavigation().stop();
+                if (line != null) faceCounter();
+            }
         }
 
         if (tickCount % 20 == 0) {
@@ -319,7 +346,9 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
 
     private void arrive(ServerLevel server) {
         getNavigation().stop();
-        Direction facing = Direction.fromYRot(getYRot());
+        // turn to whichever way has the flattest, driest ground for the truck and its line
+        Direction facing = TacoTruck.bestFacing(server, blockPosition(), Direction.fromYRot(getYRot()),
+                TacoTruckScene.windowGap());
         setYRot(facing.toYRot());
         yBodyRot = getYRot();
         yHeadRot = getYRot();
@@ -336,15 +365,109 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
+    /** The truck appears ahead of him with its line already queued; he joins the back of it. */
     private void raiseTruck(ServerLevel server) {
-        if (TacoTruck.existingNear(server, blockPosition(), 24) != null) return;
-        TacoTruck.place(server, blockPosition(), getDirection(), 2);
+        TacoVendorEntity open = TacoTruckScene.vendorNear(server, position(), 48);
+        if (open != null && open.acceptsCustomers()) {
+            open.join(this);
+        } else if (TacoTruck.existingNear(server, blockPosition(), 24) == null) {
+            TacoTruckScene.open(server, blockPosition(), getDirection(), this);
+        } else {
+            return;
+        }
         onJourneyComplete(server);
     }
 
+    // ------------------------------------------------------------------ in line
+
+    /** Called by the vendor every tick while he is in its line. */
+    public void setLineSlot(UUID vendor, TacoLine line, int slot, int served, int total) {
+        this.vendorId = vendor;
+        this.line = line;
+        this.lineSlot = slot;
+        this.lineTotal = total - served;
+        if (getPaponState() == PaponState.WAITING) setPaponState(PaponState.QUEUED);
+    }
+
+    @Nullable
+    public TacoLine getLine() {
+        return line;
+    }
+
+    /** For /papon tacoline: skip the walk, he is already at the truck and getting in line. */
+    public void skipToTruck() {
+        origin = blockPosition();
+        destination = blockPosition();
+        destinationRefined = true;
+        journeyLength = 1;
+        setPaponState(PaponState.QUEUED);
+    }
+
+    /** At the window: out comes the coupon. */
+    public void presentCoupon() {
+        setPaponState(PaponState.PRESENTING);
+        Speech.say(this, ChatFormatting.YELLOW, "speech.papon.wandering.present", true, true, 46);
+    }
+
+    /** The vendor has called it a fraud. */
+    public void busted() {
+        setPaponState(PaponState.BUSTED);
+        Speech.say(this, ChatFormatting.YELLOW, "speech.papon.wandering.busted", true, true, 50);
+    }
+
+    private void tickQueued() {
+        if (line == null) {
+            getNavigation().stop();
+            return;
+        }
+        Vec3 target = line.slot(lineSlot);
+        double dx = target.x - getX();
+        double dz = target.z - getZ();
+        double d2 = dx * dx + dz * dz;
+        if (d2 > 0.3 * 0.3) {
+            if (d2 < 4) {
+                getMoveControl().setWantedPosition(target.x, target.y, target.z, 0.8);
+            } else if (getNavigation().isDone() || tickCount % 20 == 0) {
+                getNavigation().moveTo(target.x, target.y, target.z, 1.0);
+            }
+        } else {
+            getNavigation().stop();
+            faceCounter();
+        }
+    }
+
+    private void faceCounter() {
+        Vec3 c = line.counter();
+        float yaw = (float) (Mth.atan2(c.z - getZ(), c.x - getX()) * Mth.RAD_TO_DEG) - 90F;
+        setYRot(yaw);
+        yBodyRot = yaw;
+        yHeadRot = yaw;
+    }
+
+    // ------------------------------------------------------------------ speech
+
+    @Override
+    public String getSpeech() {
+        return entityData.get(DATA_SPEECH);
+    }
+
+    @Override
+    public void setSpeech(String encoded, int ticks) {
+        entityData.set(DATA_SPEECH, encoded);
+        speechTicks = ticks;
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_SPEECH.equals(key) && level().isClientSide) {
+            babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech());
+        }
+    }
+
     /**
-     * Hook for the boss fight: the Taco Truck stands and Papon is at its window. The fight, its
-     * cutscene and its trigger are not built yet.
+     * The Taco Truck stands and he is in its line. What follows is the line (TacoVendorEntity),
+     * then the fraud coupon at the window, then TacoBoss.onFraud: the fight hooks in there.
      */
     protected void onJourneyComplete(ServerLevel server) {
         PaponMod.LOG.info("Wandering Papon {} reached the Taco Truck at {}", getUUID(), blockPosition());
@@ -352,9 +475,13 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
 
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
-        if (getPaponState() == PaponState.WAITING) {
+        PaponState state = getPaponState();
+        if (state == PaponState.WAITING || state == PaponState.QUEUED || state == PaponState.PRESENTING
+                || state == PaponState.BUSTED) {
             if (!level().isClientSide) {
-                player.displayClientMessage(Component.translatable("message.papon.waiting").withStyle(ChatFormatting.GOLD), true);
+                String key = state == PaponState.WAITING ? "message.papon.waiting"
+                        : state == PaponState.QUEUED ? "message.papon.queued" : "message.papon.busted";
+                player.displayClientMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD), true);
             }
             return InteractionResult.sidedSuccess(level().isClientSide);
         }
@@ -370,7 +497,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
         if (onGround() && !underground && Terrain.isDryStandable(server, here)) {
             lastSafePos = here;
         }
-        undergroundTicks = underground && getPaponState() != PaponState.WAITING ? undergroundTicks + 20 : 0;
+        undergroundTicks = underground && !getPaponState().atTruck() ? undergroundTicks + 20 : 0;
         inWallTicks = isInWall() ? inWallTicks + 20 : 0;
         if (getY() < server.getMinBuildHeight() || isInLava() || undergroundTicks >= 60 || inWallTicks >= 20) {
             rescueToSurface(server);
@@ -421,12 +548,22 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
             case SITTING_DOWN, GRILLING -> Component.translatable("bar.papon.grilling", left);
             case PACKING_UP -> Component.translatable("bar.papon.packing", left);
             case ARRIVED, WAITING -> Component.translatable("bar.papon.arrived");
+            case QUEUED -> Component.translatable("bar.papon.queued", lineSlot);
+            case PRESENTING -> Component.translatable("bar.papon.presenting");
+            case BUSTED -> Component.translatable("bar.papon.busted");
         };
         journeyBar.setName(name);
-        journeyBar.setColor(state == PaponState.GRILLING || state == PaponState.SITTING_DOWN
-                ? BossEvent.BossBarColor.RED : BossEvent.BossBarColor.YELLOW);
-        journeyBar.setProgress(state == PaponState.ARRIVED || state == PaponState.WAITING ? 1F
-                : Mth.clamp(1F - (float) (left / journeyLength), 0F, 1F));
+        journeyBar.setColor(switch (state) {
+            case GRILLING, SITTING_DOWN, BUSTED -> BossEvent.BossBarColor.RED;
+            case QUEUED, PRESENTING -> BossEvent.BossBarColor.GREEN;
+            default -> BossEvent.BossBarColor.YELLOW;
+        });
+        journeyBar.setProgress(switch (state) {
+            case ARRIVED, WAITING, PRESENTING, BUSTED -> 1F;
+            // the line is the countdown to the fight: it fills as the people ahead of him are served
+            case QUEUED -> lineTotal <= 1 ? 1F : Mth.clamp(1F - (float) lineSlot / (lineTotal - 1), 0F, 1F);
+            default -> Mth.clamp(1F - (float) (left / journeyLength), 0F, 1F);
+        });
         for (ServerPlayer p : new ArrayList<>(journeyBar.getPlayers())) {
             if (p.level() != server || p.isRemoved() || p.distanceToSqr(this) > 56 * 56) journeyBar.removePlayer(p);
         }
@@ -453,8 +590,11 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide && getPaponState() == PaponState.GRILLING) {
-            grillParticles();
+        if (level().isClientSide) {
+            if (getPaponState() == PaponState.GRILLING) grillParticles();
+            if (babbleTicks > 0) VOICE.blip(this, --babbleTicks);
+        } else if (speechTicks > 0 && --speechTicks == 0) {
+            entityData.set(DATA_SPEECH, "");
         }
     }
 
@@ -496,6 +636,9 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
             case PACKING_UP -> PACK_UP;
             case ARRIVED -> CELEBRATE_THEN_IDLE;
             case WAITING -> CELEBRATE_THEN_IDLE.equals(current) ? CELEBRATE_THEN_IDLE : IDLE;
+            case QUEUED -> event.isMoving() ? WALK : QUEUE_IDLE;
+            case PRESENTING -> PRESENT;
+            case BUSTED -> PRESENT.equals(current) || BUSTED_THEN_NERVOUS.equals(current) ? BUSTED_THEN_NERVOUS : NERVOUS;
         };
         return event.setAndContinue(next);
     }
@@ -521,7 +664,10 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
             case "gasp" -> { sound = SoundEvents.VILLAGER_TRADE; volume = 0.8F; pitch = 1.6F; }
             case "jump" -> { sound = SoundEvents.SLIME_JUMP_SMALL; volume = 0.7F; }
             case "determined" -> { sound = SoundEvents.VILLAGER_YES; volume = 0.7F; pitch = 1.3F; }
-            default -> { return; }
+            default -> {
+                SoundCues.play(this, cue);
+                return;
+            }
         }
         level().playLocalSound(getX(), getY(), getZ(), sound, SoundSource.NEUTRAL, volume,
                 pitch * (0.95F + random.nextFloat() * 0.1F), false);
@@ -545,6 +691,9 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
         if (origin != null) tag.put("Origin", NbtUtils.writeBlockPos(origin));
         if (destination != null) tag.put("Destination", NbtUtils.writeBlockPos(destination));
         if (lastSafePos != null) tag.put("LastSafePos", NbtUtils.writeBlockPos(lastSafePos));
+        if (vendorId != null) tag.putUUID("Vendor", vendorId);
+        if (line != null) tag.put("Line", line.save());
+        tag.putInt("LineSlot", lineSlot);
     }
 
     @Override
@@ -563,6 +712,9 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
         destination = tag.contains("Destination") ? NbtUtils.readBlockPos(tag.getCompound("Destination")) : null;
         lastSafePos = tag.contains("LastSafePos") ? NbtUtils.readBlockPos(tag.getCompound("LastSafePos")) : null;
         if (origin == null && destination != null) origin = blockPosition();
+        vendorId = tag.hasUUID("Vendor") ? tag.getUUID("Vendor") : null;
+        line = tag.contains("Line") ? TacoLine.load(tag.getCompound("Line")) : null;
+        lineSlot = tag.getInt("LineSlot");
     }
 
     // ------------------------------------------------------------------ he does not die
