@@ -287,11 +287,21 @@ Several Claude sessions may work on this repo at once. **Never commit straight t
 
 ## Building and testing
 
+**Always build the release jar in the main git checkout, `~/Documents/Coding/Papon`, never in a
+worktree** (`.claude/worktrees/*`). The jar the user takes is
+`~/Documents/Coding/Papon/build/libs/papon-<version>.jar`. Merge your branch into `main` first,
+then in the main checkout:
+
 ```bash
+cd ~/Documents/Coding/Papon
+git status                 # must be clean; do not disturb another session's uncommitted work
+git pull --ff-only         # main as pushed
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
-./gradlew build            # jar in build/libs/papon-<version>.jar
-./gradlew runServer        # dev server in run/ (gitignored)
+./gradlew clean build      # jar in build/libs/papon-<version>.jar
 ```
+
+Compiling and test runs inside your worktree while developing are fine (`./gradlew compileJava`,
+`./gradlew runServer` — dev server in `run/`, gitignored); just never hand over a jar built there.
 `run/` is not committed. For a headless test create `run/eula.txt` (`eula=true`) and
 `run/server.properties` with `online-mode=false`, `enable-rcon=true`, `rcon.password=papon`,
 `rcon.port=25575`; then drive it with `python3 tools/rcon.py "<command>" ...`:
@@ -303,6 +313,8 @@ Walking Crops is not in the dev run, so the coupon handoff can only be tested in
 
 ## Rules for working here
 - Work on a `claude/*` branch, commit often and push (the user asked for this).
+- Build release jars only in the main checkout `~/Documents/Coding/Papon` after merging to
+  `main` — never in a worktree (the user asked for this).
 - Regenerate assets with the `tools/*.py` scripts; re-save the `.bbmodel` after model changes.
 - Bump `mod_version` on every jar handed to the pack; never ship two jars with the same version.
 - Don't push anything to the Groid server; the instance's `CLAUDE.md` governs that.
