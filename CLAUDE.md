@@ -46,10 +46,29 @@ quality throughout."
    working the truck a **fraud taco voucher** (his Taco Coupon).
 9. Later (not built yet): the **boss fight** at the truck, with **cutscenes**, Cataclysm-level
    mechanics. Joke boss, polished fight.
+8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
+   separate entity, just more Papon animations (the llama lives in his model) — across rivers,
+   lakes and oceans.
+9. **Paths** should be efficient (no zig-zagging, no stopping between legs).
+10. **Jarritos:** a drink made from Alex's Caves' *jar of radiation* (the item is
+    `alexscaves:radon_bottle`, "Bottle of Radon") plus beetroot (red), carrot (orange), potato
+    (yellow) or Farmer's Delight lettuce (green — FD has no lettuce, so **cabbage / cabbage leaf**).
+    Players can drink them: **3 hunger, 2 saturation, nausea and speed**; unique 3D model. Given
+    to Papon: **1.5x speed for 2 minutes**, then a **tired** animation and normal speed. The
+    **yellow one makes him angry**: he takes it and **smashes it on the ground** (animation).
+11. **Sleep:** at night he **sets down his backpack, unrolls a burlap potato sack** (the user
+    rejected a sleeping bag — keep the potato theme), climbs in and sleeps until morning.
+12. **Chancla** (crafted from 2 sponges): whacking a sleeping Papon has a **2% chance per whack**
+    to wake him up **angry at you**, after which he **continues his quest**.
+13. **Taco Truck placement:** always on land, **never on water and never on a shore/beach**.
+14. A debug command for **how far away the Taco Truck is** (`/papon distance`).
 
 ## What exists (status as of 2026-10-02)
 
-Done and compiling; tested headless on a dev server (`/papon escort true`).
+Done and compiling; tested headless on a dev server (`/papon escort true`): walking, grilling,
+rafting across ~200 blocks of ocean and landing, sleeping at night and waking at dawn, the Jarrito
+boost, inland truck placement from a sea target. Jarrito handing and the chancla need a real
+player and were not exercised headless.
 
 | Piece | Where |
 |---|---|
@@ -58,8 +77,11 @@ Done and compiling; tested headless on a dev server (`/papon escort true`).
 | Coupon → Wandering Papon handoff (looks up `wkcr:papon` by name, no compile dep) | `event/CommonEvents.java` |
 | Wandering Papon entity: state machine, escort, invulnerability, journey bar, sound cues | `entity/WanderingPaponEntity.java`, `entity/PaponState.java` |
 | Surface-only pathing (blocks underground nodes), max fall 2 (no ravines) | `entity/ai/SurfaceNodeEvaluator.java`, `JourneyNavigation.java` |
-| Long-distance walking: waypoint fan ~20 blocks ahead, blacklist, hop, rescue | `entity/ai/JourneyGoal.java` |
-| Destination picking from biome map (no chunk loading), reuse nearest existing truck | `journey/JourneyPlanner.java`, `journey/Terrain.java` |
+| Long-distance walking: legs up to 28 blocks ranked by distance left, next leg picked 6 blocks early, blacklist, hop, rescue | `entity/ai/JourneyGoal.java` |
+| Llama raft: steer along the bearing at the water line, land on the first reachable shore, steer round obstacles | `entity/RaftDriver.java` |
+| Jarritos (4 flavours, food + Papon boost / yellow smash), chancla | `item/JarritoItem.java`, `item/ChanclaItem.java`, `WanderingPaponEntity.offerJarrito/onChancla`, `CommonEvents.onAttack` |
+| Sleep at night / wake at dawn, snooze "Z" particle | `WanderingPaponEntity.shouldSleep`, `registry/ModParticles.java`, `client/SnoozeParticle.java` |
+| Destination picking from biome map (no chunk loading): only inland sites (no sea/river/beach within ~48), refined on load to flat dry ground ≥12 blocks from water; reuse nearest existing truck | `journey/JourneyPlanner.java`, `journey/Terrain.java` |
 | Journey/truck SavedData (`papon_journeys`) | `journey/JourneyData.java` |
 | Taco Truck template placement on arrival, ground levelling | `journey/TacoTruck.java`, `data/papon/structures/taco_truck.nbt` |
 | Taco Truck scene on arrival: truck + vendor + customers, best-facing site, lane levelling | `journey/TacoTruckScene.java`, `journey/TacoTruck.java`, `journey/TacoLine.java` |
@@ -68,9 +90,9 @@ Done and compiling; tested headless on a dev server (`/papon escort true`).
 | Shared NPC base (unkillable, speech, voice blips), sound cue table | `entity/npc/TacoNpc.java`, `entity/npc/SoundCues.java` |
 | Speech: lang-key lines as bubbles + chat (Spanish lines get a `.gloss` translation) | `entity/Speech.java`, `client/SpeechBubble.java`, `lang/en_us.json` `speech.papon.*` |
 | Boss hook (placeholder) | `boss/TacoBoss.java` |
-| Admin commands `/papon locate|skip|arrive|remove|escort|placetruck|tacoline|serve|fraud` | `command/PaponCommand.java` |
-| Renderers (crowd: per-type model, Papon hat variants, head turning, bubbles) | `client/WanderingPaponRenderer.java`, `client/CrowdRenderer.java`, `client/CrowdModel.java`, `client/ClientSetup.java` |
 | Spawn eggs for every new entity | `registry/ModItems.java` |
+| Admin commands `/papon locate|skip|arrive|remove|escort|placetruck|distance|target|state|tacoline|serve|fraud` | `command/PaponCommand.java` |
+| Renderers: Wandering Papon (only the Jarrito flavour he holds; speech bubble); crowd (per-type model, Papon hat variants, head turning, bubbles) | `client/WanderingPaponRenderer.java`, `client/CrowdRenderer.java`, `client/CrowdModel.java`, `client/ClientSetup.java` |
 | Carry On blacklist tag | `data/carryon/tags/entity_types/entity_blacklist.json` |
 
 **Boss hook:** `TacoBoss.onFraud(level, vendor, wanderer)` runs the moment the vendor declares
@@ -106,10 +128,19 @@ natural boss (already 1.5x, already furious, in his own arena).
   `SoundCues` (`burp`, `glug`, `ring_hi`, `slam`, `roar`, ...).
 
 ### State machine
-`RECEIVING(84t) → WALKING ⇄ SITTING_DOWN(60t) → GRILLING → PACKING_UP(48t) → WALKING …`,
-then `ARRIVED(64t, truck appears at tick 22) → WAITING` forever. Durations equal the one-shot
-animation lengths so server and client hand over together. State is synced as an int and picks
-the GeckoLib animation in `animate()`.
+See the diagram in `entity/PaponState.java`. Core: `RECEIVING(84t) → WALKING ⇄ SITTING_DOWN(60t)
+→ GRILLING → PACKING_UP(48t) → WALKING`, then `ARRIVED(64t, truck + line at tick 22) → QUEUED →
+PRESENTING(48t) → BUSTED` (the taco line, see above), or `WAITING` forever at a truck with no vendor.
+Added: `RAFT_BOARDING(32) → RAFTING ⇄ RAFT_IDLE → RAFT_LANDING(28)`; `DRINKING(48)`,
+`SMASHING(60, smash particles at tick 28)`, `TIRED(52)`; `SLEEP_SETUP(90) → SLEEPING ⇄
+SLEEP_FLINCH(16)`, `WAKING(80)`, `ANGRY_WAKE(52)`; then `QUEUED`, `PRESENTING(48)`, `BUSTED`.
+Raft, Jarrito and sleep all start from `WALKING` only, so none can pull him out of the taco line. Durations equal the one-shot animation lengths
+so server and client hand over together. State is synced as an int (ordinal — **append new
+states at the end**) and picks the GeckoLib animation in `animate()`.
+
+Priorities inside WALKING each tick: arrive (only on a refined, inland site) → deep water (2+ deep
+for 6 ticks → raft) → night (sleep) → Jarrito wore off (tired) → escort rule. GRILLING packs up at
+night too. While boosted the walk animation is `run`.
 
 ### Never dies / never despawns
 `hurt` false, `isInvulnerableTo` true, `die`/`kill` no-op, `setHealth` clamps to max,
@@ -123,18 +154,25 @@ ever underground >3s, in a wall, in lava or below the world.
 
 Model, texture and animations are **generated by scripts** — edit the scripts, not the JSON:
 
-- `tools/gen_model.py` → `assets/papon/geo/entity/wandering_papon.geo.json` + 128×128 texture.
+- `tools/gen_model.py` → `assets/papon/geo/entity/wandering_papon.geo.json` + 256×256 texture.
   Body/arms/legs/brows are the wkcr Papon bone-for-bone at the same pixel UVs (source texture
-  `tools/src/papon_base.png`). Added: straw hat, backpack + bedroll, and props `grill`
-  (+`taco_a`, `taco_b`), `grill_hand`, `spatula`, `shaker`, `coupon`.
+  `tools/src/papon_base.png`). Added: straw hat, backpack + bedroll (a rolled potato sack), and
+  props `grill` (+`taco_a`, `taco_b`), `grill_hand`, `spatula`, `shaker`, `coupon`, `eyelids`,
+  `raft` (llama: `llama_neck`, `llama_head`, `llama_leg_*`, `llama_tail`), `paddle_r/l`,
+  `jarrito_red/orange/yellow/green`, `backpack_ground`, `sleeping_bag` + `bag_cover` (these two
+  are the burlap PAPAS potato sack; the bone names are historical).
 - `tools/gen_anims.py` → `assets/papon/animations/entity/wandering_papon.animation.json`:
-  `walk, idle, sit_down, grill, pack_up, receive_coupon, celebrate`. Catmull-Rom by default,
+  `walk, idle (blinks), sit_down, grill, pack_up, receive_coupon, celebrate, raft_board, raft,
+  raft_idle, raft_land, run, drink, smash, tired, sleep_setup, sleep, sleep_flinch, wake_up,
+  angry_wake`. Catmull-Rom by default,
   GeckoLib easings (easeOutBack, easeOutBounce…) on accents, squash/stretch, secondary motion on
   hat/backpack. Props hide via scale 0; every animation not using a prop pins it to 0. Sound keys
   are **cue names** mapped to vanilla sounds in `WanderingPaponEntity.onSoundCue`.
-- `tools/gen_items.py` → coupon item texture. `tools/gen_truck.py` → truck `.nbt` (placeholder
+- `tools/gen_items.py` → coupon icon, 3D Jarrito bottle models + textures (4 flavours), 3D
+  chancla model + texture, snooze particle texture + json. `tools/gen_truck.py` → truck `.nbt` (placeholder
   build; window faces +Z, `TacoTruck.WINDOW = (4,0,8)`; can be replaced by a structure-block save).
-- `tools/blockbench/wandering_papon.bbmodel` — Blockbench project with model + all animations.
+- `tools/blockbench/wandering_papon.bbmodel` — Blockbench project with model + all animations;
+  `tools/blockbench/preview.png` — key frames.
 
 - `tools/gen_customers.py` → the four internet customers (`don_pollo`, `edp445`,
   `badlands_chugs`, `reviewbrah`): geo + 128×128 texture each, one shared humanoid rig
@@ -323,15 +361,27 @@ Several Claude sessions may work on this repo at once. **Never commit straight t
 
 ## Building and testing
 
+**Always build the release jar in the main git checkout, `~/Documents/Coding/Papon`, never in a
+worktree** (`.claude/worktrees/*`). The jar the user takes is
+`~/Documents/Coding/Papon/build/libs/papon-<version>.jar`. Merge your branch into `main` first,
+then in the main checkout:
+
 ```bash
+cd ~/Documents/Coding/Papon
+git status                 # must be clean; do not disturb another session's uncommitted work
+git pull --ff-only         # main as pushed
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
-./gradlew build            # jar in build/libs/papon-<version>.jar
-./gradlew runServer        # dev server in run/ (gitignored)
+./gradlew clean build      # jar in build/libs/papon-<version>.jar
 ```
+
+Compiling and test runs inside your worktree while developing are fine (`./gradlew compileJava`,
+`./gradlew runServer` — dev server in `run/`, gitignored); just never hand over a jar built there.
 `run/` is not committed. For a headless test create `run/eula.txt` (`eula=true`) and
 `run/server.properties` with `online-mode=false`, `enable-rcon=true`, `rcon.password=papon`,
 `rcon.port=25575`; then drive it with `python3 tools/rcon.py "<command>" ...`:
 `/forceload add …`, `/papon escort true` (a virtual escort that also keeps his chunks loaded),
+`/papon distance <min> [max]` (saved to `run/config/papon-common.toml` — reset it after testing),
+`/papon target <x> <z>` (sea coordinates are redirected inland), `/papon state DRINKING` etc.,
 `/summon papon:wandering_papon …`, `/papon locate|skip|arrive`, and watch `[debug]` log lines.
 The truck scene: `execute positioned <x y z> rotated <yaw> 0 run papon tacoline` builds the truck
 ahead, the line, and queues a Wandering Papon; with `/papon escort true` the line runs on its own
@@ -342,6 +392,8 @@ Walking Crops is not in the dev run, so the coupon handoff can only be tested in
 
 ## Rules for working here
 - Work on a `claude/*` branch, commit often and push (the user asked for this).
+- Build release jars only in the main checkout `~/Documents/Coding/Papon` after merging to
+  `main` — never in a worktree (the user asked for this).
 - Regenerate assets with the `tools/*.py` scripts; re-save the `.bbmodel` after model changes.
 - Bump `mod_version` on every jar handed to the pack; never ship two jars with the same version.
 - Don't push anything to the Groid server; the instance's `CLAUDE.md` governs that.

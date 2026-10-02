@@ -16,7 +16,7 @@ import net.minecraft.world.level.biome.Biome;
  * straight line to them, and the driest line wins.
  */
 public final class JourneyPlanner {
-    private static final int CANDIDATES = 32;
+    private static final int CANDIDATES = 48;
     private static final int LINE_SAMPLES = 24;
 
     private JourneyPlanner() {}
@@ -55,7 +55,7 @@ public final class JourneyPlanner {
                 if (Terrain.isWetBiome(b)) score += 10;
                 else if (b.is(BiomeTags.IS_MOUNTAIN)) score += 3;
             }
-            if (Terrain.isWetBiome(Terrain.generatedBiome(level, x, z))) score += 1000;
+            if (!isInlandOnMap(level, x, z)) score += 1000;
             if (score < bestScore) {
                 bestScore = score;
                 best = new BlockPos(x, level.getSeaLevel(), z);
@@ -66,6 +66,43 @@ public final class JourneyPlanner {
             best = new BlockPos(Mth.floor(from.getX() * 0.5), level.getSeaLevel(), Mth.floor(from.getZ() * 0.5));
         }
         return best;
+    }
+
+    /** Land on the biome map, with no sea, river or beach within ~48 blocks in any direction. */
+    public static boolean isInlandOnMap(ServerLevel level, int x, int z) {
+        if (Terrain.isShoreBiome(Terrain.generatedBiome(level, x, z))) return false;
+        for (int i = 0; i < 8; i++) {
+            double a = i * Mth.TWO_PI / 8;
+            for (int r : new int[]{24, 48}) {
+                if (Terrain.isShoreBiome(Terrain.generatedBiome(level, x + (int) (Math.cos(a) * r),
+                        z + (int) (Math.sin(a) * r)))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Nearest inland ground to {@code around} on the biome map, searching outward ring by ring;
+     * among equally near rings it prefers the side facing {@code from} (where he is coming from).
+     */
+    public static BlockPos nearestInland(ServerLevel level, BlockPos around, BlockPos from) {
+        double toward = Math.atan2(from.getZ() - around.getZ(), from.getX() - around.getX());
+        for (int r = 32; r <= 1024; r += 32) {
+            int steps = Math.max(16, r / 8);
+            for (int k = 0; k < steps; k++) {
+                // alternate either side of the "toward him" bearing, nearest angle first
+                int n = (k + 1) / 2 * (k % 2 == 0 ? 1 : -1);
+                double a = toward + n * Mth.TWO_PI / steps;
+                int x = around.getX() + (int) Math.round(Math.cos(a) * r);
+                int z = around.getZ() + (int) Math.round(Math.sin(a) * r);
+                if (level.getWorldBorder().isWithinBounds(x, z) && isInlandOnMap(level, x, z)) {
+                    return new BlockPos(x, level.getSeaLevel(), z);
+                }
+            }
+        }
+        return from;
     }
 
     public static double horizontalDistSqr(BlockPos a, BlockPos b) {

@@ -12,6 +12,16 @@ import com.groid.papon.journey.TacoLine;
 import com.groid.papon.journey.TacoTruckScene;
 import com.groid.papon.journey.TacoTruck;
 import com.groid.papon.journey.Terrain;
+import com.groid.papon.item.ChanclaItem;
+import com.groid.papon.item.JarritoItem;
+import com.groid.papon.registry.ModParticles;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ItemParticleOption;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import org.joml.Vector3f;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -86,6 +96,11 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     private static final EntityDataAccessor<String> DATA_SPEECH =
             SynchedEntityData.defineId(WanderingPaponEntity.class, EntityDataSerializers.STRING);
     private static final Speech.Voice VOICE = new Speech.Voice(SoundEvents.WANDERING_TRADER_AMBIENT, 1.4F, 0.45F, 4);
+    /** Jarrito flavour in his hand (JarritoItem.Flavor ordinal), -1 for none. Picks the bottle bone. */
+    private static final EntityDataAccessor<Integer> DATA_FLAVOR =
+            SynchedEntityData.defineId(WanderingPaponEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> DATA_BOOSTED =
+            SynchedEntityData.defineId(WanderingPaponEntity.class, EntityDataSerializers.BOOLEAN);
 
     private static final String ANIM = "animation.wandering_papon.";
     private static final RawAnimation WALK = RawAnimation.begin().thenLoop(ANIM + "walk");
@@ -99,11 +114,39 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     private static final RawAnimation PRESENT = RawAnimation.begin().thenPlayAndHold(ANIM + "present_coupon");
     private static final RawAnimation BUSTED_THEN_NERVOUS = RawAnimation.begin().thenPlay(ANIM + "busted").thenLoop(ANIM + "nervous");
     private static final RawAnimation NERVOUS = RawAnimation.begin().thenLoop(ANIM + "nervous");
+    private static final RawAnimation RUN = RawAnimation.begin().thenLoop(ANIM + "run");
+    private static final RawAnimation BOARD_THEN_ROW = RawAnimation.begin().thenPlay(ANIM + "raft_board").thenLoop(ANIM + "raft");
+    private static final RawAnimation ROW = RawAnimation.begin().thenLoop(ANIM + "raft");
+    private static final RawAnimation LOUNGE = RawAnimation.begin().thenLoop(ANIM + "raft_idle");
+    private static final RawAnimation LAND = RawAnimation.begin().thenPlayAndHold(ANIM + "raft_land");
+    private static final RawAnimation DRINK = RawAnimation.begin().thenPlayAndHold(ANIM + "drink");
+    private static final RawAnimation SMASH = RawAnimation.begin().thenPlayAndHold(ANIM + "smash");
+    private static final RawAnimation TIRED_OUT = RawAnimation.begin().thenPlayAndHold(ANIM + "tired");
+    private static final RawAnimation SETUP_THEN_SLEEP = RawAnimation.begin().thenPlay(ANIM + "sleep_setup").thenLoop(ANIM + "sleep");
+    private static final RawAnimation SLEEP = RawAnimation.begin().thenLoop(ANIM + "sleep");
+    private static final RawAnimation FLINCH_THEN_SLEEP = RawAnimation.begin().thenPlay(ANIM + "sleep_flinch").thenLoop(ANIM + "sleep");
+    private static final RawAnimation WAKE = RawAnimation.begin().thenPlayAndHold(ANIM + "wake_up");
+    private static final RawAnimation WAKE_ANGRY = RawAnimation.begin().thenPlayAndHold(ANIM + "angry_wake");
+
+    /** Jarrito boost: 1.5x speed for two minutes. */
+    private static final int BOOST_TICKS = 20 * 120;
+    private static final double BOOST_MULTIPLIER = 1.5;
+    private static final UUID BOOST_ID = UUID.fromString("6b7f3c52-3a0e-4c55-9d7e-7a1f0c7e2a11");
+    /** Tick of SMASHING on which the bottle hits the ground (the smash animation's impact frame, 1.4s). */
+    private static final int SMASH_TICK = 28;
+    /** Chance per chancla whack that a sleeping Papon wakes up (angry). */
+    private static final float CHANCLA_WAKE_CHANCE = 0.02F;
+    /** Fewest ticks between chancla whacks that count, so spam-clicking does not roll 20 times a second. */
+    private static final int CHANCLA_COOLDOWN = 8;
+    /** Ticks in deep water before he gives up wading and gets the llama out. */
+    private static final int DEEP_WATER_TICKS = 6;
 
     /** Horizontal distance from the site at which he counts as arrived. */
     private static final double ARRIVE_RADIUS = 3.5;
     /** When this close, the site is moved to the nearest flat, dry ground so the truck has somewhere to stand. */
     private static final double REFINE_RADIUS = 48;
+    /** How far from the picked site to look for inland ground once it loads. */
+    private static final int REFINE_SEARCH = 40;
     /** Tick of the ARRIVED state at which the truck appears (mid-celebration, after his first jump). */
     private static final int TRUCK_TICK = 22;
 
@@ -134,12 +177,20 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     private int lineTotal;
     private int speechTicks;
     private int babbleTicks;
+    private final RaftDriver raft = new RaftDriver(this);
+    private int boostTicks;
+    private boolean pendingTired;
+    /** Woken by the chancla: no more sleep until morning. */
+    private boolean awakeUntilDay;
+    private int lastChanclaTick = -100;
+    private int deepWaterTicks;
+    @Nullable private PaponState clientLastState;
 
     public WanderingPaponEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
         setPersistenceRequired();
         setMaxUpStep(1.0F);
-        setPathfindingMalus(BlockPathTypes.WATER, 8.0F);
+        setPathfindingMalus(BlockPathTypes.WATER, 4.0F);
         setPathfindingMalus(BlockPathTypes.WATER_BORDER, 2.0F);
         setPathfindingMalus(BlockPathTypes.LAVA, -1.0F);
         setPathfindingMalus(BlockPathTypes.DANGER_FIRE, -1.0F);
@@ -166,6 +217,8 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         super.defineSynchedData();
         entityData.define(DATA_STATE, PaponState.WALKING.ordinal());
         entityData.define(DATA_SPEECH, "");
+        entityData.define(DATA_FLAVOR, -1);
+        entityData.define(DATA_BOOSTED, false);
     }
 
     @Override
@@ -175,7 +228,9 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
 
     @Override
     protected void registerGoals() {
-        goalSelector.addGoal(0, new FloatGoal(this));
+        goalSelector.addGoal(0, new FloatGoal(this) {
+            @Override public boolean canUse() { return !getPaponState().isRafting() && super.canUse(); }
+        });
         goalSelector.addGoal(1, new JourneyGoal(this));
         goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 10.0F) {
             @Override public boolean canUse() { return !getPaponState().isSeated() && super.canUse(); }
@@ -219,12 +274,46 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         if (state != PaponState.WALKING) {
             getNavigation().stop();
         }
+        if (state.isRafting()) {
+            raft.reset();
+        }
+        if (state != PaponState.DRINKING && state != PaponState.SMASHING) {
+            entityData.set(DATA_FLAVOR, -1);
+        }
         track();
+    }
+
+    /** 1.5 while a Jarrito is in him. Applied to walking through the speed attribute, to rafting directly. */
+    public double speedFactor() {
+        return boostTicks > 0 ? BOOST_MULTIPLIER : 1.0;
+    }
+
+    public int getFlavorId() {
+        return entityData.get(DATA_FLAVOR);
+    }
+
+    public boolean isBoosted() {
+        return entityData.get(DATA_BOOSTED);
+    }
+
+    /** Night in a dimension with a day cycle, on dry land, and not woken by a chancla tonight. */
+    private boolean shouldSleep() {
+        return !awakeUntilDay && level().dimensionType().hasSkyLight() && !level().dimensionType().hasFixedTime()
+                && level().isNight() && onGround() && !isInWater();
     }
 
     @Nullable
     public BlockPos getDestination() {
         return destination;
+    }
+
+    /** Re-aims the journey at (x, z); for /papon target. */
+    public void setDestination(BlockPos dest) {
+        origin = blockPosition();
+        destination = dest;
+        destinationRefined = false;
+        journeyLength = Math.max(1, Math.sqrt(JourneyPlanner.horizontalDistSqr(origin, destination)));
+        track();
     }
 
     public boolean isEscorted() {
@@ -256,6 +345,8 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             beginJourney(null);
         }
         escorted = hasPlayerWithin(PaponConfig.ESCORT_RADIUS.get());
+        if (level().isDay()) awakeUntilDay = false;
+        tickBoost();
         PaponState state = getPaponState();
 
         if (state.isSeated()) {
@@ -275,7 +366,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
                 if (stateTicks >= state.duration) setPaponState(PaponState.GRILLING);
             }
             case GRILLING -> {
-                if (hasPlayerWithin(PaponConfig.RESUME_RADIUS.get())) setPaponState(PaponState.PACKING_UP);
+                if (hasPlayerWithin(PaponConfig.RESUME_RADIUS.get()) || shouldSleep()) setPaponState(PaponState.PACKING_UP);
             }
             case PACKING_UP -> {
                 if (stateTicks >= state.duration) setPaponState(PaponState.WALKING);
@@ -290,6 +381,54 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             case PRESENTING, BUSTED -> {
                 getNavigation().stop();
                 if (line != null) faceCounter();
+            }
+            case RAFT_BOARDING -> {
+                raft.tick(false);
+                if (stateTicks >= state.duration) setPaponState(PaponState.RAFTING);
+            }
+            case RAFTING -> {
+                if (escorted) {
+                    lonelyTicks = 0;
+                } else if (++lonelyTicks > PaponConfig.LONELY_DELAY_TICKS.get()) {
+                    setPaponState(PaponState.RAFT_IDLE);
+                    break;
+                }
+                // A site that turns out to be on or by the water is moved inland as soon as it loads.
+                if (!destinationRefined && remainingDistance() < REFINE_RADIUS) refineDestination(server);
+                BlockPos shore = raft.tick(true);
+                if (shore != null) landOn(shore);
+            }
+            case RAFT_IDLE -> {
+                raft.tick(false);
+                if (hasPlayerWithin(PaponConfig.RESUME_RADIUS.get())) setPaponState(PaponState.RAFTING);
+            }
+            case RAFT_LANDING -> {
+                if (stateTicks >= state.duration) setPaponState(PaponState.WALKING);
+            }
+            case DRINKING -> {
+                if (stateTicks >= state.duration) {
+                    startBoost();
+                    setPaponState(PaponState.WALKING);
+                }
+            }
+            case SMASHING -> {
+                if (stateTicks == SMASH_TICK) smashBottle(server);
+                if (stateTicks >= state.duration) setPaponState(PaponState.WALKING);
+            }
+            case TIRED -> {
+                if (stateTicks >= state.duration) setPaponState(PaponState.WALKING);
+            }
+            case SLEEP_SETUP -> {
+                if (stateTicks >= state.duration) setPaponState(PaponState.SLEEPING);
+            }
+            case SLEEPING -> {
+                if (level().isDay()) setPaponState(PaponState.WAKING);
+            }
+            case SLEEP_FLINCH -> {
+                if (stateTicks >= state.duration) setPaponState(level().isDay() ? PaponState.WAKING : PaponState.SLEEPING);
+            }
+            case WAKING, ANGRY_WAKE -> {
+                if (stateTicks >= state.duration) setPaponState(PaponState.WALKING);
             }
         }
 
@@ -318,8 +457,26 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             refineDestination(server);
             dist = remainingDistance();
         }
-        if (dist <= ARRIVE_RADIUS) {
+        if (dist <= ARRIVE_RADIUS && destinationRefined) {
             arrive(server);
+            return;
+        }
+        if (isInWater() && RaftDriver.waterDepth(server, position()) >= 2) {
+            if (++deepWaterTicks >= DEEP_WATER_TICKS) {
+                deepWaterTicks = 0;
+                setPaponState(PaponState.RAFT_BOARDING);
+                return;
+            }
+        } else {
+            deepWaterTicks = 0;
+        }
+        if (shouldSleep()) {
+            setPaponState(PaponState.SLEEP_SETUP);
+            return;
+        }
+        if (pendingTired) {
+            pendingTired = false;
+            setPaponState(PaponState.TIRED);
             return;
         }
         if (escorted) {
@@ -329,19 +486,34 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         }
     }
 
-    /** Moves the site onto flat, dry ground near where it was picked, once that land is loaded. */
+    /**
+     * Once the site's land is loaded, pins it to flat, dry ground well away from any water, so the
+     * Taco Truck never stands on a beach or a riverbank. If there is no such ground nearby (the
+     * site was on the sea, say, from /papon target), the journey is re-aimed at the nearest inland
+     * ground on the biome map and refined again when he gets close to that.
+     */
     private void refineDestination(ServerLevel server) {
         if (destination == null || !level().hasChunkAt(destination)) return;
-        BlockPos dry = Terrain.findDrySpotNear(server, destination.getX(), destination.getZ(), 24, 1);
-        if (dry == null) dry = Terrain.findDrySpotNear(server, destination.getX(), destination.getZ(), 32, -1);
-        if (dry != null) destination = dry;
-        destinationRefined = true;
+        BlockPos spot = Terrain.findInlandSpotNear(server, destination.getX(), destination.getZ(), REFINE_SEARCH);
+        if (spot != null) {
+            destination = spot;
+            destinationRefined = true;
+        } else {
+            BlockPos inland = JourneyPlanner.nearestInland(server, destination, blockPosition());
+            PaponMod.LOG.info("Wandering Papon {}: no inland ground near {}, re-aiming at {}", getUUID(), destination, inland);
+            destination = inland;
+            destinationRefined = false;
+            journeyLength = Math.max(journeyLength, Math.sqrt(JourneyPlanner.horizontalDistSqr(blockPosition(), destination)));
+        }
         track();
     }
 
     /** Called by JourneyGoal when he is stuck right next to the site: close enough. */
     public void arriveNearby() {
-        if (level() instanceof ServerLevel server && getPaponState() == PaponState.WALKING) arrive(server);
+        if (level() instanceof ServerLevel server && getPaponState() == PaponState.WALKING && destinationRefined
+                && Terrain.isInland(server, blockPosition(), Terrain.INLAND_RADIUS)) {
+            arrive(server);
+        }
     }
 
     private void arrive(ServerLevel server) {
@@ -473,8 +645,104 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         PaponMod.LOG.info("Wandering Papon {} reached the Taco Truck at {}", getUUID(), blockPosition());
     }
 
+    /** Steps off the raft onto the shore spot RaftDriver found. */
+    private void landOn(BlockPos shore) {
+        moveTo(shore.getX() + 0.5, shore.getY(), shore.getZ() + 0.5, getYRot(), 0);
+        setDeltaMovement(Vec3.ZERO);
+        if (level() instanceof ServerLevel server) {
+            server.sendParticles(ParticleTypes.SPLASH, getX(), getY() + 0.2, getZ(), 30, 0.6, 0.2, 0.6, 0.1);
+        }
+        setPaponState(PaponState.RAFT_LANDING);
+    }
+
+    private void tickBoost() {
+        AttributeInstance speed = getAttribute(Attributes.MOVEMENT_SPEED);
+        if (boostTicks > 0) {
+            boostTicks--;
+            if (speed != null && speed.getModifier(BOOST_ID) == null) {
+                speed.addTransientModifier(new AttributeModifier(BOOST_ID, "Jarrito", BOOST_MULTIPLIER - 1.0,
+                        AttributeModifier.Operation.MULTIPLY_TOTAL));
+            }
+            if (boostTicks == 0) {
+                pendingTired = true;
+            }
+        } else if (speed != null && speed.getModifier(BOOST_ID) != null) {
+            speed.removeModifier(BOOST_ID);
+        }
+        entityData.set(DATA_BOOSTED, boostTicks > 0);
+    }
+
+    private void startBoost() {
+        boostTicks = BOOST_TICKS;
+        pendingTired = false;
+        if (level() instanceof ServerLevel server) {
+            server.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), getY() + 1.2, getZ(), 12, 0.5, 0.5, 0.5, 0);
+        }
+    }
+
+    /** A player hands him a Jarrito. Returns true if he took it. */
+    private boolean offerJarrito(Player player, ItemStack stack, JarritoItem jarrito) {
+        PaponState state = getPaponState();
+        if (state != PaponState.WALKING) {
+            player.displayClientMessage(Component.translatable("message.papon.jarrito_busy").withStyle(ChatFormatting.GRAY), true);
+            return false;
+        }
+        boolean yellow = jarrito.flavor() == JarritoItem.Flavor.YELLOW;
+        if (!yellow && boostTicks > 0) {
+            player.displayClientMessage(Component.translatable("message.papon.jarrito_full").withStyle(ChatFormatting.GRAY), true);
+            return false;
+        }
+        lookAt(player, 360, 360);
+        yBodyRot = getYRot();
+        yHeadRot = getYRot();
+        if (!player.getAbilities().instabuild) stack.shrink(1);
+        setPaponState(yellow ? PaponState.SMASHING : PaponState.DRINKING);
+        entityData.set(DATA_FLAVOR, jarrito.flavor().ordinal());
+        player.displayClientMessage(Component.translatable(yellow ? "message.papon.jarrito_yellow" : "message.papon.jarrito_drink")
+                .withStyle(yellow ? ChatFormatting.RED : ChatFormatting.GOLD), true);
+        return true;
+    }
+
+    /** The impact frame of the smash animation: glass and yellow soda everywhere. */
+    private void smashBottle(ServerLevel server) {
+        float yaw = getYRot() * Mth.DEG_TO_RAD;
+        double x = getX() - Mth.sin(yaw) * 0.7;
+        double z = getZ() + Mth.cos(yaw) * 0.7;
+        server.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.GLASS_BOTTLE)),
+                x, getY() + 0.15, z, 24, 0.25, 0.1, 0.25, 0.15);
+        server.sendParticles(new DustParticleOptions(new Vector3f(1.0F, 0.85F, 0.15F), 1.3F),
+                x, getY() + 0.1, z, 30, 0.45, 0.1, 0.45, 0.0);
+        server.sendParticles(ParticleTypes.SPLASH, x, getY() + 0.1, z, 20, 0.4, 0.1, 0.4, 0.2);
+        server.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 1.7, getZ(), 3, 0.3, 0.2, 0.3, 0);
+        server.playSound(null, x, getY(), z, SoundEvents.GLASS_BREAK, SoundSource.NEUTRAL, 1.2F, 0.9F);
+    }
+
+    /** Whacked with a chancla (see CommonEvents). Only a sleeping Papon cares. */
+    public void onChancla(Player player) {
+        if (!(level() instanceof ServerLevel server) || tickCount - lastChanclaTick < CHANCLA_COOLDOWN) return;
+        lastChanclaTick = tickCount;
+        server.playSound(null, getX(), getY(), getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.PLAYERS, 1.0F, 1.3F);
+        server.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.PLAYERS, 0.8F, 1.6F);
+        server.sendParticles(ParticleTypes.CRIT, getX(), getY() + 0.9, getZ(), 8, 0.4, 0.3, 0.4, 0.1);
+        PaponState state = getPaponState();
+        if (state != PaponState.SLEEPING && state != PaponState.SLEEP_FLINCH) return;
+        if (random.nextFloat() < CHANCLA_WAKE_CHANCE) {
+            awakeUntilDay = true;
+            setPaponState(PaponState.ANGRY_WAKE);
+            server.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 1.4, getZ(), 6, 0.5, 0.3, 0.5, 0);
+            player.displayClientMessage(Component.translatable("message.papon.chancla_woke").withStyle(ChatFormatting.RED), true);
+        } else {
+            setPaponState(PaponState.SLEEP_FLINCH);
+        }
+    }
+
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        ItemStack held = player.getItemInHand(hand);
+        if (held.getItem() instanceof JarritoItem jarrito) {
+            if (!level().isClientSide) offerJarrito(player, held, jarrito);
+            return InteractionResult.sidedSuccess(level().isClientSide);
+        }
         PaponState state = getPaponState();
         if (state == PaponState.WAITING || state == PaponState.QUEUED || state == PaponState.PRESENTING
                 || state == PaponState.BUSTED) {
@@ -544,19 +812,29 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         int left = (int) Math.ceil(remainingDistance());
         Component name = switch (state) {
             case RECEIVING -> Component.translatable("bar.papon.receiving");
-            case WALKING -> Component.translatable("bar.papon.walking", left);
+            case WALKING -> Component.translatable(isBoosted() ? "bar.papon.zooming" : "bar.papon.walking", left);
             case SITTING_DOWN, GRILLING -> Component.translatable("bar.papon.grilling", left);
             case PACKING_UP -> Component.translatable("bar.papon.packing", left);
             case ARRIVED, WAITING -> Component.translatable("bar.papon.arrived");
             case QUEUED -> Component.translatable("bar.papon.queued", lineSlot);
             case PRESENTING -> Component.translatable("bar.papon.presenting");
             case BUSTED -> Component.translatable("bar.papon.busted");
+            case RAFT_BOARDING, RAFTING, RAFT_LANDING -> Component.translatable("bar.papon.rafting", left);
+            case RAFT_IDLE -> Component.translatable("bar.papon.raft_idle", left);
+            case DRINKING -> Component.translatable("bar.papon.drinking", left);
+            case SMASHING -> Component.translatable("bar.papon.smashing", left);
+            case TIRED -> Component.translatable("bar.papon.tired", left);
+            case SLEEP_SETUP, SLEEPING, SLEEP_FLINCH -> Component.translatable("bar.papon.sleeping", left);
+            case WAKING -> Component.translatable("bar.papon.waking", left);
+            case ANGRY_WAKE -> Component.translatable("bar.papon.angry", left);
         };
         journeyBar.setName(name);
         journeyBar.setColor(switch (state) {
-            case GRILLING, SITTING_DOWN, BUSTED -> BossEvent.BossBarColor.RED;
+            case SITTING_DOWN, GRILLING, RAFT_IDLE, SMASHING, ANGRY_WAKE, BUSTED -> BossEvent.BossBarColor.RED;
+            case SLEEP_SETUP, SLEEPING, SLEEP_FLINCH, WAKING -> BossEvent.BossBarColor.PURPLE;
+            case RAFT_BOARDING, RAFTING, RAFT_LANDING -> BossEvent.BossBarColor.BLUE;
             case QUEUED, PRESENTING -> BossEvent.BossBarColor.GREEN;
-            default -> BossEvent.BossBarColor.YELLOW;
+            default -> isBoosted() ? BossEvent.BossBarColor.GREEN : BossEvent.BossBarColor.YELLOW;
         });
         journeyBar.setProgress(switch (state) {
             case ARRIVED, WAITING, PRESENTING, BUSTED -> 1F;
@@ -590,11 +868,29 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide) {
-            if (getPaponState() == PaponState.GRILLING) grillParticles();
-            if (babbleTicks > 0) VOICE.blip(this, --babbleTicks);
-        } else if (speechTicks > 0 && --speechTicks == 0) {
-            entityData.set(DATA_SPEECH, "");
+        if (!level().isClientSide) {
+            if (speechTicks > 0 && --speechTicks == 0) entityData.set(DATA_SPEECH, "");
+            return;
+        }
+        if (babbleTicks > 0) VOICE.blip(this, --babbleTicks);
+        PaponState state = getPaponState();
+        if (state == PaponState.GRILLING) {
+            grillParticles();
+        } else if (state == PaponState.SLEEPING || state == PaponState.SLEEP_FLINCH) {
+            if (tickCount % 40 == 0) {
+                // His head is at the far end of the sleeping bag, behind where he was standing.
+                float yaw = yBodyRot * Mth.DEG_TO_RAD;
+                level().addParticle(ModParticles.SNOOZE.get(), getX() + Mth.sin(yaw) * 1.35, getY() + 1.15,
+                        getZ() - Mth.cos(yaw) * 1.35, 0, 0.02, 0);
+            }
+        } else if (state == PaponState.RAFTING && tickCount % 5 == 0) {
+            float yaw = yBodyRot * Mth.DEG_TO_RAD;
+            double side = (tickCount / 5) % 2 == 0 ? 0.9 : -0.9;
+            level().addParticle(ParticleTypes.SPLASH, getX() + Mth.cos(yaw) * side, getY() + 0.1,
+                    getZ() + Mth.sin(yaw) * side, 0, 0.1, 0);
+        } else if (state == PaponState.WALKING && isBoosted() && tickCount % 3 == 0
+                && getDeltaMovement().horizontalDistanceSqr() > 1.0E-3) {
+            level().addParticle(ParticleTypes.POOF, getX(), getY() + 0.05, getZ(), 0, 0.01, 0);
         }
     }
 
@@ -626,9 +922,10 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     private PlayState animate(AnimationState<WanderingPaponEntity> event) {
         AnimationController<WanderingPaponEntity> controller = event.getController();
         RawAnimation current = controller.getCurrentRawAnimation();
-        RawAnimation next = switch (getPaponState()) {
+        PaponState state = getPaponState();
+        RawAnimation next = switch (state) {
             case RECEIVING -> RECEIVE;
-            case WALKING -> event.isMoving() ? WALK : IDLE;
+            case WALKING -> event.isMoving() ? (isBoosted() ? RUN : WALK) : IDLE;
             case SITTING_DOWN -> SIT_THEN_GRILL;
             // A client that watched him sit down is already in the loop that follows; one that
             // arrives later starts straight in the loop.
@@ -639,7 +936,24 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             case QUEUED -> event.isMoving() ? WALK : QUEUE_IDLE;
             case PRESENTING -> PRESENT;
             case BUSTED -> PRESENT.equals(current) || BUSTED_THEN_NERVOUS.equals(current) ? BUSTED_THEN_NERVOUS : NERVOUS;
+            case RAFT_BOARDING -> BOARD_THEN_ROW;
+            case RAFTING -> BOARD_THEN_ROW.equals(current) ? BOARD_THEN_ROW : ROW;
+            case RAFT_IDLE -> LOUNGE;
+            case RAFT_LANDING -> LAND;
+            case DRINKING -> DRINK;
+            case SMASHING -> SMASH;
+            case TIRED -> TIRED_OUT;
+            case SLEEP_SETUP -> SETUP_THEN_SLEEP;
+            case SLEEPING -> SETUP_THEN_SLEEP.equals(current) || FLINCH_THEN_SLEEP.equals(current) ? current : SLEEP;
+            case SLEEP_FLINCH -> FLINCH_THEN_SLEEP;
+            case WAKING -> WAKE;
+            case ANGRY_WAKE -> WAKE_ANGRY;
         };
+        // Re-entering a one-shot (a second chancla flinch) must restart it, not continue it.
+        if (state != clientLastState && state.duration > 0 && next.equals(current)) {
+            controller.forceAnimationReset();
+        }
+        clientLastState = state;
         return event.setAndContinue(next);
     }
 
@@ -664,6 +978,27 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             case "gasp" -> { sound = SoundEvents.VILLAGER_TRADE; volume = 0.8F; pitch = 1.6F; }
             case "jump" -> { sound = SoundEvents.SLIME_JUMP_SMALL; volume = 0.7F; }
             case "determined" -> { sound = SoundEvents.VILLAGER_YES; volume = 0.7F; pitch = 1.3F; }
+            case "boing" -> { sound = SoundEvents.SLIME_JUMP; volume = 0.8F; pitch = 1.7F; }
+            case "llama" -> { sound = SoundEvents.LLAMA_AMBIENT; volume = 0.8F; }
+            case "splash" -> { sound = SoundEvents.BOAT_PADDLE_WATER; volume = 0.6F; }
+            case "shake_off" -> { sound = SoundEvents.WOLF_SHAKE; volume = 0.8F; pitch = 1.3F; }
+            case "uncap" -> { sound = SoundEvents.LANTERN_HIT; volume = 0.5F; pitch = 1.8F; }
+            case "gulp" -> { sound = SoundEvents.GENERIC_DRINK; volume = 0.6F; pitch = 1.2F; }
+            case "toss" -> { sound = SoundEvents.EGG_THROW; volume = 0.6F; }
+            case "burp" -> { sound = SoundEvents.PLAYER_BURP; volume = 1.0F; pitch = 0.8F; }
+            case "grumble", "huff" -> { sound = SoundEvents.VILLAGER_NO; volume = 0.8F; pitch = 0.85F; }
+            case "angry" -> { sound = SoundEvents.VILLAGER_NO; volume = 1.0F; pitch = 0.7F; }
+            case "smash" -> { sound = SoundEvents.GLASS_BREAK; volume = 0.6F; pitch = 1.2F; }
+            case "stomp" -> { sound = SoundEvents.GRAVEL_STEP; volume = 1.0F; pitch = 0.8F; }
+            case "pant" -> { sound = SoundEvents.WOLF_PANT; volume = 0.6F; pitch = 1.3F; }
+            case "wipe" -> { sound = SoundEvents.ARMOR_EQUIP_LEATHER; volume = 0.5F; pitch = 1.4F; }
+            case "yawn" -> { sound = SoundEvents.FOX_SLEEP; volume = 0.8F; pitch = 0.75F; }
+            case "thud" -> { sound = SoundEvents.WOOD_PLACE; volume = 0.7F; }
+            case "unroll" -> { sound = SoundEvents.WOOL_PLACE; volume = 0.9F; }
+            case "rustle" -> { sound = SoundEvents.WOOL_HIT; volume = 0.9F; }
+            case "snore" -> { sound = SoundEvents.FOX_SLEEP; volume = 0.6F; pitch = 0.6F; }
+            case "snore_out" -> { sound = SoundEvents.FOX_SLEEP; volume = 0.4F; pitch = 0.9F; }
+            case "snort" -> { sound = SoundEvents.PIG_AMBIENT; volume = 0.7F; pitch = 1.4F; }
             default -> {
                 SoundCues.play(this, cue);
                 return;
@@ -694,6 +1029,10 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         if (vendorId != null) tag.putUUID("Vendor", vendorId);
         if (line != null) tag.put("Line", line.save());
         tag.putInt("LineSlot", lineSlot);
+        tag.putInt("BoostTicks", boostTicks);
+        tag.putBoolean("PendingTired", pendingTired);
+        tag.putBoolean("AwakeUntilDay", awakeUntilDay);
+        tag.putInt("Flavor", getFlavorId());
     }
 
     @Override
@@ -711,6 +1050,10 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         origin = tag.contains("Origin") ? NbtUtils.readBlockPos(tag.getCompound("Origin")) : null;
         destination = tag.contains("Destination") ? NbtUtils.readBlockPos(tag.getCompound("Destination")) : null;
         lastSafePos = tag.contains("LastSafePos") ? NbtUtils.readBlockPos(tag.getCompound("LastSafePos")) : null;
+        boostTicks = tag.getInt("BoostTicks");
+        pendingTired = tag.getBoolean("PendingTired");
+        awakeUntilDay = tag.getBoolean("AwakeUntilDay");
+        entityData.set(DATA_FLAVOR, tag.contains("Flavor") ? tag.getInt("Flavor") : -1);
         if (origin == null && destination != null) origin = blockPosition();
         vendorId = tag.hasUUID("Vendor") ? tag.getUUID("Vendor") : null;
         line = tag.contains("Line") ? TacoLine.load(tag.getCompound("Line")) : null;

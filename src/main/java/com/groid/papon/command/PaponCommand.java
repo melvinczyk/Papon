@@ -1,9 +1,11 @@
 package com.groid.papon.command;
 
+import com.groid.papon.PaponConfig;
 import com.groid.papon.entity.PaponState;
 import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.entity.npc.TacoVendorEntity;
 import com.groid.papon.journey.JourneyData;
+import com.groid.papon.journey.JourneyPlanner;
 import com.groid.papon.journey.TacoTruck;
 import com.groid.papon.journey.TacoTruckScene;
 import com.groid.papon.registry.ModEntities;
@@ -11,9 +13,11 @@ import com.groid.papon.journey.Terrain;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -43,6 +47,9 @@ import java.util.UUID;
  *                       Wandering Papon (or a new one) queued at the back, you behind him
  *   serve               the nearest truck finishes its current customer right now
  *   fraud               everyone ahead of the Wandering Papon is served at once: straight to the coupon
+ *   distance [min] [max]  show / set how far new Taco Truck sites are (saved to config)
+ *   target <x> <z>      send the nearest Papon somewhere else (testing)
+ *   state <STATE>       force the nearest Papon into a state, to see an animation (testing)
  */
 public final class PaponCommand {
     private PaponCommand() {}
@@ -59,7 +66,22 @@ public final class PaponCommand {
                 .then(Commands.literal("placetruck").executes(PaponCommand::placeTruck))
                 .then(Commands.literal("tacoline").executes(PaponCommand::tacoLine))
                 .then(Commands.literal("serve").executes(PaponCommand::serve))
-                .then(Commands.literal("fraud").executes(PaponCommand::fraud)));
+                .then(Commands.literal("fraud").executes(PaponCommand::fraud))
+                .then(Commands.literal("distance").executes(PaponCommand::showDistance)
+                        .then(Commands.argument("min", IntegerArgumentType.integer(1, 100_000))
+                                .executes(c -> setDistance(c, IntegerArgumentType.getInteger(c, "min"),
+                                        IntegerArgumentType.getInteger(c, "min")))
+                                .then(Commands.argument("max", IntegerArgumentType.integer(1, 100_000))
+                                        .executes(c -> setDistance(c, IntegerArgumentType.getInteger(c, "min"),
+                                                IntegerArgumentType.getInteger(c, "max"))))))
+                .then(Commands.literal("target").then(Commands.argument("x", IntegerArgumentType.integer())
+                        .then(Commands.argument("z", IntegerArgumentType.integer())
+                                .executes(c -> target(c, IntegerArgumentType.getInteger(c, "x"),
+                                        IntegerArgumentType.getInteger(c, "z"))))))
+                .then(Commands.literal("state").then(Commands.argument("state", StringArgumentType.word())
+                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                java.util.Arrays.stream(PaponState.values()).map(Enum::name), b))
+                        .executes(c -> state(c, StringArgumentType.getString(c, "state"))))));
     }
 
     private static int locate(CommandContext<CommandSourceStack> c) {
@@ -165,6 +187,58 @@ public final class PaponCommand {
         if (v == null) return fail(c, "No Taco Truck within 64 blocks.");
         v.skipToPapon(c.getSource().getLevel());
         c.getSource().sendSuccess(() -> Component.literal("Everyone ahead of Papon has been fed."), true);
+        return 1;
+    }
+
+    private static int showDistance(CommandContext<CommandSourceStack> c) {
+        int min = PaponConfig.JOURNEY_MIN_DISTANCE.get();
+        int max = PaponConfig.JOURNEY_MAX_DISTANCE.get();
+        c.getSource().sendSuccess(() -> Component.literal("New Taco Truck sites are picked " + min + "-" + max
+                + " blocks from where the coupon is handed over."), false);
+        return min;
+    }
+
+    /**
+     * Changes how far away new Taco Truck sites are picked, and saves it to papon-common.toml.
+     * Applies to journeys started from now on; a Papon already walking keeps his site (use
+     * /papon target to move it).
+     */
+    private static int setDistance(CommandContext<CommandSourceStack> c, int min, int max) {
+        int lo = Math.min(min, max);
+        int hi = Math.max(min, max);
+        PaponConfig.JOURNEY_MIN_DISTANCE.set(Math.max(64, lo));
+        PaponConfig.JOURNEY_MAX_DISTANCE.set(Math.max(64, hi));
+        PaponConfig.SPEC.save();
+        int savedLo = PaponConfig.JOURNEY_MIN_DISTANCE.get();
+        int savedHi = PaponConfig.JOURNEY_MAX_DISTANCE.get();
+        c.getSource().sendSuccess(() -> Component.literal("Taco Truck distance set to " + savedLo + "-" + savedHi
+                + " blocks for new journeys (saved to papon-common.toml)."), true);
+        return savedLo;
+    }
+
+    private static int target(CommandContext<CommandSourceStack> c, int x, int z) {
+        WanderingPaponEntity p = nearest(c, 64);
+        if (p == null) return fail(c, "No Wandering Papon within 64 blocks.");
+        ServerLevel level = c.getSource().getLevel();
+        BlockPos want = new BlockPos(x, level.getSeaLevel(), z);
+        BlockPos site = JourneyPlanner.isInlandOnMap(level, x, z) ? want : JourneyPlanner.nearestInland(level, want, p.blockPosition());
+        p.setDestination(site);
+        String note = site.equals(want) ? "" : " (that is by the water; nearest inland ground instead)";
+        c.getSource().sendSuccess(() -> Component.literal("Papon now heads for " + site.getX() + " " + site.getZ() + note + "."), true);
+        return 1;
+    }
+
+    private static int state(CommandContext<CommandSourceStack> c, String name) {
+        WanderingPaponEntity p = nearest(c, 64);
+        if (p == null) return fail(c, "No Wandering Papon within 64 blocks.");
+        PaponState s;
+        try {
+            s = PaponState.valueOf(name.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return fail(c, "Unknown state " + name + ".");
+        }
+        p.setPaponState(s);
+        c.getSource().sendSuccess(() -> Component.literal("Papon is now " + s + "."), true);
         return 1;
     }
 
