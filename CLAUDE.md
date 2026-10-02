@@ -1,7 +1,8 @@
 # Papon — the Groid Pack final boss
 
 Forge 1.20.1 (47.4.10) + GeckoLib 4.8.4 mod, modid `papon`, package `com.groid.papon`.
-Repo: https://github.com/melvinczyk/Papon (branch `main`). Read this whole file before working.
+Repo: https://github.com/melvinczyk/Papon. Read this whole file before working, and work on a
+`claude/*` branch, never `main` (see "Working with other Claude models").
 
 ## Who and what
 
@@ -94,51 +95,177 @@ Rig conventions (verified by render): rot X < 0 swings an arm/leg forward; Y yaw
 frame (+Y = inward for `arm_l`, −Y inward for `arm_r`); `arm_r` Z > 0 / `arm_l` Z < 0 raise
 outward; position Z < 0 is forward (face is −Z).
 
-### Blockbench MCP
-Blockbench (5.2.1, MCP plugin 1.10.0) serves MCP at `http://localhost:3000/bb-mcp`
-(streamable HTTP). It was **not registered as an MCP server in Claude Code**, so it was driven
-with a small Python JSON-RPC client (initialize → `tools/call`). Useful tools: `create_project`
-(format `geckolib_model`), `from_geo_json`, `create_texture`, `risky_eval` (full Blockbench JS:
-`Animator.loadFile`, `Timeline.setTime`, `Codecs.project.compile`), `create_offscreen_view` +
-`set_camera_angle` for renders, `geckolib_*` tools. Note the tool list grows once a project is open.
+### Blockbench MCP — how to connect
 
-## Research notes for the boss fight (from decompiling the pack's jars)
+Blockbench (desktop 5.2.1) with the **MCP plugin** (1.10.0) serves MCP over streamable HTTP at
+`http://localhost:3000/bb-mcp` whenever Blockbench is open. Two ways to use it:
 
-**Cataclysm (L_Enders_Cataclysm-3.31, lib lionfishapi)** — the mechanics bar to hit:
-- Synced `ATTACK_STATE` int + server `attackTicks`; each attack is a goal
-  (`InternalAttackGoal` picks it by range/cooldown, `InternalStateGoal` runs it for N ticks and
-  chains to a follow-up state). Hits, projectiles, shockwaves fire on exact `attackTicks` so they
-  land on the animation's impact frame.
-- Client: one vanilla `AnimationState` per attack, started on the state change; animations are
-  Blockbench exports as Java keyframe definitions with **Catmull-Rom** interpolation.
-- Juice: `ScreenShake_Entity.ScreenShake(level, pos, radius, magnitude, duration, fadeOut)` on
-  slams, custom boss bars (`CMBossInfoServer`, e.g. a separate rage meter), telegraph particles,
-  per-boss music, multi-phase behaviour, combos with branches (grab → success/fail).
+1. **As real MCP tools (preferred).** The repo ships `.mcp.json`:
+   ```json
+   { "mcpServers": { "blockbench": { "type": "http", "url": "http://localhost:3000/bb-mcp" } } }
+   ```
+   Claude Code picks it up when started in this repo (approve the project server when asked; check
+   with `/mcp`). Equivalent manual setup:
+   ```bash
+   claude mcp add --transport http blockbench http://localhost:3000/bb-mcp
+   ```
+   Blockbench must already be running, or the server shows as failed — open Blockbench, then
+   reconnect from `/mcp`. If port 3000 is taken, the plugin's port is set in Blockbench under
+   the MCP plugin settings; update `.mcp.json` to match.
+2. **Fallback client** when the tools are not registered in your session:
+   `python3 tools/bb_mcp.py list | schema <tool> | <tool> '<json>'` (screenshots are saved as PNGs
+   and the path printed). This is how the first model built everything.
 
-**Block Factory's Bosses (block_factorys_bosses-2.1.2)** — the cutscene technique:
-- The boss's GeckoLib model has a **camera bone**; the intro is an ordinary GeckoLib animation
-  that keyframes that bone (e.g. `kraken_cinematic.animation.json`).
-- **Instruction keyframes** drive it: `cinematic_start;camera;<bone>`, `cinematic_start;bars`,
-  `cinematic_start;shake`, `cinematic_start;fov`, `cinematic_start;hide_gui`, `cinematic_end`.
-  A custom `AnimationController` parses them on the client.
-- Client handlers: camera position from the bone's world position via a `Camera` mixin
-  (`setCinematicPosition`), yaw/pitch in `ViewportEvent.ComputeCameraAngles` (interpolated with
-  partial ticks), letterbox bars (`textures/screens/cinematic_bars.png`), FOV, shake, fade to
-  black, hide HUD; restores the previous camera type on end. Intro music per boss.
+Useful tools: `create_project` (format `geckolib_model`), `geckolib_set_project_settings`,
+`from_geo_json`, `create_texture` (accepts a file path), `risky_eval` (full Blockbench JS — e.g.
+`Animator.loadFile({path, content})`, `Animation.all`, `Timeline.setTime(t); Animator.preview()`,
+`Codecs.project.compile()` to save a .bbmodel), `create_offscreen_view` + `set_camera_angle`
+(renders without moving the user's camera), `geckolib_validate_model`, `geckolib_export_*`,
+`geckolib_list_easings`. More tools appear once a project is open (the list is dynamic).
+
+Workflow used for the Wandering Papon: generate geo/texture/animations with `tools/*.py` →
+`from_geo_json` + `create_texture` into a `geckolib_model` project → `Animator.loadFile` the
+animation JSON → scrub with `Timeline.setTime` and render offscreen views from several angles to
+check poses → save `tools/blockbench/wandering_papon.bbmodel`. Hand edits made in Blockbench must
+be ported back into the generator scripts, or the next regeneration overwrites them.
+
+## Reference mods
+
+All are in the pack instance at `~/Documents/curseforge/minecraft/Instances/Groid Pack OG/mods/`.
+`tools/decompile_refs.sh [out]` unzips them and decompiles the relevant packages with Vineflower
+(default `/tmp/papon_refs`). Study material only: never copy their code or assets into this repo.
+
+### Walking Crops — `walking crops-1.0.7.jar` (modid `wkcr`, MCreator + GeckoLib)
+- `wkcr:papon` (`net.mcreator.wkcr.entity.PaponEntity`): hostile `Monster`, 0.9×1.5, 30 HP,
+  speed 0.25, armor 0.8, attack 6. Spawns in plains/forest/jungle/swamp/river/beach biomes
+  (`data/wkcr/forge/biome_modifier/papon_biome_modifier.json`, weight 100, groups of 2–3) and,
+  as a Monster, in dark places — so a coupon can be used on a Papon in a cave (handled: he is
+  pulled to the surface).
+- Model `assets/wkcr/geo/papon.geo.json` (64×64): bones `todo > cyb > cuerpo(+bone, bone2 =
+  eyebrows)`, `brazodr`/`brazoiz` arms, `piernadr`/`piernaiz` legs. Animations `quieto` (idle),
+  `caminar` (walk), `correr` (run), `ataque`, `muerte`. Our model keeps these bones/UVs, renamed.
+- Other crop mobs (king, king_raider, papoteus, barney, …) exist if the boss wants minions.
+
+### L_Ender's Cataclysm — `L_Enders_Cataclysm-3.31.jar` (+ `lionfishapi-3.0.jar`)
+The quality bar for **fight mechanics**.
+- **Attack state machine:** `Internal_Animation_Monster` keeps a synced `ATTACK_STATE` int and
+  a server `attackTicks` counter (reset on every state change and on the client via an entity
+  event). Each attack is a goal: `InternalAttackGoal(entity, fromState, toState, endState,
+  duration, seeTick, range)` starts an attack when in range and off cooldown;
+  `InternalStateGoal(entity, state, state, nextState, duration, seeTick)` holds it for its
+  duration then chains on (combos, branches like grab → success/fail).
+- **Frame-accurate hits:** damage, projectiles, shockwaves and shakes fire on exact
+  `attackTicks` values in `tick()` (e.g. Maledictus: `attackTicks == 25` → ground slam +
+  `ScreenShake_Entity.ScreenShake(level, pos, radius 15, magnitude 0.05–0.3, 0, duration 20–40)`).
+  Telegraph first (wind-up anim + particles), then hit on the impact frame.
+- **Animation:** one vanilla `AnimationState` per attack (`getAnimationState(name)`), started
+  when the state changes; definitions are Blockbench exports to Java keyframes with
+  **Catmull-Rom** interpolation (`client/animation/*_Animation.java`). Looping idle/walk are
+  layered under one-shots.
+- **Effect entities** (`entity/effect`): `ScreenShake_Entity`, `Cm_Falling_Block_Entity`
+  (flying debris from slams), `Wave_Entity`, `Flame_Strike_Entity`, `Abyss_Mark_Entity`,
+  `Lightning_Storm_Entity`, `SkyColor_Entity` (tints the sky during a phase), `Sandstorm_Entity`.
+- **Presentation:** custom boss bars (`CMBossInfoServer`, styled; Maledictus adds a second
+  "rage meter" bar), per-boss music, phase transitions, death animations with a long death
+  timer, arena structures.
+
+### Block Factory's Bosses — `block_factorys_bosses-2.1.2-forge-1.20.1.jar`
+The model for **cutscenes**, and for a structure that spawns its boss.
+- **Boss base** `entity/boss/AbstractBossEntity` (Monster + GeoEntity): synced `BOSS_PHASE`
+  (`INTRO_PHASE = -1`), `ATTACK_PHASE`, `ATTACK_COOLDOWN`, `ATTACK_ANIMTIME`, `HIT_ANIMTIME`,
+  `SPAWN_ANIMTIME`, `DIE_ANIMTIME`, `BATTLE_TIME`, `CINEMATIC_BLACK_SCREEN`; music on/off,
+  boss-bar visibility (hidden during the intro). `AbstractStateBossEntity` + `state/*`
+  (`State`, `LambdaState`, `DataState`) is a builder-style state machine for attacks.
+  Bosses are summoned by a **boss spawner block entity** in their structure
+  (`onBossSpawnerSpawn`) — the pattern for "the Taco Truck spawns the boss".
+- **Cutscene camera** (`client/camera/*`):
+  - The boss's geo has a **camera bone**; the intro is a normal GeckoLib animation that also
+    keyframes that bone (`anim_bosses_rise/entity/kraken_cinematic.animation.json` + geo).
+  - **Instruction keyframes** in the animation drive it: `cinematic_start;camera;<bone>`,
+    `cinematic_start;bars`, `cinematic_start;shake`, `cinematic_start;fov`,
+    `cinematic_start;black`, `cinematic_start;hide_gui`, `cinematic_start;blur`,
+    `cinematic_end[;<handler>]` (handlers: camera, bars, fov, shake, black, hide_gui, blur).
+    `CinematicAnimationController` (an `AnimationController` with a custom instruction handler)
+    parses them; an end listener stops the cinematic when the animation finishes.
+  - `CameraRenderer`: each client tick reads the camera bone's world position; a `Camera`
+    mixin (`CameraInject.setCinematicPosition`) overrides the camera position and
+    `ViewportEvent.ComputeCameraAngles` sets yaw/pitch, both lerped by partial tick. Saves and
+    restores the player's camera type; cancels the fire overlay.
+  - `BarsRenderer` (letterbox, `textures/screens/cinematic_bars.png`), `FovRenderer`,
+    `ShakeRenderer`, `BlackRenderer` (fade), `HideGUIRenderer`. Intro music per boss
+    (`sounds/*/intro.ogg`).
+
+### How these map onto Papon
+- Wandering Papon (done) already uses the Cataclysm-style pattern for his routine: synced state
+  + server tick counter + one-shot animations whose lengths equal the state durations.
+- Boss fight (todo): Cataclysm attack goals + frame-timed hits + screen shake/debris; BFB-style
+  intro cutscene from a camera bone in the boss's geo with `cinematic_*` instruction keyframes,
+  started from `WanderingPaponEntity.onJourneyComplete()` / the truck.
+
+## Working with other Claude models (branches and merges)
+
+Several Claude sessions may work on this repo at once. **Never commit straight to `main`.**
+
+1. Start from fresh main and make a branch per task, prefixed `claude/`:
+   ```bash
+   git fetch origin
+   git switch -c claude/<short-task-name> origin/main     # e.g. claude/boss-cutscene
+   ```
+   One task per branch; keep it focused (the boss, the cutscene, the truck, …).
+2. Commit small and often; push the branch early so others can see it:
+   ```bash
+   git push -u origin claude/<short-task-name>
+   ```
+   End commit messages with the `Co-Authored-By:` line the session gives you.
+3. Before finishing (and whenever main moves), bring main into your branch and fix conflicts
+   **on your branch**:
+   ```bash
+   git fetch origin
+   git merge origin/main          # prefer merge over rebase on a pushed branch
+   ```
+4. Land it: open a PR (`gh pr create --base main`) or, if the user asks for a direct merge,
+   `git switch main && git pull && git merge --no-ff claude/<task> && ./gradlew build && git push`.
+   Only merge to main when `./gradlew build` passes.
+
+### Resolving merge conflicts
+- **Generated files** — `assets/papon/geo/**`, `assets/papon/animations/**`,
+  `assets/papon/textures/entity/**`, `textures/item/taco_coupon.png`,
+  `data/papon/structures/taco_truck.nbt`, `tools/blockbench/*.bbmodel`, `preview.png`:
+  never hand-merge. Resolve the **scripts** (`tools/gen_*.py`) first, then regenerate:
+  ```bash
+  python3 tools/gen_model.py && python3 tools/gen_anims.py && python3 tools/gen_items.py && python3 tools/gen_truck.py
+  git add -A
+  ```
+  and re-save the `.bbmodel` through Blockbench (see the workflow above). For binary files with
+  no script change on one side, take that side whole: `git checkout --theirs <file>` (or `--ours`).
+- **Java** — merge by hand, keeping both sides' intent; then `./gradlew compileJava`. Hot spots:
+  `PaponState` (append new states at the end — the ordinal is synced and the name is saved),
+  `WanderingPaponEntity` (the state switch, `animate()`, `onSoundCue`), `ModEntities`/`ModItems`
+  (keep every registration), `PaponCommand` (keep every subcommand).
+- **`en_us.json`** — union of both sides' keys; must stay valid JSON
+  (`python3 -m json.tool src/main/resources/assets/papon/lang/en_us.json`).
+- **`gradle.properties` `mod_version`** — take the higher version, then bump once more if a jar
+  will be shipped from the merge.
+- **`CLAUDE.md`** — keep both sides' additions; update the status table to reflect the merge.
+- After any conflict resolution: `./gradlew build` must pass before you commit the merge.
 
 ## Building and testing
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 ./gradlew build            # jar in build/libs/papon-<version>.jar
-./gradlew runServer        # run/ has eula + server.properties with RCON (password papon, port 25575)
+./gradlew runServer        # dev server in run/ (gitignored)
 ```
-Headless test: `/forceload add …`, `/papon escort true` (acts as a virtual escort and keeps his
-chunks loaded), `/summon papon:wandering_papon …`, watch `[debug]` lines in the log.
+`run/` is not committed. For a headless test create `run/eula.txt` (`eula=true`) and
+`run/server.properties` with `online-mode=false`, `enable-rcon=true`, `rcon.password=papon`,
+`rcon.port=25575`; then drive it with `python3 tools/rcon.py "<command>" ...`:
+`/forceload add …`, `/papon escort true` (a virtual escort that also keeps his chunks loaded),
+`/summon papon:wandering_papon …`, `/papon locate|skip|arrive`, and watch `[debug]` log lines.
 Walking Crops is not in the dev run, so the coupon handoff can only be tested in the real pack.
 
 ## Rules for working here
-- Commit often and push (the user asked for this).
+- Work on a `claude/*` branch, commit often and push (the user asked for this).
 - Regenerate assets with the `tools/*.py` scripts; re-save the `.bbmodel` after model changes.
 - Bump `mod_version` on every jar handed to the pack; never ship two jars with the same version.
 - Don't push anything to the Groid server; the instance's `CLAUDE.md` governs that.
+- Keep this file current: update the status table and notes when you land something.
