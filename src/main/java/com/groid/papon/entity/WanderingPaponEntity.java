@@ -24,6 +24,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -45,6 +46,7 @@ import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.Vec3;
@@ -60,6 +62,7 @@ import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.UUID;
 
 /**
@@ -92,6 +95,8 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
 
     /** Set by /papon escort: treat him as escorted with nobody around, for testing on a server. */
     public static boolean debugEscort = false;
+    private static final TicketType<ChunkPos> DEBUG_TICKET =
+            TicketType.create("papon_debug_escort", Comparator.comparingLong(ChunkPos::toLong), 60);
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final ServerBossEvent journeyBar = new ServerBossEvent(Component.empty(), BossEvent.BossBarColor.YELLOW,
@@ -264,6 +269,15 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
         if (tickCount % 20 == 0) {
             keepSafe(server);
             track();
+            if (debugEscort) {
+                // Stand-in for a player: keep his surroundings loaded so he can walk an empty server.
+                ChunkPos here = chunkPosition();
+                server.getChunkSource().addRegionTicket(DEBUG_TICKET, here, 3, here);
+            }
+        }
+        if (debugEscort && tickCount % 200 == 0) {
+            PaponMod.LOG.info("[debug] Papon {} {} at {} - {} blocks left", getUUID().toString().substring(0, 8),
+                    getPaponState(), blockPosition().toShortString(), (int) remainingDistance());
         }
         if (tickCount % 10 == 0) {
             updateJourneyBar(server);
