@@ -1,8 +1,10 @@
 package com.groid.papon.command;
 
+import com.groid.papon.PaponConfig;
 import com.groid.papon.entity.PaponState;
 import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.journey.JourneyData;
+import com.groid.papon.journey.JourneyPlanner;
 import com.groid.papon.journey.TacoTruck;
 import com.groid.papon.journey.Terrain;
 import com.mojang.brigadier.CommandDispatcher;
@@ -37,6 +39,7 @@ import java.util.UUID;
  *   remove              nearest loaded Papon within 16 blocks is deleted (the only way he goes)
  *   escort <on|off>     treat every Papon as escorted, for testing with nobody around
  *   placetruck          place the Taco Truck in front of you (testing)
+ *   distance [min] [max]  show / set how far new Taco Truck sites are (saved to config)
  *   target <x> <z>      send the nearest Papon somewhere else (testing)
  *   state <STATE>       force the nearest Papon into a state, to see an animation (testing)
  */
@@ -53,6 +56,13 @@ public final class PaponCommand {
                 .then(Commands.literal("escort").then(Commands.argument("on", BoolArgumentType.bool())
                         .executes(c -> escort(c, BoolArgumentType.getBool(c, "on")))))
                 .then(Commands.literal("placetruck").executes(PaponCommand::placeTruck))
+                .then(Commands.literal("distance").executes(PaponCommand::showDistance)
+                        .then(Commands.argument("min", IntegerArgumentType.integer(1, 100_000))
+                                .executes(c -> setDistance(c, IntegerArgumentType.getInteger(c, "min"),
+                                        IntegerArgumentType.getInteger(c, "min")))
+                                .then(Commands.argument("max", IntegerArgumentType.integer(1, 100_000))
+                                        .executes(c -> setDistance(c, IntegerArgumentType.getInteger(c, "min"),
+                                                IntegerArgumentType.getInteger(c, "max"))))))
                 .then(Commands.literal("target").then(Commands.argument("x", IntegerArgumentType.integer())
                         .then(Commands.argument("z", IntegerArgumentType.integer())
                                 .executes(c -> target(c, IntegerArgumentType.getInteger(c, "x"),
@@ -132,11 +142,41 @@ public final class PaponCommand {
         return ok ? 1 : fail(c, "Taco Truck template missing.");
     }
 
+    private static int showDistance(CommandContext<CommandSourceStack> c) {
+        int min = PaponConfig.JOURNEY_MIN_DISTANCE.get();
+        int max = PaponConfig.JOURNEY_MAX_DISTANCE.get();
+        c.getSource().sendSuccess(() -> Component.literal("New Taco Truck sites are picked " + min + "-" + max
+                + " blocks from where the coupon is handed over."), false);
+        return min;
+    }
+
+    /**
+     * Changes how far away new Taco Truck sites are picked, and saves it to papon-common.toml.
+     * Applies to journeys started from now on; a Papon already walking keeps his site (use
+     * /papon target to move it).
+     */
+    private static int setDistance(CommandContext<CommandSourceStack> c, int min, int max) {
+        int lo = Math.min(min, max);
+        int hi = Math.max(min, max);
+        PaponConfig.JOURNEY_MIN_DISTANCE.set(Math.max(64, lo));
+        PaponConfig.JOURNEY_MAX_DISTANCE.set(Math.max(64, hi));
+        PaponConfig.SPEC.save();
+        int savedLo = PaponConfig.JOURNEY_MIN_DISTANCE.get();
+        int savedHi = PaponConfig.JOURNEY_MAX_DISTANCE.get();
+        c.getSource().sendSuccess(() -> Component.literal("Taco Truck distance set to " + savedLo + "-" + savedHi
+                + " blocks for new journeys (saved to papon-common.toml)."), true);
+        return savedLo;
+    }
+
     private static int target(CommandContext<CommandSourceStack> c, int x, int z) {
         WanderingPaponEntity p = nearest(c, 64);
         if (p == null) return fail(c, "No Wandering Papon within 64 blocks.");
-        p.setDestination(new BlockPos(x, c.getSource().getLevel().getSeaLevel(), z));
-        c.getSource().sendSuccess(() -> Component.literal("Papon now heads for " + x + " " + z + "."), true);
+        ServerLevel level = c.getSource().getLevel();
+        BlockPos want = new BlockPos(x, level.getSeaLevel(), z);
+        BlockPos site = JourneyPlanner.isInlandOnMap(level, x, z) ? want : JourneyPlanner.nearestInland(level, want, p.blockPosition());
+        p.setDestination(site);
+        String note = site.equals(want) ? "" : " (that is by the water; nearest inland ground instead)";
+        c.getSource().sendSuccess(() -> Component.literal("Papon now heads for " + site.getX() + " " + site.getZ() + note + "."), true);
         return 1;
     }
 

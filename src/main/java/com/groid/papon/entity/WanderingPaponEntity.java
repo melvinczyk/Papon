@@ -131,6 +131,8 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
     private static final double ARRIVE_RADIUS = 3.5;
     /** When this close, the site is moved to the nearest flat, dry ground so the truck has somewhere to stand. */
     private static final double REFINE_RADIUS = 48;
+    /** How far from the picked site to look for inland ground once it loads. */
+    private static final int REFINE_SEARCH = 40;
     /** Tick of the ARRIVED state at which the truck appears (mid-celebration, after his first jump). */
     private static final int TRUCK_TICK = 22;
 
@@ -364,6 +366,8 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
                     setPaponState(PaponState.RAFT_IDLE);
                     break;
                 }
+                // A site that turns out to be on or by the water is moved inland as soon as it loads.
+                if (!destinationRefined && remainingDistance() < REFINE_RADIUS) refineDestination(server);
                 BlockPos shore = raft.tick(true);
                 if (shore != null) landOn(shore);
             }
@@ -426,7 +430,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
             refineDestination(server);
             dist = remainingDistance();
         }
-        if (dist <= ARRIVE_RADIUS) {
+        if (dist <= ARRIVE_RADIUS && destinationRefined) {
             arrive(server);
             return;
         }
@@ -455,19 +459,34 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity {
         }
     }
 
-    /** Moves the site onto flat, dry ground near where it was picked, once that land is loaded. */
+    /**
+     * Once the site's land is loaded, pins it to flat, dry ground well away from any water, so the
+     * Taco Truck never stands on a beach or a riverbank. If there is no such ground nearby (the
+     * site was on the sea, say, from /papon target), the journey is re-aimed at the nearest inland
+     * ground on the biome map and refined again when he gets close to that.
+     */
     private void refineDestination(ServerLevel server) {
         if (destination == null || !level().hasChunkAt(destination)) return;
-        BlockPos dry = Terrain.findDrySpotNear(server, destination.getX(), destination.getZ(), 24, 1);
-        if (dry == null) dry = Terrain.findDrySpotNear(server, destination.getX(), destination.getZ(), 32, -1);
-        if (dry != null) destination = dry;
-        destinationRefined = true;
+        BlockPos spot = Terrain.findInlandSpotNear(server, destination.getX(), destination.getZ(), REFINE_SEARCH);
+        if (spot != null) {
+            destination = spot;
+            destinationRefined = true;
+        } else {
+            BlockPos inland = JourneyPlanner.nearestInland(server, destination, blockPosition());
+            PaponMod.LOG.info("Wandering Papon {}: no inland ground near {}, re-aiming at {}", getUUID(), destination, inland);
+            destination = inland;
+            destinationRefined = false;
+            journeyLength = Math.max(journeyLength, Math.sqrt(JourneyPlanner.horizontalDistSqr(blockPosition(), destination)));
+        }
         track();
     }
 
     /** Called by JourneyGoal when he is stuck right next to the site: close enough. */
     public void arriveNearby() {
-        if (level() instanceof ServerLevel server && getPaponState() == PaponState.WALKING) arrive(server);
+        if (level() instanceof ServerLevel server && getPaponState() == PaponState.WALKING && destinationRefined
+                && Terrain.isInland(server, blockPosition(), Terrain.INLAND_RADIUS)) {
+            arrive(server);
+        }
     }
 
     private void arrive(ServerLevel server) {
