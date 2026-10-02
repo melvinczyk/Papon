@@ -94,12 +94,12 @@ BONES = [
 
     # --- llama raft. Water level is y=0 (the entity's feet while rafting); he sits on its back.
     bone('raft', [0, 0, 0], None, [cube([-9, -4, -10], [18, 7, 24], [128, 0])]),
-    bone('llama_neck', [0, 2, -10], 'raft', [cube([-3, 1, -16], [6, 11, 6], [212, 0])]),
-    bone('llama_head', [0, 12, -13], 'llama_neck', [
-        cube([-3.5, 11, -17], [7, 6, 8], [128, 32]),
-        cube([-2.5, 11, -21], [5, 4, 4], [160, 32]),
-        cube([-3.5, 17, -12], [2, 3, 1], [180, 32]),
-        cube([1.5, 17, -12], [2, 3, 1], [180, 32]),
+    bone('llama_neck', [0, 2, -10], 'raft', [cube([-3, 1, -16], [6, 7, 6], [212, 0])]),
+    bone('llama_head', [0, 8, -14], 'llama_neck', [
+        cube([-3.5, 7, -21], [7, 6, 8], [128, 32]),
+        cube([-2.5, 7, -25], [5, 4, 4], [160, 32]),
+        cube([-3.5, 13, -16], [2, 3, 1], [180, 32]),
+        cube([1.5, 13, -16], [2, 3, 1], [180, 32]),
     ]),
     bone('llama_leg_fr', [-9, -1, -6], 'raft', [cube([-17, -2.5, -7.5], [8, 3, 3], [188, 32])]),
     bone('llama_leg_fl', [9, -1, -6], 'raft', [cube([9, -2.5, -7.5], [8, 3, 3], [188, 32])]),
@@ -129,7 +129,7 @@ BONES = [
         cube([-23, 0, 4], [12, 12, 4], [64, 0]),
     ]),
     bone('sleeping_bag', [0, 0, -2], None, [cube([-13, 0, -2], [26, 1, 30], [0, 128])]),
-    bone('bag_cover', [-12.5, 1, 8], 'sleeping_bag', [cube([-12.5, 0.5, -1.5], [25, 17, 18], [0, 160])]),
+    bone('bag_cover', [0, 0.5, -1.5], 'sleeping_bag', [cube([-12.5, 0.5, -1.5], [25, 17, 18], [0, 160])]),
 ]
 
 PROP_BONES = ['grill', 'grill_hand', 'shaker', 'coupon', 'spatula', 'eyelids', 'raft', 'paddle_r', 'paddle_l',
@@ -321,7 +321,7 @@ def paint_journey_kit(im):
             px[x, y] = shade(carpet[band], 1 + random.uniform(-0.05, 0.05))
     for x in range(x0 + 1, x1 - 1):
         px[x, y0 + 1] = px[x, y1 - 2] = (240, 220, 120, 255)
-    for name, r in faces(212, 0, 6, 11, 6).items():
+    for name, r in faces(212, 0, 6, 7, 6).items():
         fill(px, r, wool, 0.07, spots=(wool_dk, 0.12))
     head = faces(128, 32, 7, 6, 8)
     for name, r in head.items():

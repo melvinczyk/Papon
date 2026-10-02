@@ -481,8 +481,6 @@ def raft_idle():
     L = 4.0
     a = Anim('raft_idle', L, True)
     a.vis('raft', True, [])
-    a.vis('paddle_r', True, [])
-    a.vis('paddle_l', True, [])
     for leg, rot in (('leg_r', RAFT_LEG_R), ('leg_l', RAFT_LEG_L)):
         a.rot(leg, [(0, rot)], 'lin')
         a.pos(leg, [(0, RAFT_LEG_POS)], 'lin')
@@ -497,8 +495,8 @@ def raft_idle():
                          (2.2, [0, 40, 4], 'easeInOutSine'), (2.8, [0, -35, -4], 'easeInOutSine'),
                          (3.5, [0, -35, -4], 'easeInOutSine'), (L, [0, 0, 0], 'easeInOutSine')], 'lin')
     a.rot('llama_tail', [(0, [0, 0, 0]), (1.0, [0, 20, 0]), (1.2, [0, -20, 0]), (1.4, [0, 0, 0]), (L, [0, 0, 0])])
-    a.rot('hat', [(0, [-25, 0, 0])], 'lin')            # hat tipped over his eyes
-    a.pos('hat', [(0, [0, -1, -2])], 'lin')
+    a.rot('hat', [(0, [22, 0, 0])], 'lin')            # hat tipped over his eyes
+    a.pos('hat', [(0, [0, -1.5, -1])], 'lin')
     a.scale('body', [(0, [1, 1, 1]), (2.0, [1.01, 1.025, 1.01]), (L, [1, 1, 1])])
     a.sound(1.2, 'llama')
     return a
@@ -520,12 +518,12 @@ def raft_land():
     a.rot('hat', [(0, [0, 0, 0]), (0.6, [0, 0, -8]), (0.7, [0, 0, 8]), (0.8, [0, 0, -6]), (0.9, [0, 0, 6]),
                   (1.1, [0, 0, 0]), (1.4, [0, 0, 0])])
     a.scale('body', [(0, [1.1, 0.9, 1.1]), (0.15, [1, 1, 1], 'easeOutBack'), (1.4, [1, 1, 1])], 'lin')
-    a.sound(0.0, 'plop').sound(0.55, 'shake').sound(0.95, 'pop')
+    a.sound(0.0, 'plop').sound(0.55, 'shake_off').sound(0.95, 'pop')
     return a
 
 
 # ---------------------------------------------------------------- Jarritos
-CHUG_R = [-150, -40, 0]
+CHUG_R = [-112, -52, 0]
 
 
 def run():
@@ -684,8 +682,9 @@ def sleep_setup():
     a.vis('sleeping_bag', False, [(1.4, True)])
     a.scale('sleeping_bag', [(0, [0, 0, 0]), (1.38, [0, 0, 0]), (1.4, [1, 1, 0.1], 'lin'),
                              (1.95, [1, 1, 1], 'easeOutBack'), (4.5, [1, 1, 1])], 'lin')
-    a.vis('bag_cover', False, [(3.2, True)])
-    a.rot('bag_cover', [(0, [0, 0, 180]), (3.2, [0, 0, 180]), (3.6, [0, 0, 0], 'easeOutBounce'), (4.5, [0, 0, 0])], 'lin')
+    # blanket pulled up from his feet to his chin
+    a.scale('bag_cover', [(0, [0, 0, 0]), (3.18, [0, 0, 0]), (3.2, [1, 0.25, 0.05], 'lin'),
+                          (3.65, [1, 1, 1], 'easeOutBack'), (4.5, [1, 1, 1])], 'lin')
     # lie back onto the pad
     a.pos('root', [(0, [0, 0, 0]), (2.3, [0, 0, 0]), (2.45, [0, -1, 0], 'easeOutQuad'),
                    (2.9, LIE_ROOT_POS, 'easeInQuad'), (2.98, [0, 7.4, 0]), (3.1, LIE_ROOT_POS), (4.5, LIE_ROOT_POS)], 'lin')
@@ -754,8 +753,8 @@ def wake_up():
     a = Anim('wake_up', 4.0, 'hold')
     a.scale('eyelids', [(0, [1, 1, 1]), (0.3, [1, 1, 1]), (0.45, [0.4, 0.4, 0.4]), (0.6, [1, 1, 1]),
                         (0.75, [0, 0, 0]), (1.75, [0, 0, 0]), (1.85, [1, 1, 1]), (2.1, [1, 1, 1]), (2.2, [0, 0, 0])], 'lin')
-    a.vis('bag_cover', True, [(1.05, False)])
-    a.rot('bag_cover', [(0, [0, 0, 0]), (0.75, [0, 0, 0]), (1.05, [0, 0, 175], 'easeOutQuad')], 'lin')
+    a.scale('bag_cover', [(0, [1, 1, 1]), (0.75, [1, 1, 1]), (1.05, [1, 0.25, 0.05], 'easeInQuad'),
+                          (1.07, [0, 0, 0], 'lin')], 'lin')
     a.pos('root', [(0, LIE_ROOT_POS), (1.0, LIE_ROOT_POS), (1.5, [0, 0, 0], 'easeOutBack'), (4.0, [0, 0, 0])], 'lin')
     a.rot('root', [(0, LIE_ROOT_ROT), (1.0, LIE_ROOT_ROT), (1.5, [0, 0, 0], 'easeOutBack'), (4.0, [0, 0, 0])], 'lin')
     a.rot('arm_r', [(0, [0, 0, 6]), (0.7, [0, 0, 6]), (0.95, [-90, 0, 40], 'easeOutQuad'), (1.5, [0, 0, 6]),
@@ -778,8 +777,9 @@ def angry_wake():
     """The 2% chancla: bolts awake, furious, shakes his fist, packs up in a huff."""
     a = Anim('angry_wake', 2.6, 'hold')
     a.vis('eyelids', True, [(0.05, False)])
-    a.vis('bag_cover', True, [(0.4, False)])
-    a.rot('bag_cover', [(0, [0, 0, 0]), (0.35, [0, 0, 200], 'easeOutQuad')], 'lin')
+    a.scale('bag_cover', [(0, [1, 1, 1]), (0.35, [1, 1, 1]), (0.4, [0, 0, 0], 'lin')], 'lin')
+    a.pos('bag_cover', [(0, [0, 0, 0]), (0.35, [0, 12, 8], 'easeOutQuad')], 'lin')
+    a.rot('bag_cover', [(0, [0, 0, 0]), (0.35, [-50, 0, 25], 'easeOutQuad')], 'lin')
     a.pos('root', [(0, LIE_ROOT_POS), (0.1, LIE_ROOT_POS), (0.4, [0, 6, 0], 'easeOutQuad'),
                    (0.6, [0, 0, 0], 'easeInQuad'), (2.6, [0, 0, 0])], 'lin')
     a.rot('root', [(0, LIE_ROOT_ROT), (0.1, LIE_ROOT_ROT), (0.45, [0, 0, 0], 'easeOutBack'), (2.6, [0, 0, 0])], 'lin')

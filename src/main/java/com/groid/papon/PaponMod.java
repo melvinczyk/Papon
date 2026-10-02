@@ -3,6 +3,7 @@ package com.groid.papon;
 import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.registry.ModEntities;
 import com.groid.papon.registry.ModItems;
+import com.groid.papon.registry.ModParticles;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
@@ -24,6 +25,7 @@ public class PaponMod {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         ModEntities.REGISTRY.register(bus);
         ModItems.REGISTRY.register(bus);
+        ModParticles.REGISTRY.register(bus);
         bus.addListener(this::attributes);
         bus.addListener(this::creativeTabs);
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, PaponConfig.SPEC);
@@ -40,6 +42,13 @@ public class PaponMod {
     private void creativeTabs(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
             event.accept(ModItems.TACO_COUPON);
+        } else if (event.getTabKey() == CreativeModeTabs.FOOD_AND_DRINKS) {
+            event.accept(ModItems.JARRITO_RED);
+            event.accept(ModItems.JARRITO_ORANGE);
+            event.accept(ModItems.JARRITO_YELLOW);
+            event.accept(ModItems.JARRITO_GREEN);
+        } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
+            event.accept(ModItems.CHANCLA);
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
             event.accept(ModItems.WANDERING_PAPON_SPAWN_EGG);
         }
