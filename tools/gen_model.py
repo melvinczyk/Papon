@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+"""Generates the Wandering Papon model and texture.
+
+Writes, under src/main/resources/assets/papon/:
+  geo/entity/wandering_papon.geo.json
+  textures/entity/wandering_papon.png
+
+The body, arms, legs and brows are the Walking Crops Papon (wkcr:papon) bone for
+bone, at the same pixel UVs, so he reads as the same potato. Everything else is
+travelling kit: a straw hat, a backpack with a bedroll, and the props for his
+grill routine (a grill, two tacos, a spatula, a salt shaker, and the coupon).
+
+Props that only appear in some animations are hidden by keying their scale to 0;
+gen_anims.py adds that key to every animation that does not use them.
+
+Re-run after editing, then load tools/blockbench/wandering_papon.bbmodel (built
+by bb_build.py) to look at it.
+"""
+import json
+import os
+import random
+
+from PIL import Image
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
+TEX_W = TEX_H = 128
+random.seed(7)
+
+
+def cube(origin, size, uv, inflate=0):
+    c = {'origin': origin, 'size': size, 'uv': uv}
+    if inflate:
+        c['inflate'] = inflate
+    return c
+
+
+def bone(name, pivot, parent=None, cubes=(), rotation=None):
+    b = {'name': name, 'pivot': pivot}
+    if parent:
+        b['parent'] = parent
+    if rotation:
+        b['rotation'] = rotation
+    if cubes:
+        b['cubes'] = list(cubes)
+    return b
+
+
+# ---------------------------------------------------------------- geometry
+# Front is -Z (the face). Units are pixels, origin at the feet.
+BONES = [
+    bone('root', [0, 0, 0]),
+    bone('torso', [0, 12, 0], 'root'),
+    bone('body', [0, 4, 0], 'torso', [cube([-8, 4, -8], [16, 20, 16], [0, 0])]),
+    bone('brow_r', [-5, 20.5, -8], 'body', [cube([-8, 20, -8.1], [6, 1, 1], [0, 46])]),
+    bone('brow_l', [5, 20.5, -8], 'body', [cube([2, 20, -8.1], [6, 1, 1], [0, 48])]),
+    bone('hat', [0, 24, 0], 'body', [
+        cube([-9, 24, -9], [18, 1, 18], [0, 64]),
+        cube([-5, 25, -5], [10, 4, 10], [72, 64]),
+    ]),
+    bone('backpack', [0, 14, 10], 'body', [
+        cube([-6, 7, 8], [12, 12, 4], [64, 0]),
+        cube([-6, 19, 8.5], [12, 3, 3], [64, 16]),
+    ]),
+    bone('arm_r', [-8, 11, 0], 'torso', [cube([-12, 4, -3], [4, 8, 6], [24, 36])]),
+    bone('grill_hand', [-10, 3, 0], 'arm_r', [cube([-14, 0, -3], [8, 3, 6], [72, 84])]),
+    bone('shaker', [-10, 3, 0], 'arm_r', [cube([-11, 0, -1], [2, 3, 2], [112, 84])]),
+    bone('coupon', [-10, 3, 0], 'arm_r', [cube([-13, 0.5, -9], [6, 0.2, 8], [72, 104])]),
+    bone('arm_l', [8, 11, 0], 'torso', [cube([8, 4, -3], [4, 8, 6], [44, 36])]),
+    bone('spatula', [10, 4, 0], 'arm_l', [
+        cube([9.5, -2, -0.5], [1, 6, 1], [100, 84]),
+        cube([8.5, -6, -0.25], [3, 4, 0.5], [104, 96]),
+    ]),
+    bone('leg_r', [-4, 4, 0], 'root', [cube([-7, 0, -3], [6, 4, 6], [0, 36])]),
+    bone('leg_l', [4, 4, 0], 'root', [cube([1, 0, -3], [6, 4, 6], [0, 36])]),
+    # Ground props live outside root so sitting (which lowers root) leaves them put.
+    bone('grill', [0, 0, -15], None, [
+        cube([-5, 3, -19], [10, 3, 8], [0, 84]),
+        cube([-5, 0, -19], [1, 3, 1], [36, 84]),
+        cube([4, 0, -19], [1, 3, 1], [36, 84]),
+        cube([-5, 0, -12], [1, 3, 1], [36, 84]),
+        cube([4, 0, -12], [1, 3, 1], [36, 84]),
+        cube([-4.5, 5.5, -18.5], [9, 0, 7], [40, 84]),
+        cube([-5, 6.05, -19], [10, 0, 8], [0, 96]),
+    ]),
+    bone('taco_a', [-2.5, 6, -15], 'grill', [cube([-4.5, 6, -16], [4, 3, 2], [40, 96])]),
+    bone('taco_b', [2.5, 6, -15], 'grill', [cube([0.5, 6, -16], [4, 3, 2], [40, 96])]),
+]
+
+PROP_BONES = ['grill', 'grill_hand', 'shaker', 'coupon', 'spatula']
+
+
+def write_geo():
+    geo = {
+        'format_version': '1.12.0',
+        'minecraft:geometry': [{
+            'description': {
+                'identifier': 'geometry.wandering_papon',
+                'texture_width': TEX_W,
+                'texture_height': TEX_H,
+                'visible_bounds_width': 4,
+                'visible_bounds_height': 3.5,
+                'visible_bounds_offset': [0, 1.25, 0],
+            },
+            'bones': BONES,
+        }],
+    }
+    path = os.path.join(ASSETS, 'geo/entity/wandering_papon.geo.json')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as f:
+        json.dump(geo, f, indent='\t')
+    return path
+
+
+# ---------------------------------------------------------------- texture
+def faces(u, v, w, h, d):
+    """Box-UV face rectangles (x0, y0, x1, y1) for a cube of size w*h*d."""
+    return {
+        'up': (u + d, v, u + d + w, v + d),
+        'down': (u + d + w, v, u + d + 2 * w, v + d),
+        'east': (u, v + d, u + d, v + d + h),
+        'north': (u + d, v + d, u + d + w, v + d + h),
+        'west': (u + d + w, v + d, u + 2 * d + w, v + d + h),
+        'south': (u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h),
+    }
+
+
+def shade(c, k):
+    return tuple(max(0, min(255, int(ch * k))) for ch in c[:3]) + (255,)
+
+
+def fill(px, rect, base, noise=0.08, spots=None):
+    x0, y0, x1, y1 = (int(round(n)) for n in rect)
+    for y in range(y0, max(y1, y0 + 1)):
+        for x in range(x0, max(x1, x0 + 1)):
+            k = 1 + random.uniform(-noise, noise)
+            c = base
+            if spots and random.random() < spots[1]:
+                c = spots[0]
+            px[x, y] = shade(c, k)
+
+
+def paint(im):
+    px = im.load()
+    straw, straw_dk, band = (226, 196, 112), (184, 150, 72), (196, 52, 40)
+    # hat brim 18x1x18 @ (0,64)
+    for name, r in faces(0, 64, 18, 1, 18).items():
+        fill(px, r, straw if name in ('up', 'down') else straw_dk, 0.12)
+    x0, y0, x1, y1 = faces(0, 64, 18, 1, 18)['up']
+    for y in range(y0, y1):  # woven rings on the brim top
+        for x in range(x0, x1):
+            ring = int(max(abs(x - (x0 + 8.5)), abs(y - (y0 + 8.5))))
+            if ring % 2 == 0:
+                px[x, y] = shade(straw, 0.9)
+    # hat crown 10x4x10 @ (72,64): straw with a red band on the bottom row
+    for name, r in faces(72, 64, 10, 4, 10).items():
+        fill(px, r, straw, 0.12)
+        if name not in ('up', 'down'):
+            fill(px, (r[0], r[3] - 1, r[2], r[3]), band, 0.05)
+    # backpack 12x12x4 @ (64,0): green canvas, darker flap, brass buckle
+    canvas, canvas_dk = (92, 120, 64), (66, 90, 46)
+    for name, r in faces(64, 0, 12, 12, 4).items():
+        fill(px, r, canvas, 0.1)
+    s = faces(64, 0, 12, 12, 4)['south']
+    fill(px, (s[0], s[1], s[2], s[1] + 5), canvas_dk, 0.08)
+    fill(px, (s[0] + 5, s[1] + 4, s[0] + 7, s[1] + 6), (214, 176, 64), 0.05)
+    for name, r in faces(64, 0, 12, 12, 4).items():  # straps
+        if name in ('south', 'up'):
+            fill(px, (r[0] + 2, r[1], r[0] + 3, r[3]), (90, 60, 36), 0.05)
+            fill(px, (r[2] - 3, r[1], r[2] - 2, r[3]), (90, 60, 36), 0.05)
+    # bedroll 12x3x3 @ (64,16): red wool with ties
+    for name, r in faces(64, 16, 12, 3, 3).items():
+        fill(px, r, (168, 48, 44), 0.1)
+        if name not in ('east', 'west'):
+            fill(px, (r[0] + 2, r[1], r[0] + 3, r[3]), (70, 50, 30), 0.03)
+            fill(px, (r[2] - 3, r[1], r[2] - 2, r[3]), (70, 50, 30), 0.03)
+        else:
+            fill(px, r, (196, 70, 60), 0.05)
+            px[r[0] + 1, r[1] + 1] = (120, 30, 28, 255)
+    # grill basin 10x3x8 @ (0,84): charcoal black metal, red stripe
+    metal, metal_hi = (48, 48, 54), (88, 88, 98)
+    for name, r in faces(0, 84, 10, 3, 8).items():
+        fill(px, r, metal, 0.12)
+        if name in ('north', 'south', 'east', 'west'):
+            fill(px, (r[0], r[1], r[2], r[1] + 1), metal_hi, 0.06)
+            fill(px, (r[0], r[1] + 1, r[2], r[1] + 2), (170, 40, 36), 0.06)
+    # grill legs 1x3x1 @ (36,84)
+    for r in faces(36, 84, 1, 3, 1).values():
+        fill(px, r, (38, 38, 42), 0.1)
+    # coals 9x0x7 @ (40,84): glowing embers
+    for r in faces(40, 84, 9, 0, 7).values():
+        fill(px, r, (60, 40, 36), 0.2, spots=((255, 120, 30), 0.35))
+        x0, y0, x1, y1 = (int(n) for n in r)
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                if random.random() < 0.12:
+                    px[x, y] = (255, 210, 80, 255)
+    # grate 10x0x8 @ (0,96): bars with transparent gaps
+    g = faces(0, 96, 10, 0, 8)['up']
+    for y in range(int(g[1]), int(g[3])):
+        for x in range(int(g[0]), int(g[2])):
+            edge = x in (g[0], g[2] - 1) or y in (g[1], g[3] - 1)
+            if edge or (x - g[0]) % 2 == 1:
+                px[x, y] = shade((130, 130, 140), 1 + random.uniform(-0.1, 0.1))
+            else:
+                px[x, y] = (0, 0, 0, 0)
+    g2 = faces(0, 96, 10, 0, 8)['down']
+    for y in range(int(g2[1]), int(g2[3])):
+        for x in range(int(g2[0]), int(g2[2])):
+            px[x, y] = px[int(g[0]) + (x - int(g2[0])), y]
+    # taco 4x3x2 @ (40,96): toasted shell, filling on top
+    shell = (238, 196, 92)
+    for name, r in faces(40, 96, 4, 3, 2).items():
+        fill(px, r, shell, 0.08, spots=((196, 140, 60), 0.18))
+    t = faces(40, 96, 4, 3, 2)
+    x0, y0, x1, y1 = (int(n) for n in t['up'])
+    for x in range(x0, x1):  # lettuce, tomato, beef
+        px[x, y0] = (92, 176, 60, 255) if x % 2 else (214, 54, 44, 255)
+        if y1 - y0 > 1:
+            px[x, y0 + 1] = (122, 72, 44, 255) if x % 2 else (92, 176, 60, 255)
+    for side in ('north', 'south'):
+        r = t[side]
+        for x in range(int(r[0]), int(r[2])):
+            px[x, int(r[1])] = (92, 176, 60, 255) if x % 2 else (214, 54, 44, 255)
+    # grill folded in hand 8x3x6 @ (72,84)
+    for name, r in faces(72, 84, 8, 3, 6).items():
+        fill(px, r, metal, 0.12)
+        if name in ('north', 'south'):
+            fill(px, (r[0], r[1] + 1, r[2], r[1] + 2), (170, 40, 36), 0.06)
+    # spatula handle 1x6x1 @ (100,84): wood; blade 3x4x0.5 @ (104,96): steel
+    for name, r in faces(100, 84, 1, 6, 1).items():
+        fill(px, r, (120, 78, 44), 0.1)
+    fill(px, (104, 96, 112, 101), (196, 200, 210), 0.06)
+    # shaker 2x3x2 @ (112,84): white with red cap
+    for name, r in faces(112, 84, 2, 3, 2).items():
+        fill(px, r, (236, 236, 236), 0.04)
+        if name not in ('up', 'down'):
+            fill(px, (r[0], r[1], r[2], r[1] + 1), (200, 50, 40), 0.04)
+        elif name == 'up':
+            fill(px, r, (200, 50, 40), 0.04)
+    # coupon 4x0.2x5 @ (72,104): cream ticket, red border, taco stamp
+    fill(px, (72, 104, 100, 113), (244, 230, 190), 0.03)
+    for name, r in faces(72, 104, 6, 0.2, 8).items():
+        if name in ('up', 'down'):
+            x0, y0, x1, y1 = (int(round(n)) for n in r)
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    if x in (x0, x1 - 1) or y in (y0, y1 - 1):
+                        px[x, y] = (196, 52, 40, 255)
+            for dx, dy, c in ((2, 2, (238, 196, 92)), (3, 2, (238, 196, 92)), (2, 3, (92, 176, 60)),
+                              (3, 3, (214, 54, 44)), (1, 5, (196, 52, 40)), (2, 5, (196, 52, 40)),
+                              (3, 5, (196, 52, 40)), (4, 5, (196, 52, 40))):
+                px[x0 + dx, y0 + dy] = c + (255,)
+
+
+def write_texture():
+    base = Image.open(os.path.join(ROOT, 'tools/src/papon_base.png')).convert('RGBA')
+    im = Image.new('RGBA', (TEX_W, TEX_H), (0, 0, 0, 0))
+    im.paste(base, (0, 0))
+    paint(im)
+    path = os.path.join(ASSETS, 'textures/entity/wandering_papon.png')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    im.save(path)
+    return path
+
+
+if __name__ == '__main__':
+    print(write_geo())
+    print(write_texture())

@@ -1,0 +1,15 @@
+{
+  "conditions": [
+    { "type": "forge:mod_loaded", "modid": "kubejs" }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "kubejs:minecraft_wither_trophy" },
+    { "item": "kubejs:minecraft_warden_trophy" },
+    { "item": "kubejs:minecraft_ender_dragon_trophy" },
+    { "item": "minecraft:paper" }
+  ],
+  "result": {
+    "item": "papon:taco_coupon"
+  }
+}

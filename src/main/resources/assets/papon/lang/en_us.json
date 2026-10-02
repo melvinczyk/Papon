@@ -1,0 +1,21 @@
+{
+  "item.papon.taco_coupon": "Taco Coupon",
+  "item.papon.taco_coupon.tooltip.0": "Good for one (1) taco.",
+  "item.papon.taco_coupon.tooltip.1": "Give it to a Papon. He knows a place.",
+  "item.papon.wandering_papon_spawn_egg": "Wandering Papon Spawn Egg",
+  "entity.papon.wandering_papon": "Wandering Papon",
+
+  "message.papon.coupon_accepted": "Papon reads the Taco Coupon... and sets off for the nearest Taco Truck!",
+  "message.papon.coupon_rules": "He will only walk while someone is with him. Leave him alone and he sits down to grill.",
+  "message.papon.no_trucks_here": "Papon squints at the coupon. There are no taco trucks in this dimension.",
+  "message.papon.waiting": "Papon is waiting at the Taco Truck. The grill is heating up...",
+
+  "bar.papon.receiving": "Wandering Papon is reading the Taco Coupon",
+  "bar.papon.walking": "Wandering Papon - %s blocks to the Taco Truck",
+  "bar.papon.grilling": "Wandering Papon is grilling tacos - stay close to keep him walking (%s blocks left)",
+  "bar.papon.packing": "Wandering Papon is packing up (%s blocks left)",
+  "bar.papon.arrived": "Wandering Papon reached the Taco Truck!",
+
+  "title.papon.arrived": "THE TACO TRUCK",
+  "title.papon.arrived.subtitle": "Papon has arrived."
+}
