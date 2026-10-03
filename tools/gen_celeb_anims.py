@@ -22,6 +22,33 @@ REST_L, REST_R = [0, 0, -3], [0, 0, 3]
 ZERO = [0, 0, 0]
 
 
+CRISP = 'easeInOutCubic'
+
+
+def crisp(anims):
+    """Pose-to-pose timing for every rotation and position key that would otherwise move at a
+    constant speed (linear) or drift (sine): a cubic ease in and out, so each move starts with
+    intent, passes quickly through the middle and settles cleanly on its pose. Catmull-rom keys
+    (walk cycles, idle sways, chewing) and the accents with their own easing (back, bounce, quad)
+    keep theirs; scale keys (prop pops) stay as they are."""
+    for a in anims:
+        for chans in a.bones.values():
+            for chan in ('rotation', 'position'):
+                keys = sorted(chans.get(chan, {}).items(), key=lambda kv: float(kv[0]))
+                for i, (_, kf) in enumerate(keys):
+                    if kf.get('lerp_mode') == 'catmullrom':
+                        continue
+                    if kf.get('easing') in (None, 'easeInOutSine', 'linear'):
+                        kf['easing'] = CRISP
+                    # a big swing launched with easeOutBack starts at ~5x its average speed and
+                    # pops: wind it up and settle it instead (anticipation and follow-through)
+                    if kf.get('easing') == 'easeOutBack' and chan == 'rotation' and i > 0 and \
+                            np.abs(np.subtract(kf['vector'], keys[i - 1][1]['vector'])).max() > 50:
+                        kf['easing'] = 'easeInOutBack'
+                        kf['easingArgs'] = [1.1]
+    return anims
+
+
 def osc(t0, t1, step, a, b, ease=None):
     keys, t, i = [], t0, 0
     while t <= t1 + 1e-6:
@@ -180,7 +207,7 @@ def edp_anims(H):
     out.append(a)
 
     out.append(edp_react(H, P))
-    return out
+    return crisp(out)
 
 
 def edp_anims_walk_taco(H, P):
@@ -244,20 +271,20 @@ def edp_react(H, P):
             (5.75, [0, 0, 0], 'easeInBack'), (8.0, [0, 0, 0])]
     a.sound(0.5, 'bite').sound(0.95, 'hmm').sound(1.45, 'gasp').sound(2.45, 'hype').sound(3.7, 'hype')
 
-    # E-A-G-L-E-S from 5.9 s, one letter every 0.22 s, then "EAGLES!" with fist pumps and hops
+    # E-A-G-L-E-S from 5.9 s, one letter every 0.24 s, then "EAGLES!" with fist pumps and hops
     t = 5.75
     for i, ch in enumerate('EAGLES'):
         ar, fr, al, fl = LETTERS[ch]
-        t = round(5.9 + 0.22 * i, 3)
-        arm_r.append((t, ar, 'easeOutBack'))
+        t = round(5.9 + 0.24 * i, 3)
+        arm_r.append((t, ar, 'easeOutCubic'))
         fore_r.append((t, fr))
-        arm_l.append((t, al, 'easeOutBack'))
+        arm_l.append((t, al, 'easeOutCubic'))
         fore_l.append((t, fl))
         root.append((t, [0, 0.8 if i % 2 == 0 else 0, 1.5]))
         if i in (0, 5):
             a.sound(t, 'hype')
-    for i in range(4):
-        t = round(7.25 + 0.17 * i, 3)
+    for i in range(3):
+        t = round(7.42 + 0.15 * i, 3)
         up = i % 2 == 0
         arm_r.append((t, [-172, 0, 14] if up else [-60, 0, 14]))
         arm_l.append((t, [-60, 0, -14] if up else [-172, 0, -14]))
@@ -273,7 +300,7 @@ def edp_react(H, P):
     root += [(8.0, [0, 0, 1.5])]
     torso += [(8.0, ZERO)]
     jaw += [(8.0, [4, 0, 0])]
-    head += [(5.9, [-10, 0, 0]), (7.25, [-16, 0, 0]), (7.6, [-6, 0, 0]), (8.0, [0, 0, 0])]
+    head += [(5.9, [-10, 0, 0]), (7.42, [-16, 0, 0]), (7.7, [-6, 0, 0]), (8.0, [0, 0, 0])]
     a.rot('arm_r', arm_r, 'lin')
     a.rot('forearm_r', fore_r, 'lin')
     a.rot('arm_l', arm_l, 'lin')
@@ -392,7 +419,7 @@ def chugs_anims(H):
     out.append(a)
 
     out.append(chugs_react(H, P))
-    return out
+    return crisp(out)
 
 
 def chugs_react(H, P):
