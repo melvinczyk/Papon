@@ -41,6 +41,20 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         super.preRender(pose, entity, model, buffers, buffer, reRender, partialTick, light, overlay, r, g, b, a);
     }
 
+    /** Diving through the truck's window his position is briefly inside its wall: keep him lit. */
+    @Override
+    protected int getSkyLightLevel(PaponBossEntity entity, net.minecraft.core.BlockPos pos) {
+        int sky = super.getSkyLightLevel(entity, pos);
+        return entity.getBossState() == com.groid.papon.boss.BossState.LEAP_OUT
+                ? Math.max(sky, entity.level().getBrightness(net.minecraft.world.level.LightLayer.SKY, pos.above(4))) : sky;
+    }
+
+    @Override
+    protected int getBlockLightLevel(PaponBossEntity entity, net.minecraft.core.BlockPos pos) {
+        int block = super.getBlockLightLevel(entity, pos);
+        return entity.getBossState() == com.groid.papon.boss.BossState.LEAP_OUT ? Math.max(block, 8) : block;
+    }
+
     @Override
     protected float getDeathMaxRotation(PaponBossEntity entity) {
         return 0;

@@ -390,12 +390,8 @@ public class TacoVendorEntity extends TacoNpc {
                     level.sendParticles(ParticleTypes.END_ROD, getX(), top, getZ(), 30, 0.5, 0.2, 0.5, 0.06);
                     level.sendParticles(ParticleTypes.FLASH, getX(), top + 0.3, getZ(), 1, 0, 0, 0, 0);
                     level.playSound(null, getX(), getY(), getZ(), ModSounds.REVEAL.get(), SoundSource.HOSTILE, 2.0F, 1.0F);
-                    for (ServerPlayer p : level.players()) {
-                        if (p.distanceToSqr(this) < 48 * 48) {
-                            p.displayClientMessage(Component.translatable("status.papon.norwood")
-                                    .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC), true);
-                        }
-                    }
+                    // the caption: a bubble over the shiny head, and the cutscene's subtitle
+                    Speech.say(this, ChatFormatting.GRAY, "status.papon.norwood", false, false, 40);
                 }
                 if (t >= 60 && t < 90 && t % 6 == 0) {
                     level.sendParticles(ParticleTypes.END_ROD, getX(), top, getZ(), 2, 0.4, 0.05, 0.4, 0.01);
@@ -415,7 +411,7 @@ public class TacoVendorEntity extends TacoNpc {
                     Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.vendor.rage", true, true, 50);
                     level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 2.5F, 0.8F);
                     level.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), top, getZ(), 16, 0.9, 0.5, 0.9, 0);
-                    level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), top, getZ(), 24, 0.4, 0.2, 0.4, 0.08);
+                    level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), top + 0.5, getZ(), 8, 0.4, 0.2, 0.4, 0.06);
                     PaponNetwork.shake(level, position(), 16, 0.45F, 30);
                 }
                 if (t > 34 && t % 3 == 0) {
@@ -451,6 +447,7 @@ public class TacoVendorEntity extends TacoNpc {
 
     /** Admin skip (/papon fraud): everyone ahead of the Wandering Papon gets fed instantly and leaves. */
     public void skipToPapon(ServerLevel level) {
+        if (getVendorState().unmasking()) return;
         for (Entity e : resolveQueue(level)) {
             if (e instanceof WanderingPaponEntity) break;
             if (e instanceof TacoCustomerEntity c) {

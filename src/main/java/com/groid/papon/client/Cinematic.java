@@ -42,6 +42,8 @@ public final class Cinematic {
     private static float fov = 70;
     private static float roll;
     @Nullable private static Vec3 leapStart;
+    /** Whoever the camera is on, for the subtitles. */
+    @Nullable private static Entity subject;
     private static int lastBossState = -1;
 
     private Cinematic() {}
@@ -60,6 +62,12 @@ public final class Cinematic {
 
     public static float roll() {
         return roll;
+    }
+
+    /** The encoded speech line of whoever the cutscene is about ("" when quiet). */
+    public static String subjectSpeech() {
+        if (!active || subject == null || !subject.isAlive()) return "";
+        return subject instanceof com.groid.papon.entity.Speech.Speaker s ? s.getSpeech() : "";
     }
 
     private record Shot(Vec3 eye, Vec3 lookAt, float fov, float roll, boolean cut) {}
@@ -91,11 +99,16 @@ public final class Cinematic {
                 .min(Comparator.comparingDouble(b -> b.distanceToSqr(me))).orElse(null);
         if (boss != null) {
             Shot s = bossShot(boss);
-            if (s != null) return s;
+            if (s != null) {
+                subject = boss;
+                return s;
+            }
         }
         TacoVendorEntity vendor = mc.level.getEntitiesOfClass(TacoVendorEntity.class, box).stream()
                 .min(Comparator.comparingDouble(v -> v.distanceToSqr(me))).orElse(null);
-        return vendor == null ? null : vendorShot(vendor);
+        Shot s = vendor == null ? null : vendorShot(vendor);
+        if (s != null) subject = vendor;
+        return s;
     }
 
     // ------------------------------------------------------------------ the shots
@@ -115,10 +128,10 @@ public final class Cinematic {
                     ? new Shot(face.add(f.scale(3.3)).add(right.scale(-0.9)).add(0, -0.1, 0), face.add(0, -0.15, 0), 45, 0, t == 0)
                     : new Shot(face.add(f.scale(3.4 + (t - 46) / 54.0 * 1.6)).add(up.scale(0.2 + (t - 46) / 54.0 * 0.5)),
                     face.add(0, 0.35 + Math.min(1, (t - 46) / 20.0) * 0.6, 0), 50, 0, t == 46);
-            case REALIZE -> new Shot(face.add(f.scale(2.7 - t / 60.0 * 0.6)).add(right.scale(0.25)), face.add(0, 0.2, 0),
-                    40, (float) Math.sin(t * 0.15) * 4F, t == 0);
+            case REALIZE -> new Shot(face.add(f.scale(3.7 - t / 60.0 * 0.6)).add(right.scale(0.25)), face.add(0, 0.2, 0),
+                    42, (float) Math.sin(t * 0.15) * 4F, t == 0);
             case RAGE -> t < 34
-                    ? new Shot(face.add(f.scale(2.4 - t / 34.0 * 0.4)), face.add(0, 0.1, 0), 40, (float) Math.sin(t * 0.9) * t * 0.12F, t == 0)
+                    ? new Shot(face.add(f.scale(3.4 - t / 34.0 * 0.4)), face.add(0, 0.1, 0), 42, (float) Math.sin(t * 0.9) * t * 0.12F, t == 0)
                     : new Shot(face.add(f.scale(2.0 + Math.min(1, (t - 34) / 5.0) * 4.8)).add(up.scale(0.4)), face.add(0, 0.2, 0),
                     60, 0, false);
             default -> null;
@@ -143,12 +156,12 @@ public final class Cinematic {
                 yield new Shot(eye, body, 60, 0, t == 0);
             }
             case CHUG -> {
-                double orbit = Math.toRadians(-25 + t * 0.4);
+                double orbit = Math.toRadians(55 + t * 0.25);     // from his side, clear of the line
                 Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
-                yield new Shot(b.position().add(dir.scale(5.2)).add(0, 0.5, 0), body.add(0, 0.5, 0), 55, 0, t == 0);
+                yield new Shot(b.position().add(dir.scale(6.0)).add(0, 0.6, 0), body.add(0, 0.5, 0), 55, 0, t == 0);
             }
             case ROAR -> t < 30
-                    ? new Shot(b.position().add(f.scale(4.0 - Math.min(1, t / 6.0) * 1.2)).add(0, 1.0, 0), body.add(0, 0.6, 0), 55, 0, t == 0)
+                    ? new Shot(b.position().add(f.scale(6.2 - Math.min(1, t / 6.0) * 1.4)).add(0, 1.2, 0), body.add(0, 0.7, 0), 55, 0, t == 0)
                     : null;
             default -> null;
         };
@@ -173,6 +186,7 @@ public final class Cinematic {
         if (savedType != null) mc.options.setCameraType(savedType);
         savedType = null;
         camera = null;
+        subject = null;
         fov = 70;
         roll = 0;
     }

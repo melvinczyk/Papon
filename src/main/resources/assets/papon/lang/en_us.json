@@ -131,7 +131,7 @@
   "title.papon.boss": "CHEF PAPON",
   "title.papon.boss.subtitle": "El Calvo del Taco",
   "status.papon.norwood": "Norwood 7.",
-  "status.papon.handle": "Chef Papon is downing a whole handle of tequila by his van. Get out of the road!",
+  "status.papon.handle": "He is downing a handle by his van. Get off the road!",
   "death.attack.papon.caravan": "%1$s was run over by %2$s in a 2001 Dodge Caravan",
   "death.attack.papon.caravan.player": "%1$s was run over by a 2001 Dodge Caravan while fighting %2$s",
   "death.attack.papon.spatula": "%1$s was flipped like a tortilla by %2$s",
@@ -190,5 +190,6 @@
   "subtitles.papon.caravan.door_close": "Van door slams",
   "subtitles.papon.caravan.hit": "Somebody gets run over",
   "subtitles.papon.boss.reveal": "Dramatic sting",
-  "subtitles.papon.music.boss": "Mariachi plays"
+  "subtitles.papon.music.boss": "Mariachi plays",
+  "hud.papon.speed": "%s km/h"
 }

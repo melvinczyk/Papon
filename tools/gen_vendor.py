@@ -4,6 +4,7 @@
 Writes, under src/main/resources/assets/papon/:
   geo/entity/taco_vendor.geo.json      textures/entity/taco_vendor.png
   geo/entity/customer_papon.geo.json   textures/entity/customer_papon.png
+  geo/entity/papon_boss.geo.json       textures/entity/papon_boss.png
 
 Both keep the Walking Crops Papon's body, arms, legs and brows bone for bone at the same UVs
 (tools/src/papon_base.png pasted at 0,0), like the Wandering Papon, and share one animation
@@ -14,6 +15,9 @@ taco_vendor   the Papon in the truck. Chef's toque, a (fake) mustache,
               taco, the fraud coupon and a magnifying glass. Rendered at 1.5x.
 customer_papon a Papon in line. Hats sombrero / cap / none are variants: the renderer hides
               the hats a given customer is not wearing. Prop: his taco.
+papon_boss    Chef Papon after the unmasking, the boss (256x256): no toque, no mustache, the
+              Norwood 7 hair and the mustache mark always on; tequila bottle and handle with
+              draining liquid, giant spatula, molotov, lighter, van keys. See papon_boss().
 """
 import os
 
@@ -141,11 +145,11 @@ def bald_parts(m):
                         p.put(x, y, (64, 48, 38), 0.08)
     h = lambda o, sz: m.box(o, sz, HAIR, extra=hair_paint, noise=0.1)
     m.add(bone('hair', [0, 16, 0], 'body', [
-        h([-8.6, 15, -1], [1, 3, 9]),             # right side, from the temple back
-        h([7.6, 15, -1], [1, 3, 9]),              # left side
+        h([-8.6, 15, -4], [1, 3, 12]),            # right side, from the temple back
+        h([7.6, 15, -4], [1, 3, 12]),             # left side
         h([-8, 13, 7.6], [16, 5, 1]),             # around the back, lower and thicker
-        h([-10.6, 14, -0.5], [2, 4, 5]),          # the puffs over the ears
-        h([8.6, 14, -0.5], [2, 4, 5]),
+        h([-10.6, 14, -4], [2, 4, 6]),            # the puffs over the ears
+        h([8.6, 14, -4], [2, 4, 6]),
         h([-6, 12, 7.6], [3, 1, 1]),              # a ragged edge at the nape
         h([2, 12, 7.6], [4, 1, 1]),
     ]))

@@ -134,11 +134,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private boolean landed;
     private boolean stolenLine;
     // the van routine
-    private enum Drive { REV, RAM, BRAKE, REVERSE, BRAKE_LAST }
+    private enum Drive { REV, LEG, BRAKE }
     private Drive drive = Drive.REV;
     private int driveTicks;
-    private int passes;
-    private boolean reversed;
+    private int legsLeft;
+    private boolean legReverse;
+    private int stall;
     @Nullable private Vec3 ramAim;
     // client
     private int clientStateTicks;
@@ -357,7 +358,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             face(leapTo);
         } else if (t <= 20) {
             double p = (t - 7) / 13.0;
-            Vec3 at = leapFrom.lerp(leapTo, p).add(0, Math.sin(Math.PI * p) * 2.6 + (1 - p) * 0.2, 0);
+            Vec3 at = leapFrom.lerp(leapTo, p).add(0, Math.sin(Math.PI * p) * 1.5 + (1 - p) * 0.3, 0);
             setPos(at.x, at.y, at.z);
             setDeltaMovement(Vec3.ZERO);
             if (t == 20) {
@@ -435,7 +436,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         boolean p2 = isPhaseTwo();
         CaravanEntity van = van(level);
-        if (vanCd <= 0 && van != null && !van.isVehicle() && distanceTo(van) < 30 && d < 36) {
+        if (vanCd <= 0 && van != null && !van.isVehicle() && distanceTo(van) < 40 && d < 40) {
             setBossState(BossState.TO_VAN);
             say("keys", 40);
             return;
@@ -593,7 +594,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         Vec3 door = van.driverDoor();
-        if (horizontalDist(door) < 1.7) {
+        // the van's hitbox is a square shorter than the van, so he can end up against its nose
+        // instead of at the door: close enough to the van is close enough
+        if (horizontalDist(door) < 2.2 || distanceTo(van) < 3.4) {
             setBossState(BossState.DRINK_HANDLE);
             say("handle", 50);
             for (ServerPlayer p : level.players()) {
@@ -603,7 +606,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
             return;
         }
-        if (getNavigation().isDone() || tickCount % 10 == 0) getNavigation().moveTo(door.x, door.y, door.z, isPhaseTwo() ? 1.4 : 1.15);
+        if (horizontalDist(door) < 4) {
+            getMoveControl().setWantedPosition(door.x, door.y, door.z, isPhaseTwo() ? 1.4 : 1.15);
+        } else if (getNavigation().isDone() || tickCount % 10 == 0) {
+            getNavigation().moveTo(door.x, door.y, door.z, isPhaseTwo() ? 1.4 : 1.15);
+        }
     }
 
     private void tickDrinkHandle(ServerLevel level, @Nullable LivingEntity target) {
@@ -630,11 +637,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void startDriving() {
         drive = Drive.REV;
         driveTicks = 0;
-        passes = 0;
-        reversed = false;
+        legsLeft = isPhaseTwo() ? 4 : 2;
         setBossState(BossState.DRIVING);
     }
 
+    /**
+     * The van attack: rev (the burnout), then legs: each one straight at the target, forwards if
+     * it is ahead of the van and in reverse if it is behind, steering locked for the last few
+     * blocks so it can be dodged sideways. Two legs (four in phase two), braking between them.
+     */
     private void tickDriving(ServerLevel level, @Nullable LivingEntity target) {
         if (!(getVehicle() instanceof CaravanEntity van)) {
             exitVan(level, null);
@@ -649,25 +660,22 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 if (driveTicks == 1) {
                     van.burnout(20);
                     van.honk();
-                    say(passes == 0 ? "ram" : "again", 40);
+                    say("ram", 40);
                 }
                 if (driveTicks >= 20) {
-                    if (target == null) {
-                        exitVan(level, van);
-                        return;
-                    }
-                    ramAim = target.position();
-                    nextDrive(Drive.RAM);
+                    if (target == null) exitVan(level, van);
+                    else startLeg(van, target, true);
                 }
             }
-            case RAM -> {
+            case LEG -> {
                 Vec3 aim = target != null ? target.position() : ramAim;
-                if (aim == null) aim = van.position().add(f.scale(10));
-                double ahead = aim.subtract(van.position()).dot(f);
-                boolean lock = ramAim != null && van.position().distanceTo(aim) < 7;
+                if (aim == null) aim = van.position().add(f.scale(legReverse ? -10 : 10));
+                double toGo = aim.subtract(van.position()).dot(f) * (legReverse ? -1 : 1);
+                boolean lock = van.position().distanceTo(aim) < (legReverse ? 6 : 7);
                 if (!lock) ramAim = aim;
-                van.autopilot(lock ? ramAim : aim, false, lock);
-                if (ahead < -4 || driveTicks > 90 || crashed) {
+                van.autopilot(lock && ramAim != null ? ramAim : aim, legReverse, lock);
+                stall = driveTicks > 25 && Math.abs(van.speed()) < 0.06 ? stall + 1 : 0;
+                if (toGo < -4 || driveTicks > (legReverse ? 60 : 90) || crashed || stall > 15) {
                     van.brake();
                     nextDrive(Drive.BRAKE);
                 }
@@ -675,49 +683,34 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case BRAKE -> {
                 van.brake();
                 if (Math.abs(van.speed()) < 0.05 || driveTicks > 30) {
-                    boolean behind = target != null && target.position().subtract(van.position()).dot(f) < 0
-                            && target.distanceTo(van) < 18;
-                    if (!reversed && behind) {
-                        reversed = true;
-                        say("reverse", 40);
-                        van.honk();
-                        ramAim = target.position();
-                        nextDrive(Drive.REVERSE);
-                    } else if (isPhaseTwo() && passes < 1 && target != null) {
-                        passes++;
-                        nextDrive(Drive.REV);
-                    } else {
-                        exitVan(level, van);
-                    }
-                }
-            }
-            case REVERSE -> {
-                Vec3 aim = target != null ? target.position() : ramAim;
-                if (aim == null) aim = van.position().subtract(f.scale(10));
-                double behind = -aim.subtract(van.position()).dot(f);
-                boolean lock = van.position().distanceTo(aim) < 6;
-                if (!lock) ramAim = aim;
-                van.autopilot(lock ? ramAim : aim, true, lock);
-                if (behind < -4 || driveTicks > 60 || crashed) {
-                    van.brake();
-                    nextDrive(Drive.BRAKE_LAST);
-                }
-            }
-            case BRAKE_LAST -> {
-                van.brake();
-                if (Math.abs(van.speed()) < 0.05 || driveTicks > 30) {
-                    if (isPhaseTwo() && passes < 1 && target != null) {
-                        passes++;
-                        nextDrive(Drive.REV);
-                    } else {
-                        exitVan(level, van);
-                    }
+                    if (legsLeft > 0 && target != null && target.distanceTo(van) < 26) startLeg(van, target, false);
+                    else exitVan(level, van);
                 }
             }
         }
     }
 
+    private void startLeg(CaravanEntity van, LivingEntity target, boolean first) {
+        legsLeft--;
+        legReverse = target.position().subtract(van.position()).dot(van.forward()) < 0;
+        ramAim = target.position();
+        stall = 0;
+        if (legReverse) {
+            say("reverse", 40);
+            van.honk();
+        } else if (!first) {
+            say("again", 40);
+            van.honk();
+        }
+        nextDrive(Drive.LEG);
+    }
+
     private void nextDrive(Drive d) {
+        if (WanderingDebug.on() && getVehicle() instanceof CaravanEntity van) {
+            PaponMod.LOG.info("[debug] boss drive {} -> {} after {}t (van at {} speed {}, target {})", drive, d, driveTicks,
+                    van.blockPosition().toShortString(), String.format("%.2f", van.speed()),
+                    getTarget() == null ? "none" : getTarget().blockPosition().toShortString());
+        }
         drive = d;
         driveTicks = 0;
     }
@@ -732,6 +725,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             stopRiding();
         }
         vanCd = isPhaseTwo() ? PaponConfig.VAN_COOLDOWN.get() * 2 / 3 : PaponConfig.VAN_COOLDOWN.get();
+        if (WanderingDebug.on()) PaponMod.LOG.info("[debug] boss out of the van ({} after {}t)", drive, driveTicks);
         setBossState(BossState.EXIT_STUMBLE);
         say("stumble", 50);
     }

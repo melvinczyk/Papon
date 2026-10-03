@@ -25,7 +25,14 @@ minecraft {
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
             mods { "${mod_id}" { source sourceSets.main } }
         }
-        client {}
+        client {
+            // ./gradlew runClient -Pautoshot : quick-play "New World" and let client/dev/AutoShot
+            // take screenshots of the truck, the unmasking and the fight (run/screenshots/papon_*.png)
+            if (project.hasProperty('autoshot')) {
+                property 'papon.autoshot', 'true'
+                args '--quickPlaySingleplayer', 'New World'
+            }
+        }
         server { args '--nogui' }
     }
 }
