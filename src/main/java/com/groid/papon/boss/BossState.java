@@ -64,7 +64,7 @@ public enum BossState {
     SWIPE_OVERHEAD(26),
     LEAP(0),
     LEAP_LAND(30),
-    CHARGE_WINDUP(16),
+    CHARGE_WINDUP(9),
     CHARGE(0),
     STAGGER(40),
     UPPERCUT(22),

@@ -73,6 +73,7 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.POTATO_SHOT.get(),
                 ctx -> new TumbleRenderer<>(ctx, () -> new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_SPUD.get()), 0.7F, 40F));
         event.registerEntityRenderer(ModEntities.BOSS_PROP.get(), PropRenderer::new);
+        event.registerEntityRenderer(ModEntities.PAPON_ECHO.get(), EchoRenderer::new);
     }
 
     private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,

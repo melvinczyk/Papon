@@ -276,5 +276,8 @@
   "item.papon.fx_tot": "Tater Tot",
   "item.papon.fx_burrito": "Burrito",
   "item.papon.fx_sprouts": "Potato Sprouts",
-  "item.papon.fx_giant_spud": "The Spud Singularity"
+  "item.papon.fx_giant_spud": "The Spud Singularity",
+  "speech.papon.boss.echoes": "¡Los tres chefs!",
+  "speech.papon.boss.echoes.gloss": "The three chefs!",
+  "entity.papon.papon_echo": "Echo of Chef Papon"
 }

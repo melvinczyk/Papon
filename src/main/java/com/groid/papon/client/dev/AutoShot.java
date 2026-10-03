@@ -40,6 +40,8 @@ public final class AutoShot {
     private static final boolean DRIVE = MODE.equals("drive");
     /** -Pautoshot=rework: every new attack of the rework, the QTEs (one lost, one won), then phase two's potato attacks. */
     private static final boolean REWORK = MODE.equals("rework");
+    /** -Pautoshot=pose: the boss held still in his parry and his summon, front and side, then his echoes throwing. */
+    private static final boolean POSE = MODE.equals("pose");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -59,6 +61,10 @@ public final class AutoShot {
         }
         if (DRIVE) {
             drive(mc);
+            return;
+        }
+        if (POSE) {
+            pose(mc);
             return;
         }
         if (REWORK) {
@@ -312,7 +318,7 @@ public final class AutoShot {
         String n = switch (s) {
             case GUARD -> t == 10 ? "r01_guard" : null;
             case RIPOSTE -> t == 11 ? "r02_riposte" : null;
-            case CLEAVER_TOSS -> t == 20 ? "r03_cleavers" : null;
+            case CLEAVER_TOSS -> t == 12 ? "r03_cleavers" : t == 28 ? "r03b_echo_throws" : null;
             case BURRITO_TOSS -> t == 12 ? "r04_tortilla" : t == 22 ? "r05_burrito_mark" : null;
             case CHARGE_WINDUP -> t == 8 ? "r06_burrito_bowling" : null;
             case COMAL_SLAM -> t == 24 ? "r07_griddle" : null;
@@ -348,6 +354,44 @@ public final class AutoShot {
             if (k == 560) run(MID, "papon bossstate GATLING");
             if (k == 660) mc.stop();
         }
+    }
+
+    private static final String SIDE = "execute as @e[type=papon:papon_boss,limit=1,sort=nearest] at @s run tp @p ^4.5 ^0.5 ^1.5 facing entity @s";
+
+    private static void pose(Minecraft mc) {
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "tp @s 4000 200 4000");
+            case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            case 90 -> run("execute at @s rotated 0 0 run papon boss", "kill @e[type=papon:caravan]");
+            case 400 -> run("papon bossstate IDLE", CLOSE, "papon bossstate GUARD");
+            case 402 -> PaponBossEntity.devFrozen = true;
+            case 414 -> shot(mc, "p01_guard_front");
+            case 416 -> run(SIDE);
+            case 424 -> shot(mc, "p02_guard_side");
+            case 430 -> PaponBossEntity.devFrozen = false;
+            case 432 -> run("papon bossstate IDLE", CLOSE, "papon bossstate CLEAVER_TOSS");
+            case 434 -> PaponBossEntity.devFrozen = true;
+            case 442 -> shot(mc, "p03_summon_front");
+            case 444 -> run(SIDE);
+            case 450 -> shot(mc, "p04_summon_side");
+            case 460 -> {
+                PaponBossEntity.devFrozen = false;
+                run("papon bossstate IDLE", MID);
+            }
+            case 462 -> {
+                mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                run("papon bossstate CLEAVER_TOSS");
+            }
+            case 476 -> shot(mc, "p05_echoes");
+            case 484 -> shot(mc, "p06_echo_throw");
+            case 492 -> shot(mc, "p07_echo_throw2");
+            case 520 -> mc.stop();
+            default -> {}
+        }
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b != null && tick < 462 && tick > 100 && !com.groid.papon.client.Cinematic.isActive()) lookAt(mc, b);
     }
 
     private static boolean brickShot(Minecraft mc, PaponBossEntity b) {

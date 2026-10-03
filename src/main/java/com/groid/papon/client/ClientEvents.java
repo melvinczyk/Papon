@@ -163,24 +163,15 @@ public final class ClientEvents {
         int bar = Math.round(h * 0.11F * k);
         g.fill(0, 0, w, bar, 0xFF000000);
         g.fill(0, h - bar, w, h, 0xFF000000);
-        // subtitles in the bottom bar: the line as spoken, its translation underneath
+        // the line goes in his bubble; only through his own eyes (no bubble in shot) does it go in the bottom bar
+        if (!Cinematic.povActive()) return;
         var line = com.groid.papon.entity.Speech.decode(Cinematic.subjectSpeech());
         if (line == null || k < 1) return;
-        Minecraft mc = Minecraft.getInstance();
-        var font = mc.font;
-        String key = line.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents tc ? tc.getKey() : null;
+        var font = Minecraft.getInstance().font;
         int y = h - bar + 4;
         for (var row : font.split(line, w - 40)) {
             g.drawString(font, row, (w - font.width(row)) / 2, y, 0xFFFFFF, false);
             y += 10;
-        }
-        if (key != null && net.minecraft.client.resources.language.I18n.exists(key + ".gloss")) {
-            var gloss = net.minecraft.network.chat.Component.translatable(key + ".gloss")
-                    .withStyle(net.minecraft.ChatFormatting.GRAY, net.minecraft.ChatFormatting.ITALIC);
-            for (var row : font.split(gloss, w - 40)) {
-                g.drawString(font, row, (w - font.width(row)) / 2, y, 0xAAAAAA, false);
-                y += 10;
-            }
         }
     }
 

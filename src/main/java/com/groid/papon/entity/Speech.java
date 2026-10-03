@@ -3,6 +3,7 @@ package com.groid.papon.entity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -18,8 +19,10 @@ import net.minecraft.world.entity.Entity;
  *   chat    "<Name> line" to every player within {@link #HEAR_RADIUS}; a key with a ".gloss"
  *           sibling (the Spanish lines) also prints that translation underneath in grey
  *
- * No voices are recorded: speakers "babble" a pitched blip per syllable-ish (see {@link Voice}),
- * Animal Crossing style.
+ * Chef Papon (the vendor and the boss) is voiced: each of his lines has a text-to-speech clip
+ * (tools/gen_voice.py, sound "voice.<who>.<line>") played where he stands, and never goes to chat, so
+ * the fight's chat stays clear; his bubble shows the line. Everyone else "babbles" a pitched blip per
+ * syllable-ish (see {@link Voice}), Animal Crossing style.
  */
 public final class Speech {
     public static final double HEAR_RADIUS = 40;
@@ -40,6 +43,12 @@ public final class Speech {
         StringBuilder enc = new StringBuilder(key);
         for (Object a : args) enc.append(SEP).append(a);
         if (speaker instanceof Speaker s) s.setSpeech(enc.toString(), ticks);
+        ResourceLocation voice = voiceOf(key);
+        if (voice != null) {
+            level.playSound(null, speaker.getX(), speaker.getEyeY(), speaker.getZ(), SoundEvent.createVariableRangeEvent(voice),
+                    SoundSource.HOSTILE, 3.0F, 1.0F);
+            return;
+        }
         if (!chat) return;
 
         MutableComponent line = Component.literal("<").append(speaker.getDisplayName().copy().withStyle(nameColor))
@@ -53,6 +62,22 @@ public final class Speech {
             p.sendSystemMessage(line);
             if (translation != null) p.sendSystemMessage(translation);
         }
+    }
+
+    /** The text-to-speech clip for a line of Chef Papon's, or null for anyone else's. */
+    public static ResourceLocation voiceOf(String key) {
+        for (String who : new String[] {"boss", "vendor"}) {
+            String prefix = "speech.papon." + who + ".";
+            if (key.startsWith(prefix)) return new ResourceLocation("papon", "voice." + who + "." + key.substring(prefix.length()));
+        }
+        return null;
+    }
+
+    /** Whether an encoded speech string is a voiced line (no babble over it). */
+    public static boolean voiced(String encoded) {
+        if (encoded == null || encoded.isEmpty()) return false;
+        int sep = encoded.indexOf(SEP);
+        return voiceOf(sep < 0 ? encoded : encoded.substring(0, sep)) != null;
     }
 
     /** The component an encoded speech string stands for, or null when nobody is talking. */

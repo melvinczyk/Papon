@@ -552,9 +552,17 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (tickCount % 10 == 0) updateBossBarPlayers();
     }
 
+    /** Dev (AutoShot pose mode): no thinking, no moving, the state held where it is, for screenshots of a pose. */
+    public static volatile boolean devFrozen;
+
     @Override
     protected void customServerAiStep() {
         super.customServerAiStep();
+        if (devFrozen) {
+            getNavigation().stop();
+            setDeltaMovement(0, getDeltaMovement().y, 0);
+            return;
+        }
         ServerLevel level = (ServerLevel) level();
         stateTicks++;
         tickCooldowns();
@@ -1240,12 +1248,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** Paws the ground, head down: tracks you until 0.6 s, then commits to his line. */
     private void tickWindup(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
-        if (target != null && t < 12) face(target.position());
+        if (target != null && t < 7) face(target.position());
         if (t == 1 && target != null) {
             Vec3 f = Vec3.directionFromRotation(0, getYRot());
             Fx.warnLine(level, position().add(f.scale(1.5)), position().add(f.scale(16)), 0.9F, Fx.DANGER, BossState.CHARGE_WINDUP.duration);
         }
-        if (t % 5 == 0) Fx.dust(level, position(), 0.4, 1);
+        if (t % 4 == 0) Fx.dust(level, position(), 0.4, 1);
         if (t >= BossState.CHARGE_WINDUP.duration) {
             chargeHits.clear();
             chargeLast = null;
@@ -1256,8 +1264,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /**
-     * The tequila rush, flat out (the Leviathan's): steers toward you at no more than 2.5 degrees a
-     * tick, so the dodge is late and sideways. Drunk enough to be half a ghost, he goes straight
+     * The tequila rush, flat out (the Leviathan's): almost a block a tick, steering toward you at no
+     * more than 3.5 degrees a tick, so the dodge is late and sideways. Drunk enough to be half a ghost, he goes straight
      * through trees and walls, riding the lie of the land. Everything in front of him is hit once
      * (shields break) and flung aside. A charge that hits nothing leaves him reeling (STAGGER: the
      * punish window); phase two and a frenzy run it again.
@@ -1265,9 +1273,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickCharge(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
         if (t == 1) setGhost(true);
-        if (target != null) turnToward(target.position(), 2.5F);
+        if (target != null) turnToward(target.position(), 3.5F);
         Vec3 dir = Vec3.directionFromRotation(0, getYRot());
-        double speed = isPhaseTwo() ? 0.82 : 0.7;
+        double speed = isPhaseTwo() ? 1.1 : 0.95;
         double vy = Mth.clamp((groundY(position()) - getY()) * 0.5, -0.8, 0.9);
         setDeltaMovement(dir.x * speed, vy, dir.z * speed);
         getNavigation().stop();
@@ -1516,8 +1524,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         histN++;
     }
 
-    /** Where the target will be in {@code ahead} ticks, from where it has been (Ignis' predictive dash). */
-    private Vec3 predict(LivingEntity target, int ahead) {
+    /** Where the target will be in {@code ahead} ticks, from where it has been (Ignis' predictive dash; his echoes aim with it too). */
+    public Vec3 predict(LivingEntity target, int ahead) {
         if (histN < hist.length) return target.position();
         Vec3 old = hist[histN % hist.length];
         Vec3 v = target.position().subtract(old).scale(1.0 / (hist.length - 1));
@@ -2919,11 +2927,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 2) com.groid.papon.fx.Fx.glint(level, position().add(Vec3.directionFromRotation(0, getYRot()).scale(1.3)).add(0, 1.6, 0),
                 0.6F, 0xFFE8B0);
         boolean close = target != null && distanceTo(target) < 5;
-        if (guardBlocks >= 2 || (t >= 40 && close) || (t >= 16 && close && random.nextInt(14) == 0)) {
+        if (guardBlocks >= 1 || (t >= 8 && close)) {
             setBossState(BossState.RIPOSTE);
             return;
         }
-        if (t >= 40) setBossState(BossState.IDLE);
+        if (t >= 24) setBossState(BossState.IDLE);
     }
 
     /** The comal into your face (0.25 s), then the spatula down (0.6 s): a share of your health, through any armor. */
@@ -2991,18 +2999,26 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     // ------------------------------------------------------------------ chef: cleavers, the burrito, the griddle
 
-    /** Two cleavers thrown sidearm (0.5 / 0.7 s), curving out opposite ways and coming back; he follows them in. */
+    /**
+     * Los Tres Chefs: the cleavers crossed over his head and three echoes of him blink into the air round
+     * you (0.1, 0.4, 0.7 s): left, right, behind, high up, so they are never all in front of you. Each
+     * marks where its cleaver will land with a red line, glints, and throws (phase two: twice). Hit an
+     * echo before it throws and it shatters. Then he comes for you himself.
+     */
     private void tickCleaverToss(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
-        if (target != null && t < 14) face(target.position());
-        if ((t == 10 || t == 14) && target != null) {
-            boolean right = t == 10;
-            Vec3 hand = position().add(Vec3.directionFromRotation(0, getYRot() + (right ? 60 : -60)).scale(1.0)).add(0, 1.4, 0);
-            Vec3 aim = predict(target, 10).add(0, 1.0, 0).subtract(hand);
-            double len = Math.max(4, Math.min(16, aim.length()));
-            Vec3 out = aim.normalize().scale(len / 10.0).yRot((right ? 1 : -1) * 0.5F);
-            level.addFreshEntity(BossProp.create(level, BossProp.Kind.CLEAVER, this, hand).cleaver(out, right ? -1F : 1F).life(80));
-            level.playSound(null, hand.x, hand.y, hand.z, SoundEvents.TRIDENT_THROW, SoundSource.HOSTILE, 1.2F, 1.2F);
+        getNavigation().stop();
+        if (target != null) face(target.position());
+        if (t == 1) say("echoes", 40);
+        if ((t == 2 || t == 8 || t == 14) && target != null) {
+            int i = (t - 2) / 6;
+            Vec3 in = flatTo(target.position()).scale(-1);           // from the target back toward him
+            if (in.lengthSqr() < 1e-4) in = Vec3.directionFromRotation(0, getYRot()).scale(-1);
+            float turn = new float[] {75F, -75F, 180F}[i] + (random.nextFloat() - 0.5F) * 20F;
+            Vec3 out = in.yRot(turn * Mth.DEG_TO_RAD);
+            Vec3 at = target.position().add(out.scale(6.5)).add(0, 4.5 + i * 0.6, 0);
+            level.addFreshEntity(PaponEchoEntity.create(level, this, target, at, isPhaseTwo() ? 2 : 1));
+            com.groid.papon.fx.Fx.glint(level, position().add(0, 3.2, 0), 1.0F, 0xFF6A4A);
         }
         if (t >= BossState.CLEAVER_TOSS.duration) {
             if (target != null && distanceTo(target) < 14) {
@@ -3697,7 +3713,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (!(level() instanceof ServerLevel level)) return;
         Vec3 at = e.position().add(0, e.getBbHeight() * 0.6, 0);
         switch (p.kind()) {
-            case CLEAVER -> {
+            case CLEAVER, CLEAVER_DART -> {
                 if (strike(e, 9F, ModDamage.SPATULA, false)) {
                     Mechanics.poison(e, 120);
                     com.groid.papon.fx.Fx.hit(level, at, 0.9F, 0xE0E4EA);

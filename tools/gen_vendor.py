@@ -592,22 +592,39 @@ def papon_boss():
         m.box([16.5, -0.5, -3], [1, 2, 6], iron_hi, noise=0.05),
     ]))
 
-    # ---- the cleavers (one in each fist): handle along the arm, the blade below it, edge forward
-    steel_c, steel_cd = (204, 208, 216), (120, 124, 132)
+    # ---- the cleavers (one in each fist): Dungeons Delight's iron cleaver (gen_props.cleaver_sprite, the
+    # thrown one too) in 3D, a box per run of one colour in each row of its sprite, half a unit a pixel;
+    # turned so the grip lies in his fist along the arm and the edge faces forward
+    from gen_props import cleaver_sprite
+    sprite, wood = cleaver_sprite()
+    spx = sprite.load()
+    PX = 1.2         # a giant butcher's cleaver: ~1.9 blocks long on him at 1.5x
 
-    def blade(p, f):
-        for side in ('left', 'right'):
-            x0, y0, x1, y1 = (int(n) for n in f[side])
-            for y in range(y0, y1):
-                p.put(x1 - 1 if side == 'left' else x0, y, steel_cd)              # the spine
-                p.put(x0 if side == 'left' else x1 - 1, y, (244, 246, 252))     # the edge
-            p.put((x0 + x1) // 2, y0 + 1, (30, 30, 34))                         # the hole
-            p.put((x0 + x1) // 2, y1 - 2, (150, 30, 26))                        # it has been used
-    for side, hx in (('r', -10.5), ('l', 9.5)):
-        m.add(bone('cleaver_' + side, HAND_R if side == 'r' else HAND_L, 'arm_' + side, [
-            m.box([hx, 0, -0.5], [1, 4, 1], (64, 40, 28), noise=0.08),
-            m.box([hx, -7, -3.5], [1, 7, 4.5], steel_c, noise=0.03, extra=blade),
-        ]))
+    def q(c):
+        return tuple(min(255, (v + 8) // 16 * 16) for v in c[:3])
+    for side, hx in (('r', -10.0), ('l', 10.0)):
+        cubes = []
+        yc, zc = 2.0 - 6.36 * PX, 0.0      # the grip (4.5 px from the sprite's middle, turned) in his fist
+        for v in range(sprite.size[1]):
+            u = 0
+            while u < sprite.size[0]:
+                if not spx[u, v][3]:
+                    u += 1
+                    continue
+                col, hd = q(spx[u, v]), (u, v) in wood
+                u1 = u
+                while u1 < sprite.size[0] and spx[u1, v][3] and q(spx[u1, v]) == col and ((u1, v) in wood) == hd:
+                    u1 += 1
+                t = 2.0 if hd else 1.2
+                size = [t, PX, (u1 - u) * PX]
+                # one colour all over, so the box UV can be packed whole-pixel and the cube keep its real size
+                c = m.box([hx - t / 2, yc - (v + 1 - 8) * PX, zc + (u - 8) * PX], [max(1, round(n + 0.49)) for n in size], col, noise=0)
+                c['size'] = [float(n) for n in size]
+                c['pivot'] = [hx, yc, zc]
+                c['rotation'] = [-135, 0, 0]
+                cubes.append(c)
+                u = u1
+        m.add(bone('cleaver_' + side, HAND_R if side == 'r' else HAND_L, 'arm_' + side, cubes))
 
     # ---- the tortilla (right hand): a huge flour tortilla, held up flat over his head for the wrap
     def tortilla(p, f):

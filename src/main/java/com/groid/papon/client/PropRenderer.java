@@ -53,6 +53,14 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 pose.mulPose(Axis.XP.rotationDegrees(90F));
                 pose.scale(1.8F, 1.8F, 1.8F);
             }
+            case CLEAVER_DART -> {
+                // along its flight, turning end over end (still while it hangs aimed)
+                stack = new ItemStack(ModItems.FX_CLEAVER.get());
+                pose.mulPose(Axis.YP.rotationDegrees(-p.getYRot() + 90F));
+                pose.mulPose(Axis.ZP.rotationDegrees(-p.getXRot() + (p.delay() > 0 ? 45F : -age * 50F)));
+                pose.scale(1.9F, 1.9F, 1.9F);
+                lit = LightTexture.FULL_BRIGHT;
+            }
             case FRY -> {
                 stack = new ItemStack(ModItems.FX_FRY.get());
                 pose.mulPose(Axis.YP.rotationDegrees(-p.getYRot()));

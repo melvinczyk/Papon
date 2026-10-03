@@ -58,7 +58,9 @@ def ev(js):
 
 
 def open_model(name):
-    ev('ModelProject.all.slice().forEach(p => { try { p.close(true); } catch (e) {} }); true')
+    # closing projects (async) can take the MCP plugin down with it: BB_KEEP=1 leaves them open
+    if not os.environ.get('BB_KEEP'):
+        ev('ModelProject.all.slice().forEach(p => { try { p.close(true); } catch (e) {} }); true')
     print(bb_mcp.tool('create_project', {'name': name, 'format': 'geckolib_model'}).splitlines()[0])
     geo = path_of(ASSETS, 'geo', 'entity', name + '.geo.json')
     bb_mcp.tool('from_geo_json', {'geojson': geo})

@@ -53,7 +53,9 @@ public class BossProp extends Entity {
         /** The Spud Singularity: hangs where he puts it. */
         GIANT_SPUD,
         /** A wall of mash rolling outward as a ring: radius = {@link #radius()}. */
-        MASH
+        MASH,
+        /** A cleaver from one of his echoes: hangs aimed for its warning, then flies straight, end over end. */
+        CLEAVER_DART
     }
 
     private static final EntityDataAccessor<Integer> DATA_KIND = SynchedEntityData.defineId(BossProp.class, EntityDataSerializers.INT);
@@ -170,7 +172,7 @@ public class BossProp extends Entity {
         }
         switch (k) {
             case CLEAVER -> tickCleaver(level, boss);
-            case FRY -> tickFry(level, boss);
+            case FRY, CLEAVER_DART -> tickFry(level, boss);
             case TOT, TOT_SMALL -> tickTot(level, boss);
             case METEOR -> move();
             case BURRITO -> {
@@ -193,7 +195,7 @@ public class BossProp extends Entity {
 
     private void clientTick(Kind k) {
         switch (k) {
-            case FRY -> {
+            case FRY, CLEAVER_DART -> {
                 if (delay() <= 0) move();
             }
             case TOT, TOT_SMALL -> move();
@@ -262,7 +264,8 @@ public class BossProp extends Entity {
             setPos(hr.getLocation().x, hr.getLocation().y, hr.getLocation().z);
             setDeltaMovement(Vec3.ZERO);
             life = Math.min(life, 30);
-            Fx.chunks(level, hr.getLocation(), 6, 0.2F, Fx.POTATO, 0.3);
+            if (kind() == Kind.CLEAVER_DART) Fx.spark(level, hr.getLocation(), 5, 0.2, 0.3F, 0xE6EAF0);
+            else Fx.chunks(level, hr.getLocation(), 6, 0.2F, Fx.POTATO, 0.3);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.TRIDENT_HIT_GROUND, SoundSource.HOSTILE, 1.0F, 0.8F);
             return;
         }
@@ -307,7 +310,7 @@ public class BossProp extends Entity {
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, boss::canHit)) {
             if (!hits.add(e.getId())) continue;
             boss.propHit(this, e);
-            if (kind() == Kind.FRY) {
+            if (kind() == Kind.FRY || kind() == Kind.CLEAVER_DART) {
                 discard();
                 return;
             }

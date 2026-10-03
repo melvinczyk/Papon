@@ -9,7 +9,7 @@ Writes, under src/main/resources/assets/papon/:
                   clear glass, a cream label with a blue agave, a wooden ball cork under a green tax stamp
   fx_spud         a round from the potato gatling: a little russet with eyes
   fx_meteor       a baked potato from the sky (on fire: the particles): split, butter in the split
-  fx_cleaver      a meat cleaver (thrown, spinning, it comes back)
+  fx_cleaver      a meat cleaver: Dungeons Delight's iron cleaver in 3D (thrown, it spins)
   fx_fry          a giant crinkle-cut fry (a javelin off his fry wings)
   fx_tot          a tater tot (the cluster bomb, and its bomblets)
   fx_burrito      a giant burrito, a player rolled up inside (their head sticks out the top)
@@ -320,31 +320,68 @@ def fry():
     return m.save()
 
 
+# The cleaver is Dungeons Delight's iron cleaver (a mod in the pack) built up in 3D: each run of
+# pixels in a row of its 16x16 sprite becomes a box, the blade 1.5 px thick, the handle 2.5.
+# gen_vendor.py builds the cleavers in his fists from the same sprite.
+DD = ('forge-dungeonsdelight-1.20.1-1.3.1.jar', 'assets/dungeonsdelight/textures/item/iron_cleaver.png')
+MODS = os.environ.get('PAPON_MODS', os.path.expanduser('~/Documents/curseforge/minecraft/Instances/Groid Pack OG/mods'))
+
+
+def pack_sprite(jar, path):
+    import io
+    import zipfile
+    with zipfile.ZipFile(os.path.join(MODS, jar)) as z:
+        return Image.open(io.BytesIO(z.read(path))).convert('RGBA')
+
+
+def is_handle(c):
+    r, g, b = c[:3]
+    return r > b + 18 and g > b and r < 170          # the brown wood (and its rivets sit inside it)
+
+
+def cleaver_sprite():
+    """The pack's cleaver: (16x16 RGBA image, set of handle pixels)."""
+    im = pack_sprite(*DD)
+    px = im.load()
+    w, h = im.size
+    return im, {(x, y) for y in range(h) for x in range(w) if px[x, y][3] and is_handle(px[x, y])}
+
+
 def cleaver():
-    m = Model('fx_cleaver', 64, 13)
+    m = Model('fx_cleaver', 128, 13)
+    im, handle = cleaver_sprite()
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        x = 0
+        while x < w:
+            if not px[x, y][3]:
+                x += 1
+                continue
+            hd = (x, y) in handle
+            x1 = x
+            while x1 < w and px[x1, y][3] and ((x1, y) in handle) == hd:
+                x1 += 1
+            run = [px[i, y] for i in range(x, x1)]
 
-    def blade(f, r, m):
-        m.fill(r, (200, 204, 212), 0.03)
-        x0, y0, x1, y1 = r
-        if f in ('north', 'south'):
-            for x in range(x0, x1):
-                m.put(x, y0, (120, 124, 132))                         # the spine
-                m.put(x, y0 + 1, (150, 154, 162))
-                m.put(x, y1 - 1, (240, 244, 250))                     # the edge
-            m.put(x0 + 2, y0 + 3, (30, 30, 34))                       # the hanging hole
-            m.put(x0 + 3, y0 + 3, (30, 30, 34))
-            for x in range(x0 + 6, x1 - 2, 4):
-                m.put(x, y0 + 5, (150, 30, 26))                       # it has been used
-    m.box([2, 6, 7.6], [11, 12, 8.4], blade)
-
-    def handle(f, r, m):
-        m.fill(r, (64, 40, 28), 0.08)
-        x0, y0, x1, y1 = r
-        if f in ('north', 'south'):
-            for x in (x0 + 2, x0 + 6):
-                if x < x1:
-                    m.put(x, (y0 + y1) // 2, (220, 220, 226))         # rivets
-    m.box([11, 7.5, 7.25], [16, 9.5, 8.75], handle)
+            def paint(f, r, mm, run=run, hd=hd):
+                x0, y0, x1_, y1_ = r
+                for ty in range(y0, y1_):
+                    for tx in range(x0, x1_):
+                        if f in ('north', 'south'):
+                            i = (tx - x0) // RES if f == 'south' else len(run) - 1 - (tx - x0) // RES
+                            c = run[max(0, min(len(run) - 1, i))]
+                            k = 1.0
+                        elif f in ('up', 'down'):
+                            c = run[max(0, min(len(run) - 1, (tx - x0) // RES))]
+                            k = 1.12 if f == 'up' else 0.7
+                        else:
+                            c = run[0] if f == 'west' else run[-1]
+                            k = 0.82
+                        mm.put(tx, ty, tone(c, k))
+            t = 1.25 if hd else 0.75
+            m.box([x, 15 - y, 8 - t], [x1, 16 - y, 8 + t], paint)
+            x = x1
     return m.save()
 
 
