@@ -55,7 +55,9 @@ public class BossProp extends Entity {
         /** A wall of mash rolling outward as a ring: radius = {@link #radius()}. */
         MASH,
         /** A cleaver from one of his echoes: hangs aimed for its warning, then flies straight, end over end. */
-        CLEAVER_DART
+        CLEAVER_DART,
+        /** ¡Abucheo!: a tomato, a potato, a carrot thrown from the stands, lobbed. */
+        PRODUCE
     }
 
     private static final EntityDataAccessor<Integer> DATA_KIND = SynchedEntityData.defineId(BossProp.class, EntityDataSerializers.INT);
@@ -174,6 +176,7 @@ public class BossProp extends Entity {
             case CLEAVER -> tickCleaver(level, boss);
             case FRY, CLEAVER_DART -> tickFry(level, boss);
             case TOT, TOT_SMALL -> tickTot(level, boss);
+            case PRODUCE -> tickProduce(level, boss);
             case METEOR -> move();
             case BURRITO -> {
                 Entity f = followId == null ? null : level.getEntity(followId);
@@ -198,7 +201,7 @@ public class BossProp extends Entity {
             case FRY, CLEAVER_DART -> {
                 if (delay() <= 0) move();
             }
-            case TOT, TOT_SMALL -> move();
+            case TOT, TOT_SMALL, PRODUCE -> move();
             case METEOR -> {
                 move();
                 Vec3 v = getDeltaMovement().normalize();
@@ -290,6 +293,25 @@ public class BossProp extends Entity {
         if (getY() < level.getMinBuildHeight()) discard();
     }
 
+    // ---- produce from the stands: lobbed, hits whoever it lands on, splats
+    private void tickProduce(ServerLevel level, PaponBossEntity boss) {
+        Vec3 v = getDeltaMovement().add(0, -0.06, 0);
+        setDeltaMovement(v);
+        hasImpulse = true;
+        touch(level, boss, 0.35);
+        if (isRemoved()) return;
+        Vec3 from = position();
+        HitResult hr = level.clip(new ClipContext(from, from.add(v), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+        if (hr.getType() == HitResult.Type.BLOCK && tickCount > 6) {
+            setPos(hr.getLocation().x, hr.getLocation().y, hr.getLocation().z);
+            boss.propLand(this, position());
+            discard();
+            return;
+        }
+        move();
+        if (getY() < level.getMinBuildHeight()) discard();
+    }
+
     private void burst(ServerLevel level, @Nullable PaponBossEntity boss) {
         if (boss == null) return;
         boss.propLand(this, position());
@@ -310,7 +332,7 @@ public class BossProp extends Entity {
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box, boss::canHit)) {
             if (!hits.add(e.getId())) continue;
             boss.propHit(this, e);
-            if (kind() == Kind.FRY || kind() == Kind.CLEAVER_DART) {
+            if (kind() == Kind.FRY || kind() == Kind.CLEAVER_DART || kind() == Kind.PRODUCE) {
                 discard();
                 return;
             }

@@ -131,7 +131,11 @@ public enum BossState {
     P2_RESUME(0),
     // ---- the hardening: punishes and new attacks (append only: the ordinal is synced)
     /** Face-tanked: he balls up and bursts in a blast of habanero salsa (0.5 s), throwing everyone off him. */
-    SALSA_BURST(26);
+    SALSA_BURST(26),
+    /** La Freidora: a leap and a double stomp (0.7 s / 1.2 s): the sand in a pattern gives way to frying oil. */
+    ARENA_FRYER(40),
+    /** ¡Abucheo!: he turns to the stands, thumbs down: they pelt you with produce for the next 7 s. */
+    ARENA_HECKLE(32);
 
     public final int duration;
 

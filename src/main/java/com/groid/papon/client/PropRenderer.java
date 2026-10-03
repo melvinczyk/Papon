@@ -99,6 +99,15 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 pose.translate(0, 0.9 * up, 0);
                 pose.scale(1.8F, 1.8F * up, 1.8F);
             }
+            case PRODUCE -> {
+                // a tomato (a beetroot will do), a potato, a carrot, a baked potato, tumbling
+                net.minecraft.world.item.Item[] what = {net.minecraft.world.item.Items.BEETROOT, net.minecraft.world.item.Items.POTATO,
+                        net.minecraft.world.item.Items.CARROT, net.minecraft.world.item.Items.BAKED_POTATO};
+                stack = new ItemStack(what[Math.floorMod(p.getId(), what.length)]);
+                pose.mulPose(Axis.XP.rotationDegrees(age * 23F));
+                pose.mulPose(Axis.YP.rotationDegrees(age * 17F));
+                pose.scale(1.1F, 1.1F, 1.1F);
+            }
             case GIANT_SPUD -> {
                 // El Gran Meteoro: swells in over 2 s to nearly the width of his coliseum, blazing, rays pouring off it
                 stack = new ItemStack(ModItems.FX_GIANT_SPUD.get());

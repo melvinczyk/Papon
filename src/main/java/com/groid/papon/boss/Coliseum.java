@@ -639,6 +639,23 @@ public final class Coliseum {
         e.setDeltaMovement(Vec3.ZERO);
     }
 
+    /** The sand back as planned wherever a fryer (boss/Freidora) was left open, e.g. by a save mid-fry. */
+    public void restoreFloor(ServerLevel level) {
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        for (int x = -A; x <= A; x++) {
+            for (int z = -B; z <= B; z++) {
+                double d = offset(x, z);
+                if (d >= 0) continue;
+                m.set(center.getX() + x, center.getY() - 1, center.getZ() + z);
+                BlockState s = level.getBlockState(m);
+                if (!s.is(ModBlocks.ARENA_HOT_SAND.get()) && !s.is(ModBlocks.ARENA_FRYING_OIL.get())) continue;
+                Plan p = new Plan();
+                floor(p, x, z, d);
+                level.setBlock(m, Block.stateById((int) p.out.get(0)[1]), Block.UPDATE_CLIENTS);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ keeping the fight in, and everything else out
 
     /** The coliseums up right now, per dimension, with the game time their boss last vouched for them. */

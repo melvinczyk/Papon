@@ -2026,7 +2026,46 @@ def b_salsa_burst():
     return a
 
 
-HARDENING = [b_salsa_burst]
+def b_arena_fryer():
+    """2.0 s (BossState.ARENA_FRYER, 40 t: La Freidora). A crouch (0.3 s), up off the sand (0.5), and down in a
+    stomp (0.7 s, the sand cracks in its pattern); a second stomp (1.2 s); then a sweep of the hand over the
+    sand, "¡A LA PARRILLA!", and a chuckle."""
+    a = angry(B('arena_fryer', 2.0, 'hold'))
+    a.pos('root', [(0, [0, 0, 0]), (0.3, [0, -2.5, 0], 'easeOutQuad'), (0.5, [0, 7, 0], 'easeOutQuad'), (0.7, [0, -2, 0], 'easeInExpo'),
+                   (0.85, [0, 0, 0]), (1.05, [0, 3, 0], 'easeOutQuad'), (1.2, [0, -2, 0], 'easeInExpo'), (1.35, [0, 0, 0]), (2.0, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.3, [1.12, 0.88, 1.12]), (0.5, [0.9, 1.14, 0.9]), (0.7, [1.22, 0.8, 1.22], 'easeInExpo'),
+                     (0.85, [1, 1, 1]), (1.2, [1.18, 0.84, 1.18], 'easeInExpo'), (1.35, [1, 1, 1]), (2.0, [1, 1, 1])], 'lin')
+    for arm, sg in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * sg]), (0.3, [30, 0, 30 * sg]), (0.5, [-175, 0, 30 * sg], 'easeOutQuad'),
+                    (0.7, [-20, 0, 70 * sg], 'easeInExpo'), (1.05, [-160, 0, 40 * sg]), (1.2, [-20, 0, 70 * sg], 'easeInExpo'),
+                    (1.5, [-60, 40 * sg, 40 * sg] if sg > 0 else [-20, 0, -30], 'easeInOutSine'),
+                    (1.8, [-60, -40, 40] if sg > 0 else [-20, 0, -30], 'easeInOutSine'), (2.0, [-20, 0, 24 * sg])], 'lin')
+        stretch(a, arm, [(0, 1), (0.5, 1.5), (0.7, 1.2), (1.05, 1.4), (1.2, 1.2), (1.5, 1.5 if sg > 0 else 1), (2.0, 1)])
+    for leg, sg in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 0]), (0.3, [-20, 0, 8 * sg]), (0.5, [20, 0, 12 * sg]), (0.7, [-30, 0, 16 * sg], 'easeInExpo'),
+                    (0.9, [0, 0, 8 * sg]), (1.2, [-26, 0, 14 * sg], 'easeInExpo'), (1.5, [0, 0, 0])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.3, [20, 0, 0]), (0.5, [-14, 0, 0]), (0.7, [26, 0, 0], 'easeInExpo'), (1.0, [4, 0, 0]),
+                    (1.2, [24, 0, 0], 'easeInExpo'), (1.5, [6, 0, 0]), (1.6, [-6, 0, 3]), (1.7, [-2, 0, -3]), (1.8, [-6, 0, 3]), (2.0, [0, 0, 0])], 'lin')
+    a.sound(0.5, 'jump').sound(0.7, 'slam').sound(1.2, 'slam').sound(1.6, 'chuckle')
+    return a
+
+
+def b_arena_heckle():
+    """1.6 s (BossState.ARENA_HECKLE, 32 t: ¡Abucheo!). He turns to the stands with both arms up, working the
+    crowd (0-0.8 s), both thumbs down (1.0 s: the boos, and they start throwing), then points at you (1.3)."""
+    a = angry(B('arena_heckle', 1.6, 'hold'))
+    a.rot('root', [(0, [0, 0, 0]), (0.3, [0, 70, 0], 'easeInOutSine'), (1.1, [0, 70, 0]), (1.3, [0, 0, 0], 'easeOutBack'), (1.6, [0, 0, 0])], 'lin')
+    for arm, sg in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * sg]), (0.3, [-170, 0, 30 * sg], 'easeOutBack'), (0.5, [-150, 0, 50 * sg]), (0.7, [-175, 0, 30 * sg]),
+                    (0.9, [-70, -30 * sg, 30 * sg], 'easeInOutSine'), (1.0, [-50, -30 * sg, 20 * sg], 'easeOutQuad'),
+                    (1.3, POINT_R if sg > 0 else [-20, 0, -30], 'easeOutBack'), (1.6, POINT_R if sg > 0 else [-20, 0, -30])], 'lin')
+        stretch(a, arm, [(0, 1), (0.3, 1.4), (0.9, 1.2), (1.3, 1.7 if sg > 0 else 1), (1.6, 1.7 if sg > 0 else 1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.3, [-12, 0, 0]), (0.7, [-16, 0, 0]), (1.0, [14, 0, 0], 'easeOutQuad'), (1.3, [-4, 0, 0]), (1.6, [0, 0, 0])], 'lin')
+    a.sound(0.3, 'hype').sound(1.0, 'grunt')
+    return a
+
+
+HARDENING = [b_salsa_burst, b_arena_fryer, b_arena_heckle]
 
 
 BOSS = [b_leap_out, b_chug, b_roar, b_idle, b_walk, b_walk_keys, b_run, b_swipe, b_slam, b_breath, b_throw,

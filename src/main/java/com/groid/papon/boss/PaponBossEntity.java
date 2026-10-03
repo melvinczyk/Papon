@@ -162,6 +162,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation A_GUARD = once("guard");
     private static final RawAnimation A_RIPOSTE = once("riposte");
     private static final RawAnimation A_SALSA_BURST = once("salsa_burst");
+    private static final RawAnimation A_ARENA_FRYER = once("arena_fryer");
+    private static final RawAnimation A_ARENA_HECKLE = once("arena_heckle");
     private static final RawAnimation A_EVADE = once("evade");
     private static final RawAnimation A_CLEAVER_TOSS = once("cleaver_toss");
     private static final RawAnimation A_BURRITO_TOSS = once("burrito_toss");
@@ -340,6 +342,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** Per attacker, the ticks of their last melee hits on him: four in 2.5 s and he bursts (SALSA_BURST). */
     private final java.util.Map<java.util.UUID, java.util.ArrayDeque<Integer>> pressure = new java.util.HashMap<>();
     private int saltBurstCd;
+    /** The arena turned on you: the fryer open in the sand, and the stands throwing things. */
+    @Nullable private Freidora freidora;
+    private int fryerCd = 200, heckleCd = 160, heckleTicks;
+    private boolean floorChecked;
     private int shoveCd;
     /** Ticks the current target has stayed out of reach (kiting with a bow, flying about). */
     private int farTicks;
@@ -774,6 +780,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_SNARE -> tickSnare(level, target);
             case P2_GRAVITY -> tickGravity(level, target);
             case SALSA_BURST -> tickSalsaBurst(level);
+            case ARENA_FRYER -> tickArenaFryer(level, target);
+            case ARENA_HECKLE -> tickArenaHeckle(level, target);
         }
     }
 
@@ -818,6 +826,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         capHits *= 0.995F;
         composureMsgCd--;
         saltBurstCd--;
+        fryerCd--;
+        heckleCd--;
         shoveCd--;
         if (getBossState() != BossState.DRIVING && getBossState() != BossState.EXIT_STUMBLE) vanCd--;
         think--;
@@ -1063,6 +1073,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (d >= 6 && totCd <= 0) options.add(BossState.P2_TOT);
             if (snareCd <= 0) options.add(BossState.P2_SNARE);
             if (gravityCd <= 0) options.add(BossState.P2_GRAVITY);
+            if (inColiseum() && arena != null) {
+                if (fryerCd <= 0 && freidora == null) options.add(BossState.ARENA_FRYER);
+                if (heckleCd <= 0 && heckleTicks <= 0) options.add(BossState.ARENA_HECKLE);
+            }
         }
         return pickWeighted(options);
     }
@@ -1112,7 +1126,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return switch (s) {
             case SWIPE, UPPERCUT, THROW -> 0.6F;                         // the cheap ones: short cooldowns, they would crowd out the rest
             case LEAP -> 0.7F;
-            case QTE_GRAB, CLEAVER_TOSS, HAYMAKER, BURRITO_TOSS, P2_GRAVITY, P2_METEOR -> 1.6F;   // the signature moves
+            case QTE_GRAB, CLEAVER_TOSS, HAYMAKER, BURRITO_TOSS, P2_GRAVITY, P2_METEOR, ARENA_FRYER, ARENA_HECKLE -> 1.6F;   // the signature moves
             default -> 1.0F;
         };
     }
@@ -1199,6 +1213,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_TOT -> totCd = 180;
             case P2_SNARE -> snareCd = 300;
             case P2_GRAVITY -> gravityCd = 700;
+            case ARENA_FRYER -> fryerCd = 420;
+            case ARENA_HECKLE -> heckleCd = 520;
             case BRICK -> {
                 brickCd = p2 ? 560 : 700;
                 forBrick = true;
@@ -2945,6 +2961,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (van != null) van.setFloor(null);
         d.retire(level);
         closePortal(level);
+        if (freidora != null) freidora.close(level);
+        freidora = null;
+        heckleTicks = 0;
         d.teardown(level);
         d.sendEveryoneHome(level);
         home = d.ground;
@@ -2994,6 +3013,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (arena == null) return;
         arena.keepAlive(level);                         // spawns refused around it from the first block
+        if (!floorChecked && arena.built() && freidora == null) {
+            floorChecked = true;
+            arena.restoreFloor(level);
+        }
         if (!arena.built()) {
             arena.buildStep(level);
             return;
@@ -3004,6 +3027,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (inColiseum()) {
             containArena(level, van, s);
             if (s != BossState.DEATH) keepPortal(level);
+            if (freidora != null && !freidora.tick(level)) freidora = null;
+            if (heckleTicks > 0) tickHeckleBarrage(level);
         }
         boolean anyone = false;
         AABB pull = arena.bounds().inflate(48, 64, 48);
@@ -4582,11 +4607,81 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     // ------------------------------------------------------------------ his props report in
 
+    /**
+     * La Freidora: up off the sand and down in a double stomp (0.7 s, 1.2 s): at the first the sand cracks and
+     * glows in a pattern (rings, halves, a checkerboard, a cross, or a pool under each of you), and 1.5 s later
+     * it is frying oil for 5.5 s while he carries on. "¡A LA PARRILLA!"
+     */
+    private void tickArenaFryer(ServerLevel level, @Nullable LivingEntity target) {
+        int t = stateTicks;
+        getNavigation().stop();
+        if (target != null) turnToward(target.position(), 8F);
+        if (t == 14 && arena != null && freidora == null) {
+            List<Vec3> players = level.getEntitiesOfClass(ServerPlayer.class, arena.bounds(), this::hittable).stream().map(p -> p.position()).toList();
+            Freidora.Pattern[] all = Freidora.Pattern.values();
+            Freidora.Pattern p = farTicks > 80 ? Freidora.Pattern.HUNT : all[random.nextInt(all.length)];
+            freidora = Freidora.start(level, arena, p, players, random);
+            landImpact(level, position(), 3.0F, 0F, 0.4F);
+            PaponNetwork.shake(level, position(), 40, 0.6F, 14);
+            say("toss", 40);
+        }
+        if (t == 24) {
+            landImpact(level, position(), 2.5F, 0F, 0.3F);
+            PaponNetwork.shake(level, position(), 40, 0.4F, 10);
+        }
+        if (t >= BossState.ARENA_FRYER.duration) {
+            think = 4;
+            setBossState(BossState.IDLE);
+        }
+    }
+
+    /** ¡Abucheo!: he turns to the stands, arms up, thumbs down (1.0 s), and they start throwing (7 s). */
+    private void tickArenaHeckle(ServerLevel level, @Nullable LivingEntity target) {
+        int t = stateTicks;
+        getNavigation().stop();
+        if (t == 2) crowdReact(level, CrowdMood.BOO, 160);
+        if (t == 20) {
+            heckleTicks = 140;
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 1.0F, 1.6F);
+        }
+        if (target != null && t > 22) turnToward(target.position(), 10F);
+        if (t >= BossState.ARENA_HECKLE.duration) {
+            think = 2;
+            setBossState(BossState.IDLE);
+        }
+    }
+
+    /** The stands throwing produce at whoever is on the sand, lobbed from all round the bowl. */
+    private void tickHeckleBarrage(ServerLevel level) {
+        heckleTicks--;
+        if (arena == null || heckleTicks % 3 != 0) return;
+        List<ServerPlayer> on = level.getEntitiesOfClass(ServerPlayer.class, arena.bounds(), this::hittable);
+        if (on.isEmpty()) return;
+        ServerPlayer p = on.get(random.nextInt(on.size()));
+        double a = random.nextDouble() * Math.PI * 2;
+        double d = 4 + random.nextDouble() * 10;
+        Vec3 c = arena.centerVec();
+        Vec3 from = new Vec3(c.x + Math.cos(a) * (Coliseum.A + d), arena.floorY() + 3 + d * 0.9, c.z + Math.sin(a) * (Coliseum.B + d));
+        int time = 22 + random.nextInt(12);
+        Vec3 to = predict(p, time).add((random.nextDouble() - 0.5) * 2.5, 0, (random.nextDouble() - 0.5) * 2.5);
+        double g = 0.06;
+        Vec3 v = new Vec3((to.x - from.x) / time, (to.y + 0.5 - from.y + 0.5 * g * time * time) / time, (to.z - from.z) / time);
+        level.addFreshEntity(BossProp.create(level, BossProp.Kind.PRODUCE, this, from).velocity(v).life(time + 30));
+    }
+
     /** A prop of his touched {@code e}: what that costs them. */
     public void propHit(BossProp p, LivingEntity e) {
         if (!(level() instanceof ServerLevel level)) return;
         Vec3 at = e.position().add(0, e.getBbHeight() * 0.6, 0);
         switch (p.kind()) {
+            case PRODUCE -> {
+                if (Mechanics.trueHit(e, 0.025F, this, true)) {
+                    e.addEffect(new MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 30, 1, false, true));
+                    com.groid.papon.fx.Fx.splat(level, e.position(), 0.6F, 0xC0281C, 60);
+                    com.groid.papon.fx.Fx.chunks(level, at, 5, 0.2F, 0xC0281C, 0.3);
+                    level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 1.2F, 1.2F);
+                }
+            }
             case CLEAVER, CLEAVER_DART -> {
                 if (strike(e, 9F, ModDamage.SPATULA, false)) {
                     Mechanics.poison(e, 120);
@@ -4614,6 +4709,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** A prop of his came down at {@code at} (a tot burst, a meteor landing). */
     public void propLand(BossProp p, Vec3 at) {
         if (!(level() instanceof ServerLevel level)) return;
+        if (p.kind() == BossProp.Kind.PRODUCE) {
+            com.groid.papon.fx.Fx.splat(level, at, 0.7F, Math.floorMod(p.getId(), 4) == 0 ? 0xC0281C : 0xD9AA51, 80);
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 1.0F, 0.9F + random.nextFloat() * 0.3F);
+            return;
+        }
         boolean big = p.kind() == BossProp.Kind.TOT || p.kind() == BossProp.Kind.METEOR;
         float r = p.kind() == BossProp.Kind.METEOR ? 2.6F : big ? 2.4F : 1.6F;
         com.groid.papon.fx.Fx.blast(level, at, big ? 1.5F : 0.9F);
@@ -5047,6 +5147,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case GUARD -> A_GUARD;
             case RIPOSTE -> A_RIPOSTE;
             case SALSA_BURST -> A_SALSA_BURST;
+            case ARENA_FRYER -> A_ARENA_FRYER;
+            case ARENA_HECKLE -> A_ARENA_HECKLE;
             case EVADE -> A_EVADE;
             case CLEAVER_TOSS -> A_CLEAVER_TOSS;
             case BURRITO_TOSS -> A_BURRITO_TOSS;

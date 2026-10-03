@@ -54,6 +54,12 @@ public final class ModBlocks {
             () -> new ArenaBarrierBlock(props(MapColor.NONE).noOcclusion().noParticlesOnBreak()
                     .isViewBlocking((s, l, p) -> false).isSuffocating((s, l, p) -> false).isRedstoneConductor((s, l, p) -> false)));
 
+    /** La Freidora (boss/Freidora): the sand cracked and glowing just before it gives way, and the oil under it. */
+    public static final RegistryObject<Block> ARENA_HOT_SAND = REGISTRY.register("arena_hot_sand",
+            () -> new com.groid.papon.block.HotSandBlock(props(MapColor.COLOR_ORANGE).sound(SoundType.SAND).lightLevel(s -> 9)));
+    public static final RegistryObject<Block> ARENA_FRYING_OIL = REGISTRY.register("arena_frying_oil",
+            () -> new com.groid.papon.block.FryingOilBlock(props(MapColor.GOLD).sound(SoundType.HONEY_BLOCK).lightLevel(s -> 11).noOcclusion()));
+
     private static RegistryObject<Block> stone(String name, MapColor color) {
         return REGISTRY.register(name, () -> new Block(stoneProps(color)));
     }

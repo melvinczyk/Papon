@@ -11,6 +11,7 @@ Writes, under src/main/resources/assets/papon/:
   blockstates/*.json, models/block/*.json
 """
 import json
+import math
 import os
 import random
 
@@ -176,6 +177,41 @@ def sand(rng):
     return im
 
 
+def hot_sand(rng):
+    """La Freidora's warning: the sand about to give way, cracked, the oil glowing up through the cracks."""
+    im = sand(rng)
+    glow, ember = (255, 150, 40), (255, 214, 120)
+    x, y = rng.randrange(16), rng.randrange(16)
+    for _ in range(3):
+        for _ in range(9):
+            im.putpixel((x % 16, y % 16), glow)
+            if rng.random() < 0.35:
+                im.putpixel(((x + 1) % 16, y % 16), ember)
+            x += rng.choice((-1, 0, 1, 1))
+            y += rng.choice((-1, 1, 1))
+        x, y = rng.randrange(16), rng.randrange(16)
+    return im
+
+
+def frying_oil(rng, frames=4):
+    """La Freidora: bubbling frying oil, deep gold, bubbles rising and popping (an animated strip)."""
+    im = Image.new('RGBA', (16, 16 * frames))
+    bubbles = [(rng.randrange(16), rng.randrange(16), rng.choice((1, 2))) for _ in range(7)]
+    for f in range(frames):
+        for y in range(16):
+            for x in range(16):
+                swirl = 0.06 * math.sin((x + y * 0.6 + f * 4) * 0.7) + 0.04 * math.sin((x * 0.5 - y + f * 3) * 0.9)
+                im.putpixel((x, f * 16 + y), shade((214, 150, 34), 1 + swirl + rng.uniform(-0.03, 0.03)))
+        for bx, by, r in bubbles:
+            yy = (by - f * 3) % 16
+            for dx in range(-r, r + 1):
+                for dy in range(-r, r + 1):
+                    if dx * dx + dy * dy <= r * r:
+                        c = (255, 226, 130) if dx * dx + dy * dy == r * r or r == 1 else (236, 182, 60)
+                        im.putpixel(((bx + dx) % 16, f * 16 + (yy + dy) % 16), c)
+    return im
+
+
 def seat_top(rng):
     """A seat: a burlap potato-sack cushion laid on the stone step, its stitched hem at the edges."""
     im = Image.new('RGBA', (16, 16))
@@ -290,6 +326,15 @@ def arena():
     write('arena_sand', sand(random.Random(13)))
     write('arena_gold', gold(random.Random(14)))
     write('arena_dark', dark(random.Random(15)))
+    write('arena_hot_sand', hot_sand(random.Random(31)))
+    write_tex('arena_frying_oil', frying_oil(random.Random(32)))
+    write_json('textures/block/arena_frying_oil.png.mcmeta', {'animation': {'frametime': 4, 'interpolate': True}})
+    # the oil sits a quarter of a block below the sand round it: a pit
+    write_model('arena_frying_oil', {'parent': 'minecraft:block/block', 'textures': {'particle': 'papon:block/arena_frying_oil',
+                                     'oil': 'papon:block/arena_frying_oil'},
+                                     'elements': [{'from': [0, 0, 0], 'to': [16, 12, 16], 'faces': {
+                                         d: {'texture': '#oil', 'cullface': d} if d != 'up' else {'texture': '#oil'}
+                                         for d in ('down', 'up', 'north', 'south', 'west', 'east')}}]})
     for i, (name, col) in enumerate((('green', (32, 122, 64)), ('white', (238, 234, 222)), ('red', (196, 40, 44)))):
         write('arena_drape_' + name, drape(random.Random(20 + i), col))
     write('arena_drape_emblem', drape(random.Random(23), (238, 234, 222), emblem=True))

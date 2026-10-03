@@ -379,5 +379,8 @@
   "speech.papon.boss2.landed1": "And the crowd... goes WILD!!!",
   "entity.papon.arena_portal": "Way Back to El Coliseo Papa",
   "status.papon.composure": "He shrugs it off! Raw damage won't do it: beat his mechanics.",
-  "status.papon.meteor": "IT FALLS! Get to the wall and JUMP the shockwaves!"
+  "status.papon.meteor": "IT FALLS! Get to the wall and JUMP the shockwaves!",
+  "block.papon.arena_hot_sand": "Cracking Arena Sand",
+  "block.papon.arena_frying_oil": "Frying Oil",
+  "death.attack.papon.true_hit.item": "%1$s was taken apart by %2$s"
 }
