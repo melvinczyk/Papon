@@ -270,6 +270,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int domeRetryCd;
     private float orbitAngle;
     private int divesLeft;
+    /** Dives for the next P2_DIVE (0: the usual three). */
+    private int pendingDives;
     private int diveStage;
     private int diveTicks;
     private Vec3 diveDir = Vec3.ZERO;
@@ -437,7 +439,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             hovering = false;
             entityData.set(DATA_FLYING, false);
         }
-        if (s != BossState.CHARGE && isGhost()) {
+        if (getVehicle() instanceof CaravanEntity van && s != BossState.ENTER_VAN && s != BossState.DRIVING) {
+            // whatever pulled him out of the driving (a command, a cutscene): out of the van, which stops
+            van.releaseAutopilot();
+            van.setGhost(false);
+            stopRiding();
+        }
+                if (s != BossState.CHARGE && isGhost()) {
             setGhost(false);
             unstick();
         }
@@ -942,6 +950,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             hasImpulse = true;
         }
         setBossState(pick);
+    }
+
+    /** /papon bossstate: an attack starts as if he had picked it (cooldowns, its set-up), anything else is just set. */
+    public void force(BossState s) {
+        LivingEntity target = level() instanceof ServerLevel level ? pickTarget(level) : null;
+        boolean startable = switch (s) {
+            case SWIPE, UPPERCUT, LEAP, CHARGE_WINDUP, BREATH, THROW, BLINK, GATLING, DASH_COMBO, GRAB, PUNT_RUN, P2_BARRAGE, P2_METEOR,
+                 P2_DIVE, VAN_GRAB, CLEAVER_TOSS, BURRITO_TOSS, DRUNK_SWIG, HAYMAKER, COMAL_SLAM, QTE_GRAB, P2_FRY_VOLLEY, P2_MASH, P2_TOT,
+                 P2_SNARE, P2_GRAVITY, BRICK, VAN_HOP -> true;
+            default -> false;
+        };
+        if (startable && target != null) startAttack(s, target);
+        else setBossState(s);
     }
 
     private static boolean attack(BossState s) {
@@ -2165,8 +2186,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         if (t > 22) {
-            think = 14;          // he overshot: a moment to punish him
             setBossState(BossState.IDLE);
+            think = 14;          // he overshot: a moment to punish him
         }
     }
 
@@ -2292,7 +2313,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             // the flame: a jet from the nozzle (his left fist, in front) onto whoever he holds
             Vec3 nozzle = position().add(f.scale(getBbWidth() * 0.5 + 0.6)).add(left.scale(0.5)).add(0, 0.95, 0);
             Vec3 to = v.position().add(0, v.getBbHeight() * 0.5, 0).subtract(nozzle).normalize();
-            Fx.jet(level, nozzle, to.scale(0.35), 0.3F, 0xBFD8FF);
+            Fx.torch(level, nozzle, to.scale(0.35), 0.3F);
             if (t % 4 == 0) {
                 v.invulnerableTime = 0;
                 if (v.hurt(source(ModDamage.TEQUILA_FIRE), 2.0F * dmg())) v.setSecondsOnFire(4);
@@ -2759,7 +2780,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickDive(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
         if (t == 1) {
-            divesLeft = 3;
+            divesLeft = pendingDives > 0 ? pendingDives : 3;
+            pendingDives = 0;
             diveStage = 0;
             diveTicks = 0;
         }
@@ -3194,8 +3216,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (hit) say("haymaker", 40);
         }
         if (t >= BossState.HAYMAKER.duration) {
-            think = swingHit ? 4 : 18;           // face down in the dirt after a miss
+            boolean missed = !swingHit;
             setBossState(BossState.IDLE);
+            if (missed) think = 18;              // face down in the dirt after a miss
         }
     }
 
@@ -3298,8 +3321,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         if (t > 22) {
-            think = 16;
+            if (WanderingDebug.on()) PaponMod.LOG.info("[debug] QTE grab missed: target {} at {}", target, String.format("%.2f", distanceTo(target)));
             setBossState(BossState.IDLE);
+            think = 16;                          // he lunged at nothing: a moment to punish him
         }
     }
 
@@ -3575,8 +3599,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (rooted != null) {
                 setTarget(rooted);
                 diveCd = 0;
+                pendingDives = 1;
                 startAttack(BossState.P2_DIVE, rooted);
-                divesLeft = 1;
             } else {
                 setBossState(BossState.IDLE);
             }

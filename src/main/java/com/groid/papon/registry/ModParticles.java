@@ -10,8 +10,8 @@ import net.minecraftforge.registries.RegistryObject;
 
 /**
  * The mod's particles. The boss fight's all take {@link FxOptions} (size, tint, life, facing) and are
- * drawn by client/FxParticle; their textures come from the Groid Pack's boss mods (Kenney's CC0 particle pack only
- * for the clean rings and sparks; tools/gen_particles.py). Spawn them through {@link com.groid.papon.fx.Fx}.
+ * drawn by client/FxParticle; their textures come from the Groid Pack's boss and monster mods, pixel art
+ * throughout (tools/gen_particles.py). Spawn them through {@link com.groid.papon.fx.Fx}.
  */
 public final class ModParticles {
     public static final DeferredRegister<ParticleType<?>> REGISTRY =
@@ -47,6 +47,9 @@ public final class ModParticles {
     public static final RegistryObject<ParticleType<FxOptions>> CHUNK = fx("chunk");
     /** A gold flare bursting into embers (animated, Cataclysm's flare). */
     public static final RegistryObject<ParticleType<FxOptions>> FLASH = fx("flash");
+
+    /** A blue flame (animated, Dungeon Now Loading's soul flame): the blowtorch. */
+    public static final RegistryObject<ParticleType<FxOptions>> TORCH = fx("torch");
 
     private static RegistryObject<ParticleType<FxOptions>> fx(String name) {
         return REGISTRY.register(name, FxOptions::newType);

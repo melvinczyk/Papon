@@ -42,6 +42,7 @@ public final class QteClient {
     /** After it ends: ticks the result stays up, and which it was. */
     private static int endTicks;
     private static boolean endWon;
+    private static int beat;
 
     private QteClient() {}
 
@@ -78,6 +79,17 @@ public final class QteClient {
         return active;
     }
 
+    /** Dev (AutoShot): press the right key now, as a player would. */
+    public static void devPress() {
+        if (!active || locked || step >= keys.length) return;
+        PaponNetwork.qteInput(bossId, step, true);
+        step++;
+        stepTicks = 0;
+        flashGood = true;
+        flashTicks = 0;
+        if (step >= keys.length) locked = true;
+    }
+
     @SubscribeEvent
     public static void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -85,9 +97,15 @@ public final class QteClient {
         if (endTicks > 0) endTicks--;
         Minecraft mc = Minecraft.getInstance();
         if (!active) return;
-        if (mc.level == null || mc.player == null || !(mc.level.getEntity(bossId) instanceof PaponBossEntity)) {
+        if (mc.level == null || mc.player == null || !(mc.level.getEntity(bossId) instanceof PaponBossEntity boss)
+                || boss.getBossState() == com.groid.papon.boss.BossState.DEATH || (locked && stepTicks++ > 60)) {
             active = false;
             return;
+        }
+        // slow motion: a slow heartbeat under it all
+        if (++beat % 16 == 0) {
+            mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                    SoundEvents.WARDEN_HEARTBEAT, 0.6F, 1.6F));
         }
         if (locked) return;
         if (++stepTicks > window) {
@@ -147,6 +165,7 @@ public final class QteClient {
         float pt = event.getPartialTick();
         int cx = w / 2;
         int cy = (int) (h * 0.62F);
+        if (active || endTicks > 14) vignette(g, w, h, active ? 1F : (endTicks - 14) / 26F);
         if (!active) {
             // the result
             Component r = Component.translatable(endWon ? "qte.papon.won" : "qte.papon.failed")
@@ -200,5 +219,27 @@ public final class QteClient {
             int c = i < step ? 0xFF55FF55 : i == step ? 0xFFFFD27A : 0xFF6A5A4A;
             g.fill(sx + i * dx - 3, dy - 3, sx + i * dx + 3, dy + 3, c);
         }
+    }
+
+    private static final net.minecraft.resources.ResourceLocation VIGNETTE =
+            new net.minecraft.resources.ResourceLocation("textures/misc/vignette.png");
+
+    /** Slow motion: the world drained cold and dark round the edges (vanilla's vignette, much harder), so the keys are all you see. */
+    private static void vignette(GuiGraphics g, int w, int h, float k) {
+        g.fill(0, 0, w, h, (int) (0x30 * k) << 24 | 0x101830);
+        com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
+        com.mojang.blaze3d.systems.RenderSystem.depthMask(false);
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.blendFuncSeparate(
+                com.mojang.blaze3d.platform.GlStateManager.SourceFactor.ZERO, com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR,
+                com.mojang.blaze3d.platform.GlStateManager.SourceFactor.ONE, com.mojang.blaze3d.platform.GlStateManager.DestFactor.ZERO);
+        float v = 0.9F * k;
+        g.setColor(v, v, v, 1F);
+        g.blit(VIGNETTE, 0, 0, -90, 0F, 0F, w, h, w, h);
+        g.blit(VIGNETTE, 0, 0, -90, 0F, 0F, w, h, w, h);
+        g.setColor(1F, 1F, 1F, 1F);
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        com.mojang.blaze3d.systems.RenderSystem.depthMask(true);
+        com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
     }
 }

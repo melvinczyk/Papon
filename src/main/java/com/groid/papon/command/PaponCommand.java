@@ -305,7 +305,7 @@ public final class PaponCommand {
         } catch (IllegalArgumentException e) {
             return fail(c, "Unknown state " + name + ".");
         }
-        boss.setBossState(s);
+        boss.force(s);
         c.getSource().sendSuccess(() -> Component.literal("Chef Papon is now " + s + "."), true);
         return 1;
     }

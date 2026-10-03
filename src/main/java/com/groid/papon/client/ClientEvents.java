@@ -124,6 +124,12 @@ public final class ClientEvents {
         }
     }
 
+    /** No on-fire (or in-wall, underwater) overlay over a cutscene shot: the camera is not in your eyes. */
+    @SubscribeEvent
+    public static void onScreenEffect(net.minecraftforge.client.event.RenderBlockScreenEffectEvent event) {
+        if (Cinematic.isActive() && !Cinematic.povActive()) event.setCanceled(true);
+    }
+
     /** Letterbox bars (and, in phase two's cutscene, the red edge of his point of view and the white-out). */
     @SubscribeEvent
     public static void onGui(RenderGuiEvent.Post event) {

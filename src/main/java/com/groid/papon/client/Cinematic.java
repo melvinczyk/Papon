@@ -273,10 +273,11 @@ public final class Cinematic {
             // in slow motion, over your shoulder, his face filling the frame; pushing in as it goes on
             qte = true;
             float k = b.isRisen() ? 1.75F / 1.5F : 1F;
-            Vec3 face = b.position().add(0, 2.0 * k, 0);
-            Vec3 eye = b.position().add(f.scale(3.6 * k)).add(right.scale(1.5 * k)).add(0, 2.3 * k, 0);
+            // from off his shoulder, three-quarters on: his face and you in his fist both in frame, clear of your head
+            Vec3 face = b.position().add(f.scale(0.5 * k)).add(0, 1.9 * k, 0);
+            Vec3 eye = b.position().add(f.scale(4.2 * k)).add(right.scale(-3.4 * k)).add(0, 2.8 * k, 0);
             float push = Math.min(1F, t / 80F);
-            eye = eye.lerp(face, 0.25 * push);
+            eye = eye.lerp(face, 0.2 * push);
             boolean cut = s.ordinal() != lastQteState;
             lastQteState = s.ordinal();
             return new Shot(eye, face, 46F - 10F * push, 0, cut);

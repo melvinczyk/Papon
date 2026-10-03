@@ -111,6 +111,11 @@ public final class Fx {
         send(level, ModParticles.FIRE.get(), -1, at.x, at.y, at.z, size, 2.2F, color, 1F, 14, 0, 0, 0, v.x, v.y, v.z);
     }
 
+    /** One blue flame flying with velocity v (the blowtorch). */
+    public static void torch(ServerLevel level, Vec3 at, Vec3 v, float size) {
+        send(level, ModParticles.TORCH.get(), -1, at.x, at.y, at.z, size, 2.0F, WHITE, 1F, 12, 0, 0, 0, v.x, v.y, v.z);
+    }
+
     /** Flames standing on the ground for a while (a burning puddle). */
     public static void groundFlame(ServerLevel level, Vec3 at, float size) {
         send(level, ModParticles.FLAME.get(), -1, at.x, at.y + size * 0.9, at.z, size, 1F, WHITE, 1F, 22, 0, 0, 0, 0, 0, 0);

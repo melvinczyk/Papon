@@ -29,6 +29,7 @@ public final class ClientSetup {
     public static void registerParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.SNOOZE.get(), SnoozeParticle.Provider::new);
         fx(event, ModParticles.FIRE.get(), FxParticle.Mode.FIRE);
+        fx(event, ModParticles.TORCH.get(), FxParticle.Mode.FIRE);
         fx(event, ModParticles.FLAME.get(), FxParticle.Mode.FLAME);
         fx(event, ModParticles.BLAST.get(), FxParticle.Mode.BLAST);
         fx(event, ModParticles.BURST.get(), FxParticle.Mode.BURST);
