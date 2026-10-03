@@ -639,6 +639,58 @@ public final class Coliseum {
         e.setDeltaMovement(Vec3.ZERO);
     }
 
+    // ------------------------------------------------------------------ keeping the fight in, and everything else out
+
+    /** The coliseums up right now, per dimension, with the game time their boss last vouched for them. */
+    private static final java.util.Map<String, java.util.Map<Long, Long>> LIVE = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Called every tick by its boss while it stands: for {@link #near} (spawns and strays). */
+    public void keepAlive(ServerLevel level) {
+        LIVE.computeIfAbsent(level.dimension().location().toString(), k -> new java.util.concurrent.ConcurrentHashMap<>())
+                .put(center.asLong(), level.getGameTime());
+    }
+
+    public void retire(ServerLevel level) {
+        var m = LIVE.get(level.dimension().location().toString());
+        if (m != null) m.remove(center.asLong());
+    }
+
+    /** The coliseum standing within {@code margin} blocks of its bounds around {@code p}, or null. */
+    @Nullable
+    public static Coliseum near(ServerLevel level, Vec3 p, double margin) {
+        var m = LIVE.get(level.dimension().location().toString());
+        if (m == null) return null;
+        long now = level.getGameTime();
+        for (var e : m.entrySet()) {
+            if (now - e.getValue() > 100) continue;                 // its boss stopped ticking (unloaded, gone)
+            Coliseum c = new Coliseum(BlockPos.of(e.getKey()), Vec3.ZERO);
+            if (c.bounds().inflate(margin).contains(p)) return c;
+        }
+        return null;
+    }
+
+    /**
+     * Whether {@code e} belongs in a coliseum: anything that is not a mob (players, items, arrows, bolts,
+     * fireworks), anything of ours (the boss, his van, props, the band, the crowd, echoes, foil potatoes),
+     * and tamed pets. Every other mob (natural spawns, flyers from other mods like opposing_force's
+     * skyverns) is kept out.
+     */
+    public static boolean belongs(Entity e) {
+        if (!(e instanceof net.minecraft.world.entity.Mob)) return true;
+        if (PaponMod.MOD_ID.equals(net.minecraft.world.entity.EntityType.getKey(e.getType()).getNamespace())) return true;
+        return e instanceof net.minecraft.world.entity.OwnableEntity o && o.getOwnerUUID() != null;
+    }
+
+    /** A spawn (or anything else) arriving in or by a coliseum that does not belong there: refused. */
+    @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID)
+    public static final class Gate {
+        @SubscribeEvent
+        public static void onJoin(net.minecraftforge.event.entity.EntityJoinLevelEvent event) {
+            if (!(event.getLevel() instanceof ServerLevel level) || belongs(event.getEntity())) return;
+            if (near(level, event.getEntity().position(), 32) != null) event.setCanceled(true);
+        }
+    }
+
     // ------------------------------------------------------------------ saving
 
     public CompoundTag save() {

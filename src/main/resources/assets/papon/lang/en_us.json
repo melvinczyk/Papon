@@ -376,5 +376,6 @@
   "speech.papon.boss2.hit0": "AH!!! Not the FACE!",
   "speech.papon.boss2.hit1": "You will PAY for that... in TACOS.",
   "speech.papon.boss2.landed0": "Gracias, gracias... you are TOO kind.",
-  "speech.papon.boss2.landed1": "And the crowd... goes WILD!!!"
+  "speech.papon.boss2.landed1": "And the crowd... goes WILD!!!",
+  "entity.papon.arena_portal": "Way Back to El Coliseo Papa"
 }

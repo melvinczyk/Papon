@@ -65,6 +65,16 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(PaponMod.id("caravan").toString()));
 
+    // The way back into his coliseum: a portal in the Taco Truck's window while it stands.
+    public static final RegistryObject<EntityType<com.groid.papon.boss.ArenaPortalEntity>> ARENA_PORTAL = REGISTRY.register("arena_portal",
+            () -> EntityType.Builder.<com.groid.papon.boss.ArenaPortalEntity>of(com.groid.papon.boss.ArenaPortalEntity::new, MobCategory.MISC)
+                    .sized(1.0F, 2.2F)
+                    .fireImmune()
+                    .noSummon()
+                    .clientTrackingRange(8)
+                    .updateInterval(20)
+                    .build(PaponMod.id("arena_portal").toString()));
+
     // Phase two: the foil-wrapped potatoes that circle him and soak up hits.
     public static final RegistryObject<EntityType<com.groid.papon.boss.FoilPotatoEntity>> FOIL_POTATO = REGISTRY.register("foil_potato",
             () -> EntityType.Builder.<com.groid.papon.boss.FoilPotatoEntity>of(com.groid.papon.boss.FoilPotatoEntity::new, MobCategory.MISC)

@@ -207,6 +207,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     @Nullable private VoiceLines.Line talk;
     private int talkStart;
     @Nullable private Vec3 home;
+    /** Where the portal back into his coliseum opens (the truck window), and the way it faces; its entity. */
+    @Nullable private Vec3 portalAt;
+    private float portalYaw;
+    @Nullable private java.util.UUID portalId;
     @Nullable private Vec3 leapFrom;
     @Nullable private Vec3 leapTo;
     @Nullable private UUID vanId;
@@ -531,6 +535,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /** Set up by TacoBoss: where he jumps from and to, his arena and his van. */
     public void begin(Vec3 from, Vec3 to, @Nullable CaravanEntity van) {
+        portalAt = from;                            // the window he jumped out of: the way back into his coliseum
+        portalYaw = (float) (Mth.atan2(to.z - from.z, to.x - from.x) * Mth.RAD_TO_DEG) - 90F;
         leapFrom = from;
         leapTo = to;
         home = to;
@@ -541,6 +547,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** /papon boss: no window to jump out of, straight to the bottle. */
     public void beginHere(@Nullable CaravanEntity van) {
         home = position();
+        portalAt = position().add(Vec3.directionFromRotation(0, getYRot()).scale(-4));
+        portalYaw = getYRot();
         vanId = van == null ? null : van.getUUID();
         setBossState(BossState.CHUG);
     }
@@ -2791,6 +2799,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         entityData.set(DATA_ARENA, false);
         CaravanEntity van = van(level);
         if (van != null) van.setFloor(null);
+        d.retire(level);
+        closePortal(level);
         d.teardown(level);
         d.sendEveryoneHome(level);
         home = d.ground;
@@ -2839,6 +2849,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             oldDome = null;
         }
         if (arena == null) return;
+        arena.keepAlive(level);                         // spawns refused around it from the first block
         if (!arena.built()) {
             arena.buildStep(level);
             return;
@@ -2846,15 +2857,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         CaravanEntity van = van(level);
         if (van != null) van.setFloor(arena.contains(van.position()) ? arena.floorY() : null);
         BossState s = getBossState();
+        if (inColiseum()) {
+            containArena(level, van, s);
+            if (s != BossState.DEATH) keepPortal(level);
+        }
         boolean anyone = false;
+        AABB pull = arena.bounds().inflate(48, 64, 48);
         for (ServerPlayer p : level.players()) {
-            if (p.isSpectator() || !p.isAlive() || !arena.contains(p.position())) continue;
+            if (p.isSpectator() || !p.isAlive() || !pull.contains(p.position())) continue;
             anyone = true;
-            if (!p.isCreative() && !arena.inArena(p.position()) && p.getY() > arena.floorY() + 2) {
-                // up in the stands (a pearl, a pillar): back down on the sand
-                Vec3 to = arena.clamp(p.position(), 3, 0, 0);
-                Coliseum.send(level, p, new Vec3(to.x, arena.floorY(), to.z));
-            }
+            if (!inColiseum() || p.isCreative() || arena.inArena(p.position()) || holds(p)) continue;
+            // in the stands, over the wall, fallen off or flown out over the top (pearls, elytra, pillars): back on the sand
+            Vec3 to = arena.clamp(p.position(), 3, 0, 0);
+            Coliseum.send(level, p, new Vec3(to.x, arena.floorY(), to.z));
         }
         if (s.cutscene() || s == BossState.DEATH) return;
         if (tickCount % 20 == 0 && --crowdCd <= 0) {
@@ -2876,6 +2891,58 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             arenaLonely = 0;
             arenaRetryCd = 600;
         }
+    }
+
+    /**
+     * Nothing gets in or out: he and his van are kept on the sand (the van could be driven or launched over
+     * the podium and drop out of the sky), and any mob that does not belong (Coliseum.belongs: spawns,
+     * flyers) is gone in a puff of smoke. Spawns are refused outright by Coliseum.Gate.
+     */
+    private void containArena(ServerLevel level, @Nullable CaravanEntity van, BossState s) {
+        boolean scripted = s == BossState.P2_ARRIVE && !bandWoken;          // he is lowered in by hand then
+        if (!scripted && !isPassenger() && outOfArena(position())) {
+            Vec3 to = arena.clamp(position(), 3, 0, Coliseum.HEIGHT - 6);
+            setPos(to.x, Math.max(to.y, arena.floorY()), to.z);
+            setDeltaMovement(Vec3.ZERO);
+            getNavigation().stop();
+        }
+        if (van != null && outOfArena(van.position())) {
+            Vec3 to = arena.clamp(van.position(), 5, 0, 0);
+            van.teleportTo(to.x, arena.floorY() + 0.1, to.z);
+            van.setDeltaMovement(Vec3.ZERO);
+            van.fallDistance = 0;
+        }
+        if (tickCount % 10 == 0) {
+            for (Entity e : level.getEntities((Entity) null, arena.bounds().inflate(32), e -> !Coliseum.belongs(e))) {
+                Fx.smoke(level, e.position().add(0, e.getBbHeight() / 2, 0), 2, 0.3, 0.8F, 0xEDEDED);
+                e.discard();
+            }
+        }
+    }
+
+    /** The portal in the truck window stays open while the coliseum does, and sends you to the middle of the sand. */
+    private void keepPortal(ServerLevel level) {
+        if (portalAt == null) return;
+        ArenaPortalEntity p = portalId != null && level.getEntity(portalId) instanceof ArenaPortalEntity e && e.isAlive() ? e : null;
+        if (p == null) {
+            p = new ArenaPortalEntity(com.groid.papon.registry.ModEntities.ARENA_PORTAL.get(), level);
+            p.moveTo(portalAt.x, portalAt.y, portalAt.z, portalYaw, 0);
+            level.addFreshEntity(p);
+            portalId = p.getUUID();
+            level.playSound(null, portalAt.x, portalAt.y + 1, portalAt.z, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 0.6F, 1.6F);
+        }
+        Vec3 c = arena.centerVec();
+        p.hold(new Vec3(c.x, arena.floorY(), c.z));
+    }
+
+    private void closePortal(ServerLevel level) {
+        if (portalId != null && level.getEntity(portalId) instanceof ArenaPortalEntity e) e.discard();
+        portalId = null;
+    }
+
+    /** Off the sand: past the podium wall, below the floor, or up over the top of the barrier. */
+    private boolean outOfArena(Vec3 p) {
+        return !arena.inArena(p) || p.y < arena.floorY() - 1.5;
     }
 
     /** The stand's front, where he stands to have words with the band. */
@@ -4783,6 +4850,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         tag.putBoolean("BandWoken", bandWoken);
         tag.putInt("SongStart", songStart);
         if (home != null) tag.put("Home", NbtUtils.writeBlockPos(BlockPos.containing(home)));
+        if (portalAt != null) {
+            tag.putDouble("PortalX", portalAt.x);
+            tag.putDouble("PortalY", portalAt.y);
+            tag.putDouble("PortalZ", portalAt.z);
+            tag.putFloat("PortalYaw", portalYaw);
+        }
         if (vanId != null) tag.putUUID("Van", vanId);
     }
 
@@ -4799,6 +4872,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (isRisen()) foilCd = 40;
         if (isPhaseTwo()) bossEvent.setName(Component.translatable(BAR_KEY + ".phase2"));
         if (tag.contains("Home")) home = Vec3.atBottomCenterOf(NbtUtils.readBlockPos(tag.getCompound("Home")));
+        if (tag.contains("PortalX")) {
+            portalAt = new Vec3(tag.getDouble("PortalX"), tag.getDouble("PortalY"), tag.getDouble("PortalZ"));
+            portalYaw = tag.getFloat("PortalYaw");
+        }
         vanId = tag.hasUUID("Van") ? tag.getUUID("Van") : null;
         entityData.set(DATA_STATE, BossState.IDLE.ordinal());
         setNoGravity(false);
