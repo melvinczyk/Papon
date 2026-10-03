@@ -101,6 +101,11 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
         }
     }
 
+    /** Client: whether a line is being spoken right now (drives the talking jaw). */
+    public boolean isBabbling() {
+        return babbleTicks > 0;
+    }
+
     /** Pitch and sound used for this character's talking blips. */
     protected abstract Speech.Voice voice();
 

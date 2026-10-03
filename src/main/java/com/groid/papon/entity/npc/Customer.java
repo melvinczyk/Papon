@@ -5,6 +5,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.sounds.SoundEvents;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Who is in line at the Taco Truck, and what each of them does there.
@@ -23,12 +24,14 @@ public enum Customer {
     DON_POLLO("don_pollo", true, ChatFormatting.GOLD, 70, 1, 120, 0.88F,
             new Speech.Voice(SoundEvents.CHICKEN_AMBIENT, 0.85F, 0.5F, 4), true,
             List.of(new Line(8, "leave", 64), new Line(78, "phone", 42))),
-    EDP445("edp445", true, ChatFormatting.DARK_GREEN, 60, 2, 100, 0.9F,
+    EDP445("edp445", true, ChatFormatting.DARK_GREEN, 60, 2, 160, 0.9F,
             new Speech.Voice(SoundEvents.VILLAGER_AMBIENT, 0.62F, 0.5F), false,
-            List.of(new Line(10, "leave", 70), new Line(82, "chant", 30))),
-    BADLANDS_CHUGS("badlands_chugs", true, ChatFormatting.RED, 60, 2, 120, 0.98F,
+            List.of(new Line(30, "leave", 70), new Line(118, "chant", 36)),
+            Set.of("walk", "order", "receive", "walk_taco", "hold_taco")),
+    BADLANDS_CHUGS("badlands_chugs", true, ChatFormatting.RED, 60, 2, 140, 0.85F,
             new Speech.Voice(SoundEvents.VILLAGER_AMBIENT, 0.5F, 0.6F), false,
-            List.of(new Line(0, "watch", 40), new Line(76, "leave", 44))),
+            List.of(new Line(0, "watch", 40), new Line(88, "leave", 44)),
+            Set.of("walk", "order", "receive", "walk_taco", "hold_taco")),
     REVIEWBRAH("reviewbrah", true, ChatFormatting.AQUA, 90, 1, 120, 0.88F,
             new Speech.Voice(SoundEvents.VILLAGER_TRADE, 0.82F, 0.4F, 4), false,
             List.of(new Line(36, "leave", 58), new Line(94, "signoff", 26))),
@@ -53,9 +56,16 @@ public enum Customer {
     public final Speech.Voice voice;
     public final boolean spanish;
     public final List<Line> lines;
+    /** Shared animations ("walk", "order", ...) this character has his own version of ("walk_<id>"). */
+    public final Set<String> own;
 
     Customer(String id, boolean human, ChatFormatting color, int orderTicks, int cookCycles, int reactTicks,
              float renderScale, Speech.Voice voice, boolean spanish, List<Line> lines) {
+        this(id, human, color, orderTicks, cookCycles, reactTicks, renderScale, voice, spanish, lines, Set.of());
+    }
+
+    Customer(String id, boolean human, ChatFormatting color, int orderTicks, int cookCycles, int reactTicks,
+             float renderScale, Speech.Voice voice, boolean spanish, List<Line> lines, Set<String> own) {
         this.id = id;
         this.human = human;
         this.color = color;
@@ -66,6 +76,7 @@ public enum Customer {
         this.voice = voice;
         this.spanish = spanish;
         this.lines = lines;
+        this.own = own;
     }
 
     public String key(String line) {
@@ -74,6 +85,7 @@ public enum Customer {
 
     /** Full GeckoLib animation name for one of this customer's animations ("walk", "order", ...). */
     public String anim(String name) {
+        if (own.contains(name)) name = name + "_" + id;
         return human ? "animation.customer." + name : "animation.papon_npc.customer_" + name;
     }
 
