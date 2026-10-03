@@ -1,417 +1,228 @@
 #!/usr/bin/env python3
-"""Converts the EDP445 character from the EDP SIM game into the mod's EDP445 customer.
+"""EDP445 as a semi-photorealistic mesh (see mh_human.py for how it is built).
 
-GeckoLib can only draw cubes, so the character is drawn by client/mesh/MeshCrowdRenderer: it
-keeps the customer rig (root, torso, head, arm_r/l, leg_r/l and the props) and the shared
-customer animations, and skins this mesh onto those bones every frame.
+  python3 tools/gen_edp_mesh.py
 
-Reads the game's Unity data (needs `pip install UnityPy numpy pillow`):
-  python3 tools/gen_edp_mesh.py "<EDP SIM>/EDP SIM_Data"
-Writes, under src/main/resources/assets/papon/:
-  meshes/edp445.json                  skinned triangle mesh, rig-space pixels
-  textures/entity/edp445_mesh.png     the skin atlas, 1024x1024, with his clothes painted on
-  geo/entity/edp445_mesh.geo.json     the rig: bones at the mesh's joints, beanie + taco + phone
-
-What it does to the source:
-  - the Unity humanoid (Mixamo bone names) is turned to face -Z with its right side at -X,
-    the rig's conventions, and scaled so the top of his head is at 33 px like the blocky EDP;
-  - the T-pose arms are swung down about the shoulders (weighted, so the shoulders blend);
-  - the 54 Unity bones are folded onto the rig's six moving bones (two weights per vertex);
-  - the source body is unclothed, so the atlas is repainted where clothes go: the midnight-green
-    445 jersey (EDP over 445 on the back, white sleeve stripes), dark pants, and shoes. The
-    shading of the original texture is kept so folds and contours still read.
-The blocky EDP445 (gen_customers.py) is untouched; its texture still supplies the beanie, taco
-and phone, which are cubes on this rig.
+Short and extremely obese: a huge apron belly that hangs forward and down over his shorts, thick
+arms and legs, a round bald head with a full beard; his face from a frontal photo. Dressed as in the
+2023 documentary footage: an oversized black long-sleeve sweatshirt to mid-thigh, black basketball
+shorts with white side stripes, black sneakers, and purple mirrored sunglasses pushed up on his head.
+Props: his phone (left hand) and a taco (right). Writes meshes/edp445.json and the edp445_mesh
+texture and geo.
 """
-import json
-import math
-import os
-import sys
-
 import numpy as np
-from PIL import Image
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
-OUT_TEX = 1024
-HEAD_TOP_PX = 33.0
-ARM_DROP_DEG = 80.0
-BONES = ['torso', 'head', 'arm_r', 'arm_l', 'leg_r', 'leg_l']
+import mh_human as H
+from mh_human import Box, Prop, smoothstep
 
-# Unity bone -> (rig bone, share), extra shares go to the next listed entry
-FOLD = {
-    'Hips': [('torso', 1.0)],
-    'Spine': [('torso', 1.0)], 'Spine1': [('torso', 1.0)], 'Spine2': [('torso', 1.0)],
-    'Neck': [('torso', 0.4), ('head', 0.6)], 'Head': [('head', 1.0)],
-    'RightShoulder': [('torso', 0.7), ('arm_r', 0.3)], 'LeftShoulder': [('torso', 0.7), ('arm_l', 0.3)],
-}
+WEIGHT = 2.0
+SWEAT, SHORTS, STRIPE, SHOE, SOLE = (np.array(c, float) for c in
+                                     ((32, 32, 35), (26, 26, 29), (214, 214, 210), (22, 22, 24), (226, 224, 218)))
+NECK_HOLE = 1.1
 
 
-def fold(name):
-    if name in FOLD:
-        return FOLD[name]
-    for side, arm, leg in (('Right', 'arm_r', 'leg_r'), ('Left', 'arm_l', 'leg_l')):
-        if name.startswith(side):
-            rest = name[len(side):]
-            if rest.startswith(('Arm', 'ForeArm', 'Hand', 'Finger')):
-                return [(arm, 1.0)]
-            if rest.startswith(('UpLeg', 'Leg', 'Foot', 'Toe')):
-                return [(leg, 1.0)]
-    return [('torso', 1.0)]
+def collar_height(x, z, J):
+    return J['neck01'][0][1] - 0.1 - 0.25 * smoothstep(0.2, 1.2, z) * (1 - smoothstep(0.3, 0.9, np.abs(x)))
 
 
-def mat(m):
-    return np.array([[m.e00, m.e01, m.e02, m.e03], [m.e10, m.e11, m.e12, m.e13],
-                     [m.e20, m.e21, m.e22, m.e23], [m.e30, m.e31, m.e32, m.e33]], float)
+def masks(pos, w, J):
+    """Sweatshirt (long sleeves to the wrist, hem at mid-thigh), shorts to below the knee, shoes."""
+    x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
+    head = sum(w[:, H.BONES.index(b)] for b in H.HEAD_BONES)
+    hand = np.zeros(len(pos))
+    for side in 'LR':
+        wr = J['wrist.' + side][0]
+        el = J['lowerarm01.' + side][0]
+        axis = wr - el
+        t = ((pos - el) @ axis) / (axis @ axis)
+        mine = np.sign(x) == (1 if side == 'L' else -1)
+        hand = np.maximum(hand, mine * smoothstep(0.93, 0.97, t) * (w[:, H.BONES.index('forearm_' + side.lower())] > 0.5))
+    hip = (J['upperleg01.L'][0][1] + J['upperleg01.R'][0][1]) / 2
+    knee = (J['lowerleg01.L'][0][1] + J['lowerleg01.R'][0][1]) / 2
+    ankle = (J['foot.L'][0][1] + J['foot.R'][0][1]) / 2 + 0.25
+    hem = hip - 0.95
+    collar = collar_height(x, z, J)
+    opening = 1 - smoothstep(NECK_HOLE - 0.05, NECK_HOLE + 0.05, np.hypot(x, z - J['neck01'][0][2]))
+    sweat = smoothstep(hem - 0.04, hem + 0.04, y) * (1 - opening * smoothstep(collar - 0.03, collar + 0.03, y)) \
+        * (1 - smoothstep(0.6, 0.8, head)) * (1 - hand)
+    shoes = 1 - smoothstep(ankle - 0.03, ankle + 0.03, y)
+    shorts = (1 - sweat) * smoothstep(knee - 0.55, knee - 0.47, y) * (y < hem + 0.1) * (1 - hand)
+    return sweat, shorts, shoes, dict(hem=hem, knee=knee, ankle=ankle, hip=hip, collar=collar)
 
 
-def load(data_dir):
-    import UnityPy
-    from UnityPy.helpers.MeshHelper import MeshHandler
-    env = UnityPy.load(data_dir)
-    parts = {}
-    texture = None
-    for obj in env.objects:
-        if obj.type.name == 'Texture2D' and texture is None:
-            t = obj.read()
-            if t.m_Name == 'EDP_color':
-                texture = t.image.convert('RGBA')
-        if obj.type.name != 'SkinnedMeshRenderer' or obj.assets_file.name != 'level0':
-            continue
-        smr = obj.read()
-        mesh = smr.m_Mesh.read()
-        h = MeshHandler(mesh)
-        h.process()
-        names = [b.read().m_GameObject.read().m_Name for b in smr.m_Bones]
-        tris = []
-        for sub in h.get_triangles():
-            tris.extend(sub)
-        idx = getattr(h, 'm_BoneIndices', None)
-        parts[mesh.m_Name] = {
-            'v': np.array(h.m_Vertices, float), 'n': np.array(h.m_Normals, float),
-            'uv': np.array(h.m_UV0, float), 'tri': np.array(tris, int),
-            'w': np.array(h.m_BoneWeights, float) if h.m_BoneWeights else None,
-            'bi': np.array(idx, int) if idx else None,
-            'bones': names, 'bind': [mat(m) for m in mesh.m_BindPose],
-        }
-    if texture is None or 'H_DDS_LowRes' not in parts:
-        sys.exit('EDP_color texture or H_DDS_LowRes mesh not found in ' + data_dir)
-    return parts, texture
+# ---------------------------------------------------------------- props
+def solid(rgb):
+    return lambda face, u, v: np.ones(u.shape + (3,)) * rgb
 
 
-def joints(body):
-    """World position of each bone in the bind pose, by name."""
-    out = {}
-    for name, bind in zip(body['bones'], body['bind']):
-        out[name] = np.linalg.inv(bind) @ np.array([0, 0, 0, 1.0])
-    return {k: v[:3] for k, v in out.items()}
+def phone_body(face, u, v):
+    """Black phone, screen lit on the front face (the side toward his face when he looks at it)."""
+    c = np.ones(u.shape + (3,)) * [24, 24, 28]
+    if face == 'south':
+        scr = (u > 0.12) & (u < u.max() - 0.12) & (v > 0.25) & (v < v.max() - 0.2)
+        glow = np.array([90, 150, 230.0]) * (0.85 + 0.3 * (v / v.max()))[..., None]
+        c = np.where(scr[..., None], glow, c)
+    return c
 
 
-def rig_weights(part):
-    """Per vertex: up to two (rig bone index, weight)."""
-    n = len(part['v'])
-    acc = np.zeros((n, len(BONES)))
-    if part['w'] is None:
-        acc[:, BONES.index('head')] = 1.0
-        return acc
-    for vi in range(n):
-        for k in range(4):
-            w = part['w'][vi][k]
-            if w <= 0:
-                continue
-            for bone, share in fold(part['bones'][part['bi'][vi][k]]):
-                acc[vi, BONES.index(bone)] += w * share
-    return acc
+def lens(face, u, v):
+    """Purple-blue mirrored lens: a vertical gradient with a bright streak."""
+    t = (v / max(v.max(), 1e-6))[..., None]
+    c = np.array([120, 70, 180.0]) * (1 - t) + np.array([40, 60, 150.0]) * t
+    streak = np.abs(u - v * 0.8 - 0.3) < 0.18
+    return np.where(streak[..., None], c * 0.5 + 120, c)
 
 
-def to_rig(p, scale):
-    """Unity (x right, y up, z forward) -> rig pixels (right at -X, front at -Z)."""
-    q = np.array(p, float) * scale
-    q[..., 0] *= -1
-    q[..., 2] *= -1
-    return q
+def taco_shell(face, u, v):
+    rng = np.random.default_rng(int(u.size + v.size))
+    shell = np.array([222, 176, 92.0]) * (0.9 + 0.2 * rng.random(u.shape))[..., None]
+    if face == 'up':
+        kk = rng.random(u.shape)[..., None]
+        fill = np.select([kk < 0.35, kk < 0.6, kk < 0.82], [np.array([104, 168, 58.0]), np.array([118, 70, 40.0]),
+                                                           np.array([238, 196, 70.0])], np.array([196, 52, 42.0]))
+        rim = (u < 0.25) | (u > u.max() - 0.25)
+        return np.where(rim[..., None], shell, fill)
+    if face in ('north', 'south'):
+        inside = (np.abs(u - u.max() / 2) < u.max() * 0.3) & (v < v.max() * 0.55)
+        return np.where(inside[..., None], np.array([118, 70, 40.0]), shell)
+    return shell
 
 
-def rot_z(deg):
-    a = math.radians(deg)
-    return np.array([[math.cos(a), -math.sin(a), 0], [math.sin(a), math.cos(a), 0], [0, 0, 1]])
+def head_band(B, below_top):
+    """Head vertices in a band `below_top` decimetres under the crown."""
+    V, bv = B['V'], B['body_verts']
+    head = B['w'][:, H.BONES.index('head')]
+    top = V[bv, 1].max()
+    return bv[(head[bv] > 0.9) & (np.abs(V[bv, 1] - (top - below_top)) < 0.06)]
 
 
-# ---------------------------------------------------------------- clothes
-GREEN, GREEN_DK = np.array([0, 82, 90]), np.array([0, 58, 64])
-WHITE, SILVER = np.array([240, 240, 236]), np.array([170, 176, 180])
-PANTS, SHOE, SOLE = np.array([58, 60, 66]), np.array([36, 36, 40]), np.array([228, 228, 222])
-GLYPH = {
-    '4': ['W.W', 'W.W', 'WWW', '..W', '..W'],
-    '5': ['WWW', 'W..', 'WWW', '..W', 'WWW'],
-    'E': ['WWW', 'W..', 'WW.', 'W..', 'WWW'],
-    'D': ['WW.', 'W.W', 'W.W', 'W.W', 'WW.'],
-    'P': ['WWW', 'W.W', 'WWW', 'W..', 'W..'],
-}
+def shades_anchor(B):
+    """The front of his scalp just under the crown, where pushed-up sunglasses sit (rig pixels)."""
+    band = head_band(B, 0.32)
+    band = band[np.abs(B['V'][band, 0]) < 0.12]
+    return EDP.to_rig(B['V'][band[np.argmax(B['V'][band, 2])]], B)
 
 
-def glyph_at(text, u, v):
-    """Is (u, v) in [0,1)^2 on an ink pixel of `text` set in 3x5 glyphs with 1-column gaps?"""
-    cols = len(text) * 4 - 1
-    cx, cy = int(u * cols), int(v * 5)
-    if not (0 <= cx < cols and 0 <= cy < 5) or cx % 4 == 3:
-        return False
-    return GLYPH[text[cx // 4]][cy][cx % 4] == 'W'
-
-
-def box_blur(a, r):
-    pad = np.pad(a, r, mode='edge')
-    c = pad.cumsum(0).cumsum(1)
-    c = np.pad(c, ((1, 0), (1, 0)))
-    k = 2 * r + 1
-    return (c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) / (k * k)
-
-
-def text_band(text, xx, yy, half_w, top, bottom, mirror):
-    """Ink test for a line of text across the band; mirror for the back of the shirt.
-    In game a viewer facing his front sees rig -X on their left, so text runs toward +X."""
-    if not (bottom < yy < top and abs(xx) < half_w):
-        return False
-    u = (xx + half_w) / (2 * half_w)
-    return glyph_at(text, 1 - u if mirror else u, (top - yy) / (top - bottom))
-
-
-def clothe(tex, body, j, scale):
-    """Repaints the atlas under the body's triangles where his clothes are. Positions are the
-    T-pose rig-space positions (before the arms come down), so arms are clear of the torso."""
-    img = np.asarray(tex.resize((OUT_TEX, OUT_TEX), Image.LANCZOS)).astype(float)
-    rgb = img[..., :3]
-    # Clothes keep only the broad shading of the body underneath (folds, the belly's curve), not
-    # skin detail: a heavy box blur of the luminance.
-    lum = box_blur(rgb.mean(axis=2), 7)
-    out = rgb.copy()
-    painted = np.zeros(lum.shape, bool)
-    covered = np.zeros(lum.shape, bool)
-
-    pos = to_rig(body['v'], scale)
-    nrm = to_rig(body['n'], 1.0)
-    jr = {k: to_rig(v, scale) for k, v in j.items()}
-    waist = jr['Spine'][1] + 0.4
-    neck = jr['Neck'][1] - 0.6
-    ankle = (jr['RightFoot'][1] + jr['LeftFoot'][1]) / 2 + 0.6
-    sleeve = abs(jr['RightArm'][0]) + 2.9
-    skin_mean = np.median(lum)
-
-    H = OUT_TEX
-    uv = body['uv']
-    for tri in body['tri']:
-        a, b, c = tri
-        t = np.array([[uv[a][0] * H, (1 - uv[a][1]) * H], [uv[b][0] * H, (1 - uv[b][1]) * H],
-                      [uv[c][0] * H, (1 - uv[c][1]) * H]])
-        x0, y0 = np.floor(t.min(0)).astype(int)
-        x1, y1 = np.ceil(t.max(0)).astype(int)
-        x0, y0 = max(x0, 0), max(y0, 0)
-        x1, y1 = min(x1, H - 1), min(y1, H - 1)
-        if x1 < x0 or y1 < y0:
-            continue
-        xs, ys = np.meshgrid(np.arange(x0, x1 + 1) + 0.5, np.arange(y0, y1 + 1) + 0.5)
-        d = (t[1, 1] - t[2, 1]) * (t[0, 0] - t[2, 0]) + (t[2, 0] - t[1, 0]) * (t[0, 1] - t[2, 1])
-        if abs(d) < 1e-9:
-            continue
-        l0 = ((t[1, 1] - t[2, 1]) * (xs - t[2, 0]) + (t[2, 0] - t[1, 0]) * (ys - t[2, 1])) / d
-        l1 = ((t[2, 1] - t[0, 1]) * (xs - t[2, 0]) + (t[0, 0] - t[2, 0]) * (ys - t[2, 1])) / d
-        l2 = 1 - l0 - l1
-        inside = (l0 >= -0.02) & (l1 >= -0.02) & (l2 >= -0.02)
-        if not inside.any():
-            continue
-        P = l0[..., None] * pos[a] + l1[..., None] * pos[b] + l2[..., None] * pos[c]
-        N = l0[..., None] * nrm[a] + l1[..., None] * nrm[b] + l2[..., None] * nrm[c]
-        X, Y, Z, NZ = P[..., 0], P[..., 1], P[..., 2], N[..., 2]
-        iy, ix = np.nonzero(inside)
-        gy, gx = iy + y0, ix + x0
-        covered[gy, gx] = True
-        for k in range(len(iy)):
-            xx, yy, zz, nz = X[iy[k], ix[k]], Y[iy[k], ix[k]], Z[iy[k], ix[k]], NZ[iy[k], ix[k]]
-            col = None
-            if yy < ankle:
-                col = SOLE if yy < 0.45 else SHOE
-            elif yy < waist:
-                col = PANTS
-                if yy > waist - 0.5:
-                    col = PANTS * 0.8   # waistband
-            elif yy < neck and abs(xx) < sleeve:
-                col = GREEN
-                if abs(xx) > sleeve - 1.2:
-                    col = WHITE if abs(xx) < sleeve - 0.5 else GREEN   # sleeve stripe
-                vneck = yy > neck - 1.6 and abs(xx) < (yy - (neck - 1.6)) * 0.9 and zz < 0
-                if vneck:
-                    col = None
-                elif yy > neck - 0.4:
-                    col = WHITE   # collar
-                elif nz < -0.25 and text_band('445', xx, yy, 3.0, neck - 1.9, neck - 5.4, False):
-                    col = WHITE
-                elif nz > 0.25 and text_band('EDP', xx, yy, 2.4, neck - 1.0, neck - 2.7, True):
-                    col = SILVER
-                elif nz > 0.25 and text_band('445', xx, yy, 3.0, neck - 3.2, neck - 6.4, True):
-                    col = WHITE
-                if yy < waist + 0.6 and col is not None and (col == GREEN).all():
-                    col = GREEN_DK   # hem
-            if col is not None:
-                shade = np.clip(lum[gy[k], gx[k]] / skin_mean, 0.8, 1.15)
-                out[gy[k], gx[k]] = np.clip(col * shade, 0, 255)
-                painted[gy[k], gx[k]] = True
-
-    # bleed painted texels a few pixels outward so UV seams never show skin
-    region = painted.copy()
-    for _ in range(3):
-        grow = np.zeros_like(region)
-        acc = np.zeros_like(out)
-        cnt = np.zeros(region.shape)
-        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            sr = np.roll(region, (dy, dx), (0, 1))
-            so = np.roll(out, (dy, dx), (0, 1))
-            m = sr & ~region & ~covered
-            acc[m] += so[m]
-            cnt[m] += 1
-            grow |= m
-        out[grow] = acc[grow] / cnt[grow][:, None]
-        region |= grow
-    res = img.copy()
-    res[..., :3] = out
-    res[..., 3] = 255
-    return Image.fromarray(res.astype(np.uint8))
-
-
-# ---------------------------------------------------------------- rig
-def per_face_uv(cube):
-    """Box-UV cube from the blocky model -> the same texture rects as per-face UVs."""
-    u, v = cube['uv']
-    w, h, d = cube['size']
-    return {
-        'north': {'uv': [u + d, v + d], 'uv_size': [w, h]},
-        'east': {'uv': [u, v + d], 'uv_size': [d, h]},
-        'south': {'uv': [u + 2 * d + w, v + d], 'uv_size': [w, h]},
-        'west': {'uv': [u + d + w, v + d], 'uv_size': [d, h]},
-        'up': {'uv': [u + d, v], 'uv_size': [w, d]},
-        'down': {'uv': [u + d + w, v + d], 'uv_size': [w, -d]},
-    }
-
-
-def moved(cube, offset, scale=1.0):
-    """A blocky-model cube re-anchored at `offset` (its own centre moves there), resized."""
-    o = np.array(cube['origin'], float)
-    s = np.array(cube['size'], float)
-    c = o + s / 2
-    ns = s * scale
-    return {'origin': list(np.round(c + offset - ns / 2, 3)), 'size': list(np.round(ns, 3)), 'uv': per_face_uv(cube)}
-
-
-def build_geo(jr, hand_r, hand_l, head_box):
-    blocky = json.load(open(os.path.join(ASSETS, 'geo/entity/edp445.geo.json')))['minecraft:geometry'][0]
-    by_name = {b['name']: b for b in blocky['bones']}
-    r3 = lambda p: [round(float(x), 3) for x in p]
-    hip = (jr['RightUpLeg'] + jr['LeftUpLeg']) / 2
-    bones = [
-        {'name': 'root', 'pivot': [0, 0, 0]},
-        {'name': 'leg_r', 'parent': 'root', 'pivot': r3(jr['RightUpLeg'])},
-        {'name': 'leg_l', 'parent': 'root', 'pivot': r3(jr['LeftUpLeg'])},
-        {'name': 'torso', 'parent': 'root', 'pivot': r3([0, hip[1], hip[2]])},
-        {'name': 'head', 'parent': 'torso', 'pivot': r3(jr['Neck'])},
-        {'name': 'arm_r', 'parent': 'torso', 'pivot': r3(jr['RightArm'])},
-        {'name': 'arm_l', 'parent': 'torso', 'pivot': r3(jr['LeftArm'])},
+def shades_boxes(B):
+    """Sunglasses at real size (~14 cm across): lenses tilted back onto the scalp, arms along the sides."""
+    band = head_band(B, 0.5)
+    half = np.abs(B['V'][band, 0]).max() * B['scale']            # head half-width at the arms' height
+    frame = solid([18, 18, 20])
+    tilt, o = [-68, 0, 0], [0, 0, 0]
+    return [
+        Box([-1.42, 0.0, -0.16], [1.22, 0.82, 0.12], lens, tilt, o),
+        Box([0.2, 0.0, -0.16], [1.22, 0.82, 0.12], lens, tilt, o),
+        Box([-1.5, 0.8, -0.18], [3.0, 0.14, 0.16], frame, tilt, o),      # brow bar
+        Box([-0.22, 0.45, -0.18], [0.44, 0.14, 0.16], frame, tilt, o),   # bridge
+        Box([-half - 0.12, -0.25, 0.2], [0.12, 0.14, 3.0], frame, [-12, 0, 0], o),
+        Box([half, -0.25, 0.2], [0.12, 0.14, 3.0], frame, [-12, 0, 0], o),
     ]
-    # beanie sized to his real head: the blocky beanie is 10 wide on a 10-wide head
-    (hx0, hy0, hz0), (hx1, hy1, hz1) = head_box
-    hw = max(hx1 - hx0, hz1 - hz0)
-    k = (hw + 0.5) / 10.0
-    top = np.array([(hx0 + hx1) / 2, hy1, (hz0 + hz1) / 2])
-    old = by_name['beanie']
-    old_top = np.array([0, 33.0, 0])
-    beanie = []
-    for c in old['cubes']:
-        o = np.array(c['origin'], float)
-        s = np.array(c['size'], float)
-        centre = o + s / 2
-        nc = top + (centre - old_top) * k + np.array([0, -0.6, 0])
-        ns = s * k
-        beanie.append({'origin': r3(nc - ns / 2), 'size': r3(ns), 'uv': per_face_uv(c)})
-    bones.append({'name': 'beanie', 'parent': 'head', 'pivot': r3(top), 'cubes': beanie})
-    for prop, hand, arm in (('taco', hand_r, 'arm_r'), ('phone', hand_l, 'arm_l')):
-        old = by_name[prop]
-        off = hand - np.array(old['pivot'], float)
-        bones.append({'name': prop, 'parent': arm, 'pivot': r3(hand),
-                      'cubes': [moved(c, off) for c in old['cubes']]})
-    geo = {'format_version': '1.12.0', 'minecraft:geometry': [{
-        'description': {'identifier': 'geometry.edp445_mesh', 'texture_width': 128, 'texture_height': 128,
-                        'visible_bounds_width': 3, 'visible_bounds_height': 3.5, 'visible_bounds_offset': [0, 1.5, 0]},
-        'bones': bones}]}
-    path = os.path.join(ASSETS, 'geo/entity/edp445_mesh.geo.json')
-    with open(path, 'w') as f:
-        json.dump(geo, f, indent='\t')
-    return path
 
 
-def main():
-    if len(sys.argv) < 2:
-        sys.exit(__doc__)
-    parts, tex = load(sys.argv[1])
-    body = parts['H_DDS_LowRes']
-    j = joints(body)
-    scale = HEAD_TOP_PX / body['v'][:, 1].max()
-    jr = {k: to_rig(v, scale) for k, v in j.items()}
+def edp_props():
+    return [
+        Prop('shades', 'head', shades_anchor, shades_boxes),
+        Prop('phone', 'forearm_l', lambda B: EDP.hand(B, 'L'), [Box([-0.7, -1.2, -1.6], [1.4, 2.8, 0.35], phone_body)]),
+        Prop('taco', 'forearm_r', lambda B: EDP.hand(B, 'R'), [Box([-0.8, -2.4, -4.4], [1.6, 2.4, 4.0], taco_shell)]),
+    ]
 
-    clothed = clothe(tex, body, j, scale)
-    os.makedirs(os.path.join(ASSETS, 'textures/entity'), exist_ok=True)
-    clothed.save(os.path.join(ASSETS, 'textures/entity/edp445_mesh.png'))
 
-    positions, normals, uvs, indices, joints_out, weights_out = [], [], [], [], [], []
-    hands = {}
-    head_pts = []
-    for name in ('H_DDS_LowRes', 'l_L_eye', 'l_R_eye', 'l_TeethUp', 'l_TeethDown', 'l_L_gland', 'l_R_gland'):
-        if name not in parts:
-            continue
-        p = parts[name]
-        base = len(positions) // 3   # vertices already written by earlier parts
-        w = rig_weights(p)
-        P = to_rig(p['v'], scale)
-        N = to_rig(p['n'], 1.0)
-        # swing the arms down from the T-pose, about each shoulder joint
-        for arm, shoulder, sign in (('arm_r', jr['RightArm'], 1), ('arm_l', jr['LeftArm'], -1)):
-            R = rot_z(sign * ARM_DROP_DEG)
-            a = w[:, BONES.index(arm)][:, None]
-            P = P + a * ((P - shoulder) @ R.T + shoulder - P)
-            N = N + a * (N @ R.T - N)
-        N = N / np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-6)
-        for vi in range(len(P)):
-            order = np.argsort(-w[vi])[:2]
-            ws = w[vi][order]
-            ws = ws / ws.sum() if ws.sum() > 0 else np.array([1.0, 0.0])
-            joints_out.extend(int(o) for o in order)
-            weights_out.extend(round(float(x), 3) for x in ws)
-            if w[vi][BONES.index('head')] > 0.95 and name == 'H_DDS_LowRes':
-                head_pts.append(P[vi])
-        positions.extend(P.round(3).flatten().tolist())
-        normals.extend(N.round(3).flatten().tolist())
-        uvs.extend(np.round(p['uv'], 4).flatten().tolist())
-        indices.extend((p['tri'].flatten() + base).tolist())
-        if name == 'H_DDS_LowRes':
-            for hand, shoulder, sign, key in (('RightHand', jr['RightArm'], 1, 'r'), ('LeftHand', jr['LeftArm'], -1, 'l')):
-                hp = (jr[hand] - shoulder) @ rot_z(sign * ARM_DROP_DEG).T + shoulder
-                hands[key] = hp + np.array([0, -1.2, 0])   # the palm, a little below the wrist joint
-    vcount = len(positions) // 3
-    assert max(indices) < vcount, (max(indices), vcount)
+class Edp(H.Character):
+    name = 'edp445'
+    head_top_px = 31.0
+    targets = [
+        ('macrodetails/african-male-young', 1.0),
+        ('macrodetails/universal-male-young-averagemuscle-maxweight', WEIGHT),
+        ('macrodetails/height/male-young-averagemuscle-maxweight-minheight', 0.6),
+        ('stomach/stomach-pregnant-incr', 1.0), ('neck/neck-double-incr', 1.0), ('head/head-fat-incr', 0.6),
+        ('head/head-round', 0.5), ('neck/neck-scale-horiz-incr', 1.0), ('neck/neck-scale-depth-incr', 1.0),
+        ('torso/torso-scale-depth-incr', 0.8), ('torso/torso-scale-horiz-incr', 0.6),
+        ('armslegs/l-upperarm-fat-incr', 1.0), ('armslegs/r-upperarm-fat-incr', 1.0),
+        ('armslegs/l-lowerarm-fat-incr', 0.8), ('armslegs/r-lowerarm-fat-incr', 0.8),
+        ('armslegs/l-upperleg-fat-incr', 1.0), ('armslegs/r-upperleg-fat-incr', 1.0),
+        ('armslegs/l-lowerleg-fat-incr', 1.0), ('armslegs/r-lowerleg-fat-incr', 1.0),
+        # his face: head height, width, forehead, chin, eye spacing and mouth height fitted to the
+    # proportions averaged over four frontal photos (relative to eye-to-mouth distance:
+    # top 1.36, chin 1.58, width at the eyes 1.73, eye spacing 0.86); a broad round dome, heavy cheeks and jowls, broad nose, full lips
+        ('head/head-scale-horiz-decr', 0.5), ('head/head-scale-vert-incr', 0.7), ('forehead/forehead-scale-vert-decr', 0.6),
+        ('chin/chin-width-incr', 0.5), ('chin/chin-height-incr', 0.35), ('chin/chin-jaw-drop-incr', 0.8),
+        ('chin/chin-prominent-incr', 0.4), ('mouth/mouth-trans-down', 0.5),
+        ('cheek/l-cheek-volume-incr', 0.5), ('cheek/r-cheek-volume-incr', 0.5),
+        ('nose/nose-scale-horiz-incr', 0.8), ('nose/nose-flaring-incr', 0.8), ('nose/nose-nostrils-width-incr', 0.7),
+        ('nose/nose-volume-incr', 0.6), ('mouth/mouth-scale-horiz-incr', 0.5),
+        ('mouth/mouth-lowerlip-volume-incr', 1.0), ('mouth/mouth-upperlip-volume-incr', 0.6),
+        ('eyes/l-eye-trans-out', 1.5), ('eyes/r-eye-trans-out', 1.5),
+        ('eyes/l-eye-height1-incr', 0.5), ('eyes/r-eye-height1-incr', 0.5),     # his wide-open stare
+        ('eyes/l-eye-height2-incr', 0.6), ('eyes/r-eye-height2-incr', 0.6),
+    ]
+    fat = {'torso': 0.85, 'uarm': 0.45, 'larm': 0.22, 'uleg': 0.45, 'lleg': 0.25, 'neck': 0.65}
+    # the belly: a big forward dome, and the apron below it hanging over his shorts
+    bellies = [(0.47, 0.9, (3.6, 2.7), 1.05, 0.2), (0.17, 1.4, (3.0, 1.1), 0.5, 0.7)]
+    arm_hang_deg = 20.0
+    # Two frontal phone selfies: his wide-eyed stare (detail) and a neutral one (tone and shading
+    # averaged with it). Both tilted a few degrees; even daylight.
+    photos = [
+        H.Photo('photo.jpg', 'https://i.redd.it/tn5ttuws5py51.jpg', [
+            ('r_eye', (180.0, 372.0)), ('l_eye', (398.0, 340.0)),
+            (5054, (285.0, 510.0)),                              # under the nose
+            (5057, (240.0, 500.0)), (11674, (330.0, 495.0)),     # nostrils
+            (411, (205.0, 615.0)), (7171, (400.0, 605.0)),       # mouth corners
+            (466, (295.0, 625.0)),                               # mouth
+            (5162, (320.0, 830.0)),                              # chin
+            (220, (295.0, 290.0)),                               # between the brows
+            (881, (330.0, 28.0)),                                # top of the head
+            (873, (115.0, 372.0)), (7578, (575.0, 345.0)),       # sides of the face at the eyes
+            (('side', 7.25, -1), (122.0, 180.0)), (('side', 7.25, 1), (558.0, 170.0)),   # temples
+            (('side', 6.04, -1), (125.0, 615.0)), (('side', 6.04, 1), (585.0, 600.0)),   # cheeks
+        ], (345.0, 430.0, 250.0, 420.0), 1.0),
+        H.Photo('photo2.jpg', 'https://i.redd.it/zvgthayh3c151.jpg', [
+            ('r_eye', (692.0, 348.0)), ('l_eye', (872.0, 372.0)),
+            (5054, (752.0, 492.0)), (5057, (726.0, 488.0)), (11674, (782.0, 492.0)),
+            (411, (702.0, 567.0)), (7171, (830.0, 577.0)), (466, (765.0, 575.0)),
+            (5162, (765.0, 690.0)), (220, (775.0, 318.0)), (881, (760.0, 48.0)),
+            (873, (560.0, 360.0)), (7578, (925.0, 362.0)),
+            (('side', 7.25, -1), (568.0, 200.0)), (('side', 7.25, 1), (952.0, 200.0)),
+            (('side', 6.04, -1), (575.0, 575.0)), (('side', 6.04, 1), (925.0, 578.0)),
+        ], (760.0, 380.0, 200.0, 340.0), 1.0),
+    ]
+    face_floor = 5.3
+    skin = np.array([94, 60, 44], float)
 
-    mesh = {
-        'credit': 'Converted from EDP SIM by tools/gen_edp_mesh.py',
-        'texture': 'papon:textures/entity/edp445_mesh.png',
-        'bones': BONES,
-        'positions': positions, 'normals': normals, 'uvs': uvs, 'indices': indices,
-        'joints': joints_out, 'weights': weights_out,
-    }
-    os.makedirs(os.path.join(ASSETS, 'meshes'), exist_ok=True)
-    with open(os.path.join(ASSETS, 'meshes/edp445.json'), 'w') as f:
-        json.dump(mesh, f, separators=(',', ':'))
-    hp = np.array(head_pts)
-    print(build_geo(jr, hands['r'], hands['l'], (hp.min(0), hp.max(0))))
-    print('mesh', vcount, 'vertices,', len(indices) // 3, 'triangles; scale', round(scale, 3), 'px/m')
-    for k in ('RightUpLeg', 'Neck', 'RightArm', 'Head'):
-        print(' ', k, np.round(jr[k], 2))
+    @property
+    def props(self):
+        return edp_props()
 
+    def covered(self, pos, w, J):
+        sweat, shorts, _, _ = masks(pos, w, J)
+        return np.clip(sweat + shorts, 0, 1)
+
+    def clothes(self, T):
+        sweat, shorts, shoes, k = masks(T.pos, T.w, T.J)
+        sw = T.cloth(SWEAT, 0.16)
+        rib = smoothstep(k['collar'] - 0.12, k['collar'] - 0.08, T.y) * (T.y < k['collar']) \
+            * (np.hypot(T.x, T.z - T.J['neck01'][0][2]) < NECK_HOLE + 0.05)
+        hemrib = smoothstep(k['hem'] + 0.22, k['hem'] + 0.18, T.y)
+        cuff = np.zeros(len(T.pos))
+        for side in 'LR':
+            t = T.along(side, 'lowerarm01', 'wrist')
+            cuff = np.maximum(cuff, smoothstep(0.78, 0.82, t) * (T.bone('forearm_' + side.lower()) > 0.5))
+        sw = sw * (1 + 0.25 * np.clip(rib + hemrib + cuff, 0, 1))[:, None]
+        sh = T.cloth(SHORTS, 0.12)
+        # white stripes down the outside of each leg, and a white hem
+        stripe = np.zeros(len(T.pos))
+        for side, sign in (('L', 1), ('R', -1)):
+            leg = T.bone('leg_' + side.lower())
+            centre = T.J['upperleg01.' + side][0]
+            ang = np.arctan2(T.z - centre[2], (T.x - centre[0]) * sign)     # 0 = straight out to the side
+            stripe = np.maximum(stripe, (leg > 0.5) * (np.abs(ang) < 0.16))
+        stripe = np.maximum(stripe, smoothstep(k['knee'] - 0.4, k['knee'] - 0.44, T.y) * 1.0)
+        sh = sh + (STRIPE * (0.6 + 0.4 * T.ao)[:, None] - sh) * stripe[:, None]
+        sole = T.y < (k['ankle'] - 0.62)
+        shoe = np.where(sole[:, None], SOLE, SHOE) * (0.6 + 0.5 * T.ao)[:, None]
+        return [(shorts, sh), (sweat, sw), (shoes, shoe)]
+
+
+EDP = Edp()
 
 if __name__ == '__main__':
-    main()
+    EDP.generate()
