@@ -89,4 +89,10 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
             }
         }
     }
+
+    /** GeckoLib labels every non-mob living entity; a van shows its name only if someone named it. */
+    @Override
+    public boolean shouldShowName(CaravanEntity van) {
+        return van.hasCustomName() && super.shouldShowName(van);
+    }
 }

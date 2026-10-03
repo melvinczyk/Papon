@@ -102,7 +102,7 @@ public final class PotatoDome {
                 int block = flesh;
                 if (d > r - 3.5) block = skin;                                   // a russet rim
                 else if (Math.abs(d - r * 0.5) < 0.5) block = skin;             // a ring in the middle
-                else if (dx % 7 == 0 && dz % 7 == 0 && d < r - 5) block = eye;  // lights in the floor
+                else if (dx % 5 == 0 && dz % 5 == 0 && d < r - 5) block = eye;  // lights in the floor
                 out.add(new long[]{center.offset(dx, -1, dz).asLong(), block});
                 out.add(new long[]{center.offset(dx, -2, dz).asLong(), skin});
             }
@@ -113,7 +113,7 @@ public final class PotatoDome {
                 for (int dz = -r - 1; dz <= r + 1; dz++) {
                     double d = Math.sqrt(dx * dx + dy * dy + dz * dz);
                     if (d < r - 1.6 || d >= r + 0.4) continue;
-                    out.add(new long[]{center.offset(dx, dy, dz).asLong(), rng.nextFloat() < 0.045F ? eye : skin});
+                    out.add(new long[]{center.offset(dx, dy, dz).asLong(), rng.nextFloat() < 0.07F ? eye : skin});
                 }
             }
         }

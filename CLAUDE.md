@@ -61,6 +61,15 @@ quality throughout."
      **only use it when he gets close to it** (so taking the van away prevents it). He can **back
      into the player** too. The van has its **own sounds** (idling, driving...).
    - **His own boss bar, potato and taco themed**; **boss music blending slow and fast mariachi**.
+   - **Phase one**: more combos, fast ones, and gimmicks with the car; the car driven accurately.
+   - **Phase two at 75% health** (built 2026-10-03, see "Phase two" below): a cutscene, he kneels, his
+     **POV with blood coming out of his mouth**, the **music stops**, "**okay, enough playing around**";
+     a **huge salt shaker he summons above his head salts him and he gets more power, inside a flowing
+     aura** (the user's call, replacing a hand-held shaker), he bakes golden; he **screams, the camera
+     shakes**, and pulls everyone into his "**papon pocket dimension**": really a **huge dome where
+     everything is potato blocks**. He **looks stronger and can fly**. The user rejected: pink sprout arms,
+     spectral hands, tortilla wings, red glowing eyes, a direct copy of the Spiritcaller, white splits on
+     his sides, too dark a bake. Phase-two parts must never show in phase-one animations.
 8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
    separate entity, just more Papon animations (the llama lives in his model) — across rivers,
    lakes and oceans.
@@ -78,7 +87,7 @@ quality throughout."
 13. **Taco Truck placement:** always on land, **never on water and never on a shore/beach**.
 14. A debug command for **how far away the Taco Truck is** (`/papon distance`).
 
-## What exists (status as of 2026-10-02)
+## What exists (status as of 2026-10-03)
 
 Done and compiling; tested headless on a dev server (`/papon escort true`): walking, grilling,
 rafting across ~200 blocks of ocean and landing, sleeping at night and waking at dawn, the Jarrito
@@ -117,6 +126,12 @@ player and were not exercised headless.
 | Spawn eggs for every new entity | `registry/ModItems.java` |
 | EDP445 fist bump: right-click him empty-handed; a second "gesture" animation controller over his current one | `TacoCustomerEntity.mobInteract/tickBump`, `gen_celeb_anims.edp_fistbump` |
 | Disguise: the vendor wears an obviously fake costume mustache (glue strip, price tag) over his own thin one (`real_stache`, also on the boss); brows raised 0.5 px and `gen_anims.guard_brows` keeps every animation off the eyes | `tools/gen_vendor.py`, `tools/gen_anims.py` |
+| Phase two "El Papa Horneado": cutscene (kneel/POV blood/talk/season/scream/arrive), baked texture swap, fry wings + fry crown + butter on a second "form" animation controller, seasoning aura, flight, barrage/meteors/dive bombs/van throw | `boss/PaponBossEntity.java` (`tickKneel..tickArrive`, `animateForm`), `client/BossRenderer.java`, `client/Cinematic.phaseTwoShot`, `tools/gen_vendor.py` (`phase_two`, `baked`, `aura`), `tools/gen_boss_anims.py` (`b_p2_*`, class `F`) |
+| The potato dome ("La Dimensión Papa"): built in the sky over the arena into air only, everyone pulled up, torn down and sent home after; strays put back on the ground at login | `boss/PotatoDome.java`, `registry/ModBlocks.java`, `tools/gen_blocks.py` |
+| Foil-potato shields (phase two): orbit him, he takes a third of every hit while any is left, rewrapped 45 s after the last breaks | `boss/FoilPotatoEntity.java`, `client/FoilPotatoRenderer.java`, `gen_vendor.foil_potato` |
+| The grab (Ignis-style, no escape, he is invincible through it): lunge → held in his fist (his passenger; `GrabHold` cancels the dismount) → blowtorched → salted (**Brittle**: armor and armor toughness −30% for 20 s) → hurled, half the time straight into a charge | `PaponBossEntity` (`tickGrab`, `tickGrabCombo`, `positionRider`), `effect/BrittleEffect.java`, `registry/ModEffects.java`, `gen_ui.brittle_icon` |
+| Props never warp: arms split into `arm_*` (rotations) + `arm_*_mesh` (the stretched cube) + `hand_*` (slides to the end of the stretch, carries every prop) | `gen_vendor.rig_hands`, `gen_boss_anims.stretch` |
+| Phase-one additions: dash combo (Taco Tornado), van punt (he kicks the parked van at you), bail-out (jumps out of the moving van at you), handbrake drift, door check, sharper van autopilot (speed-aware lead, stiffer steering, slows into turns, brakes and comes again instead of circling a target inside its turning circle); the van no longer looks like it crabs sideways (it takes each server update whole: `CaravanEntity.lerpTo`) | `PaponBossEntity` (`tickDash`, `tickPuntRun`, `tickVanKick`, `bailOut`, `doorCheck`), `vehicle/CaravanEntity` (`shove`, `slide`, `slideOver`) |
 | Admin commands `/papon locate|skip|arrive|remove|escort|placetruck|distance|target|state|tacoline|serve|fraud|reveal|boss|van|bossstate` | `command/PaponCommand.java` |
 | Renderers: Wandering Papon (only the Jarrito flavour he holds; speech bubble); crowd (per-type model, Papon hat variants, head turning, bubbles) | `client/WanderingPaponRenderer.java`, `client/CrowdRenderer.java`, `client/CrowdModel.java`, `client/ClientSetup.java` |
 | EDP445 drawn as the EDP SIM mesh skinned onto the customer rig | `client/mesh/MeshCrowdRenderer.java`, `client/mesh/SkinnedMesh.java`, `tools/gen_edp_mesh.py` |
@@ -198,6 +213,39 @@ player and were not exercised headless.
   `bossbar.papon.chef*` keys. `BossMusic` plays `music.boss` on the Jukebox/Note Blocks slider while a
   fighting boss is within 72 blocks and holds vanilla music off. `CaravanSounds` loops idle/drive
   pitched by speed; the van shows a km/h readout instead of mount hearts.
+
+### Phase two (status 2026-10-03: built; checked with `./gradlew runClient -Pautoshot=phase2`)
+- Trigger: health ≤ 75% (`PHASE_TWO_AT`) sets `phaseDue`; from IDLE: P2_KNEEL 80t (DATA_PHASE2 on, coughs blood
+  at t24/40/56, the camera becomes his eyes from t28 with a red pulsing vignette, his head comes up to you
+  from t56) → P2_TALK 70t ("Okay... enough playing around.", in English) → P2_SEASON 100t (a giant salt
+  shaker `giant_shaker` off the root over his head, salt t24-64, it bursts t66, form 1 = baked texture at
+  t80 with a flash; the aura is `BossRenderer`'s energy-swirl layer) → P2_SCREAM 70t (form 2 at t15: wings,
+  crown, butter; the dome is planned at t1 and built 700 blocks a tick; white-out t56-70; everyone within
+  48 pulled in at the end) → P2_ARRIVE 50t (title, flash clears) → IDLE. Invulnerable throughout; the music
+  cuts (`BossState.silent()`) and comes back at pitch 1.12 once he is risen.
+- Drama: golden light rays burst out of him at the bake and through the scream (`BossRenderer.drawRays`, quads
+  on `RenderType.lightning()`), visual-only lightning (`bolt`), the fog/sky tinted gold then blood-orange
+  (`ClientEvents.onFogColor`), an FOV punch and a white flash; the camera dodges walls and the van
+  (`Cinematic.unblock`: other side, craned up, high, then pulled in no closer than 2.5).
+- Model: phase-two bones `blood`, `butter`, `fry_crown`, `wing_r/l > fry_r1..7`, `giant_shaker`. **Every main
+  animation pins them to scale 0** (`B.pins`); only the second GeckoLib controller, "form" (`animateForm`,
+  animations `p2_sprout`, `p2_form_idle|fly|attack|lift`, class `F`), keys them, and it runs after "main", so
+  its channels win. The cutscene's main animations show the blood themselves. Blockbench multiplies scales
+  of animations played together, so to preview the real result merge main + form into one animation
+  (form's bone channels replacing main's) before loading it. Wing signs (by render): right wing +Y sweeps
+  back, +Z raises; mirrored on the left. Fries carry their fan angle as rest rotation.
+- `papon_boss_baked.png` (+ `_glowmask`, crown only) is swapped in by the renderer at form ≥ 1; GeckoLib's
+  glowmask removes those pixels from the normal pass, so nothing visible in phase one may be in a glowmask.
+- Risen (form 2): 1.75x render, hitbox x1.15, damage x1.2, flies in IDLE (`hover`: circles you 3-4 up inside
+  the dome), lands for ground attacks. New: P2_BARRAGE 40t, P2_METEOR 70t (meteors list: ring, streak,
+  impact + fire), P2_DIVE (three dive bombs; DATA_FLYING false while diving picks the dive anim), VAN_GRAB →
+  VAN_THROW 52t (van `setCarried`, placed over his head, `launch`ed at t36, `vanImpact` on landing),
+  LEAP replaced by the dive. Three foil potatoes orbit him.
+- Dome: `PotatoDome.plan` puts the floor at build limit − radius − 6 (radius 30, ≥ 18 or no dome) over the
+  arena; `groundY` and the van's `setFloor` use its floor (the heightmap there is its roof). Comes down on
+  death (before the loot drops), removal, or 10 s with no player in it (`leaveDome`: teardown, then
+  `sendEveryoneHome`: players, van, items, xp, him, to the same offset from the arena on the ground). If
+  he is risen with no dome and finds a target again, he screams it back up.
 
 ### The Taco Truck line (the boss timer)
 - On arrival (`ARRIVED` tick 22) `TacoTruckScene.open` places the truck **windowGap** blocks
@@ -564,7 +612,11 @@ near (`summon armor_stand ...`) and logs every state and van leg. `/papon bossst
 **Visual check without a person:** `./gradlew runClient -Pautoshot` quick-plays `run/saves/New World`,
 `client/dev/AutoShot` builds a truck at 4000 4000, plays the fraud, the unmasking and the fight, and
 saves `run/screenshots/papon_*.png` at the key moments (cutscene frames, boss bar, handle, ram,
-stumble, driving), then quits.
+stumble, driving), then quits. `-Pautoshot=phase2` instead spawns a boss by the player and shoots the new
+phase-one moves (the grab included) and the whole of phase two (cutscene, dome, attacks, the dome coming
+down); `-Pautoshot=drive` sends him to his van and logs its heading against where it really goes, server
+and client. The save it quick-plays is `run/saves/papon_shots`. If the build fails on a namespace
+`papon 2`, delete the `* 2` duplicates iCloud makes under `build/`.
 Walking Crops is not in the dev run, so the coupon handoff can only be tested in the real pack.
 
 ## Releases (every build)

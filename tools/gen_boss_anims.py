@@ -19,6 +19,7 @@ Lengths of one-shots are state durations in Java (GerbinState, BossState); keep 
           breath 3.0 (fire 0.8-2.6), throw 2.0 (release 1.1), drink_handle 2.5, enter_car 0.8,
           exit_stumble 4.0, phase 3.0 (roar 1.2), death 5.0,
           dash_combo 2.5 (hits 0.4 / 0.9 / 1.4, spin 1.9), van_kick 1.2 (kick 0.55),
+          grab_lunge (AI-held; lunge 0.45), grab_combo 4.5 (torch 0.8-2.2, salt 2.5-3.4, throw 3.95),
           p2_kneel 4.0, p2_talk 3.5, p2_season 5.0 (shaker 0.6-3.3, golden at 4.0), p2_scream 3.5 (scream 0.75), p2_arrive 2.5, fly (loop),
           p2_barrage 2.0 (slam 1.85), p2_meteor 3.5, van_throw 2.6 (throw 1.8), p2_dive (loop)
   boss "form" controller (phase two only): p2_sprout 3.5 (with p2_scream), p2_form_idle, p2_form_fly,
@@ -35,7 +36,17 @@ OUT_DIR = os.path.join(ROOT, 'src/main/resources/assets/papon/animations/entity'
 SHOWN, HIDDEN = [1, 1, 1], [0, 0, 0]
 
 
+ARM_REACH = 6.5     # px from the shoulder pivot to the fist (gen_vendor HAND_R/L)
+
+
 def stretch(a, arm, keys):
+    """Papon's arms are stubs: a reach stretches one (scale Y about the shoulder). On the boss the
+    stretch goes to the arm's cube (`arm_*_mesh`) and the fist (`hand_*`, which carries the props)
+    slides down the arm to its new end, so nothing he holds is warped (gen_vendor.rig_hands)."""
+    if isinstance(a, (B, F)) and arm in ('arm_r', 'arm_l'):
+        a.scale(arm + '_mesh', [(t, [1, k, 1]) + tuple(rest) for t, k, *rest in keys], 'lin')
+        a.pos('hand_' + arm[-1], [(t, [0, -(k - 1) * ARM_REACH, 0]) + tuple(rest) for t, k, *rest in keys], 'lin')
+        return
     a.scale(arm, [(t, [1, k, 1]) + tuple(rest) for t, k, *rest in keys], 'lin')
 
 
@@ -204,7 +215,7 @@ GERBIN = [g_idle, g_walk, g_chop, g_wash, g_look, g_shocked, g_cower]
 class B(Pinned):
     # the phase-two parts are pinned too: only the "form" controller (class F) shows them
     pins = ['bottle', 'handle', 'big_spatula', 'molotov', 'lighter', 'keys', 'sweat', 'tears', 'potato_gun',
-            'blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker']
+            'blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker']
 
 
 ANGRY_R = [0, 0, 18]
@@ -785,6 +796,66 @@ def b_van_kick():
     return a
 
 
+def b_grab_lunge():
+    """1.2 s, held (BossState.GRAB, AI-driven). Crouches with both stubs back (to 0.4 s), then throws
+    himself at you, arms out to grab (the lunge is the entity's motion), and holds there."""
+    a = angry(B('grab_lunge', 1.2, 'hold'))
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.35, [40, 0, 30 * s], 'easeOutQuad'), (0.5, [-95, -14 * s, 6 * s], 'easeInExpo'),
+                    (1.2, [-95, -14 * s, 6 * s])], 'lin')
+        stretch(a, arm, [(0, 1), (0.35, 1), (0.5, 1.8, 'easeInExpo'), (1.2, 1.8)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.35, [26, 0, 0]), (0.5, [-8, 0, 0], 'easeInExpo'), (1.2, [-4, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.35, [0, -3, 0]), (0.5, [0, 1, 0], 'easeInExpo'), (1.2, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.35, [1.12, 0.88, 1.12]), (0.5, [0.9, 1.12, 0.9], 'easeInExpo'), (1.2, [1, 1, 1])], 'lin')
+    a.sound(0.3, 'grunt').sound(0.45, 'whoosh')
+    return a
+
+
+def b_grab_combo():
+    """4.5 s (BossState.GRAB_COMBO, 90 t). He has you, held up in his right fist (the entity holds
+    you there): the blowtorch out of his apron (0.6 s), lit (0.8 s), and you are browned for a second
+    and a half (0.8-2.2 s); torch tossed, the salt shaker (2.5 s), shaken over you (2.5-3.4 s: Brittle);
+    then he winds up (3.7 s) and hurls you (3.95 s)."""
+    a = angry(B('grab_combo', 4.5, 'hold'))
+    hold = [-112, -10, 8]
+    a.rot('arm_r', [(0, [-95, -14, 6]), (0.5, hold, 'easeOutQuad')]
+          + [(round(0.8 + 0.2 * i, 2), [hold[0] + (4 if i % 2 else -4), hold[1], hold[2]]) for i in range(14)]
+          + [(3.5, hold), (3.75, [-178, 10, 40], 'easeInOutSine'), (3.95, [-50, 0, 10], 'easeInExpo'), (4.5, [-20, 0, 24], 'easeInOutSine')],
+          'lin')
+    stretch(a, 'arm_r', [(0, 1.8), (0.5, 1.7), (3.5, 1.7), (3.75, 1.4), (3.95, 1.9, 'easeInExpo'), (4.5, 1)])
+    a.vis('torch', False, [(0.6, True), (2.35, False)])
+    a.scale('torch_flame', [(0, HIDDEN), (0.8 - EPS, HIDDEN), (0.8, [1.3, 1.3, 1.3]), (0.85, SHOWN)]
+            + [(round(0.9 + 0.1 * i, 2), [1.1, 1.1, 1.3] if i % 2 else [0.9, 0.9, 1.0]) for i in range(13)]
+            + [(2.2, SHOWN), (2.2 + EPS, HIDDEN), (4.5, HIDDEN)], 'lin')
+    a.vis('salt_shaker', False, [(2.5, True), (3.45, False)])
+    torch_at = [-88, 26, 0]                    # left fist out under you, the nozzle turned up at you
+    shake_at = [-96, 30, 0]                    # left fist straight out at you
+    l_keys = [(0, [-95, 14, -6]), (0.4, [20, 0, -30], 'easeOutQuad'), (0.6, [10, 0, -20]), (0.8, torch_at, 'easeOutBack')]
+    l_keys += [(round(0.9 + 0.15 * i, 2), [torch_at[0] + (6 if i % 2 else -6), torch_at[1] + (8 if i % 2 else -8), 0]) for i in range(9)]
+    l_keys += [(2.25, [-120, 0, -60], 'easeOutQuad'), (2.4, [10, 0, -30], 'easeInQuad'), (2.55, shake_at, 'easeOutBack')]
+    l_keys += [(round(2.6 + 0.1 * i, 2), [shake_at[0] + (10 if i % 2 else -6), shake_at[1], 0]) for i in range(8)]
+    l_keys += [(3.45, [-90, 0, -50], 'easeOutQuad'), (3.75, [-40, 0, -60]), (4.5, [-20, 0, -24], 'easeInOutSine')]
+    a.rot('arm_l', l_keys, 'lin')
+    stretch(a, 'arm_l', [(0, 1.8), (0.4, 1), (0.8, 1.5), (2.25, 1.5), (2.4, 1), (2.55, 2.0), (3.45, 2.0), (3.75, 1)])
+    a.rot('torch', [(0, [75, 0, 0])], 'lin')
+    # straight out along his arm, cap first, at you: shaken with flicks of the wrist
+    a.rot('salt_shaker', [(0, [0, 0, 0]), (2.5, [0, 0, 0])]
+          + [(round(2.6 + 0.1 * i, 2), [14 if i % 2 else -8, 0, 12 if i % 2 else -12]) for i in range(9)], 'lin')
+    a.rot('torso', [(0, [-4, 0, 0]), (0.5, [-12, 0, 0]), (2.2, [-10, 0, 0]), (3.5, [-10, 0, 0]), (3.75, [-24, 30, 0], 'easeInOutSine'),
+                    (3.95, [24, -30, 0], 'easeInExpo'), (4.5, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (3.75, [1.04, 0.97, 1.04]), (3.95, [0.94, 1.08, 0.94], 'easeInExpo'), (4.5, [1, 1, 1])], 'lin')
+    a.sound(0.6, 'cloth').sound(0.8, 'flick')
+    for t in (0.85, 1.35, 1.85):
+        a.sound(t, 'torch')
+    for t in (1.1, 1.6, 2.1):
+        a.sound(t, 'sizzle')
+    a.sound(2.35, 'whoosh').sound(2.5, 'cloth')
+    for i in range(4):
+        a.sound(round(2.65 + 0.2 * i, 2), 'shake')
+    a.sound(3.7, 'grunt').sound(3.95, 'roar_small')
+    return a
+
+
 # ===================================================================== phase two
 
 KNEEL_ROOT = [0, -5, 0]
@@ -1137,7 +1208,8 @@ BOSS = [b_leap_out, b_chug, b_roar, b_idle, b_walk, b_walk_keys, b_run, b_swipe,
         b_drink_handle, b_enter_car, b_drive, b_exit_stumble, b_phase, b_death,
         b_swipe_overhead, b_leap, b_leap_land, b_charge_windup, b_charge, b_stagger, b_uppercut, b_air_spike,
         b_blink, b_gatling, b_dash_combo, b_van_kick, b_p2_kneel, b_p2_talk, b_p2_scream, b_p2_arrive, b_fly,
-        b_p2_barrage, b_p2_meteor, b_van_throw, b_p2_dive, b_p2_season] + FORM
+        b_p2_barrage, b_p2_meteor, b_van_throw, b_p2_dive, b_p2_season,
+        b_grab_lunge, b_grab_combo] + FORM
 
 
 def write(name, fns, prefix):

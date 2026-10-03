@@ -32,7 +32,12 @@ import java.util.Set;
  */
 @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class AutoShot {
-    private static final boolean ENABLED = Boolean.getBoolean("papon.autoshot");
+    private static final String MODE = System.getProperty("papon.autoshot", "");
+    private static final boolean ENABLED = !MODE.isEmpty() && !MODE.equals("false");
+    /** -Pautoshot=phase2: a boss right here, the new phase-one moves, then phase two start to finish. */
+    private static final boolean PHASE2 = MODE.equals("phase2");
+    /** -Pautoshot=drive: a boss right here sent to his van; logs the van's heading against where it really goes. */
+    private static final boolean DRIVE = MODE.equals("drive");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -46,6 +51,14 @@ public final class AutoShot {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || mc.getSingleplayerServer() == null) return;
         tick++;
+        if (PHASE2) {
+            phaseTwo(mc);
+            return;
+        }
+        if (DRIVE) {
+            drive(mc);
+            return;
+        }
         switch (tick) {
             case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
                     "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
@@ -134,6 +147,120 @@ public final class AutoShot {
                 shot(mc, "24_driver_seat");
             }
             if (tick == doneAt + 90) mc.stop();
+        }
+    }
+
+    // ------------------------------------------------------------------ the van, watched
+
+    private static Vec3 vanLast;
+
+    private static void drive(Minecraft mc) {
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "time set 5000", "gamerule doDaylightCycle false",
+                    "weather clear 100000", "gamerule doMobSpawning false", "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]",
+                    "tp @s 4000 200 4000", "papon escort true");
+            case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            case 100 -> run("execute at @s rotated 0 0 run papon boss");
+            case 260 -> run("papon bossstate TO_VAN");
+            case 900 -> mc.stop();
+            default -> {}
+        }
+        var van = nearest(mc, com.groid.papon.vehicle.CaravanEntity.class);
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (van == null || b == null) return;
+        if (tick > 260) {
+            mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            lookAt(mc, van);
+        }
+        Vec3 now = van.position();
+        if (vanLast != null && b.getVehicle() == van) {
+            Vec3 d = now.subtract(vanLast);
+            if (d.horizontalDistance() > 0.05 && tick % 4 == 0) {
+                double moving = Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG - 90.0;
+                PaponMod.LOG.info("[autoshot] van client yaw {} body {} moving {} off {} state {}", (int) van.getYRot(), (int) van.yBodyRot,
+                        (int) moving, (int) Mth.wrapDegrees(moving - van.yBodyRot), b.getBossState());
+            }
+            if (tick % 20 == 0) shot(mc, "drive_" + tick);
+        }
+        vanLast = now;
+    }
+
+    // ------------------------------------------------------------------ phase two
+
+    private static int p2Mark = -1;
+    private static int lastState = -1;
+
+    private static void phaseTwo(Minecraft mc) {
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "tp @s 4000 200 4000");
+            case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            case 90 -> run("kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "kill @e[type=papon:foil_potato]");
+            case 100 -> run("execute at @s rotated 0 0 run papon boss");
+            case 300 -> run("papon bossstate IDLE", "execute as @e[type=papon:papon_boss,limit=1,sort=nearest] at @s run tp @p ^ ^ ^3",
+                    "papon bossstate GRAB");
+            case 450 -> run("papon bossstate DASH_COMBO");
+            case 520 -> run("papon bossstate PUNT_RUN");
+            case 650 -> run("papon bossstate P2_KNEEL");
+            default -> {}
+        }
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b == null) return;
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        if (s.ordinal() != lastState) {
+            lastState = s.ordinal();
+            PaponMod.LOG.info("[autoshot] boss -> {}", s);
+        }
+        if (!com.groid.papon.client.Cinematic.isActive()) lookAt(mc, b);
+        if (s == BossState.DASH_COMBO && t == 9) once(mc, "p1_dash");
+        if (s == BossState.DASH_COMBO && t == 38) once(mc, "p1_dash_spin");
+        if (s == BossState.VAN_KICK && t == 9) once(mc, "p1_kick");
+        if (s == BossState.VAN_KICK && t == 20) once(mc, "p1_kick_slide");
+        if (s == BossState.GRAB_COMBO && t == 2) mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+        if (s == BossState.GRAB_COMBO && t == 28) once(mc, "p1_grab_torch");
+        if (s == BossState.GRAB_COMBO && t == 60) once(mc, "p1_grab_salt");
+        if (s == BossState.GRAB_COMBO && t == 82) {
+            once(mc, "p1_grab_thrown");
+            mc.options.setCameraType(CameraType.FIRST_PERSON);
+        }
+        if (s == BossState.P2_KNEEL && t == 18) once(mc, "p2_01_kneel");
+        if (s == BossState.P2_KNEEL && t == 44) once(mc, "p2_02_pov_blood");
+        if (s == BossState.P2_KNEEL && t == 76) once(mc, "p2_03_pov_up");
+        if (s == BossState.P2_TALK && t == 20) once(mc, "p2_04_enough");
+        if (s == BossState.P2_SEASON && t == 30) once(mc, "p2_05_shaker");
+        if (s == BossState.P2_SEASON && t == 50) once(mc, "p2_06_salt_aura");
+        if (s == BossState.P2_SEASON && t == 84) once(mc, "p2_07_golden");
+        if (s == BossState.P2_SCREAM && t == 10) once(mc, "p2_08_scream_in");
+        if (s == BossState.P2_SCREAM && t == 30) once(mc, "p2_09_scream");
+        if (s == BossState.P2_SCREAM && t == 50) once(mc, "p2_10_wings");
+        if (s == BossState.P2_ARRIVE && t == 18) once(mc, "p2_11_arrive");
+        if (s == BossState.P2_ARRIVE && t == 45) once(mc, "p2_12_dome");
+        if (s == BossState.P2_ARRIVE && t == 49 && p2Mark < 0) p2Mark = tick;
+        if (p2Mark > 0) {
+            int k = tick - p2Mark;
+            if (k == 40) once(mc, "p2_13_flying_foils");
+            if (k == 60) run("papon bossstate P2_METEOR");
+            if (s == BossState.P2_METEOR && t == 40) once(mc, "p2_14_meteor");
+            if (k == 150) run("papon bossstate P2_DIVE");
+            if (s == BossState.P2_DIVE && t == 10) once(mc, "p2_15_dive_mark");
+            if (k == 240) run("papon bossstate VAN_GRAB");
+            if (s == BossState.VAN_THROW && t == 26) once(mc, "p2_16_van_lift");
+            if (s == BossState.VAN_THROW && t == 44) once(mc, "p2_17_van_thrown");
+            if (k == 360) run("execute as @e[type=papon:papon_boss,limit=1,sort=nearest] at @s run tp @p ^ ^ ^3");
+            if (k == 364) run("papon bossstate P2_BARRAGE");
+            if (s == BossState.P2_BARRAGE && t == 20) once(mc, "p2_18_barrage");
+            if (k == 440) {
+                mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+                shot(mc, "p2_19_inside_dome");
+            }
+            if (k == 460) {
+                mc.options.setCameraType(CameraType.FIRST_PERSON);
+                run("kill @e[type=papon:papon_boss]");
+            }
+            if (k == 520) once(mc, "p2_20_back_down");
+            if (k == 540) mc.stop();
         }
     }
 

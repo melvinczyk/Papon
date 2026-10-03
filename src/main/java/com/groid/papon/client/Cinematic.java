@@ -136,7 +136,7 @@ public final class Cinematic {
             Shot s = bossShot(boss);
             if (s != null) {
                 subject = boss;
-                return s;
+                return pov != null ? s : unblock(mc, s, boss);
             }
         }
         TacoVendorEntity vendor = mc.level.getEntitiesOfClass(TacoVendorEntity.class, box).stream()
@@ -144,6 +144,82 @@ public final class Cinematic {
         Shot s = vendor == null ? null : vendorShot(vendor);
         if (s != null) subject = vendor;
         return s;
+    }
+
+    /** The state the current fallback angle was picked in, and which one it was (see {@link #unblock}). */
+    private static int unblockState = -1;
+    private static int unblockPick;
+
+    /**
+     * Keeps the subject in view: if a wall, a tree or the van stands between the camera and him, the
+     * same shot from the other side of him, then craned up, then craned up on the other side, then
+     * high above; only if all of those are blocked does the camera come in to just short of whatever
+     * is in the way (never closer than 2.5 blocks). The pick sticks for the rest of the state, so the
+     * camera does not hop between angles.
+     */
+    private static Shot unblock(Minecraft mc, Shot s, PaponBossEntity subject) {
+        int state = subject.getBossState().ordinal();
+        if (unblockState != state) {
+            unblockState = state;
+            unblockPick = 0;
+        }
+        Vec3 f = Vec3.directionFromRotation(0, subject.getYRot());
+        Vec3 right = new Vec3(-f.z, 0, f.x);
+        double side = s.eye().subtract(subject.position()).dot(right);
+        Vec3 mirrored = s.eye().subtract(right.scale(2 * side));
+        Vec3[] options = {s.eye(), mirrored, s.eye().add(0, 3, 0), mirrored.add(0, 3, 0), s.eye().add(0, 6, 0)};
+        for (int i = unblockPick; i < options.length; i++) {
+            if (clear(mc, s.lookAt(), options[i], subject)) {
+                boolean changed = i != unblockPick;
+                unblockPick = i;
+                return i == 0 ? s : new Shot(options[i], s.lookAt(), s.fov(), s.roll(), s.cut() || changed);
+            }
+        }
+        Vec3 eye = options[Math.min(unblockPick, options.length - 1)];
+        Vec3 hit = firstHit(mc, s.lookAt(), eye, subject);
+        Vec3 back = eye.subtract(s.lookAt()).normalize();
+        Vec3 in = hit.subtract(back.scale(0.4));
+        if (in.distanceTo(s.lookAt()) < 2.5) in = s.lookAt().add(back.scale(2.5));
+        return new Shot(in, s.lookAt(), s.fov(), s.roll(), s.cut());
+    }
+
+    private static Vec3 toVan(com.groid.papon.vehicle.CaravanEntity van, Vec3 p) {
+        Vec3 r = p.subtract(van.position());
+        return new Vec3(r.dot(van.left()), r.y, r.dot(van.forward()));
+    }
+
+    private static boolean clear(Minecraft mc, Vec3 from, Vec3 to, Entity subject) {
+        return firstHit(mc, from, to, subject) == to;
+    }
+
+    /** The first block or van between the two points (from the subject outward), or {@code to} if none. */
+    private static Vec3 firstHit(Minecraft mc, Vec3 from, Vec3 to, Entity subject) {
+        Vec3 best = to;
+        double bestD = from.distanceToSqr(to);
+        var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(from, to, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
+        if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS && from.distanceToSqr(hit.getLocation()) < bestD) {
+            best = hit.getLocation();
+            bestD = from.distanceToSqr(best);
+        }
+        for (var van : mc.level.getEntitiesOfClass(com.groid.papon.vehicle.CaravanEntity.class, new AABB(from, to).inflate(4))) {
+            if (van == subject.getVehicle()) continue;
+            // the van's real footprint: its box in van space (x left, z forward), the segment taken there
+            Vec3 lf = toVan(van, from);
+            Vec3 lt = toVan(van, to);
+            AABB box = new AABB(-com.groid.papon.vehicle.CaravanEntity.HALF_WIDTH, 0, -com.groid.papon.vehicle.CaravanEntity.HALF_LENGTH,
+                    com.groid.papon.vehicle.CaravanEntity.HALF_WIDTH, 2.1, com.groid.papon.vehicle.CaravanEntity.HALF_LENGTH);
+            if (box.contains(lf)) continue;
+            var at = box.clip(lf, lt);
+            if (at.isEmpty()) continue;
+            double k = at.get().distanceTo(lf) / Math.max(1e-6, lt.distanceTo(lf));
+            Vec3 world = from.lerp(to, k);
+            if (from.distanceToSqr(world) < bestD) {
+                best = world;
+                bestD = from.distanceToSqr(best);
+            }
+        }
+        return best;
     }
 
     // ------------------------------------------------------------------ the shots
@@ -244,7 +320,9 @@ public final class Cinematic {
                 Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
                 double dist = t < 70 ? 6.5 : 6.5 - Math.min(1, (t - 70) / 12.0) * 2.5;
                 Vec3 lookAt = b.position().add(0, t < 66 ? 2.4 : 1.3, 0);
-                yield new Shot(b.position().add(dir.scale(dist)).add(0, 1.0, 0), lookAt, 58, 0, t == 0);
+                if (t >= 80 && t < 87) flashTarget = 0.85F * (1F - (t - 80) / 7F);
+                yield new Shot(b.position().add(dir.scale(dist)).add(0, 1.0, 0), lookAt, t >= 80 && t < 84 ? 80 : 58,
+                        t >= 80 && t < 90 ? (float) Math.sin(t * 2.1) * 4F : 0, t == 0);
             }
             case P2_SCREAM -> {
                 if (t >= 56) flashTarget = Math.min(1F, (t - 56) / 12F);
@@ -252,7 +330,9 @@ public final class Cinematic {
                 if (t < 40) {
                     double k = Math.min(1, (t - 15) / 8.0);
                     k = 1 - (1 - k) * (1 - k);
-                    yield new Shot(face.add(f.scale(2.2 + k * 7.5)).add(0, 0.2 + k * 1.2, 0), face.add(0, 0.6, 0), 70, (float) Math.sin(t * 1.7) * 3F, false);
+                    // the FOV punches out with the scream, then settles
+                    yield new Shot(face.add(f.scale(2.2 + k * 7.5)).add(0, 0.2 + k * 1.2, 0), face.add(0, 0.6, 0), t < 19 ? 105 : 72,
+                            (float) Math.sin(t * 1.7) * 5F, false);
                 }
                 double orbit = Math.toRadians(30 + (t - 40) * 1.2);
                 Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));

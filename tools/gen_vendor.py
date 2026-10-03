@@ -446,6 +446,23 @@ def baked(im):
     return out
 
 
+def rig_hands(m):
+    """Splits each arm so his reaches do not warp what he holds: the arm bone keeps the pivot (and
+    takes the rotations), its cube moves to a child `arm_*_mesh` (the one that is stretched), and a
+    `hand_*` bone at the fist carries every prop; the animations slide the hand to the end of the
+    stretched arm (gen_boss_anims.stretch) instead of scaling the props with it."""
+    for side, hand in (('r', HAND_R), ('l', HAND_L)):
+        arm = 'arm_' + side
+        i = next(k for k, b in enumerate(m.bones) if b['name'] == arm)
+        a = m.bones[i]
+        mesh = bone(arm + '_mesh', a['pivot'], arm, a.pop('cubes'))
+        h = bone('hand_' + side, hand, arm)
+        for b in m.bones:
+            if b.get('parent') == arm:
+                b['parent'] = 'hand_' + side
+        m.bones[i + 1:i + 1] = [mesh, h]
+
+
 def papon_boss():
     """Chef Papon after the reveal, as the boss: toque and fake mustache gone for good, Norwood 7 out
     in the open, his own thin mustache (the fake one took nothing with it: no marks). Rendered at 1.5x (1.0 in the van) with a
@@ -459,7 +476,10 @@ def papon_boss():
       lighter (left)             for the tequila fire breath
       keys (left)                the van keys, jingled on the way to the van
       giant_shaker (off root)    the huge salt shaker he summons over his head (P2_SEASON)
-    The liquid bones pivot at their bottom, so scaling Y from 1 to 0 empties the bottle.
+      torch (+ torch_flame), salt_shaker (left)
+                                 the grab: blowtorched, then salted (GRAB_COMBO); the flame glows
+    The liquid bones pivot at their bottom, so scaling Y from 1 to 0 empties the bottle. All of these
+    hang off `hand_r` / `hand_l`, not the arm itself (rig_hands), so a stretched arm does not stretch them.
 
     Phase two, "El Papa Horneado" (the main animations pin all of these to scale 0; only the
     second, "form" controller's p2_* animations show them, and the cutscene's show the blood):
@@ -563,6 +583,73 @@ def papon_boss():
         m.box([9.5, -1, 0.5], [1, 2, 0], (214, 176, 70), noise=0.03),
         m.box([9, 0, -2], [2, 2, 1], (30, 30, 30), noise=0.05),                          # the fob
     ]))
+    # ---- the grab (GRAB_COMBO): a kitchen blowtorch, then a salt shaker, both in his left hand
+    # (his right holds you up)
+    def lit(p, f):
+        for r in f.values():
+            x0, y0, x1, y1 = (int(n) for n in r)
+            for x in range(x0, max(x1, x0 + 1)):
+                for y in range(y0, max(y1, y0 + 1)):
+                    p.px[x, y] = (255, 255, 255, 230)
+    # the kitchen blowtorch, hanging from his fist along the arm: the butane can (orange, a white
+    # label, a dark base), the black head with its trigger and gas knob, a collared steel nozzle out
+    # the front, and its flame, a blue cone round a white-blue core (lit: glowmask)
+    def can_paint(p, f):
+        for side in ('front', 'back', 'left', 'right'):
+            x0, y0, x1, y1 = (int(n) for n in f[side])
+            p.fill((x0, y0 + 2, x1, y0 + 4), (244, 240, 230), 0.02)            # the label
+            p.put(x0 + (x1 - x0) // 2, y0 + 3, (200, 40, 30))                  # a flame logo
+            p.fill((x0, y1 - 1, x1, y1), (60, 58, 56), 0.03)                   # the base ring
+            for y in range(y0, y1):
+                p.put(x0, y, (255, 150, 70), 0.04)                            # a highlight down one edge
+
+    def head_paint(p, f):
+        x0, y0, x1, y1 = (int(n) for n in f['front'])
+        p.put(x0 + 1, y0 + 1, (90, 90, 96))
+    m.add(bone('torch', HAND_L, 'arm_l', [
+        m.box([8.5, -5, -1.5], [3, 7, 3], (232, 96, 34), noise=0.05, extra=can_paint),
+        m.box([8.3, -5.6, -1.7], [3.4, 0.6, 3.4], (52, 50, 48), noise=0.03),          # base ring under the head
+        m.box([8.5, -8, -2.5], [3, 2.5, 4.5], (30, 30, 34), noise=0.04, extra=head_paint),
+        m.box([9.5, -7, -3.5], [1, 2, 1], (240, 150, 40), noise=0.04),                 # the trigger
+        m.box([11.5, -7.5, -1], [0.6, 1, 1], (196, 200, 210), noise=0.02),            # the gas knob
+        m.box([9.3, -7.7, -4.2], [1.4, 1.4, 1], (110, 112, 118), noise=0.03),         # the collar
+        m.box([9.5, -7.5, -8.5], [1, 1, 4.5], (196, 200, 210), noise=0.03),           # the nozzle
+    ]))
+
+    def blue(c):
+        def paint(p, f):
+            for r in f.values():
+                x0, y0, x1, y1 = (int(n) for n in r)
+                for x in range(x0, max(x1, x0 + 1)):
+                    for y in range(y0, max(y1, y0 + 1)):
+                        p.px[x, y] = (255, 255, 255, c)
+        return paint
+    m.add(bone('torch_flame', [10, -7, -8.5], 'torch', [
+        m.box([9.6, -7.4, -12], [0.8, 0.8, 3.5], (230, 244, 255), noise=0.02, glow=blue(255)),   # the core
+        m.box([9, -8, -11], [2, 2, 2.5], (70, 130, 255), noise=0.06, glow=blue(170)),          # the cone
+        m.box([9.3, -7.7, -13], [1.4, 1.4, 2], (110, 170, 255), noise=0.06, glow=blue(150)),
+        m.box([9.6, -7.4, -14.5], [0.8, 0.8, 1.5], (150, 200, 255), noise=0.06, glow=blue(120)),  # the tip
+    ]))
+
+    def shaker_salt(p, f):
+        glassy(GLASS, 90, 200)(p, f)
+        for side in ('front', 'back', 'left', 'right'):
+            x0, y0, x1, y1 = (int(n) for n in f[side])
+            for y in range(y0 + 2, y1 - 1):
+                for x in range(x0 + 1, x1 - 1):
+                    p.px[x, y] = (246, 246, 242, 255) if p.rng.random() < 0.85 else (226, 226, 222, 255)
+            p.fill((x0, y0 + 1, x1, y0 + 2), (60, 110, 190), 0.03)
+
+    def shaker_holes(p, f):
+        x0, y0, x1, y1 = (int(n) for n in f['bottom'])
+        for y in range(y0 + 1, y1 - 1, 2):
+            for x in range(x0 + 1, x1 - 1, 2):
+                p.put(x, y, (40, 40, 44))
+    m.add(bone('salt_shaker', HAND_L, 'arm_l', [
+        m.box([8, -5, -2], [4, 7, 4], GLASS, extra=shaker_salt),
+        m.box([7.8, -7, -2.2], [4.4, 2, 4.4], (196, 200, 210), noise=0.04, extra=shaker_holes),
+    ]))
+
     # ---- the seasoning (P2_SEASON): a huge salt shaker he summons over his head, upside down, cap
     # first, that shakes itself over him. Off the root, so it hangs in the air whatever he does
     def salt(p, f):
@@ -586,6 +673,7 @@ def papon_boss():
         m.box([-7.5, 40, -7.5], [15, 4, 15], (196, 200, 210), noise=0.04, extra=holes),
     ]))
 
+    rig_hands(m)
     out = m.save()
     base = os.path.join(ASSETS, 'textures/entity/')
     baked(Image.open(base + 'papon_boss.png').convert('RGBA')).save(base + 'papon_boss_baked.png')

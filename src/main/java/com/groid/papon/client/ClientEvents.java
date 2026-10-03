@@ -37,6 +37,35 @@ public final class ClientEvents {
         ScreenShake.apply(event);
     }
 
+    /** The sky turns while he transforms: gold as the salt comes down, then blood-orange through the scream. */
+    @SubscribeEvent
+    public static void onFogColor(ViewportEvent.ComputeFogColor event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) return;
+        var boss = mc.level.getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class, mc.player.getBoundingBox().inflate(64)).stream()
+                .findFirst().orElse(null);
+        if (boss == null) return;
+        var s = boss.getBossState();
+        float t = boss.ticksInState() + (float) event.getPartialTick();
+        float k;
+        float r, g, b;
+        if (s == com.groid.papon.boss.BossState.P2_SEASON) {
+            k = Math.min(1F, Math.max(0, (t - 10) / 30F)) * 0.6F;
+            r = 1.0F; g = 0.78F; b = 0.32F;
+        } else if (s == com.groid.papon.boss.BossState.P2_SCREAM) {
+            k = 0.75F;
+            r = 0.85F; g = 0.22F; b = 0.08F;
+        } else if (s == com.groid.papon.boss.BossState.P2_KNEEL || s == com.groid.papon.boss.BossState.P2_TALK) {
+            k = Math.min(1F, t / 40F) * 0.35F;
+            r = 0.25F; g = 0.05F; b = 0.05F;
+        } else {
+            return;
+        }
+        event.setRed(event.getRed() + (r - event.getRed()) * k);
+        event.setGreen(event.getGreen() + (g - event.getGreen()) * k);
+        event.setBlue(event.getBlue() + (b - event.getBlue()) * k);
+    }
+
     @SubscribeEvent
     public static void onFov(ViewportEvent.ComputeFov event) {
         if (Cinematic.isActive()) event.setFOV(Cinematic.fov());

@@ -520,6 +520,17 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         }
     }
 
+    /**
+     * Driven by someone else (Chef Papon, another player), the van takes each server update whole
+     * instead of easing toward it over three ticks: it gets one every tick, and the vanilla easing
+     * cuts the corners of every turn while the body still points the old way, so it looked like it
+     * was crabbing along diagonally. Rendering still interpolates between ticks.
+     */
+    @Override
+    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps, boolean teleport) {
+        super.lerpTo(x, y, z, yRot, xRot, isControlledByLocalInstance() ? steps : 1, teleport);
+    }
+
     @Override
     protected void tickRidden(Player player, Vec3 input) {
         super.tickRidden(player, input);
@@ -592,6 +603,13 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             Vec3 pipe = local(-0.7, 0.25, -HALF_LENGTH - 0.1);
             level.sendParticles(ParticleTypes.SMOKE, pipe.x, pipe.y, pipe.z, 1, 0.02, 0.02, 0.02, 0.01);
         }
+        if (com.groid.papon.entity.WanderingPaponEntity.debugEscort && driver instanceof PaponBossEntity && tickCount % 4 == 0
+                && planar.horizontalDistance() > 0.05) {
+            double heading = getYRot();
+            double moving = Mth.atan2(planar.z, planar.x) * Mth.RAD_TO_DEG - 90.0;
+            com.groid.papon.PaponMod.LOG.info("[debug] van server yaw {} moving {} off {} speed {} sliding {}", (int) heading, (int) moving,
+                    (int) Mth.wrapDegrees(moving - heading), String.format("%.2f", planar.horizontalDistance()), isSliding());
+        }
         if (isSliding() || wasSliding) {
             if (planar.horizontalDistance() > 0.16) slideOver(level, driver);
             if (planar.horizontalDistance() > 0.3) tyreSmoke(level);
@@ -628,7 +646,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box,
                 e -> e != this && e.isAlive() && !hasPassenger(e) && !(e instanceof CaravanEntity))) {
             if (e instanceof Player p && (p.isSpectator() || p.isCreative())) continue;
-            if (e instanceof TacoNpc || e instanceof WanderingPaponEntity) continue;
+            if (e instanceof TacoNpc || e instanceof WanderingPaponEntity || e instanceof com.groid.papon.boss.FoilPotatoEntity) continue;
             if (hitCooldown.containsKey(e.getId())) continue;
             Vec3 r = e.position().subtract(position());
             double along = r.x * f.x + r.z * f.z;
@@ -651,7 +669,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box,
                 e -> e != this && e.isAlive() && !hasPassenger(e) && !(e instanceof CaravanEntity))) {
             if (e instanceof Player p && (p.isSpectator() || p.isCreative())) continue;
-            if (e instanceof TacoNpc || e instanceof WanderingPaponEntity || e instanceof PaponBossEntity) continue;
+            if (e instanceof TacoNpc || e instanceof WanderingPaponEntity || e instanceof PaponBossEntity
+                    || e instanceof com.groid.papon.boss.FoilPotatoEntity) continue;
             if (hitCooldown.containsKey(e.getId())) continue;
             Vec3 r = e.position().subtract(position());
             double along = r.x * f.x + r.z * f.z;

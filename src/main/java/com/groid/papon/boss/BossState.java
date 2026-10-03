@@ -22,6 +22,7 @@ package com.groid.papon.boss;
  *                                                              playing around", a giant salt shaker salts him and he
  *                                                              bakes golden, the scream, the potato dome; he flies
  *                                                              from here on)
+ * IDLE --> GRAB [--> GRAB_COMBO [--> CHARGE_WINDUP]] --> IDLE  (grabs you: blowtorch, salt, the throw)
  * IDLE --> P2_BARRAGE | P2_METEOR | P2_DIVE --> IDLE          (phase two: hands, meteors, dive bombs)
  * IDLE --> VAN_GRAB --> VAN_THROW --> IDLE                    (phase two: flies to the van, throws it)
  * (SLAM is no longer chosen; LEAP replaced it. PHASE is the old half-health roar, no longer used)
@@ -73,7 +74,10 @@ public enum BossState {
     VAN_GRAB(0),
     VAN_THROW(52),
     P2_DIVE(0),
-    P2_SEASON(100);
+    P2_SEASON(100),
+    // phase one: the grab (Ignis-style, no getting out): blowtorched, salted (Brittle), thrown
+    GRAB(0),
+    GRAB_COMBO(90);
 
     public final int duration;
 

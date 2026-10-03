@@ -138,9 +138,45 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         return 0;
     }
 
+    /** How strong the light rays bursting out of him are: when he bakes golden, and through the scream. */
+    private static float rays(PaponBossEntity boss, float partialTick) {
+        BossState s = boss.getBossState();
+        float t = boss.ticksInState() + partialTick;
+        if (s == BossState.P2_SEASON && t > 72) return Math.max(0, 1F - Math.abs(t - 82) / 12F);
+        if (s == BossState.P2_SCREAM && t > 12) return t < 22 ? (t - 12) / 10F : t < 50 ? 1F : Math.max(0, 1F - (t - 50) / 14F);
+        return 0;
+    }
+
+    private static final float HALF_SQRT_3 = (float) (Math.sqrt(3.0) / 2.0);
+
+    /** Golden shafts of light out of his middle in every direction, turning (the dragon's death, his way). */
+    private static void drawRays(PoseStack pose, MultiBufferSource buffers, float k, float time, float height) {
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(1945L);
+        pose.pushPose();
+        pose.translate(0, height, 0);
+        int n = 10 + (int) (k * 34);
+        for (int i = 0; i < n; i++) {
+            pose.mulPose(com.mojang.math.Axis.XP.rotationDegrees(r.nextFloat() * 360F));
+            pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(r.nextFloat() * 360F));
+            pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(r.nextFloat() * 360F + time * 1.5F));
+            float len = (r.nextFloat() * 6F + 3F) * (0.5F + 0.5F * k);
+            float w = (r.nextFloat() * 0.9F + 0.35F) * k;
+            org.joml.Matrix4f m = pose.last().pose();
+            int a = (int) (230 * Math.min(1F, k * 1.4F));
+            vc.vertex(m, 0, 0, 0).color(255, 246, 200, a).endVertex();
+            vc.vertex(m, -HALF_SQRT_3 * w, len, -0.5F * w).color(255, 170, 40, 0).endVertex();
+            vc.vertex(m, 0, len * 1.08F, w).color(255, 210, 90, 0).endVertex();
+            vc.vertex(m, HALF_SQRT_3 * w, len, -0.5F * w).color(255, 170, 40, 0).endVertex();
+        }
+        pose.popPose();
+    }
+
     @Override
     public void render(PaponBossEntity entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         super.render(entity, yaw, partialTick, pose, buffers, light);
+        float k = rays(entity, partialTick);
+        if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
         SpeechBubble.render(entity, entity.getSpeech(), 0.4F, pose, buffers, light, entityRenderDispatcher);
     }
 }

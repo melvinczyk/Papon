@@ -219,5 +219,15 @@
   "entity.papon.foil_potato": "Foil-Wrapped Potato",
   "block.papon.potato_skin": "Potato Skin",
   "block.papon.potato_flesh": "Potato Flesh",
-  "block.papon.potato_eye": "Potato Eye"
+  "block.papon.potato_eye": "Potato Eye",
+  "effect.papon.brittle": "Brittle",
+  "speech.papon.boss.grab": "¡TE TENGO!",
+  "speech.papon.boss.grab.gloss": "GOT YOU!",
+  "speech.papon.boss.torch": "Bien doradito...",
+  "speech.papon.boss.torch.gloss": "Nice and golden...",
+  "speech.papon.boss.season": "...¡y una pizca de sal!",
+  "speech.papon.boss.season.gloss": "...and a pinch of salt!",
+  "speech.papon.boss.toss": "¡A LA PARRILLA!",
+  "speech.papon.boss.toss.gloss": "ON THE GRILL!",
+  "status.papon.brittle": "Salted! Your armor is brittle."
 }

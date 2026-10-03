@@ -15,6 +15,11 @@ public class FoilPotatoRenderer extends GeoEntityRenderer<FoilPotatoEntity> {
     }
 
     @Override
+    public boolean shouldShowName(FoilPotatoEntity entity) {
+        return entity.hasCustomName() && super.shouldShowName(entity);
+    }
+
+    @Override
     protected void applyRotations(FoilPotatoEntity entity, com.mojang.blaze3d.vertex.PoseStack pose, float ageInTicks, float yaw, float partialTick) {
         pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-(ageInTicks + partialTick) * 6F));
     }
