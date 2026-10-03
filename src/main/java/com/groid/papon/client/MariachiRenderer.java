@@ -40,7 +40,8 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
                 if (k <= 0) return;
                 float time = m.tickCount + partialTick;
                 RenderType swirl = RenderType.energySwirl(AURA, (time * 0.011F) % 1F, (time * -0.017F) % 1F);
-                for (float grow : new float[]{1.06F, 1.13F}) {
+                // two shells standing off him, faint enough that his face (the lip sync) reads through
+                for (float grow : new float[]{1.09F, 1.17F}) {
                     pose.pushPose();
                     pose.translate(0, 0.8, 0);
                     pose.scale(grow, grow, grow);
@@ -64,7 +65,7 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
         double t = SongPlayer.songTime(partialTick);
         float v = song == null || Double.isNaN(t) ? 0 : song.voiceAt(t);
         float pulse = 0.88F + 0.12F * net.minecraft.util.Mth.sin((m.tickCount + partialTick) * 0.4F);
-        return (0.45F + 0.55F * v) * pulse;
+        return (0.22F + 0.33F * v) * pulse;
     }
 
     @Override

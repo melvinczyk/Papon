@@ -114,7 +114,7 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
 
     /** The strumming hand, down and up on the eighths, as hard as the guitars are hitting. */
     private void strum(float strum, double beat) {
-        float amp = 8 + 26 * Mth.clamp(strum, 0, 1);
+        float amp = 5 + 15 * Mth.clamp(strum, 0, 1);       // the hand stays over the soundhole, under his mouth
         float swing = (float) Math.sin(Math.PI * 2 * 2 * beat);
         rot(bone("arm_r"), amp * swing, 0, 0);
     }

@@ -454,9 +454,9 @@ public final class Cinematic {
                 double k = t < 34 ? 0 : Math.min(1, (t - 34) / 30.0);
                 k = k * k * (3 - 2 * k);
                 Vec3 look = guitar.lerp(sf, k);
-                Vec3 eye = guitar.add(stageFacing.scale(1.6 - Math.min(1, t / 30.0) * 0.5)).add(stageSide.scale(0.9)).add(0, 0.1, 0)
-                        .lerp(sf.add(stageFacing.scale(2.6)).add(stageSide.scale(1.0)).add(0, -0.5, 0), k);
-                return new Shot(eye, look, 40, 0, t == 0);
+                Vec3 eye = guitar.add(stageFacing.scale(2.9 - Math.min(1, t / 30.0) * 0.7)).add(stageSide.scale(1.3)).add(0, 0.5, 0)
+                        .lerp(sf.add(stageFacing.scale(3.0)).add(stageSide.scale(1.0)).add(0, -0.4, 0), k);
+                return new Shot(eye, look, 46, 0, t == 0);
             }
             case P2_APOLOGY -> {
                 if (t < 50) {

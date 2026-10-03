@@ -332,10 +332,13 @@ public final class AutoShot {
             var singer = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(80),
                     m -> m.getRole().singer()).stream().findFirst().orElse(null);
             if (k == 5) PaponBossEntity.devFrozen = true;
+            if (k == 8) run("gamemode spectator");
             if (singer != null && k == 10) {
+                // eye level with his mouth, a little to his left, so the mic is not in the way
                 Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
-                Vec3 at = singer.position().add(f.scale(3.2)).add(0, 0.4, 0);
-                tpLook(at, singer.position().add(0, 1.5, 0));
+                Vec3 side = new Vec3(-f.z, 0, f.x);
+                Vec3 mouth = singer.position().add(0, singer.getBbHeight() * 0.6, 0);
+                tpLook(mouth.add(f.scale(2.4)).add(side.scale(0.8)).add(0, -1.5, 0), mouth);
             }
             if (k >= 20 && k <= 80 && k % 6 == 2) shot(mc, "c3" + String.format("%02d", k) + "_singing");
             if (k == 90) run("tp @s ~ ~ ~ 0 0");

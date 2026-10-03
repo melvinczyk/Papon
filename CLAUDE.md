@@ -70,6 +70,19 @@ quality throughout."
      everything is potato blocks**. He **looks stronger and can fly**. The user rejected: pink sprout arms,
      spectral hands, tortilla wings, red glowing eyes, a direct copy of the Spiritcaller, white splits on
      his sides, too dark a bake. Phase-two parts must never show in phase-one animations.
+   - **Phase two's arena, overhauled (2026-10-03, see "El Coliseo Papa" below):** the dome is gone. His
+     pocket dimension is **a Roman coliseum themed on potatoes and on him**, his own arena where he fights
+     challengers, its stands **full of Papon-like fans cheering him on against the player**. Teleported in,
+     he is all excited to go on, but **the mariachi band is asleep**: he goes over and **wakes them**; they
+     (a **full mariachi band of Papons, some taller and fatter than others**) **slowly get up, put their
+     hats and jackets on and grab their instruments**; the **singer counts them off** and they play.
+     The song is **"Canción del Mariachi" (Antonio Banderas & Los Lobos)**, the user's own copy, dropped at
+     `tools/src/song/` (gitignored; never download it from YouTube). The singer has a **microphone**, his
+     **lips and mouth lip-sync the song** (the Papon's mouth is the brown bar low on his body), he **looks
+     really cool with an aura**; the intro starts with **a zoom in on his guitar playing**. Chef Papon then
+     **apologises for his poor hospitality and taking so long, aura farms, and says "where were we?"**;
+     **the fight starts when the singer starts singing**. The song **loops for the whole fight**, its
+     **highs and lows following the state of the battle**.
 8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
    separate entity, just more Papon animations (the llama lives in his model) — across rivers,
    lakes and oceans.
@@ -127,7 +140,10 @@ player and were not exercised headless.
 | EDP445 fist bump: right-click him empty-handed; a second "gesture" animation controller over his current one | `TacoCustomerEntity.mobInteract/tickBump`, `gen_celeb_anims.edp_fistbump` |
 | Disguise: the vendor wears an obviously fake costume mustache (glue strip, price tag) over his own thin one (`real_stache`, also on the boss); brows raised 0.5 px and `gen_anims.guard_brows` keeps every animation off the eyes | `tools/gen_vendor.py`, `tools/gen_anims.py` |
 | Phase two "El Papa Horneado": cutscene (kneel/POV blood/talk/season/scream/arrive), baked texture swap, fry wings + fry crown + butter on a second "form" animation controller, seasoning aura, flight, barrage/meteors/dive bombs/van throw | `boss/PaponBossEntity.java` (`tickKneel..tickArrive`, `animateForm`), `client/BossRenderer.java`, `client/Cinematic.phaseTwoShot`, `tools/gen_vendor.py` (`phase_two`, `baked`, `aura`), `tools/gen_boss_anims.py` (`b_p2_*`, class `F`) |
-| The potato dome ("La Dimensión Papa"): built in the sky over the arena into air only, everyone pulled up, torn down and sent home after; strays put back on the ground at login | `boss/PotatoDome.java`, `registry/ModBlocks.java`, `tools/gen_blocks.py` |
+| El Coliseo Papa (replaces the potato dome): a potato-travertine Roman coliseum built in the sky over the fight into air only, unbreakable blocks, a player-only railing over the podium, everyone pulled up, torn down and sent home after his fall; strays put back on the ground at login | `boss/Coliseum.java`, `block/*`, `registry/ModBlocks.java`, `tools/gen_blocks.py` |
+| The crowd: hundreds of Papon fans in the stands, one entity drawn in one pass (frustum-culled, back faces skipped, procedural poses per mood and on the song's beat); synthesized crowd noise | `boss/ColiseumCrowdEntity.java`, `boss/CrowdMood.java`, `client/ColiseumCrowdRenderer.java`, `client/CrowdSounds.java`, `tools/gen_band.py` (`arena_fan`), `tools/gen_crowd.py` |
+| The mariachi band: ten Papons (singer with mic, guitar and aviators; 3 trumpets, 3 violins, guitar, vihuela, guitarron), asleep → woken → dressed → playing; lip sync, strums and bowing from the song's data | `boss/MariachiEntity.java`, `BandRole.java`, `BandState.java`, `client/MariachiModel.java`, `client/MariachiRenderer.java`, `tools/gen_band.py`, `tools/gen_band_anims.py` |
+| The song: "Canción del Mariachi" cut into bar-aligned segments with energy levels; Rhubarb lip sync, vocal loudness/pitch and guitar strums; the adaptive score | `tools/gen_song.py`, `assets/papon/song/cancion.json`, `boss/Song.java`, `client/SongPlayer.java` |
 | Foil-potato shields (phase two): orbit him, he takes a third of every hit while any is left, rewrapped 45 s after the last breaks | `boss/FoilPotatoEntity.java`, `client/FoilPotatoRenderer.java`, `gen_vendor.foil_potato` |
 | The grab (Ignis-style, no escape, he is invincible through it): lunge → held in his fist (his passenger; `GrabHold` cancels the dismount) → blowtorched → salted (**Brittle**: armor and armor toughness −30% for 20 s) → hurled, half the time straight into a charge | `PaponBossEntity` (`tickGrab`, `tickGrabCombo`, `positionRider`), `effect/BrittleEffect.java`, `registry/ModEffects.java`, `gen_ui.brittle_icon` |
 | Props never warp: arms split into `arm_*` (rotations) + `arm_*_mesh` (the stretched cube) + `hand_*` (slides to the end of the stretch, carries every prop) | `gen_vendor.rig_hands`, `gen_boss_anims.stretch` |
@@ -241,11 +257,73 @@ player and were not exercised headless.
   impact + fire), P2_DIVE (three dive bombs; DATA_FLYING false while diving picks the dive anim), VAN_GRAB →
   VAN_THROW 52t (van `setCarried`, placed over his head, `launch`ed at t36, `vanImpact` on landing),
   LEAP replaced by the dive. Three foil potatoes orbit him.
-- Dome: `PotatoDome.plan` puts the floor at build limit − radius − 6 (radius 30, ≥ 18 or no dome) over the
-  arena; `groundY` and the van's `setFloor` use its floor (the heightmap there is its roof). Comes down on
-  death (before the loot drops), removal, or 10 s with no player in it (`leaveDome`: teardown, then
-  `sendEveryoneHome`: players, van, items, xp, him, to the same offset from the arena on the ground). If
-  he is risen with no dome and finds a target again, he screams it back up.
+- The dome is gone: see "El Coliseo Papa" below. (Old saves with a dome tear it down on load.)
+
+### El Coliseo Papa (status 2026-10-03: built; checked with `./gradlew runClient -Pautoshot=coliseum`)
+- **The building** (`boss/Coliseum`): planned when he kneels (P2_KNEEL t1), built 450 blocks a tick (~40k
+  blocks) while the cutscene runs, finished by the scream. Floor at build limit − 40 (needs ≥ 12 over the
+  highest terrain, or phase two stays on the ground with the old quick arrive). Every ring is an **offset
+  of the sand's ellipse** (`offset(x,z)`: the d with (x/(A+d))² + (z/(B+d))² = 1; A 29, B 21), so rows keep a
+  constant depth. Layout by d: sand (< 0; kerb, a ring, the golden Papon mosaic) · podium 0-2 (6 high,
+  drapes, braziers, the gates at the long ends, **`arena_barrier` above it: collides with players only**,
+  so they stay on the sand; anyone who gets into the stands anyway is put back) · stands 2-18 (rows 0-4,
+  walkway, 6-10 over a 2-block wall, walkway, 12-15; aisles, doorways) · gallery · outer wall 19-21
+  (3 storeys of arches with engaged columns, cornices, gold keystones, flags in some arches, an attic with
+  windows, braziers on top). His box over the band stand (gold floor, throne, canopy), golden statues of
+  him over both gates, the band stand: a half-moon stage against the north wall with a riser.
+  The plan is a pure function of the centre: the teardown regenerates it and removes only planned
+  positions that still hold one of our blocks (`ModBlocks.isArena`: any `papon:` block).
+- **Getting in:** at the end of P2_SCREAM `enterArena`: players to `playerSpot` (south half, facing north),
+  the van to `vanSpot`, him 12 up over the middle; the crowd entity and the band (asleep) are spawned
+  (`populate`). `DATA_ARENA` (`inColiseum()`) is synced. Comes down at the end of his DEATH animation (so
+  the band can play the ending as he falls), on removal, or 10 s with nobody in it. Back for more (he finds
+  a target again): it goes up again and the band, already woken, just plays.
+- **The beats** (`BossState`, all cutscene: invulnerable, `Cinematic.coliseumShot`): P2_ARRIVE 100t (drops in,
+  superhero landing t36, crowd ROAR, title "EL COLISEO PAPA" t40, "¿ESTÁN LISTOS?" t46, points at the stand
+  "¡MÚSICA, MAESTRO!" t74, crowd HUSH t86) → P2_NOTICE 60t ("...¿Maestro?", fumes) → P2_MARCH (to
+  `standFront`) → P2_WAKE 70t (comal + spatula: clangs t17/32/42, the band jolts awake at t17,
+  "¡¡DESPIERTEN, FLOJOS!!") → P2_WAIT (foot tapping, "Un momentito..."; walks over to the dozing guitarron)
+  ⇄ P2_KICK 30t (boots his chair t12) → (all READY) P2_COUNT 80t (the singer counts in; `songStart` = the
+  downbeat tick, synced to the band; crowd CLAP) → band PLAY, fireworks off the walls, crowd ROAR →
+  P2_SHOWTIME 70t (the guitar close-up) → P2_APOLOGY 178t (walks over, "My apologies, amigo..." t30, aura farm
+  from t110: half turned away, wings opening (`p2_form_aura`), hand over his bald head, crowd SWOON) →
+  P2_RESUME ("...Now. Where were we?") → IDLE exactly at `songStart + Song.fightStartTicks()` (two passes of
+  the guitar intro = the first sung word).
+- **The band** (`MariachiEntity`, a TacoNpc: nothing hurts or moves them; `BandRole` by stage place: build
+  width/height, instrument; `BandState`: SLEEP → STARTLE → GETUP → (the guitarron: RESLEEP → SLEEP until
+  kicked) → JACKET → HAT → (singer: SHADES) → GRAB → READY → COUNT (singer) → PLAY → BOW at his fall).
+  Model `mariachi` (`gen_band.py`): the wkcr rig split like the boss's (rig_hands); **the painted mouth bar is
+  removed** and rebuilt as a lip rig (`mouth` width > `lip_up`, `lip_low`, `mouth_in`, `teeth`, `tongue`);
+  eyelids; jacket/sleeves/sombrero on, or `jacket_chair`/`sombrero_floor` off; `chair` and the `*_floor`
+  instruments are top-level bones (they stay put). Instrument cubes are built around (0,0,0) and moved to
+  their pivot (`placed`): geo cube origins are absolute. `MariachiRenderer` hides every instrument but the
+  role's, scales the build, draws the singer's gold aura (the boss's energy swirl) and light rays in the
+  climax. Animations `gen_band_anims.py`; **the play loops key every bone `MariachiModel` adds to**
+  (GeckoLib leaves unkeyed bones as they were, so additions would pile up frame after frame).
+- **The song** (`tools/gen_song.py`, needs `pip install demucs librosa` and Rhubarb Lip Sync in
+  `tools/.cache/rhubarb`): demucs splits vocals/drums/bass/other; Rhubarb (phonetic recogniser: Spanish)
+  reads the vocals into mouth shapes; librosa tracks the beats (~127.5 bpm, it drifts: cut on detected
+  beats, not a fixed grid). Segments (beat indices): intro 0-16 (guitar), verse1 16-64 (mid), break1 64-80
+  (low), verse2 80-128 (mid), solo1 128-144 (mid), solo2 144-176 (high), breakdown 176-192 (low), climax1
+  192-224 (high), climax2 224-248 (high), ending 248-end. Each with a short lead-in/tail so joins crossfade.
+  `cancion.json` also has the vocal loudness and pitch and the guitar onset curve at 25 Hz.
+- **The score** (`client/SongPlayer`, per client): starts from the synced downbeat, the intro twice, then
+  at each segment end the next in the song if it suits the fight, else the nearest that does: **high**
+  under 35% health or in his worst (unstoppable, van, meteors, gravity, dive, QTEs), **low** while he is
+  staggered/stumbling/broken/guarding, **mid** = the song runs on. His death: the song's ending. `songTime()`
+  drives the singer's lips (`MariachiModel.sing`: shapes eased over 70 ms, opened by loudness, brows by
+  pitch), the strums (guitar onsets), bowing and foot taps (beats), trumpets up only in loud parts, and the
+  crowd's chant and claps. `BossMusic` steps aside in the coliseum.
+- **The crowd** (`ColiseumCrowdEntity` at the middle: seed + mood; `Coliseum.seats(seed)` deals ~1300 seats,
+  six in ten taken, clear of aisles, his box and the statues): `ColiseumCrowdRenderer` draws the baked
+  `arena_fan` geo per fan (hats, props, jersey, skin tint, size from the seat's dice), poses from `CrowdMood`
+  blended over 10 ticks, turned toward him (the band stand while HUSH). Moods: the boss sets them (ROAR when
+  he lands one on you, BOO when you hurt him, a CHANT/WAVE/CLAP now and then, GASP/MOURN at his fall).
+  ~100 fps in the dev client with the whole bowl in view. `CrowdSounds`: the murmur loop, one-shots on
+  mood changes, "PA-PÓN!" on every other beat while chanting, a clap per beat while clapping.
+- **Voices:** his new lines (`speech.papon.boss.listos|musica|maestro|despierten|momentito|ay|gordo|apology|
+  resume`) need `tools/gen_voice.py` run **on the Mac** (Rocko); until then they show in his bubble, silent.
+  The band speaks in bubbles with babble, like the Taco Truck crowd.
 
 ### Boss rework (status 2026-10-03, v0.6.0)
 - **Voice:** Chef Papon's lines (vendor + boss) are text-to-speech clips (`tools/gen_voice.py`, macOS `say` Rocko
@@ -639,7 +717,10 @@ near (`summon armor_stand ...`) and logs every state and van leg. `/papon bossst
 **Visual check without a person:** `./gradlew runClient -Pautoshot` quick-plays `run/saves/New World`,
 `client/dev/AutoShot` builds a truck at 4000 4000, plays the fraud, the unmasking and the fight, and
 saves `run/screenshots/papon_*.png` at the key moments (cutscene frames, boss bar, handle, ram,
-stumble, driving), then quits. `-Pautoshot=phase2` instead spawns a boss by the player and shoots the new
+stumble, driving), then quits. `-Pautoshot=coliseum` plays phase two from the kneel through the coliseum,
+the band and the song into the fight, shoots every beat (`papon_c*.png`), the singer up close, the stands,
+the bowl from outside, and logs fps (on Windows the save is `run/saves/papon_shots`, a copy of New World).
+`-Pautoshot=phase2` instead spawns a boss by the player and shoots the new
 phase-one moves (the grab included) and the whole of phase two (cutscene, dome, attacks, the dome coming
 down); `-Pautoshot=drive` sends him to his van and logs its heading against where it really goes, server
 and client. The save it quick-plays is `run/saves/papon_shots`. If the build fails on a namespace

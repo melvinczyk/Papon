@@ -306,7 +306,7 @@ def mariachi():
     sombrero(m, 'sombrero', 'body', [0, 24, 0])
     sombrero(m, 'sombrero_floor', None, [13, 0, 2], at=(13, 0, 2))
     # the instruments, played: strapped to his front (guitars), at his lips (trumpet), on his shoulder (violin)
-    m.add(held('guitar', [0, 2, -11], 'body', guitar_cubes(m, 'guitar'), rotation=[0, 0, 52]))
+    m.add(held('guitar', [0, 0.5, -11.5], 'body', guitar_cubes(m, 'guitar'), rotation=[0, 0, 56]))
     m.add(held('vihuela', [0, 2.5, -11], 'body', guitar_cubes(m, 'vihuela'), rotation=[0, 0, 50]))
     m.add(held('guitarron', [0, -1, -12], 'body', guitar_cubes(m, 'guitarron'), rotation=[0, 0, 44]))
     m.add(held('trumpet', [0, 10.5, -8.4], 'body', trumpet_cubes(m)))
