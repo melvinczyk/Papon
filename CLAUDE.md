@@ -261,7 +261,10 @@ player and were not exercised headless.
 - **Particles:** every FX texture comes from the pack's jars (`tools/gen_particles.py`); billboards fade out right
   in front of the camera. The QTE has a slow-motion vignette + heartbeat.
 - Dev: `-Pautoshot=pose` (boss frozen via `PaponBossEntity.devFrozen`; parry and summon from front/side, echoes);
-  Blockbench currently segfaults loading papon_boss (since the rotated cleaver cubes), so check poses in game.
+  **Blockbench:** never send big files through MCP calls (the 700 KB boss animation file pasted into `risky_eval`
+  segfaulted it): `bb_preview.py` has Blockbench read/write files itself with `require("fs")`; `BB_KEEP=1` skips closing
+  projects. `tools/bb_pose.py` reposes the open project front/side/3-4. The parry angles were solved against the
+  hand's world matrix read from Blockbench (its bone Euler: X and Y flipped, Z as is, order ZYX).
   iCloud makes `* 2`, `* 3` duplicates under build/: `find build -name "* [0-9]" -prune -exec rm -rf {} +`.
 
 ### The Taco Truck line (the boss timer)

@@ -11,7 +11,7 @@ import software.bernie.geckolib.core.object.Color;
 import software.bernie.geckolib.model.DefaultedEntityGeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
-/** His echoes: his own model (1.5x, as he is), see-through and burning red-gold, full bright. */
+/** His echoes: his own model (1.5x, as he is), a see-through gold afterimage, full bright. */
 public class EchoRenderer extends GeoEntityRenderer<PaponEchoEntity> {
     public EchoRenderer(EntityRendererProvider.Context ctx) {
         super(ctx, new DefaultedEntityGeoModel<>(PaponMod.id("papon_boss")));
@@ -28,7 +28,7 @@ public class EchoRenderer extends GeoEntityRenderer<PaponEchoEntity> {
     public Color getRenderColor(PaponEchoEntity echo, float partialTick, int light) {
         float a = echo.presence(partialTick);
         float flicker = 0.85F + 0.15F * net.minecraft.util.Mth.sin((echo.tickCount + partialTick) * 1.7F);
-        return Color.ofRGBA(1.0F, 0.62F * flicker, 0.42F * flicker, 0.55F * a);
+        return Color.ofRGBA(1.0F, 0.88F * flicker, 0.55F * flicker, 0.5F * a);
     }
 
     @Override

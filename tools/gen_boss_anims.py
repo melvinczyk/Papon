@@ -864,10 +864,10 @@ def b_grab_combo():
 
 # ===================================================================== the rework: defence, chef, drunk, QTE
 
-GUARD_R = [-120, -40, 0]        # both fists up in front of his face, crossed at the wrists:
-GUARD_L = [-120, 40, 0]         # the cleavers make an X he looks at you through
-GUARD_BLADE_R = [-135, -15, 135]  # solved on the rig (GeckoLib: X and Z flipped): upright, crossing, flat to you
-GUARD_BLADE_L = [-135, 15, -135]
+GUARD_R = [-100, -22, 0]        # both fists up in front of his face, crossed at the wrists:
+GUARD_L = [-100, 22, 0]         # the cleavers make an X he looks at you through
+GUARD_BLADE_R = [-140, 0, 115]  # solved on the rig (GeckoLib: X and Z flipped): upright, crossing, flat to you
+GUARD_BLADE_L = [-140, 0, -115]
 
 
 def b_guard():
@@ -880,8 +880,8 @@ def b_guard():
           + [(round(0.2 + 0.1 * i, 2), [GUARD_R[0] + (2 if i % 2 else -2), GUARD_R[1], 0]) for i in range(10)], 'lin')
     a.rot('arm_l', [(0, [-20, 0, -24]), (0.12, GUARD_L, 'easeOutBack')]
           + [(round(0.2 + 0.1 * i, 2), [GUARD_L[0] + (-2 if i % 2 else 2), GUARD_L[1], 0]) for i in range(10)], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (0.12, 2.2)])          # the fists in front of his face, crossed
-    stretch(a, 'arm_l', [(0, 1), (0.12, 2.2)])
+    stretch(a, 'arm_r', [(0, 1), (0.12, 2.0)])          # the fists in front of his face, crossed
+    stretch(a, 'arm_l', [(0, 1), (0.12, 2.0)])
     a.rot('torso', [(0, [0, 0, 0]), (0.12, [12, 0, 0], 'easeOutQuad'), (1.2, [12, 0, 0])], 'lin')
     a.pos('root', [(0, [0, 0, 0]), (0.12, [0, -2, 0], 'easeOutQuad'), (1.2, [0, -2, 0])], 'lin')
     for leg, s in (('leg_r', 1), ('leg_l', -1)):

@@ -72,8 +72,10 @@ def open_model(name):
     if anim:
         apath = path_of(ASSETS, 'animations', 'entity', anim + '.animation.json')
         if os.path.exists(apath):
-            content = open(apath).read()
-            ev('Animator.loadFile({path: %s, content: %s}); Animation.all.length' % (json.dumps(apath), json.dumps(content)))
+            # Blockbench reads the file itself: sending a big animation file's text through the MCP call
+            # (the boss's is ~700 KB) segfaults its renderer
+            ev('Animator.loadFile({path: %s, content: require("fs").readFileSync(%s, "utf8")}); Animation.all.length'
+               % (json.dumps(apath), json.dumps(apath)))
 
 
 def shot(view, pos, target):
@@ -164,13 +166,9 @@ def save(names):
     os.makedirs(BB_DIR, exist_ok=True)
     for name in names:
         open_model(name)
-        raw = ev('JSON.stringify(Codecs.project.compile({raw: true}))')
-        data = json.loads(raw)
-        if isinstance(data, str):
-            data = json.loads(data)
+        # Blockbench writes it itself: a big project back through the MCP call can crash it
         path = os.path.join(BB_DIR, name + '.bbmodel')
-        with open(path, 'w', newline='\n') as f:
-            json.dump(data, f, separators=(',', ':'))
+        ev('require("fs").writeFileSync(%s, Codecs.project.compile()); true' % json.dumps(path))
         print(path)
 
 
