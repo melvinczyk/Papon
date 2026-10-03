@@ -1320,18 +1320,21 @@ def b_p2_stomp():
 
 
 def b_p2_gravity():
-    """5.0 s (P2_GRAVITY, 100 t). Arms raised to the Spud Singularity over the arena (0.4 s), pulling
-    with clawed hands as it drags everyone in (1.0-4.0 s), then both arms brought down (4.2 s):
-    it falls."""
-    a = angry(B('p2_gravity', 5.0, 'hold'))
+    """9.0 s (P2_GRAVITY, 180 t: El Gran Meteoro). Up over the middle of the sand, arms flung up to call it
+    down (0.4 s), then clawing at the sky, dragging it lower as the pull drags everyone in (1.0-6.6 s), a last
+    heave back (6.6-7.0) and both arms brought down (7.0 s): it falls; he lands the pose as it hits (7.5)."""
+    a = angry(B('p2_gravity', 9.0, 'hold'))
     for arm, s in (('arm_r', 1), ('arm_l', -1)):
         a.rot(arm, [(0, [-20, 0, 24 * s]), (0.4, [-170, 0, 40 * s], 'easeOutBack')]
-              + [(round(0.6 + 0.2 * i, 2), [-170 + (8 if i % 2 else -8), 0, 40 * s + (6 if i % 2 else 0)]) for i in range(18)]
-              + [(4.0, [-200, 0, 20 * s], 'easeInOutSine'), (4.2, [-40, 0, 20 * s], 'easeInExpo'), (5.0, [-30, 0, 30 * s])], 'lin')
-        stretch(a, arm, [(0, 1), (0.4, 1.5), (4.0, 1.6), (4.2, 1.8, 'easeInExpo'), (5.0, 1)])
-    a.rot('torso', [(0, [0, 0, 0]), (0.4, [-26, 0, 0])] + [(round(0.6 + 0.4 * i, 2), [-26, 0, 4 if i % 2 else -4]) for i in range(9)]
-          + [(4.0, [-30, 0, 0]), (4.2, [30, 0, 0], 'easeInExpo'), (5.0, [0, 0, 0])], 'lin')
-    a.sound(0.3, 'roar').sound(1.0, 'rumble').sound(2.0, 'rumble').sound(3.0, 'rumble').sound(4.2, 'slam')
+              + [(round(0.6 + 0.2 * i, 2), [-170 + (8 if i % 2 else -8), 0, 40 * s + (6 if i % 2 else 0)]) for i in range(30)]
+              + [(6.6, [-170, 0, 40 * s]), (7.0, [-205, 0, 20 * s], 'easeInOutSine'), (7.2, [-40, 0, 20 * s], 'easeInExpo'),
+                 (7.6, [-60, 0, 70 * s], 'easeOutBack'), (9.0, [-40, 0, 50 * s])], 'lin')
+        stretch(a, arm, [(0, 1), (0.4, 1.5), (6.6, 1.6), (7.0, 1.7), (7.2, 1.9, 'easeInExpo'), (7.6, 1.4), (9.0, 1.1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.4, [-26, 0, 0])] + [(round(0.6 + 0.4 * i, 2), [-26, 0, 4 if i % 2 else -4]) for i in range(15)]
+          + [(6.6, [-26, 0, 0]), (7.0, [-34, 0, 0]), (7.2, [32, 0, 0], 'easeInExpo'), (7.6, [-10, 0, 0], 'easeOutBack'), (9.0, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (7.0, [1.06, 1.06, 1.06]), (7.2, [0.9, 1.2, 0.9], 'easeInExpo'), (7.6, [1.08, 0.94, 1.08]),
+                     (9.0, [1, 1, 1])], 'lin')
+    a.sound(0.3, 'roar').sound(1.0, 'rumble').sound(2.5, 'rumble').sound(4.0, 'rumble').sound(5.5, 'rumble').sound(7.2, 'slam')
     return a
 
 

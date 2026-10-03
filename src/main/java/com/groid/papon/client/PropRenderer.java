@@ -100,12 +100,19 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 pose.scale(1.8F, 1.8F * up, 1.8F);
             }
             case GIANT_SPUD -> {
+                // El Gran Meteoro: swells in over 2 s to nearly the width of his coliseum, blazing, rays pouring off it
                 stack = new ItemStack(ModItems.FX_GIANT_SPUD.get());
-                float in = Math.min(1F, age / 20F);
-                float pulse = 1F + 0.04F * Mth.sin(age * 0.5F);
-                pose.mulPose(Axis.YP.rotationDegrees(age * 3F));
-                pose.mulPose(Axis.ZP.rotationDegrees(Mth.sin(age * 0.05F) * 12F));
-                float s = 5F * in * pulse;
+                float in = Math.min(1F, age / 40F);
+                in = in * in * (3 - 2 * in);
+                float pulse = 1F + 0.03F * Mth.sin(age * 0.4F);
+                lit = net.minecraft.client.renderer.LightTexture.FULL_BRIGHT;
+                pose.pushPose();
+                pose.scale(5F, 5F, 5F);
+                BossRenderer.drawRays(pose, buffers, Math.min(1F, age / 30F), age * 0.6F, 0F);
+                pose.popPose();
+                pose.mulPose(Axis.YP.rotationDegrees(age * 1.2F));
+                pose.mulPose(Axis.ZP.rotationDegrees(Mth.sin(age * 0.04F) * 10F));
+                float s = 26F * in * pulse;
                 pose.scale(s, s, s);
             }
             default -> {
@@ -151,7 +158,8 @@ public class PropRenderer extends EntityRenderer<BossProp> {
     /** The mash wave is a ring far wider than its entity: draw it whenever it is near enough to see. */
     @Override
     public boolean shouldRender(BossProp p, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
-        if (p.kind() == BossProp.Kind.MASH || p.kind() == BossProp.Kind.GIANT_SPUD) return p.distanceToSqr(x, y, z) < 96 * 96;
+        if (p.kind() == BossProp.Kind.GIANT_SPUD) return p.distanceToSqr(x, y, z) < 192 * 192;
+        if (p.kind() == BossProp.Kind.MASH) return p.distanceToSqr(x, y, z) < 96 * 96;
         return super.shouldRender(p, frustum, x, y, z);
     }
 

@@ -4444,59 +4444,139 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
      * everyone toward the circle under it (1.0-4.0 s: walk out against it); then it comes down (4.2 s)
      * on everything inside the circle: two fifths of your health through anything.
      */
+    /**
+     * El Gran Meteoro (9 s): he rises over the middle of the sand, arms up, and calls down a potato almost as
+     * big as his coliseum. It swells in high overhead (2 s), blazing, and looms lower and lower while
+     * everything on the sand is dragged toward the middle, harder the closer you are (sprint for the wall);
+     * the sky goes blood-orange. At 7 s he brings his arms down: it falls (0.5 s). The impact is worst under
+     * it (nearly half your health, through armor), less the further out, and three shockwave rings race out
+     * to the walls: jump them.
+     */
     private void tickGravity(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
-        if (isFlying()) hover(target);
         if (t == 1) {
             Vec3 c = arena != null && arena.built() ? arena.centerVec() : (target != null ? target.position() : position());
             spudFloor = new Vec3(c.x, groundY(c), c.z);
-            BossProp spud = BossProp.create(level, BossProp.Kind.GIANT_SPUD, this, spudFloor.add(0, 9, 0)).life(BossState.P2_GRAVITY.duration + 4);
+            BossProp spud = BossProp.create(level, BossProp.Kind.GIANT_SPUD, this, spudFloor.add(0, METEOR_HIGH, 0))
+                    .life(BossState.P2_GRAVITY.duration + 4);
             level.addFreshEntity(spud);
             spudId = spud.getUUID();
-            com.groid.papon.fx.Fx.sigil(level, spudFloor, 6F, 0xF2C24E, 84);
+            com.groid.papon.fx.Fx.sigil(level, spudFloor, 16F, 0xF2C24E, 150);
             say("gravity", 50);
-            level.playSound(null, spudFloor.x, spudFloor.y + 9, spudFloor.z, SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 3.0F, 0.5F);
+            crowdReact(level, CrowdMood.GASP, 60);
+            level.playSound(null, spudFloor.x, spudFloor.y + 20, spudFloor.z, SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 4.0F, 0.4F);
+            level.playSound(null, spudFloor.x, spudFloor.y + 20, spudFloor.z, SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 3.0F, 0.5F);
         }
         if (spudFloor == null) {
             setBossState(BossState.IDLE);
             return;
         }
-        if (t >= 20 && t < 80) {
-            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(26, 8, 26), this::hittable)) {
-                Vec3 to = spudFloor.subtract(e.position()).multiply(1, 0, 1);
-                double d = to.length();
-                if (d < 0.5) continue;
-                double pull = Math.min(0.11, 0.05 + 1.2 / Math.max(d, 1) * 0.05);
-                e.setDeltaMovement(e.getDeltaMovement().add(to.normalize().scale(pull)));
+        // he holds it up from over the middle of the sand
+        setFlying(true);
+        Vec3 perch = spudFloor.add(0, 6, 0).add(Vec3.directionFromRotation(0, getYRot()).scale(-3));
+        Vec3 to = perch.subtract(position());
+        setDeltaMovement(to.lengthSqr() > 0.04 ? to.scale(0.12) : Vec3.ZERO);
+        if (target != null) turnToward(target.position(), 4F);
+        Entity spud = spudId == null ? null : level.getEntity(spudId);
+        if (spud != null && t < METEOR_FALL) {
+            // looming lower and lower
+            double k = Mth.clamp((t - 40) / (double) (METEOR_FALL - 40), 0, 1);
+            spud.setPos(spudFloor.x, spudFloor.y + METEOR_HIGH - (METEOR_HIGH - METEOR_LOW) * k * k, spudFloor.z);
+        }
+        if (t >= 30 && t < METEOR_FALL + 10) {
+            double reach = arena != null ? Coliseum.A + 6 : 34;
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(reach, 12, reach), this::hittable)) {
+                Vec3 in = spudFloor.subtract(e.position()).multiply(1, 0, 1);
+                double d = in.length();
+                if (d < 0.6) continue;
+                // gentle at the wall, a current in the middle: sprinting outward holds you near the edge, not near him
+                double pull = 0.05 + 0.13 * Math.max(0, 1 - d / reach) * Math.min(1, (t - 30) / 30.0);
+                e.setDeltaMovement(e.getDeltaMovement().add(in.normalize().scale(pull)));
                 e.hurtMarked = true;
             }
-            if (t % 10 == 0) com.groid.papon.fx.Fx.shock(level, spudFloor.add(0, 0.1, 0), 6F, 0xF2C24E);
+            if (t % 8 == 0) com.groid.papon.fx.Fx.shock(level, spudFloor.add(0, 0.1, 0), 10F + (t % 24), 0xF2C24E);
+            if (t % 3 == 0) {
+                // dust streaming in from the walls
+                double a = random.nextDouble() * Math.PI * 2;
+                double r = 14 + random.nextDouble() * 12;
+                com.groid.papon.fx.Fx.dust(level, spudFloor.add(Math.cos(a) * r, 0.2, Math.sin(a) * r), 1.5, 3);
+            }
+            if (t % 14 == 0) {
+                double a = random.nextDouble() * Math.PI * 2;
+                bolt(level, spudFloor.add(Math.cos(a) * (Coliseum.B - 2), 0, Math.sin(a) * (Coliseum.B - 2)));
+            }
+            if (t % 20 == 0) level.playSound(null, spudFloor.x, spudFloor.y + 10, spudFloor.z, SoundEvents.ELYTRA_FLYING, SoundSource.HOSTILE, 2.5F, 0.4F);
         }
-        Entity spud = spudId == null ? null : level.getEntity(spudId);
-        if (spud != null && t >= 80 && t <= 84) {
-            double k = (t - 80) / 4.0;
-            spud.setPos(spudFloor.x, spudFloor.y + 9 - 8.4 * k * k, spudFloor.z);
+        if (t == METEOR_FALL - 6) {
+            for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(spudFloor, spudFloor).inflate(48), this::hittable)) {
+                p.displayClientMessage(Component.translatable("status.papon.meteor").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), true);
+            }
         }
-        if (t == 84) {
-            if (spud != null) spud.discard();
-            com.groid.papon.fx.Fx.blast(level, spudFloor.add(0, 0.5, 0), 3.5F);
-            com.groid.papon.fx.Fx.land(level, spudFloor, 7F);
-            com.groid.papon.fx.Fx.chunks(level, spudFloor.add(0, 1, 0), 24, 0.45F, 0xD9AA51, 0.8);
-            PaponNetwork.shake(level, spudFloor, 30, 1.0F, 26);
-            level.playSound(null, spudFloor.x, spudFloor.y, spudFloor.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 3.0F, 0.5F);
-            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(6, 4, 6), this::hittable)) {
-                if (Math.sqrt(e.distanceToSqr(spudFloor.x, e.getY(), spudFloor.z)) > 6 + e.getBbWidth() / 2) continue;
-                if (Mechanics.trueHit(e, 0.4F, this, true)) {
+        if (spud != null && t >= METEOR_FALL && t <= METEOR_FALL + 10) {
+            double k = (t - METEOR_FALL) / 10.0;
+            spud.setPos(spudFloor.x, spudFloor.y + METEOR_LOW - (METEOR_LOW - 3) * k * k, spudFloor.z);
+        }
+        if (t == METEOR_FALL + 10) {
+            com.groid.papon.fx.Fx.flash(level, spudFloor.add(0, 3, 0), 8F);
+            com.groid.papon.fx.Fx.blast(level, spudFloor.add(0, 1, 0), 7F);
+            com.groid.papon.fx.Fx.land(level, spudFloor, 18F);
+            com.groid.papon.fx.Fx.chunks(level, spudFloor.add(0, 3, 0), 70, 0.9F, 0xD9AA51, 1.6);
+            com.groid.papon.fx.Fx.smoke(level, spudFloor.add(0, 2, 0), 12, 4, 3F, 0xEDE6DA);
+            PaponNetwork.shake(level, spudFloor, 72, 1.6F, 44);
+            level.playSound(null, spudFloor.x, spudFloor.y, spudFloor.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 4.0F, 0.4F);
+            level.playSound(null, spudFloor.x, spudFloor.y, spudFloor.z, SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.HOSTILE, 4.0F, 0.5F);
+            level.playSound(null, spudFloor.x, spudFloor.y, spudFloor.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 3.0F, 0.6F);
+            crowdReact(level, CrowdMood.ROAR, 80);
+            for (int i = 0; i < 6; i++) {
+                double a = Math.PI * 2 * i / 6;
+                bolt(level, spudFloor.add(Math.cos(a) * 9, 0, Math.sin(a) * 9));
+            }
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(40, 10, 40), this::hittable)) {
+                double d = Math.sqrt(e.distanceToSqr(spudFloor.x, e.getY(), spudFloor.z));
+                float frac = d < 10 ? 0.45F : d < 18 ? 0.25F : e.onGround() ? 0.10F : 0F;
+                if (frac > 0 && Mechanics.trueHit(e, frac, this, true)) {
                     swingHit = true;
                     Vec3 away = e.position().subtract(spudFloor).multiply(1, 0, 1).normalize();
-                    e.setDeltaMovement(away.scale(1.6).add(0, 0.8, 0));
+                    e.setDeltaMovement(away.scale(d < 10 ? 2.0 : 1.2).add(0, d < 10 ? 1.0 : 0.6, 0));
+                    e.hurtMarked = true;
+                    if (d < 10) Mechanics.stun(e);
+                }
+            }
+            if (spud != null) spud.discard();
+            meteorRings.clear();
+            for (int i = 0; i < 3; i++) meteorRings.add(new double[]{-i * 7.0});
+        }
+        if (t > METEOR_FALL + 10 && !meteorRings.isEmpty()) tickMeteorRings(level);
+        if (t >= BossState.P2_GRAVITY.duration) {
+            spudFloor = null;
+            meteorRings.clear();
+            setFlying(isRisen());
+            setBossState(BossState.IDLE);
+        }
+    }
+
+    private static final int METEOR_HIGH = 44, METEOR_LOW = 20, METEOR_FALL = 140;
+    /** The shockwave rings after the impact: each its radius (starting below 0 to stagger them). */
+    private final List<double[]> meteorRings = new java.util.ArrayList<>();
+    private final java.util.Set<java.util.UUID> ringHit = new java.util.HashSet<>();
+
+    /** Three rings racing out across the sand to the walls: anyone standing where one passes is hit. */
+    private void tickMeteorRings(ServerLevel level) {
+        for (double[] r : meteorRings) {
+            double was = r[0];
+            r[0] += 1.4;
+            if (r[0] <= 0 || was > Coliseum.A + 2) continue;
+            if (was <= 0) ringHit.clear();
+            com.groid.papon.fx.Fx.shock(level, spudFloor.add(0, 0.15, 0), (float) r[0], 0xFFD27A);
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(r[0] + 1, 3, r[0] + 1), this::hittable)) {
+                double d = Math.sqrt(e.distanceToSqr(spudFloor.x, e.getY(), spudFloor.z));
+                if (d < was - 0.8 || d > r[0] + 0.8 || !e.onGround() || !ringHit.add(e.getUUID())) continue;
+                if (Mechanics.trueHit(e, 0.08F, this, true)) {
+                    Vec3 away = e.position().subtract(spudFloor).multiply(1, 0, 1).normalize();
+                    e.setDeltaMovement(away.scale(0.9).add(0, 0.55, 0));
                     e.hurtMarked = true;
                 }
             }
-        }
-        if (t >= BossState.P2_GRAVITY.duration) {
-            spudFloor = null;
-            setBossState(BossState.IDLE);
         }
     }
 

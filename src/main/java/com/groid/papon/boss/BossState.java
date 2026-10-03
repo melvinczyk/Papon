@@ -118,7 +118,7 @@ public enum BossState {
     P2_MASH(50),
     P2_TOT(40),
     P2_SNARE(36),
-    P2_GRAVITY(100),
+    P2_GRAVITY(180),
     // phase two in his coliseum: the band is asleep (see the diagram)
     P2_NOTICE(60),
     P2_MARCH(0),

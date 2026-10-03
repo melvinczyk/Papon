@@ -378,5 +378,6 @@
   "speech.papon.boss2.landed0": "Gracias, gracias... you are TOO kind.",
   "speech.papon.boss2.landed1": "And the crowd... goes WILD!!!",
   "entity.papon.arena_portal": "Way Back to El Coliseo Papa",
-  "status.papon.composure": "He shrugs it off! Raw damage won't do it: beat his mechanics."
+  "status.papon.composure": "He shrugs it off! Raw damage won't do it: beat his mechanics.",
+  "status.papon.meteor": "IT FALLS! Get to the wall and JUMP the shockwaves!"
 }
