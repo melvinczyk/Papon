@@ -187,15 +187,17 @@ def cut_reference(span):
                            '-ac', '1', '-ar', '24000', '-f', 'wav', 'pipe:1'], capture_output=True, check=True).stdout
 
 
-def generate(lines):
-    """Takes for `lines` on the GPU; saved under tools/.cache/voice/takes with what Whisper heard."""
+def generate(lines, more=False):
+    """Takes for `lines` on the GPU; saved under tools/.cache/voice/takes with what Whisper heard. With
+    `more`, TAKES more takes are added to the ones a line already has (new seeds)."""
     os.environ['MODAL_PROFILE'] = MODAL_PROFILE
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import modal
     import voice_modal
     refs = {name: [cut_reference(span), text] for name, (span, text) in REFS.items()}
     meta = json.load(open(meta_path())) if os.path.exists(meta_path()) else {}
-    batch = [dict(id=k, **signature(k)) for k in lines]
+    have = {k: len(meta[k]['takes']) if more and k in meta else 0 for k in lines}
+    batch = [dict(id=k, seed0=have[k], **signature(k)) for k in lines]
     print('cloning %d lines x %d takes on Modal (%s)...' % (len(batch), TAKES, MODAL_PROFILE))
     os.makedirs(os.path.join(CACHE, 'takes'), exist_ok=True)
     with modal.enable_output(), voice_modal.app.run():
@@ -204,10 +206,11 @@ def generate(lines):
         chunks = [batch[i::n] for i in range(n)]
         for result in voice_modal.clone.map([refs] * n, chunks, [TAKES] * n):
             for line, takes in result.items():
-                for old in glob.glob(take_path(line, '*')):
-                    os.remove(old)
-                meta[line] = dict(signature(line), takes=[])
-                for k, t in enumerate(takes):
+                if not have[line]:
+                    for old in glob.glob(take_path(line, '*')):
+                        os.remove(old)
+                    meta[line] = dict(signature(line), takes=[])
+                for k, t in enumerate(takes, start=have[line]):
                     with open(take_path(line, k), 'wb') as f:
                         f.write(t['wav'])
                     meta[line]['takes'].append({'heard': t['heard'], 'seconds': t['seconds'], 'sim': t.get('sim')})
@@ -227,14 +230,25 @@ def clipped(y, sr):
 
 
 def expressiveness(y, sr):
-    """How much the take moves: its pitch range (semitones, robust), loudness swing (dB) and the pauses
-    (0.18 s or more) inside it."""
+    """How much the take moves: its pitch range (semitones between the 10th and 90th percentile, on a
+    median-smoothed track with octave slips thrown out), loudness swing (dB), the pauses (0.18 s or more)
+    inside it, and how bright the voice is (spectral centroid, Hz: a shout is brighter)."""
     import librosa
+    import scipy.signal
     y = librosa.resample(y, orig_sr=sr, target_sr=16000)
     hop = 160
     f0, voiced, _ = librosa.pyin(y, fmin=60, fmax=500, sr=16000, frame_length=1024, hop_length=hop)
-    st = 12 * np.log2(f0[voiced]) if np.count_nonzero(voiced) > 3 else np.zeros(4)
-    rng = float(min(20.0, np.percentile(st, 95) - np.percentile(st, 5)))
+    rng, bright = 0.0, 0.0
+    if np.count_nonzero(voiced) > 8:
+        st = 12 * np.log2(np.where(voiced, f0, np.nan))
+        med = np.nanmedian(st)
+        st = np.where(np.abs(st - med) > 10, np.nan, st)
+        good = st[~np.isnan(st)]
+        if len(good) > 8:
+            good = scipy.signal.medfilt(good, 5)
+            rng = float(np.percentile(good, 90) - np.percentile(good, 10))
+        cent = librosa.feature.spectral_centroid(y=y, sr=16000, n_fft=1024, hop_length=hop)[0][:len(voiced)]
+        bright = float(np.mean(cent[voiced[:len(cent)]]))
     db = 20 * np.log10(librosa.feature.rms(y=y, frame_length=400, hop_length=hop)[0] + 1e-6)
     speech = db > np.percentile(db, 95) - 25
     dyn = float(np.percentile(db, 95) - np.percentile(db[speech], 20)) if speech.any() else 0.0
@@ -244,35 +258,53 @@ def expressiveness(y, sr):
         run = run + 1 if x else 0
         if run == int(0.18 * 16000 / hop):
             pauses += 1
-    return {'range': rng, 'dyn': dyn, 'pauses': pauses}
+    return {'range': rng, 'dyn': dyn, 'pauses': pauses, 'bright': bright}
+
+
+def heard_energy(heard):
+    """What Whisper's transcript gives away about the delivery: exclamation marks, words in capitals, a
+    stretched vowel (a yell)."""
+    caps = sum(1 for w in re.findall(r"[A-Za-z']+", heard) if len(w) > 1 and w.isupper())
+    stretch = max((len(m.group(0)) for m in re.finditer(r'([a-zA-Z])\1{2,}', heard)), default=0)
+    return heard.count('!'), caps, stretch
 
 
 def pick(line, info):
     """The most expressive take that says the line (Whisper), sounds like him and is not cut off."""
-    text = LINES[line][0]
+    text, mood = LINES[line]
     wants_pauses = '...' in text
+    loud = '!' in text
     cands = []
     for k, t in enumerate(info['takes']):
         path = take_path(line, k)
         if not os.path.exists(path):
             continue
-        y, sr = load_mono(path)
-        if 'expr' not in t:
-            t['expr'] = expressiveness(y, sr)
+        if 'expr2' not in t:
+            y, sr = load_mono(path)
+            t['expr2'] = expressiveness(y, sr)
             t['clipped'] = bool(clipped(y, sr))
+        e = t['expr2']
+        excl, caps, stretch = heard_energy(t['heard'])
         err = wer(text, t['heard'])
-        e = t['expr']
-        score = e['range'] + 0.5 * e['dyn'] + (2.0 * min(e['pauses'], 3) if wants_pauses else 0) + 40 * (t.get('sim') or 0)
+        score = e['range'] + 0.4 * e['dyn'] + 40 * (t.get('sim') or 0)
+        if wants_pauses:
+            score += 2.0 * min(e['pauses'], 3)
+        if loud:
+            score += 3.0 * min(excl, 3) + 2.0 * min(caps, 3)
+        if mood in ('shout', 'angry'):
+            score += e['bright'] / 250.0
         if line in NO_CHECK:
-            # the scream / a lone word: whatever Whisper made of it, the fewer words the better, then long and wild
-            err = len(norm(t['heard'])) / 4
-            score += 2 * t['seconds']
-        cands.append((t['clipped'], round(min(err, 0.5) * 4) / 4, -score, k))
+            # the scream / a lone word: whatever Whisper made of it, a yell (a stretched vowel), short of words
+            err = max(0, len(norm(t['heard'])) - 2) / 4
+            score += 4 * min(stretch, 6) + t['seconds']
+        # a line written to be shouted: a take Whisper heard as flat (no "!") only if no take was exclaimed
+        flat = loud and excl == 0 and line not in NO_CHECK
+        cands.append((t['clipped'], round(min(err, 0.5) * 4) / 4, flat, -score, k))
     if not cands:
         return None, None
-    # not cut off first, then said right (to a quarter of the words), then the liveliest
+    # not cut off first, then said right (to a quarter of the words), then exclaimed if it should be, then the liveliest
     best = min(cands)
-    return best[3], best
+    return best[4], best
 
 
 def trim(y, sr, floor_db=-55, lead=0.05, tail=0.25):
@@ -292,20 +324,22 @@ def trim(y, sr, floor_db=-55, lead=0.05, tail=0.25):
     return out
 
 
-def loudness(y, sr, target=-15.0):
-    """One gain for the whole line to an integrated loudness near `target` LUFS (ffmpeg ebur128)."""
+def loudness(y, sr, target=-9.5):
+    """One gain for the whole line to an integrated loudness near `target` LUFS (ffmpeg ebur128), then a
+    limiter, so he sits on top of the band and the crowd (they also duck under him: client/VoiceDuck)."""
     with tempfile.NamedTemporaryFile(suffix='.wav') as f:
         soundfile.write(f.name, y, sr, subtype='PCM_16')
         r = subprocess.run(['ffmpeg', '-hide_banner', '-nostats', '-i', f.name, '-af', 'ebur128', '-f', 'null', '-'],
                            capture_output=True, text=True).stderr
     m = re.findall(r'I:\s+(-?[\d.]+) LUFS', r)
     lufs = float(m[-1]) if m else -20.0
-    g = 10 ** ((target - lufs) / 20)
-    y = y * g
-    peak = np.abs(y).max()
-    if peak > 0.97:
-        y = y * (0.97 / peak)
-    return y
+    with tempfile.TemporaryDirectory() as tmp:
+        a, b = os.path.join(tmp, 'a.wav'), os.path.join(tmp, 'b.wav')
+        soundfile.write(a, y, sr, subtype='FLOAT')
+        subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-i', a, '-af',
+                        'volume=%.2fdB,alimiter=limit=0.94:attack=3:release=60:level=disabled' % (target - lufs), b], check=True)
+        out, _ = soundfile.read(b, dtype='float32')
+    return out[:len(y)] if len(out) >= len(y) else np.pad(out, (0, len(y) - len(out)))
 
 
 def tracks(y, sr):
@@ -368,39 +402,41 @@ def beats(lengths):
     L = lambda k: int(math.ceil(lengths.get(k, 2.0) * 20))
     b = {}
     # on one knee: the chuckle and "You made me... BLEED", then up on "Okay... OKAY. Enough..." and two neck cracks
+    # (every line gets a beat of silence after it: he lets them land)
     b['talk.bleed'] = 6
-    b['talk.enough'] = b['talk.bleed'] + L('bleed') + 6
-    b['talk.end'] = b['talk.enough'] + max(L('enough'), 20) + 22
+    b['talk.enough'] = b['talk.bleed'] + L('bleed') + 24
+    b['talk.rip'] = b['talk.enough'] + max(L('enough'), 24) + 6          # tears his apron off and flings it
+    b['talk.end'] = b['talk.rip'] + 16 + 26
     # the salt, the bake (80), "Mmm... and nice... and GOLDEN!" with a chef's kiss on the last word
     b['season.salt'] = 4
     b['season.golden'] = 84
     b['season.kiss'] = b['season.golden'] + max(20, L('golden') - 16)
-    b['season.end'] = max(100, b['season.golden'] + L('golden') + 8)
+    b['season.end'] = max(100, b['season.golden'] + L('golden') + 16)
     # the scream (15): everyone is pulled up into the coliseum only once it is out of him
-    b['scream.end'] = max(70, 15 + L('scream') + 6)
+    b['scream.end'] = max(70, 15 + L('scream') + 8)
     # the coliseum: down he comes (36), "ARE... YOU... READY?!", then the point at the band stand: "MUSIC, MAESTRO!!!"
     b['arrive.listos'] = 42
-    b['arrive.musica'] = max(74, b['arrive.listos'] + L('listos') + 4)
-    b['arrive.hush'] = b['arrive.musica'] + L('musica') + 4
+    b['arrive.musica'] = max(74, b['arrive.listos'] + L('listos') + 22)
+    b['arrive.hush'] = b['arrive.musica'] + L('musica') + 6
     b['arrive.end'] = max(100, b['arrive.hush'] + 14)
     # nothing. "Maestro...? ...MAESTRO?!", and he fumes
     b['notice.maestro'] = 20
-    b['notice.fume'] = b['notice.maestro'] + L('maestro') + 2
+    b['notice.fume'] = b['notice.maestro'] + L('maestro') + 8
     b['notice.end'] = b['notice.fume'] + 14
     # three clangs on the comal, then the bellow
     b['wake.clang1'], b['wake.clang2'], b['wake.clang3'] = 17, 27, 37
     b['wake.line'] = 42
-    b['wake.end'] = b['wake.line'] + L('despierten') + 10
+    b['wake.end'] = b['wake.line'] + L('despierten') + 16
     # foot tapping: "One moment, amigo..."; only after it does he spot the guitarron asleep again ("Oh... NO!!!")
     b['wait.momentito'] = 22
-    b['wait.ay'] = b['wait.momentito'] + L('momentito') + 6
+    b['wait.ay'] = b['wait.momentito'] + L('momentito') + 24
     # "YOU TOO, GORDO!!!", the boot on the last word
     b['kick.gordo'] = 2
     b['kick.boot'] = max(12, b['kick.gordo'] + L('gordo') - 4)
     b['kick.end'] = b['kick.boot'] + 18
     # the apology as he comes over, then the aura farm until "Now... where... were we?" ends on the first sung word
     b['apology.line'] = 12
-    b['apology.aura'] = b['apology.line'] + L('apology') + 8
+    b['apology.aura'] = b['apology.line'] + L('apology') + 14
     b['resume.line'] = 2
     b['resume.total'] = b['resume.line'] + L('resume') + 8
     song = json.load(open(os.path.join(ASSETS, 'song/cancion.json')))
@@ -447,9 +483,9 @@ def build(meta):
         data['lines'][line] = {'len': round(len(y) / sr, 3), 'mood': mood, 'mouth': mouth,
                                'env': [round(float(v), 3) for v in env], 'pitch': [round(float(v), 2) for v in pitch],
                                'accent': [round(float(v), 3) for v in acc]}
-        e = info['takes'][k]['expr']
-        report.append('%-10s %5.2fs take %d  range %4.1f dyn %4.1f pauses %d%s | %s' % (
-            line, len(y) / sr, k, e['range'], e['dyn'], e['pauses'], '  CLIPPED' if key[0] else '', info['takes'][k]['heard']))
+        e = info['takes'][k]['expr2']
+        report.append('%-10s %5.2fs take %d  range %4.1f dyn %4.1f pauses %d bright %4d%s | %s' % (
+            line, len(y) / sr, k, e['range'], e['dyn'], e['pauses'], e['bright'], '  CLIPPED' if key[0] else '', info['takes'][k]['heard']))
     json.dump(meta, open(meta_path(), 'w'), indent=1)          # with the expressiveness, for next time
     data['beats'] = beats({k: v['len'] for k, v in data['lines'].items()})
     report.append('beats: ' + json.dumps(data['beats']))
@@ -470,6 +506,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--redo', default='', help='comma-separated lines to take again')
     ap.add_argument('--build', action='store_true', help='only build from cached takes')
+    ap.add_argument('--more', default='', help='comma-separated lines to give TAKES more takes (keeping theirs)')
     a = ap.parse_args()
     meta = json.load(open(meta_path())) if os.path.exists(meta_path()) else {}
     if not a.build:
@@ -479,6 +516,8 @@ def main():
                 or not all(os.path.exists(take_path(l, k)) for k in range(len(meta[l]['takes'])))]
         if todo:
             meta = generate(todo)
+        if a.more:
+            meta = generate([s for s in a.more.split(',') if s], more=True)
     build(meta)
 
 

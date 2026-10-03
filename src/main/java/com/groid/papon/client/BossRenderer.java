@@ -178,9 +178,19 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
 
     @Override
     public void render(PaponBossEntity entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
-        super.render(entity, yaw, partialTick, pose, buffers, light);
+        super.render(entity, yaw, partialTick, pose, buffers, keyLight(entity, light));
         float k = rays(entity, partialTick);
         if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
         SpeechBubble.render(entity, entity.getSpeech(), 0.4F, pose, buffers, light, entityRenderDispatcher);
+    }
+
+    /**
+     * A key light on him through the phase-two cutscene on the ground: his coliseum is going up right over
+     * the fight, and its shadow would leave his face (and his lines) in the dark.
+     */
+    private static int keyLight(PaponBossEntity b, int light) {
+        if (!b.isPhaseTwo() || b.inColiseum() || !b.getBossState().cutscene()) return light;
+        return net.minecraft.client.renderer.LightTexture.pack(Math.max(13, net.minecraft.client.renderer.LightTexture.block(light)),
+                net.minecraft.client.renderer.LightTexture.sky(light));
     }
 }

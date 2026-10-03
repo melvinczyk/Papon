@@ -452,6 +452,7 @@ def face_rig(m):
     """His face for phase two, when he talks (client/BossFace drives all of it; at rest it is the face he
     always had): the painted mouth bar comes off and is rebuilt as the mariachi singer's lip rig
     (gen_band.mouth_rig: `mouth` > `lip_up`, `lip_low`, `mouth_in`, `teeth`, `tongue`), plus
+      eye_r / eye_l      the eyes (painted off the face): moved about in their sockets, scaled for wide or narrow
       mouth_corner_r/_l  a pixel of lip at each end, lifted for a smile or a smirk, dropped for a scowl
       lid_r / lid_l      eyelids hinged above each eye (y 21; the eye is the row y 19-20): scale Y 0.67
                          covers the eye (a blink), 0.45 half shuts it (that smouldering look), one at
@@ -460,6 +461,14 @@ def face_rig(m):
     from gen_band import unpaint_mouth, mouth_rig, LIP
     unpaint_mouth(m)
     mouth_rig(m)
+    # the eyes: off the face (each a dark 3 x 1 with a glint, row 20 of the sheet) and back as cubes that move
+    # about in their sockets: where he looks, darting, wide with shock, narrowed when he schemes
+    socket = (0xb6, 0x87, 0x2f)
+    for x in list(range(18, 21)) + list(range(27, 30)):
+        m.p.put(x, 20, socket)
+    eye = lambda p, f: [p.put(int(f['front'][0]) + 1, int(f['front'][1]), (255, 255, 255))]
+    for side, x in (('r', -6), ('l', 3)):
+        m.add(bone('eye_' + side, [x + 1.5, 19.5, -8], 'body', [m.box([x, 19, -8.03], [3, 1, 1], (0x34, 0x29, 0x18), extra=eye, noise=0.0)]))
     # the corners sit on the ends of the upper lip (same colour, a hair in front), so at rest they vanish
     for side, x in (('r', -5), ('l', 4)):
         m.add(bone('mouth_corner_' + side, [x + 0.5, 10.5, -8], 'mouth',

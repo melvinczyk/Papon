@@ -201,6 +201,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final String VOICE2 = "speech.papon.boss2.";
     /** Ticks before he may make another remark in the fight (see quip). */
     private int quipCd;
+    /** tickCount from which he may start a fight line again (the last one is over, plus a breath). */
+    private int voiceFree;
     /** Client: the phase-two line he is saying (lip sync) and the tick it started. */
     @Nullable private VoiceLines.Line talk;
     private int talkStart;
@@ -590,6 +592,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
      */
     private void speak(String line, int ticks, boolean gloss) {
         VoiceLines.Line v = isPhaseTwo() ? VoiceLines.line(line) : null;
+        // in the fight a line waits for the last one to finish and settle (the cutscenes are timed by hand)
+        BossState st = getBossState();
+        boolean scripted = st.cutscene() || st.intro() || st == BossState.DEATH || st == BossState.PHASE;
+        if (!scripted && tickCount < voiceFree) return;
+        voiceFree = tickCount + (v != null ? v.ticks() : ticks) + 30;
         if (v != null) {
             Speech.say(this, ChatFormatting.DARK_RED, VOICE2 + line, true, false, Math.max(ticks, v.ticks() + 12));
             quipCd = Math.max(quipCd, v.ticks() + 60);

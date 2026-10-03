@@ -84,6 +84,7 @@ public final class CrowdSounds {
     }
 
     private static void play(Minecraft mc, String name, float volume, float pitch) {
+        volume *= VoiceDuck.get();
         if (volume <= 0.01F) return;
         mc.getSoundManager().play(new SimpleSoundInstance(ev(name).getLocation(), SoundSource.AMBIENT, volume, pitch,
                 SoundInstance.createUnseededRandom(), false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true));
@@ -116,7 +117,7 @@ public final class CrowdSounds {
                 stop();
                 return;
             }
-            volume = Math.max(0.001F, level);
+            volume = Math.max(0.001F, level * VoiceDuck.get());          // under him while he talks
         }
     }
 }

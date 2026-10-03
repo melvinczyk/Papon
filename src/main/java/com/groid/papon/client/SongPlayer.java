@@ -229,13 +229,14 @@ public final class SongPlayer {
 
         @Override
         public void tick() {
-            if (!fading) return;
-            level -= 0.08F;
-            if (level <= 0) {
-                stop();
-                return;
+            if (fading) {
+                level -= 0.08F;
+                if (level <= 0) {
+                    stop();
+                    return;
+                }
             }
-            volume = 0.95F * level;
+            volume = Math.max(0.001F, 0.95F * level * VoiceDuck.get());     // under him while he talks
         }
     }
 }

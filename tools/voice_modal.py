@@ -64,7 +64,8 @@ def transcribe(audio_bytes: bytes, language: str = None) -> dict:
 def clone(refs: dict, lines: list, takes: int = 4) -> dict:
     """refs: {name: [audio bytes, transcript]}, the voices to clone (the same speaker, read calm or worked
     up: the clone copies the delivery of the clip it is given).
-    lines: [{'id', 'text', 'ref', 'instruct' (optional), 'gen' (optional sampling kwargs)}].
+    lines: [{'id', 'text', 'ref', 'instruct' (optional), 'gen' (optional sampling kwargs), 'seed0' (optional:
+    the first take's seed index, to add takes to a line without repeating any)}].
     Returns {id: [{'wav': bytes, 'heard': str, 'seconds': float, 'sim': float}]}."""
     import os
     os.environ['HF_HOME'] = '/data/hf'
@@ -99,7 +100,7 @@ def clone(refs: dict, lines: list, takes: int = 4) -> dict:
             # the Base model's generate takes an instruction prompt too (the VoiceDesign/CustomVoice models are
             # trained on them): a nudge toward the delivery
             gen['instruct_ids'] = [model._tokenize_texts([model._build_instruct_text(line['instruct'])])[0]]
-        for k in range(takes):
+        for k in range(line.get('seed0', 0), line.get('seed0', 0) + takes):
             torch.manual_seed(1000 * k + 7)
             np.random.seed(1000 * k + 7)
             wavs, sr = model.generate_voice_clone(text=line['text'], language=line.get('language', 'English'),

@@ -157,6 +157,7 @@ player and were not exercised headless.
 | Carry On blacklist tag | `data/carryon/tags/entity_types/entity_blacklist.json` |
 | Mesh celebrities' bodies: knees (`shin_r/_l` bones), relaxed hands, shoes, loose trousers, neck clear of the shoulders, Blender decimation to quads (~10.5k verts, head and hands untouched) | `tools/mh_human.py` (`relax_hands`, `dress`, `optimize`), `tools/blender_decimate.py` |
 | Previews without Minecraft: Blender stills and animation filmstrips (GeckoLib keyframes evaluated, mesh skinned) | `tools/blender_preview.py`, `tools/anim_preview.py` + `tools/blender_filmstrip.py` |
+| Phase-two voice: his lines in English in a cloned voice (Qwen3-TTS on Modal), lip-synced, the cutscene timed to them | `tools/gen_boss_voice.py`, `tools/voice_modal.py`, `boss/VoiceLines.java`, `client/BossFace.java`, `client/BossModel.java`, `assets/papon/voice/boss2.json`, `sounds/voice/boss2/` |
 
 ### The boss fight (status 2026-10-02: built; tested headless and with the autoshot client)
 - **Gerbin** is hired when a truck opens (and lazily, by the vendor, at older trucks). Stations are
@@ -324,6 +325,37 @@ player and were not exercised headless.
 - **Voices:** his new lines (`speech.papon.boss.listos|musica|maestro|despierten|momentito|ay|gordo|apology|
   resume`) need `tools/gen_voice.py` run **on the Mac** (Rocko); until then they show in his bubble, silent.
   The band speaks in bubbles with babble, like the Taco Truck crowd.
+
+### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
+- **From the kneel on he talks in English, in a cloned voice** (the user's reference: Spanish-accented English,
+  Antonio Banderas charm; `tools/src/voice/reference.mp3`, gitignored). Phase one keeps the Spanish Rocko TTS
+  (`gen_voice.py`). `PaponBossEntity.speak`: in phase two any line with a recording is said as
+  `speech.papon.boss2.<line>` / sound `voice.boss2.<line>`, its bubble held as long as it plays.
+- **Generating** (`python3.11 tools/gen_boss_voice.py`; `--build` rebuilds from cached takes, `--redo a,b` retakes,
+  `--more a,b` adds takes): Modal profile **melvinczyk** (`python3.11 -m modal token new --profile melvinczyk`),
+  app `papon-voice` (L40S, volume `papon-voice-cache` for the weights). Qwen3-TTS-12Hz-1.7B-Base clones in ICL
+  mode from one of two cuts of the reference (`REFS`: `excited` for shouts, `animated` otherwise) and takes an
+  instruction too (`DIRECTION` per mood; the Base model's generate accepts `instruct_ids`: tested, it doubles
+  the pitch range). Lines are **directed text** (capitals = stress, ellipses = pauses: the user wanted emotion
+  and dramatic pauses). 8 takes a line, Whisper large-v3 transcribes each, Qwen's speaker embedding scores it.
+  Pick: never a take the model cut off mid-word, then the words right, then (for a "!" line) one Whisper heard
+  exclaimed, then the most expressive. Trimmed with a quarter second after the last sound (no clipped endings).
+- **Lip sync**: Rhubarb (macOS build in `tools/.cache/rhubarb`, PocketSphinx with the line as dialog) + loudness,
+  pitch and stressed-syllable tracks at 50 Hz in `voice/boss2.json`. The face rig (`gen_vendor.face_rig`): the
+  painted mouth bar replaced by the mariachi lip rig, `mouth_corner_r/l` (smile/scowl), `lid_r/l` (blinks, half
+  lids, a wink; pinned to 0 in every animation). `client/BossFace` drives it every frame: shapes eased 60 ms,
+  opened by loudness (max 2.6 px, or the lip sinks behind the apron), brows on pitch and stresses, nods, a mood
+  per line (`LINES` moods) or per state when silent (blissful under the salt, smouldering + wink in the aura farm),
+  blinks always. The line start is the client tick `DATA_SPEECH` changed (`setSpeech` forces the update, so the
+  same line twice restarts it).
+- **The cutscene follows the voice**: `gen_boss_voice.beats` works out every beat from the line lengths (ticks:
+  `talk.*`, `season.*`, `scream.end`, `arrive.*`, `notice.*`, `wake.*`, `wait.*`, `kick.*`, `apology.*`,
+  `resume.*`, `song.passes`) into `boss2.json`; `VoiceLines.beat` (server ticks, Cinematic shots, BossFace) and
+  `gen_boss_anims.beat` (keyframes) read the same numbers, so after new takes run `gen_boss_voice.py` then
+  `gen_boss_anims.py`. The `BossState` durations of those states are only fallbacks now. The apology + aura farm
+  need more than two passes of the guitar intro, so `Song.introPasses()` comes from `song.passes` (3).
+- New lines of his: `bleed` (before "enough"), `charm0-5` (phase-two taunts), `hit0-1` (hurt), `landed0-1` (lands
+  one in the coliseum) via `quip` (never over another line or in a cutscene).
 
 ### Boss rework (status 2026-10-03, v0.6.0)
 - **Voice:** Chef Papon's lines (vendor + boss) are text-to-speech clips (`tools/gen_voice.py`, macOS `say` Rocko

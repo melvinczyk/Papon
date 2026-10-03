@@ -1399,8 +1399,10 @@ def b_p2_talk():
     """BossState.P2_TALK, as long as his two lines (beats talk.*). Still on one knee he looks at the blood
     on his hand and laughs at it, shoulders shaking ("Heh... heh heh."), wipes his mouth with the back of
     his hand on "You made me... BLEED, amigo"; then on "Okay... OKAY." a finger up, he gets up through
-    "Enough... playing around." and cracks his neck both ways when he is done."""
+    "Enough... playing around.", tears his apron off and flings it away (talk.rip: he is done being a
+    cook; phase two has no apron, client/BossFace keeps it hidden), and cracks his neck both ways."""
     tb, te, end = beat('talk.bleed', 4), beat('talk.enough', 4), beat('talk.end', 70)
+    rip = beat('talk.rip', 60)
     up = round(te + 0.25, 2)                 # starts rising on the second "OKAY"
     stood = round(up + 0.9, 2)
     crack = round(end - 0.45, 2)
@@ -1410,7 +1412,7 @@ def b_p2_talk():
     a.rot('leg_r', [(0, KNEEL_LEG_R), (up, KNEEL_LEG_R), (stood, [0, 0, 0], 'easeInOutSine'), (end, [0, 0, 0])], 'lin')
     a.rot('leg_l', [(0, KNEEL_LEG_L), (up, KNEEL_LEG_L), (stood, [0, 0, 0], 'easeInOutSine'), (end, [0, 0, 0])], 'lin')
     # the left hand: up in front of his eyes (the blood on it) through the laugh, then the wipe across his mouth
-    look = [-120, 30, 0]
+    look = [-62, 46, -14]                    # low, off to his side, so the camera sees his face over it
     wipe0 = round(te - 1.3, 2) if te - tb > 2.0 else round(tb + 0.6, 2)
     a.rot('arm_l', [(0, [-40, 0, -30]), (round(tb + 0.3, 2), look, 'easeInOutSine'), (wipe0, look),
                     (round(wipe0 + 0.2, 2), [-120, 70, 0], 'easeInOutSine'), (round(wipe0 + 0.75, 2), [-120, -20, 0], 'easeInOutSine'),
@@ -1420,17 +1422,28 @@ def b_p2_talk():
     # the right: a finger up on "Okay... OKAY.", then a push off his knee to get up
     a.rot('arm_r', [(0, [24, 0, 18]), (round(te, 2), [24, 0, 18]), (round(te + 0.25, 2), [-110, -10, 10], 'easeOutBack'),
                     (round(up + 0.2, 2), [-100, -10, 10]), (round(up + 0.5, 2), [10, 0, 20], 'easeInOutSine'),
-                    (stood, [-30, 0, 30], 'easeInOutSine'), (end, [-20, 0, 24])], 'lin')
-    stretch(a, 'arm_r', [(0, 1.3), (te, 1.3), (round(te + 0.25, 2), 1.5), (round(up + 0.2, 2), 1.5), (round(up + 0.5, 2), 1.3), (stood, 1)])
+                    (stood, [-30, 0, 30], 'easeInOutSine'),
+                    # the apron: a grab at it (rip - 0.3), torn off and flung out to his right (rip + 0.25)
+                    (round(rip - 0.3, 2), [-30, 0, 30]), (rip, [-28, 40, 6], 'easeInOutSine'),
+                    (round(rip + 0.25, 2), [-110, -10, 95], 'easeOutExpo'), (round(rip + 0.6, 2), [-60, 0, 60]),
+                    (round(rip + 0.8, 2), [-20, 0, 24], 'easeInOutSine'), (end, [-20, 0, 24])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.3), (te, 1.3), (round(te + 0.25, 2), 1.5), (round(up + 0.2, 2), 1.5), (round(up + 0.5, 2), 1.3), (stood, 1),
+                         (round(rip - 0.3, 2), 1), (rip, 1.4), (round(rip + 0.25, 2), 1.3), (round(rip + 0.8, 2), 1)])
+    a.pos('apron', [(0, [0, 0, 0]), (rip, [0, 0, 0]), (round(rip + 0.1, 2), [-2, 1, -1.5], 'easeOutQuad'),
+                    (round(rip + 0.3, 2), [-16, 9, -4], 'easeOutQuad'), (round(rip + 0.7, 2), [-34, -4, 2], 'easeInQuad')], 'lin')
+    a.rot('apron', [(0, [0, 0, 0]), (rip, [0, 0, 0]), (round(rip + 0.3, 2), [30, 20, 140], 'easeOutQuad'),
+                    (round(rip + 0.7, 2), [70, 40, 300], 'easeInQuad')], 'lin')
+    a.scale('apron', [(0, SHOWN), (round(rip + 0.65, 2), SHOWN), (round(rip + 0.7, 2), HIDDEN), (end, HIDDEN)], 'lin')
     # the laugh: the shoulders shaking for the "heh heh" at the start of the line
     torso = [(0, [4, 0, 0]), (tb, [4, 0, 0])]
     torso += [(round(tb + 0.12 * (i + 1), 2), [10 if i % 2 else 3, 0, 0]) for i in range(9)]
     torso += [(round(tb + 1.3, 2), [6, 0, 0]), (te, [8, 0, 0]), (round(te + 0.3, 2), [2, 0, 0]),
-              (up, [12, 0, 0]), (stood, [0, 0, 0], 'easeInOutSine'), (crack, [0, 0, 0]),
+              (up, [12, 0, 0]), (stood, [0, 0, 0], 'easeInOutSine'), (round(rip - 0.05, 2), [0, 0, 0]),
+              (round(rip + 0.2, 2), [-6, 18, 8], 'easeOutExpo'), (round(rip + 0.7, 2), [0, 0, 0], 'easeInOutSine'), (crack, [0, 0, 0]),
               (round(crack + 0.15, 2), [0, 0, -14], 'easeOutExpo'), (round(crack + 0.27, 2), [0, 0, 0]),
               (round(crack + 0.39, 2), [0, 0, 14], 'easeOutExpo'), (end, [0, 0, 0])]
     a.rot('torso', torso, 'lin')
-    a.sound(round(wipe0 + 0.2, 2), 'cloth').sound(round(up + 0.3, 2), 'grunt').sound(round(crack + 0.15, 2), 'crack').sound(round(crack + 0.39, 2), 'crack')
+    a.sound(round(wipe0 + 0.2, 2), 'cloth').sound(round(up + 0.3, 2), 'grunt').sound(rip, 'rip').sound(round(rip + 0.25, 2), 'whoosh').sound(round(crack + 0.15, 2), 'crack').sound(round(crack + 0.39, 2), 'crack')
     return a
 
 
