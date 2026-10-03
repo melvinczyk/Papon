@@ -65,8 +65,9 @@ public final class PaponConfig {
                 .defineInRange("vanRamDamage", 22.0, 1.0, 1000.0);
         VAN_COOLDOWN = b.comment("Ticks between van attacks in phase one (two thirds of this in phase two).")
                 .defineInRange("vanCooldownTicks", 360, 40, 20 * 60 * 10);
-        VAN_STUN_TICKS = b.comment("Ticks a van hit leaves its victim stunned: flat on the ground, unable to move or jump.")
-                .defineInRange("vanStunTicks", 60, 0, 20 * 60);
+        // renamed from vanStunTicks (old default 160) so configs written before 0.6.2 fall back to 3 s
+        VAN_STUN_TICKS = b.comment("Ticks any of his stuns (van hits, the suplex, crashes) leave the victim flat on the ground, unable to move or jump. 60 = 3 s.")
+                .defineInRange("stunTicks", 60, 0, 20 * 60);
         HIT_CAP = b.comment("The most of his maximum health one hit can take off Chef Papon (0.05 = 5%): nobody one-shots",
                         "him or skips a phase, whatever their damage. 1.0 turns it off.")
                 .defineInRange("hitCapFraction", 0.05, 0.001, 1.0);

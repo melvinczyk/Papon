@@ -202,7 +202,7 @@ player and were not exercised headless.
   (2.4) shorter than the van (5.6 blocks); the length is handled in code. Seats (van space, z
   forward; the model faces -Z): driver front left (0.5, +0.62), passenger, the middle bench (-0.47),
   the back bench (-1.75). Climbs 1.5 blocks. Every hit applies **Stunned** (`ModEffects.STUNNED`,
-  config `vanStunTicks` 160: no walking, no jumping, crawl pose via `event/StunEvents`, a hard shake
+  config `stunTicks` 60 (3 s; renamed in 0.6.2 so old 160 values are dropped): no walking, no jumping, crawl pose via `event/StunEvents`, a hard shake
   for that player via `PaponNetwork.shake(ServerPlayer, ..)`); the front bumper runs you over where you
   stand, the rear bumper (reversing) launches you far. Jump = horn (packet). Only `/kill` or the keys remove it.
 - **Client**: `Cinematic` puts a client-only marker entity in as the camera entity during
