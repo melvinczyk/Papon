@@ -46,6 +46,8 @@ public final class AutoShot {
     private static final boolean FIGHT = MODE.equals("fight");
     /** -Pautoshot=coliseum: phase two from the kneel: the coliseum, the band asleep, woken, the count, the song, the fight, the crowd. */
     private static final boolean COLISEUM = MODE.equals("coliseum");
+    /** -Pautoshot=voice: phase two's cutscene for his voice: shots of his face on every line, each line's start and end logged against its state. */
+    private static final boolean VOICE = MODE.equals("voice");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -75,8 +77,9 @@ public final class AutoShot {
             fight(mc);
             return;
         }
-        if (COLISEUM) {
+        if (COLISEUM || VOICE) {
             coliseum(mc);
+            if (VOICE) voice(mc);
             return;
         }
         if (REWORK) {
@@ -353,6 +356,16 @@ public final class AutoShot {
             if (k == 122) tpLook(b.position().add(0, 1, 6), b.position().add(-18, 9, 16));
             if (k == 132) shot(mc, "c42_stands_south");
             if (k == 134) PaponMod.LOG.info("[autoshot] stands fps {}", mc.getFps());
+            if (VOICE && k >= 136 && k <= 166) {
+                // eye calibration: from in front of him, off to his left, then his right; his eyes should follow
+                Vec3 fwd = Vec3.directionFromRotation(0, b.yBodyRot);
+                Vec3 left = new Vec3(fwd.z * -1, 0, fwd.x).scale(-1);       // MC: facing +z, +x is on your left
+                Vec3 face = b.position().add(0, b.getBbHeight() * 0.72, 0);
+                if (k == 136) tpLook(face.add(fwd.scale(3.2)).add(left.scale(2.6)).add(0, -1.6, 0), face);
+                if (k == 148) shot(mc, "v_gaze_his_left");
+                if (k == 150) tpLook(face.add(fwd.scale(3.2)).add(left.scale(-2.6)).add(0, -1.6, 0), face);
+                if (k == 162) shot(mc, "v_gaze_his_right");
+            }
             if (k == 270) run("gamemode spectator");
             if (k == 274) tpLook(b.position().add(0, 50, 75), b.position());
             if (k == 290) shot(mc, "c45_outside_high");
@@ -372,6 +385,36 @@ public final class AutoShot {
             if (k == 520) once(mc, "c49_back_down");
             if (k == 540) mc.stop();
         }
+    }
+
+    @Nullable private static com.groid.papon.boss.VoiceLines.Line lastLine;
+    private static int lastLineTick;
+    @Nullable private static com.groid.papon.boss.VoiceLines.Line endedLine;
+
+    /** On top of the coliseum run: every line he says, when, in what state, and whether it ends before the state does; his face mid-line. */
+    private static void voice(Minecraft mc) {
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b == null) return;
+        var line = b.talking();
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        if (line != null && line != lastLine && line != endedLine) {
+            lastLine = line;
+            endedLine = null;
+            lastLineTick = tick;
+            PaponMod.LOG.info("[voice] {} starts at {} t{} ({} t long, mood {})", line.id(), s, t, line.ticks(), line.mood());
+        }
+        if (lastLine != null && tick - lastLineTick == lastLine.ticks()) {
+            PaponMod.LOG.info("[voice] {} ends at {} t{}", lastLine.id(), s, t);
+            endedLine = lastLine;
+            lastLine = null;
+        }
+        if (line != null) {
+            int into = tick - lastLineTick;
+            if (into == 8 || into == line.ticks() / 2) once(mc, "v_" + line.id() + "_" + (into == 8 ? "a" : "b"));
+        }
+        if (s == BossState.P2_APOLOGY && t == com.groid.papon.boss.VoiceLines.beat("apology.wink", 144) + 6) once(mc, "v_wink");
+        if (s == BossState.P2_SEASON && t == com.groid.papon.boss.VoiceLines.beat("season.kiss", 96)) once(mc, "v_chefs_kiss");
     }
 
     private static void tpLook(Vec3 at, Vec3 look) {

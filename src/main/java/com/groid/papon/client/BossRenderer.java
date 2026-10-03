@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
-import software.bernie.geckolib.model.DefaultedEntityGeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import com.groid.papon.boss.BossState;
 
@@ -31,7 +30,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     private static final ResourceLocation AURA = PaponMod.id("textures/entity/papon_aura.png");
 
     public BossRenderer(EntityRendererProvider.Context ctx) {
-        super(ctx, new DefaultedEntityGeoModel<>(PaponMod.id("papon_boss")));
+        super(ctx, new BossModel());
         withScale(SCALE);
         this.shadowRadius = 0.9F;
         addRenderLayer(new software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer<>(this));
@@ -179,9 +178,19 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
 
     @Override
     public void render(PaponBossEntity entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
-        super.render(entity, yaw, partialTick, pose, buffers, light);
+        super.render(entity, yaw, partialTick, pose, buffers, keyLight(entity, light));
         float k = rays(entity, partialTick);
         if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
         SpeechBubble.render(entity, entity.getSpeech(), 0.4F, pose, buffers, light, entityRenderDispatcher);
+    }
+
+    /**
+     * A key light on him through the phase-two cutscene on the ground: his coliseum is going up right over
+     * the fight, and its shadow would leave his face (and his lines) in the dark.
+     */
+    private static int keyLight(PaponBossEntity b, int light) {
+        if (!b.isPhaseTwo() || b.inColiseum() || !b.getBossState().cutscene()) return light;
+        return net.minecraft.client.renderer.LightTexture.pack(Math.max(13, net.minecraft.client.renderer.LightTexture.block(light)),
+                net.minecraft.client.renderer.LightTexture.sky(light));
     }
 }
