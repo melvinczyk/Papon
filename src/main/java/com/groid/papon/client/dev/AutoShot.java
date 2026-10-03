@@ -48,6 +48,8 @@ public final class AutoShot {
     private static final boolean COLISEUM = MODE.equals("coliseum");
     /** -Pautoshot=voice: phase two's cutscene for his voice: shots of his face on every line, each line's start and end logged against its state. */
     private static final boolean VOICE = MODE.equals("voice");
+    /** -Pautoshot=arena: into the coliseum, then the arena attacks one by one (meteor, fryer, masher, heckle, salsa burst), containment and the portal checked. */
+    private static final boolean ARENA = MODE.equals("arena");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -77,7 +79,7 @@ public final class AutoShot {
             fight(mc);
             return;
         }
-        if (COLISEUM || VOICE) {
+        if (COLISEUM || VOICE || ARENA) {
             coliseum(mc);
             if (VOICE) voice(mc);
             return;
@@ -329,6 +331,10 @@ public final class AutoShot {
         };
         if (n != null) once(mc, n);
         if (s == BossState.IDLE && b.isPhaseTwo() && colMark < 0 && taken.contains("c25_where_were_we")) colMark = tick;
+        if (colMark > 0 && ARENA) {
+            arenaTour(mc, b, tick - colMark);
+            return;
+        }
         if (colMark > 0) {
             int k = tick - colMark;
             // the band playing, the singer up close, the stands, the fight, from outside
@@ -385,6 +391,71 @@ public final class AutoShot {
             if (k == 520) once(mc, "c49_back_down");
             if (k == 540) mc.stop();
         }
+    }
+
+    /** The arena attacks, each forced in turn and shot from over the sand. */
+    private static void arenaTour(Minecraft mc, PaponBossEntity b, int k) {
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        Vec3 c = b.position();
+        if (k == 2) {
+            run("gamemode creative");          // a spectator is nobody to him: the coliseum would come down
+            PaponMod.LOG.info("[arena] portals: {}", mc.level.getEntitiesOfClass(com.groid.papon.boss.ArenaPortalEntity.class,
+                    mc.player.getBoundingBox().inflate(512)).size());
+            run("execute at @e[type=papon:papon_boss,limit=1] run summon minecraft:phantom ~ ~6 ~", "execute at @e[type=papon:papon_boss,limit=1] run summon minecraft:zombie ~4 ~ ~4");
+        }
+        if (k == 30) PaponMod.LOG.info("[arena] foreign mobs left near the boss: {}", mc.level.getEntitiesOfClass(net.minecraft.world.entity.monster.Monster.class,
+                b.getBoundingBox().inflate(40)).size());
+        if (k == 32 || k == 312) {
+            mc.player.getAbilities().flying = true;
+            mc.player.onUpdateAbilities();
+            tpLook(c.add(0, 16, 30), c.add(0, 8, 0));
+        }
+        if (k == 40) run("papon bossstate P2_GRAVITY");
+        if (s == BossState.P2_GRAVITY) {
+            if (t == 30) shot(mc, "a01_meteor_swell");
+            if (t == 100) shot(mc, "a02_meteor_looms");
+            if (t == 145) shot(mc, "a03_meteor_falls");
+            if (t == 151) shot(mc, "a04_meteor_impact");
+            if (t == 162) shot(mc, "a05_meteor_rings");
+        }
+        if (k == 240) run("papon bossstate ARENA_FRYER");
+        if (s == BossState.ARENA_FRYER && t == 20) shot(mc, "a06_fryer_warn");
+        if (k == 300) shot(mc, "a07_fryer_oil");
+        if (k == 304) {
+            tpLook(c.add(3, 3, 6), c.add(0, 0, -6));
+            shot(mc, "a07b_fryer_low");
+        }
+        if (k == 420) run("papon bossstate P2_MASHER");
+        if (s == BossState.P2_MASHER) {
+            if (t == 40) shot(mc, "a08_masher_looms");
+            if (t == 75) shot(mc, "a09_masher_holes");
+            if (t == 88) shot(mc, "a10_masher_slam");
+        }
+        if (k == 556) {
+            run("gamemode survival");
+            run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~8");
+        }
+        if (k == 560) run("papon bossstate ARENA_HECKLE");
+        if (s == BossState.ARENA_HECKLE && t == 30) shot(mc, "a11_heckle");
+        if (k == 610) shot(mc, "a12_heckle_rain");
+        if (k == 640) {
+            run("gamemode survival");
+            run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ^ ^ ^3");
+        }
+        if (k == 646) run("papon bossstate SALSA_BURST");
+        if (s == BossState.SALSA_BURST && t == 8) {
+            mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+            shot(mc, "a13_salsa_charge");
+        }
+        if (s == BossState.SALSA_BURST && t == 12) shot(mc, "a14_salsa_burst");
+        if (k == 700) {
+            mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            run("kill @e[type=papon:papon_boss]");
+        }
+        if (k == 760) PaponMod.LOG.info("[arena] portals after his fall: {}", mc.level.getEntitiesOfClass(com.groid.papon.boss.ArenaPortalEntity.class,
+                mc.player.getBoundingBox().inflate(512)).size());
+        if (k == 780) mc.stop();
     }
 
     @Nullable private static com.groid.papon.boss.VoiceLines.Line lastLine;

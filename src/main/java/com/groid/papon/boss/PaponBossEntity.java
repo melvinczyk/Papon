@@ -517,7 +517,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (s == BossState.IDLE && attack(old)) {
             misses = swingHit ? 0 : misses + 1;
-            think = isPhaseTwo() ? 2 : 4;      // a breath between attacks (none in a frenzy: see choose)
+            // a breath between attacks (none in a frenzy: see choose); in phase two none after one that landed: he presses
+            think = isPhaseTwo() ? (swingHit ? 0 : 2) : 4;
         }
         boolean air = isRisen() && isFlying() && airborne(s);
         if (s != BossState.LEAP && s != BossState.LEAP_OUT && s != BossState.AIR_SPIKE && !air) {
@@ -4602,6 +4603,18 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 double a = Math.PI * 2 * i / 6;
                 bolt(level, spudFloor.add(Math.cos(a) * 9, 0, Math.sin(a) * 9));
             }
+            // the whole sand goes up: blasts, mash and dust in rings out to the walls
+            for (int ring = 0; ring < 3; ring++) {
+                double r = 5 + ring * 7;
+                int n = 8 + ring * 6;
+                for (int i = 0; i < n; i++) {
+                    double a = Math.PI * 2 * i / n + ring * 0.3;
+                    Vec3 at = spudFloor.add(Math.cos(a) * r * 1.3, 0.3, Math.sin(a) * r);
+                    com.groid.papon.fx.Fx.blast(level, at, 2.5F - ring * 0.5F);
+                    com.groid.papon.fx.Fx.chunks(level, at.add(0, 0.5, 0), 4, 0.5F, 0xD9AA51, 0.9);
+                    com.groid.papon.fx.Fx.dust(level, at, 2.5, 5);
+                }
+            }
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(40, 10, 40), this::hittable)) {
                 double d = Math.sqrt(e.distanceToSqr(spudFloor.x, e.getY(), spudFloor.z));
                 float frac = d < 10 ? 0.45F : d < 18 ? 0.25F : e.onGround() ? 0.10F : 0F;
@@ -4666,6 +4679,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             List<Vec3> players = level.getEntitiesOfClass(ServerPlayer.class, arena.bounds(), this::hittable).stream().map(p -> p.position()).toList();
             Freidora.Pattern[] all = Freidora.Pattern.values();
             Freidora.Pattern p = farTicks > 80 ? Freidora.Pattern.HUNT : all[random.nextInt(all.length)];
+            if (p == Freidora.Pattern.HUNT && players.isEmpty()) p = Freidora.Pattern.RINGS;     // nobody to put a pool under
             freidora = Freidora.start(level, arena, p, players, random);
             landImpact(level, position(), 3.0F, 0F, 0.4F);
             PaponNetwork.shake(level, position(), 40, 0.6F, 14);
