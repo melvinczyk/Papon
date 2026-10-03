@@ -107,7 +107,14 @@ public class FxParticle extends TextureSheetParticle {
     @Override
     public void render(VertexConsumer vc, Camera camera, float partialTick) {
         if (!mode.flat) {
-            super.render(vc, camera, partialTick);
+            // a billboard on your own head (a hit on you, dust at your feet) would fill the screen: it fades out close up
+            float keep = alpha;
+            double d = camera.getPosition().distanceTo(new Vec3(Mth.lerp(partialTick, xo, x), Mth.lerp(partialTick, yo, y),
+                    Mth.lerp(partialTick, zo, z)));
+            double near = getQuadSize(partialTick) + 0.6;
+            if (d < near * 2) alpha *= (float) Mth.clamp((d - near) / near, 0, 1);
+            if (alpha > 0.01F) super.render(vc, camera, partialTick);
+            alpha = keep;
             return;
         }
         Vec3 cam = camera.getPosition();
