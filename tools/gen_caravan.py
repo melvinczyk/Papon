@@ -319,8 +319,10 @@ def build():
     van.box(b, [-16, 4, -44], [32, 9, 3], BLUE, paint=fascia)
     van.box(b, [-16, 13, -43], [32, 2, 4], BLUE, paint=m)
     van.box(b, [-16, 2.5, -43], [32, 2, 2], CLAD, paint=plain(CLAD))            # chin spoiler
-    van.box(b, [9, 11, -44.4], [7, 3, 2], (226, 232, 236), paint=headlight)
-    van.box(b, [-16, 11, -44.4], [7, 3, 2], (226, 232, 236), paint=headlight)
+    van.box(b, [8, 10.5, -44.4], [8, 4, 2], (226, 232, 236), paint=headlight)
+    van.box(b, [-16, 10.5, -44.4], [8, 4, 2], (226, 232, 236), paint=headlight)
+    for hx in (15.6, -16.6):                                                       # wrapping round the corners
+        van.box(b, [hx, 10.5, -43.4], [1, 4, 3], (226, 232, 236), paint=headlight)
     # hood: one plate from the nose up to the cowl, tilted 15 degrees
     van.box(b, [-16, 14.5, -42], [32, 2, 15], BLUE, paint=hood, pivot=[0, 15.5, -42], rotation=[15, 0, 0])
     van.box(b, [-16, 17, -29], [32, 3, 3], BLACK, paint=plain(BLACK))           # cowl
@@ -341,6 +343,21 @@ def build():
         van.box(b, [x, 12, -21], [1, 2, 3], BLUE, paint=fender)
         # rocker cladding under the doors
         van.box(b, [x, 4, -18], [1, 3, 37], CLAD, paint=plain(CLAD))
+        # wheel arches: black plastic flares over the tyres, dark liners inside so the wells are not hollow
+        fx = 16.4 if side > 0 else -17.6
+        lx = 12.0 if side > 0 else -16.0
+        for wz in (-26, 27):
+            van.box(b, [fx, 13.2, wz - 7], [1.2, 1.3, 14], CLAD, paint=plain(CLAD))
+            van.box(b, [fx, 8, wz - 8.2], [1.2, 6, 1.4], CLAD, paint=plain(CLAD), pivot=[fx, 13.5, wz - 7],
+                    rotation=[-28, 0, 0])
+            van.box(b, [fx, 8, wz + 6.8], [1.2, 6, 1.4], CLAD, paint=plain(CLAD), pivot=[fx, 13.5, wz + 7],
+                    rotation=[28, 0, 0])
+            van.box(b, [lx, 13.6, wz - 7], [4, 1, 14], BLACK, paint=plain(BLACK))
+        # body-side molding, a dark rub strip along the middle of the doors
+        if side < 0:
+            van.box(b, [x - 0.15, 10, -18], [1.2, 1, 53], CLAD, paint=plain(CLAD))
+        else:
+            van.box(b, [x - 0.05, 10, -3], [1.2, 1, 38], CLAD, paint=plain(CLAD))
         # behind the front door: middle and rear panels, the rear arch, the corner
         if side < 0:
             van.box(b, [x, 7, -18], [1, 13, 15], BLUE, paint=door_side(lambda k: k == 'nx'))   # passenger door
@@ -377,6 +394,7 @@ def build():
     van.box('door_l', [16, 7, -18], [1, 13, 15], BLUE, paint=door_side(lambda k: k == 'px'))
     van.box('door_l', [16, 20, -17], [1, 10, 14], GLASS, paint=glass)
     van.box('door_l', [16, 30, -17], [1, 1, 14], BLACK, paint=plain(BLACK))
+    van.box('door_l', [16.05, 10, -18], [1.2, 1, 15], CLAD, paint=plain(CLAD))
 
     # ---- roof
     van.box(b, [-16, 31, -11], [32, 2, 52], BLUE, paint=m)

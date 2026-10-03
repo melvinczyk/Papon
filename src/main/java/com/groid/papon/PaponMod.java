@@ -6,6 +6,7 @@ import com.groid.papon.network.PaponNetwork;
 import com.groid.papon.registry.ModSounds;
 import com.groid.papon.vehicle.CaravanEntity;
 import com.groid.papon.entity.npc.TacoNpc;
+import com.groid.papon.registry.ModEffects;
 import com.groid.papon.registry.ModEntities;
 import com.groid.papon.registry.ModItems;
 import com.groid.papon.registry.ModParticles;
@@ -32,6 +33,7 @@ public class PaponMod {
         ModItems.REGISTRY.register(bus);
         ModParticles.REGISTRY.register(bus);
         ModSounds.REGISTRY.register(bus);
+        ModEffects.REGISTRY.register(bus);
         PaponNetwork.register();
         bus.addListener(this::attributes);
         bus.addListener(this::creativeTabs);

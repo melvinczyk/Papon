@@ -28,7 +28,7 @@ gen_celeb_anims.py, with poses solved on their models by pose_solver.py.
 import json
 import os
 
-from gen_anims import EPS, Anim
+from gen_anims import guard_brows, EPS, Anim
 from gen_celeb_anims import chugs_anims, edp_anims
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -62,7 +62,7 @@ class H(Pinned):
 class P(Pinned):
     """Papon (customer or taquero) animation."""
     pins = ['taco', 'notepad', 'pencil', 'spatula', 'served_taco', 'fraud_coupon', 'magnifier',
-            'hair', 'wisps', 'stache_mark', 'sweat', 'blush', 'tears']
+            'hair', 'wisps', 'sweat', 'blush', 'tears']
 
 
 def osc(t0, t1, step, a, b, ease=None):
@@ -568,7 +568,6 @@ def unmasked(a):
     a.scale('mustache', [(0, HIDDEN)], 'lin')
     a.scale('hair', [(0, SHOWN)], 'lin')
     a.scale('wisps', [(0, SHOWN)], 'lin')
-    a.scale('stache_mark', [(0, SHOWN)], 'lin')
     return a
 
 
@@ -627,7 +626,6 @@ def v_unmask():
                           (3.9, 2.6), (4.25, 1.6, 'easeInQuad'), (4.45, 1, 'easeOutQuad'), (5.0, 1)])
     stretch(a, 'arm_l', [(0, 1), (2.3, 1), (2.7, 2.3, 'easeInOutSine'), (3.6, 2.6, 'easeInOutSine'), (3.9, 2.6),
                           (4.25, 1.6, 'easeInQuad'), (4.45, 1, 'easeOutQuad'), (5.0, 1)])
-    a.vis('stache_mark', False, [(0.93, True)])
     # the toque: lifted slow and high (the hair is under it), held, swept down and tossed behind him
     a.pos('toque', [(0, [0, 0, 0]), (2.85, [0, 0, 0]), (3.6, [0, 6, 0], 'easeInOutSine'), (3.9, [0, 6.5, 0]),
                     (4.25, [-10, 4, 6], 'easeInQuad'), (4.6, [-22, -10, 18], 'easeOutQuad')], 'lin')
@@ -679,9 +677,6 @@ def v_realize():
         a.pos(brow, [(0, [0, 0.2, 0]), (1.0, [0, 0.2, 0]), (1.6, [0, 1.0, 0]), (1.9, [0, 2.0, 0], 'easeOutBack'),
                      (3.0, [0, 1.8, 0])], 'lin')
         a.rot(brow, [(0, [0, 0, 6 * s]), (1.6, [0, 0, -6 * s]), (1.9, [0, 0, -18 * s], 'easeOutBack'), (3.0, [0, 0, -16 * s])], 'lin')
-    a.scale('blush', [(0, HIDDEN), (1.9 - EPS, HIDDEN, 'lin'), (1.9, [1, 1, 1], 'lin'), (2.4, [1.05, 1.4, 1], 'easeOutBack'),
-                      (3.0, [1.05, 1.4, 1])], 'lin')
-    a.vis('sweat', False, [(1.95, True)])
     a.sound(0.2, 'breeze').sound(1.1, 'pat').sound(1.4, 'pat').sound(1.9, 'gasp').sound(2.35, 'pat')
     return a
 
@@ -690,15 +685,6 @@ def v_rage():
     """3.5 s. Embarrassment boils over into fury: trembling, swelling, red, then the hands come off
     his head and he ROARS (1.7 s). Ends crouched to jump: the boss's leap_out starts from this pose."""
     a = unmasked(P('vendor_rage', 3.5, 'hold'))
-    a.scale('blush', [(0, [1.05, 1.4, 1]), (1.5, [1.1, 2.4, 1]), (3.5, [1.1, 2.4, 1])], 'cat')
-    shake_r = [(round(0.08 * i, 2), [ON_HEAD_R[0] + (4 if i % 2 else -4), ON_HEAD_R[1], ON_HEAD_R[2]]) for i in range(19)]
-    shake_l = [(round(0.08 * i, 2), [ON_HEAD_L[0] + (4 if i % 2 else -4), ON_HEAD_L[1], ON_HEAD_L[2]]) for i in range(19)]
-    a.rot('arm_r', shake_r + [(1.7, [-150, 20, 80], 'easeOutExpo'), (2.6, [-150, 20, 80]),
-                              (3.1, [30, 0, 30], 'easeInOutSine'), (3.5, [40, 0, 26])], 'lin')
-    a.rot('arm_l', shake_l + [(1.7, [-150, -20, -80], 'easeOutExpo'), (2.6, [-150, -20, -80]),
-                              (3.1, [30, 0, -30], 'easeInOutSine'), (3.5, [40, 0, -26])], 'lin')
-    for arm in ('arm_r', 'arm_l'):
-        stretch(a, arm, [(0, 1.8), (1.5, 1.8), (1.7, 1.3, 'easeOutExpo'), (2.6, 1.3), (3.1, 1, 'easeInOutSine'), (3.5, 1)])
     a.scale('body', [(round(0.1 * i, 2), [1 + 0.012 * i + (0.02 if i % 2 else 0), 1 + 0.01 * i, 1 + 0.012 * i + (0.02 if i % 2 else 0)])
                      for i in range(16)]
             + [(1.7, [0.9, 1.25, 0.9], 'easeOutExpo')]
@@ -727,7 +713,7 @@ def write(name, fns, prefix):
     data = {'format_version': '1.8.0', 'animations': {}}
     for fn in fns:
         a = fn()
-        data['animations'][prefix + a.name] = a.compile()
+        data['animations'][prefix + a.name] = guard_brows(a.compile())
     path = os.path.join(OUT_DIR, name + '.animation.json')
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(path, 'w', newline='\n') as f:

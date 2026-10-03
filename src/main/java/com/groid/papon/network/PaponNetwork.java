@@ -46,6 +46,12 @@ public final class PaponNetwork {
         }
     }
 
+    /** A shake for one player only (centred on them): a hit that lands on them, not a quake. */
+    public static void shake(ServerPlayer player, float magnitude, int ticks) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new Shake(player.getX(), player.getY(), player.getZ(), 4, magnitude, ticks));
+    }
+
     public record Shake(double x, double y, double z, float radius, float magnitude, int ticks) {
         void encode(FriendlyByteBuf b) {
             b.writeDouble(x);

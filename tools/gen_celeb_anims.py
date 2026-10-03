@@ -207,6 +207,7 @@ def edp_anims(H):
     out.append(a)
 
     out.append(edp_react(H, P))
+    out.append(edp_fistbump(H))
     return crisp(out)
 
 
@@ -226,6 +227,27 @@ def edp_anims_walk_taco(H, P):
     a.rot('forearm_l', [(0, [-26, 0, 0]), (0.6, [-18, 0, 0]), (1.2, [-26, 0, 0])])
     a.rot('head', [(0, [12, -3, 4]), (0.6, [12, 3, -4]), (1.2, [12, -3, 4])])
     a.scale('taco', [(0, [1, 1, 1])], 'lin')
+    return a
+
+
+def edp_fistbump(H):
+    """2.0 s (TacoCustomerEntity.BUMP_TICKS), on the gesture layer over whatever he is doing: cocks
+    his right fist, knuckles meet at 0.55 s, a little recoil, then blows it up into a fist pump,
+    head back, hyped. Only the right arm, the torso, head and jaw are keyed."""
+    a = H('fistbump_edp445', 2.0, 'hold')
+    # the bump: arm -38 with a straight elbow puts his fist at chest height (1.5 blocks), all the reach
+    # his belly allows (solved on the mesh rig)
+    a.rot('arm_r', [(0, [-20, 0, 8]), (0.3, [-18, -12, 22]), (0.55, [-38, -8, 10]), (0.68, [-33, -8, 12]),
+                    (0.95, [-142, -20, 40], 'easeOutBack'), (1.3, [-150, -20, 36]), (1.55, [-112, -16, 30]),
+                    (2.0, [-20, 0, 8])])
+    a.rot('forearm_r', [(0, [-30, 0, 0]), (0.3, [-55, 0, 0]), (0.55, [0, 0, 0]), (0.68, [-14, 0, 0]),
+                        (0.95, [-12, 0, 0]), (1.3, [-8, 0, 0]), (1.55, [-62, 0, 0]), (2.0, [-30, 0, 0])])
+    a.rot('torso', [(0, ZERO), (0.3, [2, 6, 0]), (0.55, [-6, -4, 0]), (0.95, [4, 0, 0]), (1.55, [-3, 0, 0]),
+                    (2.0, ZERO)])
+    a.rot('head', [(0, ZERO), (0.45, [4, 0, 0]), (0.6, [-4, 0, 0]), (0.95, [-16, 0, 0]), (1.3, [-12, 0, 0]),
+                   (1.55, [4, 0, 0]), (2.0, ZERO)])
+    a.rot('jaw', [(0, ZERO), (0.9, ZERO), (1.0, [16, 0, 0]), (1.4, [10, 0, 0]), (2.0, ZERO)])
+    a.sound(0.55, 'bump').sound(0.95, 'hype')
     return a
 
 

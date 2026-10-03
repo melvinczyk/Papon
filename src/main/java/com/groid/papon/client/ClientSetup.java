@@ -50,6 +50,7 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.PAPON_BOSS.get(), BossRenderer::new);
         event.registerEntityRenderer(ModEntities.CARAVAN.get(), CaravanRenderer::new);
         event.registerEntityRenderer(ModEntities.MOLOTOV.get(), ThrownItemRenderer::new);
+        event.registerEntityRenderer(ModEntities.POTATO_SHOT.get(), ThrownItemRenderer::new);
     }
 
     private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,

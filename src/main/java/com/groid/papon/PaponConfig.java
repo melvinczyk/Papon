@@ -19,6 +19,7 @@ public final class PaponConfig {
     public static final ForgeConfigSpec.DoubleValue BOSS_DAMAGE;
     public static final ForgeConfigSpec.DoubleValue VAN_RAM_DAMAGE;
     public static final ForgeConfigSpec.IntValue VAN_COOLDOWN;
+    public static final ForgeConfigSpec.IntValue VAN_STUN_TICKS;
     public static final ForgeConfigSpec.BooleanValue CINEMATICS;
     public static final ForgeConfigSpec.BooleanValue BOSS_MUSIC;
 
@@ -62,6 +63,8 @@ public final class PaponConfig {
                 .defineInRange("vanRamDamage", 22.0, 1.0, 1000.0);
         VAN_COOLDOWN = b.comment("Ticks between van attacks in phase one (two thirds of this in phase two).")
                 .defineInRange("vanCooldownTicks", 360, 40, 20 * 60 * 10);
+        VAN_STUN_TICKS = b.comment("Ticks a van hit leaves its victim stunned: flat on the ground, unable to move or jump.")
+                .defineInRange("vanStunTicks", 160, 0, 20 * 60);
         CINEMATICS = b.comment("Play the unmasking and the boss intro as cutscenes (camera, letterbox) for players nearby.")
                 .define("cinematics", true);
         BOSS_MUSIC = b.comment("Play the mariachi boss music during the fight.")

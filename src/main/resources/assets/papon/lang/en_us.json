@@ -191,5 +191,7 @@
   "subtitles.papon.caravan.hit": "Somebody gets run over",
   "subtitles.papon.boss.reveal": "Dramatic sting",
   "subtitles.papon.music.boss": "Mariachi plays",
-  "hud.papon.speed": "%s km/h"
+  "hud.papon.speed": "%s km/h",
+  "effect.papon.stunned": "Stunned",
+  "speech.papon.edp445.fistbump": "Hell yeah my brotha, lets go get some cupcakes!"
 }

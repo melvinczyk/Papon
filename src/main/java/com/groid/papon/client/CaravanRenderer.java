@@ -39,6 +39,14 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         return RenderType.entityTranslucent(texture);
     }
 
+    /** Ghost mode (half alive, half dead): see-through and a little green, like a spirit. */
+    @Override
+    public software.bernie.geckolib.core.object.Color getRenderColor(CaravanEntity entity, float partialTick, int light) {
+        boolean ghost = entity.isGhost();
+        return ghost ? software.bernie.geckolib.core.object.Color.ofRGBA(0.72F, 1.0F, 0.86F, 0.5F)
+                : super.getRenderColor(entity, partialTick, light);
+    }
+
     @Override
     protected float getDeathMaxRotation(CaravanEntity entity) {
         return 0;
