@@ -103,13 +103,24 @@ def height_of(name):
     return top
 
 
+def reach_of(name):
+    """How far the model reaches out from its centre line (long things like the van need the camera back)."""
+    geo = json.load(open(path_of(ASSETS, 'geo', 'entity', name + '.geo.json')))
+    r = 0
+    for b in geo['minecraft:geometry'][0]['bones']:
+        for c in b.get('cubes', []):
+            for k in (0, 2):
+                r = max(r, abs(c['origin'][k]), abs(c['origin'][k] + c['size'][k]))
+    return r
+
+
 def sheet(out, names):
     tiles = []
     for name in names:
         open_model(name)
         vid = ensure_view()
         mid = height_of(name) / 2
-        dist = max(1.0, height_of(name) / 34)
+        dist = max(1.0, height_of(name) / 34, reach_of(name) / 20)
         for label, pos in VIEWS:
             p = [pos[0] * dist, mid + (pos[1] - 18) * dist, pos[2] * dist]
             tiles.append((name + ' ' + label, shot(vid, p, [0, mid, 0])))
