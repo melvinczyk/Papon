@@ -74,8 +74,14 @@ def osc(t0, t1, step, a, b, ease=None):
 REST_L = [0, 0, -3]
 REST_R = [0, 0, 3]
 HOLD_TACO = [-52, -12, 0]       # right hand out in front, taco up
-JUG_UP = [-125, 35, 0]          # Badlands' left hand raised in front of his face
-JUG_TIP = [95, 0, 0]            # jug counter-rotation there: upright, cap tipped toward his mouth
+# Badlands Chugs is a mesh with elbows (gen_chugs_mesh.py): his own two animations bend forearm_l/_r.
+# These poses were solved by forward kinematics on that rig so the jug's cap lands on his lips.
+JUG_UP = [-68, 32, -40]         # Badlands' left arm raised, elbow out...
+JUG_ELBOW = [-58, 0, 0]         # ...forearm bent up to his mouth
+JUG_TIP = [15, 0, 0]            # jug counter-rotation there: bottom up, cap at his mouth
+JUG_LOW = [25, 0, 0]            # forearm_l at rest: the jug hangs at his side, not out in front
+TACO_IN_R = [-20, -49, 37]      # Badlands' right arm, elbow out...
+TACO_ELBOW = [-94, 0, 0]        # ...forearm folded: the taco at his mouth
 GLASS = [-48, 18, 0]            # Reviewbrah's glass at chest height
 SIP = [-104, 32, 0]             # ...and raised to his lips
 GLASS_UP = [44, 0, 0]           # goblet counter-rotations that keep it upright in those poses
@@ -169,6 +175,8 @@ def h_idle_badlands():
     jug_up = JUG_UP
     a.rot('arm_l', [(0, jug_rest), (1.3, jug_rest), (1.7, jug_up, 'easeInOutSine'), (2.5, jug_up),
                     (2.9, jug_rest, 'easeInOutSine'), (5.0, jug_rest)], 'lin')
+    a.rot('forearm_l', [(0, JUG_LOW), (1.3, JUG_LOW), (1.7, JUG_ELBOW, 'easeInOutSine'), (2.5, JUG_ELBOW),
+                        (2.9, JUG_LOW, 'easeInOutSine'), (5.0, JUG_LOW)], 'lin')
     a.rot('jug', [(0, [20, 0, 0]), (1.3, [20, 0, 0]), (1.7, JUG_TIP, 'easeInOutSine'), (2.5, JUG_TIP),
                   (2.9, [20, 0, 0], 'easeInOutSine'), (5.0, [20, 0, 0])], 'lin')
     a.rot('head', [(0, [0, 0, 0]), (1.4, [0, 0, 0]), (1.75, [-28, 0, 0], 'easeInOutSine'), (2.5, [-28, 0, 0]),
@@ -325,7 +333,9 @@ def h_react_badlands():
                     (3.4, [-34, 8, -8]), (4.0, [-34, 8, -8]), (4.2, [-14, 0, -96], 'easeOutBack'),
                     (4.5, [-24, 0, -104]), (4.8, [-14, 0, -96]), (5.1, [-24, 0, -104]), (5.4, [-20, 8, -6], 'easeInOutSine'),
                     (6.0, jug_rest)], 'lin')
-    # counter-rotate so the jug stays upright in his raised hand, tipping further as it empties
+    a.rot('forearm_l', [(0, JUG_LOW), (0.5, JUG_ELBOW, 'easeInOutSine'), (3.1, JUG_ELBOW),
+                        (3.3, [0, 0, 0], 'easeInQuad'), (5.4, [0, 0, 0]), (6.0, JUG_LOW)], 'lin')
+    # counter-rotate so the jug's cap stays at his mouth, tipping further as it empties
     a.rot('jug', [(0, [20, 0, 0]), (0.5, JUG_TIP, 'easeInOutSine'), (3.1, [JUG_TIP[0] - 25, 0, 0]),
                   (3.3, [30, 0, 0], 'easeInQuad'), (4.0, [30, 0, 0]), (4.2, [0, 0, 0]), (5.4, [0, 0, 0]),
                   (6.0, [20, 0, 0])], 'lin')
@@ -349,8 +359,10 @@ def h_react_badlands():
     a.rot('torso', torso)
     a.scale('torso', scale, 'lin')
     a.rot('arm_r', [(0, HOLD_TACO), (3.9, HOLD_TACO), (4.2, [-14, 0, 96], 'easeOutBack'), (4.5, [-24, 0, 104]),
-                    (4.8, [-14, 0, 96]), (5.1, [-24, 0, 104]), (5.3, TO_MOUTH_R, 'easeInOutSine'), (5.55, TO_MOUTH_R),
+                    (4.8, [-14, 0, 96]), (5.1, [-24, 0, 104]), (5.3, TACO_IN_R, 'easeInOutSine'), (5.55, TACO_IN_R),
                     (5.85, REST_R, 'easeInOutSine'), (6.0, REST_R)], 'lin')
+    a.rot('forearm_r', [(0, [0, 0, 0]), (5.1, [0, 0, 0]), (5.3, TACO_ELBOW, 'easeInOutSine'), (5.55, TACO_ELBOW),
+                        (5.85, [0, 0, 0], 'easeInOutSine'), (6.0, [0, 0, 0])], 'lin')
     a.scale('taco', [(0, [1, 1, 1]), (5.45, [1, 1, 1]), (5.55, [0, 0, 0], 'easeInBack'), (6.0, [0, 0, 0])], 'lin')
     a.pos('root', [(0, [0, 0, 0]), (3.3, [0, 0, 0]), (3.38, [0, -0.6, 0]), (3.5, [0, 0, 0]), (6.0, [0, 0, 0])])
     a.sound(3.3, 'plop').sound(3.6, 'burp').sound(4.2, 'flex').sound(4.8, 'flex').sound(5.5, 'bite').sound(5.7, 'gulp')

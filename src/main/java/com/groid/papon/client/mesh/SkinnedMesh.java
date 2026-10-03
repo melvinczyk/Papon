@@ -16,8 +16,9 @@ import java.util.Optional;
 
 /**
  * A triangle mesh skinned onto named GeckoLib bones, loaded from assets/papon/meshes/<name>.json
- * (written by tools/gen_edp_mesh.py). Positions are in rig pixels exactly as a .geo.json would
- * place a cube (right at -X, front at -Z, feet at y=0); each vertex follows up to two bones.
+ * (written by tools/gen_edp_mesh.py and tools/gen_chugs_mesh.py). Positions are in rig pixels exactly
+ * as a .geo.json would place a cube (right at -X, front at -Z, feet at y=0); each vertex follows up to
+ * two bones.
  *
  * Loaded lazily on first render and dropped on resource reload.
  */
