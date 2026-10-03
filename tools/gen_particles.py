@@ -4,14 +4,14 @@
 1. The Groid Pack's own boss mods (the user's call: it is their pack), read straight out of the jars in
    the instance's mods folder: animated pixel-art flames, explosions, smoke, sword sweeps, hit cuts and
    shockwave rings from Block Factory's Bosses, Legendary Monsters, Alex's Caves, L_Ender's Cataclysm
-   and EEEAB's Mobs. Override the folder with $PAPON_MODS.
-2. Kenney's CC0 packs (https://kenney.nl) for the smooth ground warnings, sparks and chunks, unzipped once
-   into tools/.cache/kenney (gitignored):
+   and EEEAB's Mobs (also the flash, the debris chunks and the scorch / splat decals: the user found
+   Kenney's smoke too realistic next to the pixel art). Override the folder with $PAPON_MODS.
+2. Kenney's CC0 particle pack (https://kenney.nl) for the clean ground rings, sigils and sparks, unzipped
+   once into tools/.cache/kenney (gitignored):
 
   mkdir -p tools/.cache/kenney && cd tools/.cache/kenney
   curl -LO https://kenney.nl/media/pages/assets/particle-pack/f8fe0f8cb8-1677578741/kenney_particle-pack.zip
-  curl -LO https://kenney.nl/media/pages/assets/smoke-particles/23249a0d35-1677695171/kenney_smoke-particles.zip
-  unzip -o kenney_particle-pack.zip -d particle && unzip -o kenney_smoke-particles.zip -d smoke
+  unzip -o kenney_particle-pack.zip -d particle
 
 White textures are tinted by the particle (client/FxParticle), so one sweep serves the spatula, the
 cleavers and the fries. Animated ones play their frames over the particle's life.
@@ -29,7 +29,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(ROOT, 'tools/.cache/kenney')
 ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
 PART = os.path.join(CACHE, 'particle/PNG (Transparent)')
-SMOKE = os.path.join(CACHE, 'smoke/PNG')
 
 MODS = os.environ.get('PAPON_MODS', os.path.expanduser(
     '~/Documents/curseforge/minecraft/Instances/Groid Pack OG/mods'))
@@ -50,16 +49,24 @@ FROM_PACK = {
     'slash': (LM, 'knight_sweep'),           # a sword sweep (8), white: tinted, laid flat at the swing's yaw
     'hit': (EEEA, 'hit_cut'),                # an impact cut (6), white: tinted
     'shock': (BFB, 'yeti_death_shockwave'),  # a ring blown outward (6), white: laid flat
+    'flash': (CATA, 'flare_explode'),        # a gold flare bursting into embers (7)
 }
-# Kenney: type -> (size, [source names]); static variants, indexed
+VZ = ('vzling-0.98.7-1.20.1-forge.jar', 'vzling')
+SKAR = ('skarrier_mobs-1.0.8-forge-1.20.1.jar', 'skarrier_mobs')
+# single frames of pack particles used as static variants: (jar, particle, frame, whiten for tinting)
+PACK_FRAME = {
+    'scorch': (VZ, 'scorch', 0, False),      # a black pixel burn
+    'splat': (SKAR, 'blood_splat', 0, True),  # a pixel splash, white: tinted (mash, salsa, blood)
+    'rock_0': (BFB, 'sand_rock', 0, True),   # debris lumps, white: tinted (mash, salt, grit)
+    'rock_1': (BFB, 'sand_rock', 1, True),
+    'rock_3': (BFB, 'sand_rock', 3, True),
+}
+# type -> (size, [sources]); static variants, indexed. A name is a Kenney texture, a '@key' is PACK_FRAME[key]
 KENNEY = {
     # flat on the ground: warnings (index = FxParticle.DECAL_*)
-    'decal': (128, ['circle_02', 'circle_03', 'magic_02', 'magic_03', 'scorch_02', 'circle_05', 'light_03', 'dirt_03']),
+    'decal': (128, ['circle_02', 'circle_03', 'magic_02', 'magic_03', '@scorch', 'circle_05', 'light_03', '@splat']),
     'spark': (32, ['star_04', 'star_06', 'flare_01', 'star_08']),
-    'chunk': (32, ['dirt_01', 'dirt_02', 'circle_05']),
-}
-KENNEY_SEQ = {
-    'flash': (96, ['Flash/flash%02d' % i for i in range(9)]),
+    'chunk': (32, ['@rock_0', '@rock_1', '@rock_3']),  # index 2 is the small one (salt flakes)
 }
 
 
@@ -79,6 +86,26 @@ def load(path):
     return Image.open(path + '.png').convert('RGBA')
 
 
+def whiten(im):
+    """Greyscale, brightest pixel white, so the particle's colour tints it."""
+    a = im.getchannel('A')
+    g = im.convert('L')
+    hi = max(1, g.getextrema()[1])
+    g = g.point(lambda v: min(255, v * 255 // hi))
+    return Image.merge('RGBA', (g, g, g, a))
+
+
+def source(src, size):
+    """A Kenney texture scaled smooth, or a pack frame scaled pixel-sharp."""
+    if not src.startswith('@'):
+        return square(load(os.path.join(PART, src))).resize((size, size), Image.LANCZOS)
+    (jar, ns), name, frame, white = PACK_FRAME[src[1:]]
+    im = square(from_jar(jar, ns, name)[frame])
+    if white:
+        im = whiten(im)
+    return im.resize((size, size), Image.NEAREST)
+
+
 def square(im):
     w, h = im.size
     s = max(w, h)
@@ -87,9 +114,7 @@ def square(im):
     return out
 
 
-def save(im, name, size=None):
-    if size:
-        im = square(im).resize((size, size), Image.LANCZOS)
+def save(im, name):
     im.save(os.path.join(ASSETS, 'textures/particle/fx_%s.png' % name))
     return 'papon:fx_' + name
 
@@ -101,9 +126,7 @@ def main():
     for kind, ((jar, ns), name) in FROM_PACK.items():
         write(kind, [save(im, '%s_%d' % (kind, i)) for i, im in enumerate(from_jar(jar, ns, name))])
     for kind, (size, srcs) in KENNEY.items():
-        write(kind, [save(load(os.path.join(PART, src)), '%s_%d' % (kind, i), size) for i, src in enumerate(srcs)])
-    for kind, (size, srcs) in KENNEY_SEQ.items():
-        write(kind, [save(load(os.path.join(SMOKE, src)), '%s_%d' % (kind, i), size) for i, src in enumerate(srcs)])
+        write(kind, [save(source(src, size), '%s_%d' % (kind, i)) for i, src in enumerate(srcs)])
 
 
 def write(kind, tex):
