@@ -526,6 +526,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         yHeadRot = getYRot();
         destination = blockPosition();
         setPaponState(PaponState.ARRIVED);
+        journeyBar.removeAllPlayers();
         Component title = Component.translatable("title.papon.arrived").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
         Component subtitle = Component.translatable("title.papon.arrived.subtitle").withStyle(ChatFormatting.YELLOW);
         for (ServerPlayer p : server.players()) {
@@ -804,11 +805,12 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     // ------------------------------------------------------------------ journey bar
 
     private void updateJourneyBar(ServerLevel server) {
-        if (!PaponConfig.SHOW_JOURNEY_BAR.get() || destination == null) {
+        PaponState state = getPaponState();
+        // The bar is for the journey: once he is at the Taco Truck it goes away for good.
+        if (!PaponConfig.SHOW_JOURNEY_BAR.get() || destination == null || state.atTruck()) {
             journeyBar.removeAllPlayers();
             return;
         }
-        PaponState state = getPaponState();
         int left = (int) Math.ceil(remainingDistance());
         Component name = switch (state) {
             case RECEIVING -> Component.translatable("bar.papon.receiving");
