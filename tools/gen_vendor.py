@@ -15,8 +15,8 @@ taco_vendor   the Papon in the truck. Chef's toque, a (fake) mustache,
               taco, the fraud coupon and a magnifying glass. Rendered at 1.5x.
 customer_papon a Papon in line. Hats sombrero / cap / none are variants: the renderer hides
               the hats a given customer is not wearing. Prop: his taco.
-papon_boss    Chef Papon after the unmasking, the boss (256x256): no toque, no mustache, the
-              Norwood 7 hair and the mustache mark always on; tequila bottle and handle with
+papon_boss    Chef Papon after the unmasking, the boss (256x256): no toque, no fake mustache, the
+              Norwood 7 hair, his own mustache and the glue mark always on; tequila bottle and handle with
               draining liquid, giant spatula, molotov, lighter, van keys. See papon_boss().
 """
 import os
@@ -39,8 +39,10 @@ def base_bones():
         bone('root', [0, 0, 0]),
         bone('torso', [0, 12, 0], 'root'),
         bone('body', [0, 4, 0], 'torso', [cube([-8, 4, -8], [16, 20, 16], [0, 0])]),
-        bone('brow_r', [-5, 20.5, -8], 'body', [cube([-8, 20, -8.1], [6, 1, 1], [0, 46])]),
-        bone('brow_l', [5, 20.5, -8], 'body', [cube([2, 20, -8.1], [6, 1, 1], [0, 48])]),
+        # brows half a pixel higher than the Walking Crops Papon's, so they never sit on his eyes
+        # (gen_anims.guard_brows keeps the animations off them too)
+        bone('brow_r', [-5, 21, -8], 'body', [cube([-8, 20.5, -8.1], [6, 1, 1], [0, 46])]),
+        bone('brow_l', [5, 21, -8], 'body', [cube([2, 20.5, -8.1], [6, 1, 1], [0, 48])]),
         bone('arm_r', [-8, 11, 0], 'torso', [cube([-12, 4, -3], [4, 8, 6], [24, 36])]),
         bone('arm_l', [8, 11, 0], 'torso', [cube([8, 4, -3], [4, 8, 6], [44, 36])]),
         bone('leg_r', [-4, 4, 0], 'root', [cube([-7, 0, -3], [6, 4, 6], [0, 36])]),
@@ -130,7 +132,9 @@ def bald_parts(m):
                  the ears, nothing on top. The top of the head (the body cube's up face) gets a
                  shine painted on, since the toque has always covered it.
     wisps        the two last hairs on top, which wave about
-    stache_mark  the red patch the fake mustache leaves when it is ripped off
+    real_stache  his own mustache: thin, grey-brown like the horseshoe. Under the fake one all along,
+                 so ripping the disguise off leaves it there (and the boss has it)
+    stache_mark  the red patch the fake mustache's glue leaves above it when it is ripped off
     sweat, blush caught out / embarrassed (the boss also blushes as he gets drunk)
     tears        the boss, beaten
     """
@@ -161,7 +165,12 @@ def bald_parts(m):
     for x, y in ((20, 3), (21, 3), (22, 3), (19, 4), (20, 4), (21, 4), (19, 5), (20, 5), (24, 6), (25, 6)):
         r, g, b, a = m.p.px[x, y]
         m.p.px[x, y] = (min(255, r + 70), min(255, g + 66), min(255, b + 60), 255)
-    m.add(bone('stache_mark', [0, 13, -8], 'body', [m.box([-5, 12.5, -8.15], [10, 1, 0], (214, 120, 104), noise=0.05)]))
+    m.add(bone('real_stache', [0, 12, -8], 'body', [
+        m.box([-3.5, 12, -8.12], [7, 1, 0], HAIR, noise=0.1),
+        m.box([-4.5, 11, -8.12], [1, 1, 0], HAIR, noise=0.1),
+        m.box([3.5, 11, -8.12], [1, 1, 0], HAIR, noise=0.1),
+    ]))
+    m.add(bone('stache_mark', [0, 13, -8], 'body', [m.box([-5.5, 13, -8.15], [11, 1, 0], (214, 120, 104), noise=0.05)]))
     drop = (176, 222, 255)
     m.add(bone('sweat', [0, 20, -8], 'body', [
         m.box([-7, 19, -8.6], [1, 2, 1], drop, noise=0.04),
@@ -199,14 +208,32 @@ def vendor():
     puff = m.box([-9.5, 27, -9.5], [19, 6, 19], white, noise=0.03, extra=pleats)
     m.add(bone('toque', [0, 24, 0], 'body', [hat_band, puff]))
 
-    # a big black handlebar mustache, just above his mouth
-    stache = (30, 22, 18)
+    # the disguise: a costume-shop handlebar mustache, glued on over his own little one. Too big,
+    # too black, too shiny, curled up at the tips, the tan adhesive strip showing along its top
+    # and the price tag still on it
+    stache = (16, 14, 16)
+
+    def plastic(p, f):
+        x0, y0, x1, y1 = (int(n) for n in f['front'])
+        for x in range(x0, x1):
+            if (x - x0) % 3 == 1:
+                p.put(x, y0, (92, 92, 104), 0.02)              # a plastic sheen along the top
+
+    def tag(p, f):
+        x0, y0, x1, y1 = (int(n) for n in f['front'])
+        p.put(x0, y0, (200, 30, 30), 0)                        # "$4.99" as far as anyone can tell
+    tan = (214, 184, 128)
     m.add(bone('mustache', [0, 12, -8], 'body', [
-        m.box([-4, 12, -9], [8, 2, 1], stache, noise=0.08),
-        m.box([-6, 11, -9], [2, 2, 1], stache, noise=0.08),
-        m.box([4, 11, -9], [2, 2, 1], stache, noise=0.08),
-        m.box([-7, 10, -9], [1, 2, 1], stache, noise=0.08),
-        m.box([6, 10, -9], [1, 2, 1], stache, noise=0.08),
+        m.box([-5, 12, -9.2], [10, 3, 1], stache, noise=0.04, extra=plastic),
+        m.box([-5, 15, -9.25], [10, 1, 0], tan, noise=0.05),                          # the glue strip
+        m.box([-7, 11, -9.2], [2, 3, 1], stache, noise=0.04, extra=plastic),
+        m.box([5, 11, -9.2], [2, 3, 1], stache, noise=0.04, extra=plastic),
+        m.box([-9, 11, -9.2], [2, 2, 1], stache, noise=0.04, extra=plastic),
+        m.box([7, 11, -9.2], [2, 2, 1], stache, noise=0.04, extra=plastic),
+        m.box([-10, 12, -9.2], [1, 2, 1], stache, noise=0.04, extra=plastic),         # curled-up tips
+        m.box([9, 12, -9.2], [1, 2, 1], stache, noise=0.04, extra=plastic),
+        m.box([9, 9, -9.15], [1, 2, 0], (236, 236, 236), noise=0.0),                  # the tag's string
+        m.box([8, 7, -9.15], [2, 2, 0], (248, 246, 236), noise=0.0, extra=tag),      # the price tag
     ]))
 
     apron(m)
@@ -317,8 +344,8 @@ GLASS = (214, 236, 228)
 
 
 def papon_boss():
-    """Chef Papon after the reveal, as the boss: toque and mustache gone for good, Norwood 7 out in
-    the open, the red patch where the mustache was. Rendered at 1.5x (1.0 in the van) with a
+    """Chef Papon after the reveal, as the boss: toque and fake mustache gone for good, Norwood 7 out
+    in the open, his own thin mustache with the red glue patch above it. Rendered at 1.5x (1.0 in the van) with a
     translucent render type, so the bottles are see-through and their level reads from outside.
 
     Props (right hand unless noted; all along the arm's axis, so they follow the arm):

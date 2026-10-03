@@ -20,7 +20,7 @@ Lengths of one-shots are state durations in Java (GerbinState, BossState); keep 
 import json
 import os
 
-from gen_anims import EPS
+from gen_anims import guard_brows, EPS
 from gen_npc_anims import Pinned, osc
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -547,7 +547,7 @@ def write(name, fns, prefix):
     data = {'format_version': '1.8.0', 'animations': {}}
     for fn in fns:
         a = fn()
-        data['animations'][prefix + a.name] = a.compile()
+        data['animations'][prefix + a.name] = guard_brows(a.compile())
     path = os.path.join(OUT_DIR, name + '.animation.json')
     with open(path, 'w', newline='\n') as f:
         json.dump(data, f, indent='\t')

@@ -28,7 +28,7 @@ gen_celeb_anims.py, with poses solved on their models by pose_solver.py.
 import json
 import os
 
-from gen_anims import EPS, Anim
+from gen_anims import guard_brows, EPS, Anim
 from gen_celeb_anims import chugs_anims, edp_anims
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -727,7 +727,7 @@ def write(name, fns, prefix):
     data = {'format_version': '1.8.0', 'animations': {}}
     for fn in fns:
         a = fn()
-        data['animations'][prefix + a.name] = a.compile()
+        data['animations'][prefix + a.name] = guard_brows(a.compile())
     path = os.path.join(OUT_DIR, name + '.animation.json')
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(path, 'w', newline='\n') as f:

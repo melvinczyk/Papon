@@ -33,6 +33,60 @@ def r4(x):
     return round(float(x), 4)
 
 
+def guard_brows(compiled, half=3.0, max_tilt=20.0, floor=0.0):
+    """Keeps a Papon's brows off his eyes, which sit right under them: tilts are capped at
+    `max_tilt` degrees, and at every brow key the brow is lifted so that its lower end (half a
+    brow, `half` px, from the pivot) never goes below `floor` px from where it rests. A frown still
+    reads (the inner ends come down to the rest line), the eyes stay visible.
+    `compiled` is one animation as written to JSON; it is changed in place and returned."""
+    import math as _m
+    for brow in ('brow_r', 'brow_l'):
+        ch = compiled.get('bones', {}).get(brow)
+        if not ch:
+            continue
+        rot = ch.get('rotation', {})
+        pos = ch.get('position', {})
+        rkeys = sorted((float(k), v['vector']) for k, v in rot.items())
+        pkeys = sorted((float(k), v) for k, v in pos.items())
+
+        def tilt(t):
+            if not rkeys:
+                return 0.0
+            if t <= rkeys[0][0]:
+                return rkeys[0][1][2]
+            for (t0, a), (t1, b) in zip(rkeys, rkeys[1:]):
+                if t0 <= t <= t1:
+                    u = (t - t0) / max(t1 - t0, 1e-9)
+                    return a[2] + (b[2] - a[2]) * u
+            return rkeys[-1][1][2]
+
+        def ypos(t):
+            if not pkeys:
+                return 0.0
+            if t <= pkeys[0][0]:
+                return pkeys[0][1]['vector'][1]
+            for (t0, a), (t1, b) in zip(pkeys, pkeys[1:]):
+                if t0 <= t <= t1:
+                    u = (t - t0) / max(t1 - t0, 1e-9)
+                    return a['vector'][1] + (b['vector'][1] - a['vector'][1]) * u
+            return pkeys[-1][1]['vector'][1]
+
+        for v in rot.values():
+            v['vector'][2] = r4(max(-max_tilt, min(max_tilt, v['vector'][2])))
+        times = sorted(set([t for t, _ in pkeys] + [t for t, _ in rkeys]))
+        out = {}
+        for t in times:
+            z = max(-max_tilt, min(max_tilt, tilt(t)))
+            old = next((v for tt, v in pkeys if tt == t), None)
+            x, y, zz = old['vector'] if old else [0.0, ypos(t), 0.0]
+            y = max(y, floor) + half * _m.sin(_m.radians(abs(z)))
+            key = dict(old) if old else {}
+            key['vector'] = [r4(x), r4(y), r4(zz)]
+            out['%.4g' % t if t else '0.0'] = key
+        ch['position'] = out
+    return compiled
+
+
 class Anim:
     def __init__(self, name, length, loop):
         self.name, self.length, self.loop = name, length, loop
