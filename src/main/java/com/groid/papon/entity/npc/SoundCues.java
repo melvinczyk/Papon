@@ -103,6 +103,16 @@ public final class SoundCues {
             case "flame" -> { sound = SoundEvents.FIRECHARGE_USE; volume = 0.6F; pitch = 0.8F; }
             case "thud" -> { sound = SoundEvents.WOOL_FALL; volume = 1.0F; pitch = 0.6F; }
             case "sob" -> { sound = SoundEvents.VILLAGER_HURT; volume = 0.9F; pitch = 0.5F; }
+            // Chef Papon, phase two
+            case "cough" -> { sound = SoundEvents.PANDA_SNEEZE; volume = 1.0F; pitch = 0.45F; }
+            case "heartbeat" -> { sound = SoundEvents.WARDEN_HEARTBEAT; volume = 2.0F; pitch = 0.8F; }
+            case "chuckle" -> { sound = SoundEvents.WITCH_CELEBRATE; volume = 0.8F; pitch = 0.6F; }
+            case "crack" -> { sound = SoundEvents.SKELETON_HURT; volume = 0.7F; pitch = 0.5F; }
+            case "scream" -> { sound = SoundEvents.WARDEN_ROAR; volume = 2.0F; pitch = 1.2F; }
+            case "flap" -> { sound = SoundEvents.ENDER_DRAGON_FLAP; volume = 0.9F; pitch = 1.3F; }
+            case "punch" -> { sound = SoundEvents.PLAYER_ATTACK_STRONG; volume = 0.8F; pitch = 0.8F; }
+            case "lift" -> { sound = SoundEvents.IRON_GOLEM_REPAIR; volume = 1.0F; pitch = 0.6F; }
+            case "shake" -> { sound = SoundEvents.SAND_HIT; volume = 1.0F; pitch = 1.5F; }
             default -> { return; }
         }
         e.level().playLocalSound(e.getX(), e.getY(), e.getZ(), sound, SoundSource.NEUTRAL, volume,

@@ -89,17 +89,40 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onRenderPlayer(net.minecraftforge.client.event.RenderPlayerEvent.Pre event) {
         // the cutscene camera stands where it likes; the player's own body must not block the shot
-        if (Cinematic.isActive() && event.getEntity() == Minecraft.getInstance().player) event.setCanceled(true);
+        // (except in his point-of-view shot, where the camera is his eyes and you are what he sees)
+        if (Cinematic.isActive() && !Cinematic.povActive() && event.getEntity() == Minecraft.getInstance().player) event.setCanceled(true);
     }
 
-    /** Letterbox bars. */
+    /** Letterbox bars (and, in phase two's cutscene, the red edge of his point of view and the white-out). */
     @SubscribeEvent
     public static void onGui(RenderGuiEvent.Post event) {
-        float k = Cinematic.bars(event.getPartialTick());
-        if (k <= 0) return;
         GuiGraphics g = event.getGuiGraphics();
         int w = event.getWindow().getGuiScaledWidth();
         int h = event.getWindow().getGuiScaledHeight();
+        float pt = event.getPartialTick();
+        float v = Cinematic.vignette(pt);
+        if (v > 0) {
+            Minecraft mc0 = Minecraft.getInstance();
+            float time = (mc0.level == null ? 0 : mc0.level.getGameTime() % 20) + pt;
+            float beat = (float) Math.max(Math.exp(-time * 0.5), Math.exp(-Math.abs(time - 5) * 0.6) * 0.7);
+            float a = v * (0.55F + 0.45F * beat);
+            int bands = 14;
+            for (int i = 0; i < bands; i++) {
+                float k0 = 1F - i / (float) bands;
+                int alpha = (int) (a * 200 * k0 * k0);
+                int col = (alpha << 24) | 0x5A0000;
+                int ix = (int) (w * 0.22F * i / bands);
+                int iy = (int) (h * 0.22F * i / bands);
+                g.fill(ix, iy, ix + (int) (w * 0.22F / bands) + 1, h - iy, col);
+                g.fill(w - ix - (int) (w * 0.22F / bands) - 1, iy, w - ix, h - iy, col);
+                g.fill(ix, iy, w - ix, iy + (int) (h * 0.22F / bands) + 1, col);
+                g.fill(ix, h - iy - (int) (h * 0.22F / bands) - 1, w - ix, h - iy, col);
+            }
+        }
+        float fl = Cinematic.flash(pt);
+        if (fl > 0) g.fill(0, 0, w, h, ((int) (Math.min(1F, fl) * 255) << 24) | 0xFFF6E0);
+        float k = Cinematic.bars(pt);
+        if (k <= 0) return;
         int bar = Math.round(h * 0.11F * k);
         g.fill(0, 0, w, bar, 0xFF000000);
         g.fill(0, h - bar, w, h, 0xFF000000);

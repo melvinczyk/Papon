@@ -45,6 +45,12 @@ public final class Cinematic {
     /** Whoever the camera is on, for the subtitles. */
     @Nullable private static Entity subject;
     private static int lastBossState = -1;
+    /** The boss whose eyes the camera is (the phase-two point-of-view shot), or null. */
+    @Nullable private static PaponBossEntity pov;
+    private static float vignette;
+    private static float vignetteO;
+    private static float flash;
+    private static float flashO;
 
     private Cinematic() {}
 
@@ -64,6 +70,25 @@ public final class Cinematic {
         return roll;
     }
 
+    /** True while the camera looks out of this boss's eyes (he is not drawn; the player is). */
+    public static boolean isPovOf(Entity e) {
+        return active && pov != null && pov == e;
+    }
+
+    public static boolean povActive() {
+        return active && pov != null;
+    }
+
+    /** The red, pulsing edge of the point-of-view shot, 0..1. */
+    public static float vignette(float partial) {
+        return Mth.lerp(partial, vignetteO, vignette);
+    }
+
+    /** The white-out over the jump into the potato dome, 0..1. */
+    public static float flash(float partial) {
+        return Mth.lerp(partial, flashO, flash);
+    }
+
     /** The encoded speech line of whoever the cutscene is about ("" when quiet). */
     public static String subjectSpeech() {
         if (!active || subject == null || !subject.isAlive()) return "";
@@ -75,6 +100,9 @@ public final class Cinematic {
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
         barsO = bars;
+        vignetteO = vignette;
+        flashO = flash;
+        pov = null;
         if (mc.level == null || mc.player == null || !PaponConfig.CINEMATICS.get()) {
             if (active) stop(mc);
             bars = Math.max(0, bars - 0.1F);
@@ -89,7 +117,14 @@ public final class Cinematic {
             stop(mc);
         }
         bars = Mth.clamp(bars + (active ? 0.12F : -0.08F), 0, 1);
+        if (!active) pov = null;
+        vignette = Mth.clamp(vignette + (pov != null ? 0.1F : -0.1F), 0, 1);
+        if (flashTarget < 0) flash = Math.max(0, flash - 0.08F);
+        else flash = flashTarget;
+        flashTarget = -1;
     }
+
+    private static float flashTarget = -1;
 
     @Nullable
     private static Shot findShot(Minecraft mc) {
@@ -149,6 +184,8 @@ public final class Cinematic {
         Vec3 f = Vec3.directionFromRotation(0, b.getYRot());
         Vec3 right = new Vec3(-f.z, 0, f.x);
         Vec3 body = b.position().add(0, 1.3, 0);
+        Shot p2 = phaseTwoShot(b, s, t, f, right);
+        if (p2 != null) return p2;
         return switch (s) {
             case LEAP_OUT -> {
                 Vec3 base = leapStart != null ? leapStart : b.position();
@@ -163,6 +200,69 @@ public final class Cinematic {
             case ROAR -> t < 30
                     ? new Shot(b.position().add(f.scale(6.2 - Math.min(1, t / 6.0) * 1.4)).add(0, 1.2, 0), body.add(0, 0.7, 0), 55, 0, t == 0)
                     : null;
+            default -> null;
+        };
+    }
+
+    /**
+     * Phase two's cutscene, beat by beat:
+     *   P2_KNEEL   a low wide shot as he drops to his knee; then (from 1.4 s) his eyes: looking down at
+     *              the ground where the blood drips, the edges red and pulsing with the heartbeat, until
+     *              his head comes up to you (from 2.8 s)
+     *   P2_TALK    close on his face, the blood on his lip: "Okay... enough playing around."; tilting up
+     *              as he gets to his feet
+     *   P2_SEASON  a slow orbit as the shaker comes down and salts him, pushing in when he bakes
+     *   P2_SCREAM  in tight, then a whip back as he screams; a wide low angle on the wings; white-out
+     *   P2_ARRIVE  the white clears on him hanging in the air of his potato dimension
+     */
+    @Nullable
+    private static Shot phaseTwoShot(PaponBossEntity b, BossState s, int t, Vec3 f, Vec3 right) {
+        Minecraft mc = Minecraft.getInstance();
+        Vec3 face = b.position().add(0, 1.1, 0);
+        return switch (s) {
+            case P2_KNEEL -> {
+                if (t < 28) {
+                    yield new Shot(b.position().add(right.scale(6.5)).add(f.scale(3.0)).add(0, 0.6, 0), face, 55, 0, t == 0);
+                }
+                pov = b;
+                Vec3 eye = b.position().add(f.scale(1.05)).add(0, 1.35, 0);
+                Vec3 down = b.position().add(f.scale(2.4)).add(0, 0.05, 0);
+                Vec3 you = mc.player.getEyePosition();
+                double up = t < 56 ? 0 : Math.min(1, (t - 56) / 20.0);
+                up = up * up * (3 - 2 * up);
+                Vec3 look = down.lerp(you, up);
+                float sway = (float) Math.sin(t * 0.12) * 5F;
+                yield new Shot(eye.add(0, Math.sin(t * 0.3) * 0.02, 0), look, 62, sway, t == 28);
+            }
+            case P2_TALK -> {
+                double rise = t < 40 ? 0 : Math.min(1, (t - 40) / 18.0);
+                Vec3 at = face.add(0, rise * 0.5, 0);
+                yield new Shot(at.add(f.scale(2.6 - t / 70.0 * 0.5)).add(0, -0.25, 0), at.add(0, 0.05, 0), 42, 0, t == 0);
+            }
+            case P2_SEASON -> {
+                double orbit = Math.toRadians(-40 + t * 0.9);
+                Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
+                double dist = t < 70 ? 6.5 : 6.5 - Math.min(1, (t - 70) / 12.0) * 2.5;
+                Vec3 lookAt = b.position().add(0, t < 66 ? 2.4 : 1.3, 0);
+                yield new Shot(b.position().add(dir.scale(dist)).add(0, 1.0, 0), lookAt, 58, 0, t == 0);
+            }
+            case P2_SCREAM -> {
+                if (t >= 56) flashTarget = Math.min(1F, (t - 56) / 12F);
+                if (t < 15) yield new Shot(face.add(f.scale(2.2)).add(0, 0.2, 0), face.add(0, 0.25, 0), 40, 0, t == 0);
+                if (t < 40) {
+                    double k = Math.min(1, (t - 15) / 8.0);
+                    k = 1 - (1 - k) * (1 - k);
+                    yield new Shot(face.add(f.scale(2.2 + k * 7.5)).add(0, 0.2 + k * 1.2, 0), face.add(0, 0.6, 0), 70, (float) Math.sin(t * 1.7) * 3F, false);
+                }
+                double orbit = Math.toRadians(30 + (t - 40) * 1.2);
+                Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
+                yield new Shot(b.position().add(dir.scale(9.0)).add(0, -0.2, 0), b.position().add(0, 2.2, 0), 64, 0, t == 40);
+            }
+            case P2_ARRIVE -> {
+                if (t < 14) flashTarget = 1F - t / 14F;
+                Vec3 body = b.position().add(0, 1.4, 0);
+                yield new Shot(body.add(f.scale(9.0 - t / 50.0 * 2.0)).add(0, -2.5, 0), body, 60, 0, t == 0);
+            }
             default -> null;
         };
     }
