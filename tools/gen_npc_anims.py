@@ -19,6 +19,8 @@ Lengths of one-shot animations are state durations in Java; keep them in step:
   receive / customer_receive   1.5 s = Customer.SERVE
   react_<who>                  = Customer.<WHO>.reactTicks / 20
   vendor_serve 1.5 s = VendorState.SERVING, vendor_inspect 7.5 s = INSPECTING, vendor_fraud 3.0 s = FRAUD
+  vendor_exposed 3.0 s = EXPOSED, vendor_unmask 5.0 s = UNMASK, vendor_realize 3.0 s = REALIZE,
+  vendor_rage 3.5 s = RAGE (the unmasking; TacoVendorEntity fires its effects at the same ticks)
   vendor_cook loops every 4.0 s = Customer.COOK
 """
 import json
@@ -34,7 +36,8 @@ class Pinned(Anim):
     pins = []
 
     def compile(self):
-        bones = {b: dict(c) for b, c in self.bones.items()}
+        bones = {b: {ch: dict(sorted(keys.items(), key=lambda kv: float(kv[0]))) for ch, keys in c.items()}
+                 for b, c in self.bones.items()}
         for prop in self.pins:
             if 'scale' not in bones.get(prop, {}):
                 bones.setdefault(prop, {})['scale'] = {'0.0': {'vector': [0, 0, 0]}}
@@ -55,7 +58,8 @@ class H(Pinned):
 
 class P(Pinned):
     """Papon (customer or taquero) animation."""
-    pins = ['taco', 'notepad', 'pencil', 'spatula', 'served_taco', 'fraud_coupon', 'magnifier']
+    pins = ['taco', 'notepad', 'pencil', 'spatula', 'served_taco', 'fraud_coupon', 'magnifier',
+            'hair', 'wisps', 'stache_mark', 'sweat', 'blush', 'tears']
 
 
 def osc(t0, t1, step, a, b, ease=None):
@@ -634,9 +638,10 @@ def v_fraud():
                      (1.0, [0.92, 1.16, 0.92], 'easeOutBack')]
             + [(round(1.1 + 0.1 * i, 2), [0.94, 1.14, 0.94] if i % 2 == 0 else [0.9, 1.18, 0.9]) for i in range(10)]
             + [(2.4, [1.04, 1.04, 1.04], 'easeInOutSine'), (3.0, [1, 1, 1])], 'lin')
-    a.pos('toque', [(0, [0, 0, 0]), (0.45, [0, 0, 0]), (0.75, [0, 14, 0], 'easeOutQuad'), (1.3, [0, 0, 0], 'easeOutBounce'),
+    # the toque jolts with the slam but stays put: it comes off on purpose, later (vendor_unmask)
+    a.pos('toque', [(0, [0, 0, 0]), (0.45, [0, 0, 0]), (0.55, [0, 3, 0], 'easeOutQuad'), (0.8, [0, 0, 0], 'easeOutBounce'),
                     (3.0, [0, 0, 0])], 'lin')
-    a.rot('toque', [(0, [0, 0, 0]), (0.45, [0, 0, 0]), (1.3, [0, 0, 360], 'easeOutQuad'), (1.3 + EPS, [0, 0, 0], 'lin'),
+    a.rot('toque', [(0, [0, 0, 0]), (0.45, [0, 0, 0]), (0.55, [-6, 0, 8]), (0.9, [0, 0, 0], 'easeOutBounce'),
                     (3.0, [0, 0, 0])], 'lin')
     for brow, ang in (('brow_r', ANGRY_R), ('brow_l', ANGRY_L)):
         a.pos(brow, [(0, [0, -0.7, 0]), (1.0, [0, -1.0, 0]), (3.0, [0, -0.7, 0])])
@@ -660,8 +665,186 @@ def v_furious():
     return a
 
 
+# ---- the unmasking. After FRAUD the taquero knows the game is up: the coupon was a fake, and so
+# is he. He rips off his (fake) mustache, takes off his toque, and there it is: Norwood 7. Then it
+# dawns on him what he has just shown everybody.
+
+HIDDEN = [0, 0, 0]
+SHOWN = [1, 1, 1]
+
+
+def stretch(a, arm, keys):
+    """Papon's arms are stubs: they stretch (scale Y about the shoulder) to reach his face and hat."""
+    a.scale(arm, [(t, [1, k, 1]) + tuple(rest) for t, k, *rest in keys], 'lin')
+TO_STACHE = [-92, -42, 0]         # right hand at his mustache (arm stretched 1.5x to get there)
+RIP_OUT = [-80, 10, 96]           # ...yanked out to his right
+HANDS_UP_R = [-176, 0, 2]         # both hands up at the toque's brim (arms stretched 2.3x: cartoon reach)
+HANDS_UP_L = [-176, 0, -2]
+LIFT_R = [-180, 0, -2]
+LIFT_L = [-180, 0, 2]
+ON_HEAD_R = [-166, -20, 4]        # hands clamped on his bare head (arms stretched 1.8x)
+ON_HEAD_L = [-166, 20, -4]
+
+
+def unmasked(a):
+    """Keys for every animation after the toque and mustache are gone."""
+    a.scale('toque', [(0, HIDDEN)], 'lin')
+    a.scale('mustache', [(0, HIDDEN)], 'lin')
+    a.scale('hair', [(0, SHOWN)], 'lin')
+    a.scale('wisps', [(0, SHOWN)], 'lin')
+    a.scale('stache_mark', [(0, SHOWN)], 'lin')
+    return a
+
+
+def nervous_brows(a, t0, t1):
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, -0.7, 0]), (t0, [0, 1.6, 0], 'easeOutBack'), (t1, [0, 1.4, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, 18 * s]), (t0, [0, 0, -14 * s], 'easeOutBack'), (t1, [0, 0, -12 * s])], 'lin')
+
+
+def v_exposed():
+    """3.0 s. Found out. The fury drains away: sweat, darting looks, a tug at the collar, a weak laugh."""
+    a = P('vendor_exposed', 3.0, 'hold')
+    a.rot('arm_r', [(0, [-20, 0, 26]), (0.35, [-6, 0, 6], 'easeInOutSine'), (3.0, [-6, 0, 6])], 'lin')
+    # the collar tug
+    a.rot('arm_l', [(0, [-20, 0, -26]), (0.35, [-6, 0, -6], 'easeInOutSine'), (1.5, [-6, 0, -6]),
+                    (1.75, [-128, 30, 0], 'easeOutQuad'), (1.9, [-122, 34, 0]), (2.05, [-128, 30, 0]), (2.2, [-122, 34, 0]),
+                    (2.5, [-6, 0, -6], 'easeInOutSine'), (3.0, [-6, 0, -6])], 'lin')
+    a.scale('body', [(0, [1.04, 1.04, 1.04]), (0.4, [0.96, 0.95, 0.96], 'easeOutQuad'), (3.0, [0.96, 0.95, 0.96])], 'lin')
+    a.rot('torso', [(0, [4, 0, 0]), (0.4, [8, 0, 0]), (3.0, [8, 0, 0])])
+    # eyes dart: the whole potato glances left, right, back
+    a.rot('root', [(0, [0, 0, 0]), (0.5, [0, 0, 0]), (0.62, [0, 24, 0], 'easeOutQuad'), (0.95, [0, 24, 0]),
+                   (1.07, [0, -24, 0], 'easeOutQuad'), (1.35, [0, -24, 0]), (1.47, [0, 0, 0], 'easeOutQuad'),
+                   (3.0, [0, 0, 0])], 'lin')
+    nervous_brows(a, 0.3, 3.0)
+    a.vis('sweat', False, [(0.45, True)])
+    a.pos('sweat', [(0, [0, 0, 0]), (0.45, [0, 0, 0]), (3.0, [0, -2.5, 0])], 'lin')
+    a.rot('mustache', [(0, [0, 0, 0]), (0.4, [8, 0, 0]), (2.6, [8, 0, 0])]
+          + [(round(2.6 + 0.07 * i, 2), [8, 0, 3 if i % 2 == 0 else -3]) for i in range(6)])
+    # the weak laugh: three little hops
+    a.pos('root', [(0, [0, 0, 0]), (2.5, [0, 0, 0]), (2.6, [0, 0.6, 0]), (2.7, [0, 0, 0]), (2.8, [0, 0.6, 0]),
+                   (2.9, [0, 0, 0]), (3.0, [0, 0, 0])], 'lin')
+    a.sound(0.4, 'gulp').sound(1.75, 'tie').sound(2.55, 'nervous')
+    return a
+
+
+def v_unmask():
+    """5.0 s. Rips off the mustache (0.95 s) and flings it out of the window; lifts off the toque
+    (from 2.85 s: the reveal); tosses it; stands there, bald as an egg, for exactly one second."""
+    a = P('vendor_unmask', 5.0, 'hold')
+    a.rot('arm_r', [(0, [-6, 0, 6]), (0.55, TO_STACHE, 'easeInOutSine'), (0.75, [-106, -46, 2]), (0.85, [-102, -48, -2]),
+                    (0.95, RIP_OUT, 'easeOutExpo'), (1.5, [-84, 10, 92]), (1.75, [-150, -20, 40], 'easeInQuad'),
+                    (1.95, [-30, -30, 10], 'easeOutQuad'), (2.3, [-30, -30, 10]), (2.7, HANDS_UP_R, 'easeInOutSine'),
+                    (2.85, HANDS_UP_R), (3.6, LIFT_R, 'easeInOutSine'), (3.9, LIFT_R), (4.25, [-60, 0, 70], 'easeInQuad'),
+                    (4.45, [-20, 0, 30], 'easeOutQuad'), (5.0, [-20, 0, 34])], 'lin')
+    a.rot('arm_l', [(0, [-6, 0, -6]), (2.3, [-6, 0, -6]), (2.7, HANDS_UP_L, 'easeInOutSine'), (2.85, HANDS_UP_L),
+                    (3.6, LIFT_L, 'easeInOutSine'), (3.9, LIFT_L), (4.25, [-60, 0, -70], 'easeInQuad'),
+                    (4.45, [-20, 0, -30], 'easeOutQuad'), (5.0, [-20, 0, -34])], 'lin')
+    # the mustache comes away in his hand, hangs there while he winces, then flies out the window
+    a.pos('mustache', [(0, [0, 0, 0]), (0.9, [0, 0, 0]), (0.95, [-11, -1, 6], 'easeOutExpo'), (1.5, [-11, -1.5, 6]),
+                       (1.75, [-8, 12, 2], 'easeInQuad'), (2.2, [-4, 18, -40], 'easeOutQuad')], 'lin')
+    a.rot('mustache', [(0, [0, 0, 0]), (0.9, [0, 0, 0]), (0.95, [0, 50, 70], 'easeOutExpo'), (1.5, [0, 50, 76]),
+                       (2.2, [360, 90, 300], 'easeOutQuad')], 'lin')
+    a.scale('mustache', [(0, SHOWN), (2.0, SHOWN), (2.2, HIDDEN, 'easeInQuad'), (5.0, HIDDEN)], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.55, 1.5, 'easeInOutSine'), (0.9, 1.5), (0.95, 1.2, 'easeOutExpo'), (1.5, 1.2),
+                          (1.95, 1, 'easeOutQuad'), (2.3, 1), (2.7, 2.3, 'easeInOutSine'), (3.6, 2.6, 'easeInOutSine'),
+                          (3.9, 2.6), (4.25, 1.6, 'easeInQuad'), (4.45, 1, 'easeOutQuad'), (5.0, 1)])
+    stretch(a, 'arm_l', [(0, 1), (2.3, 1), (2.7, 2.3, 'easeInOutSine'), (3.6, 2.6, 'easeInOutSine'), (3.9, 2.6),
+                          (4.25, 1.6, 'easeInQuad'), (4.45, 1, 'easeOutQuad'), (5.0, 1)])
+    a.vis('stache_mark', False, [(0.93, True)])
+    # the toque: lifted slow and high (the hair is under it), held, swept down and tossed behind him
+    a.pos('toque', [(0, [0, 0, 0]), (2.85, [0, 0, 0]), (3.6, [0, 6, 0], 'easeInOutSine'), (3.9, [0, 6.5, 0]),
+                    (4.25, [-10, 4, 6], 'easeInQuad'), (4.6, [-22, -10, 18], 'easeOutQuad')], 'lin')
+    a.rot('toque', [(0, [0, 0, 0]), (3.9, [0, 0, 0]), (4.6, [-60, 40, 120], 'easeOutQuad')], 'lin')
+    a.scale('toque', [(0, SHOWN), (4.4, SHOWN), (4.6, HIDDEN, 'easeInQuad'), (5.0, HIDDEN)], 'lin')
+    a.vis('hair', False, [(2.86, True)])
+    a.vis('wisps', False, [(2.86, True)])
+    a.rot('wisps', [(0, [0, 0, 0]), (2.86, [0, 0, 0]), (3.2, [0, 0, 18], 'easeOutBack'), (3.5, [0, 0, -12]),
+                    (3.8, [0, 0, 8]), (4.2, [0, 0, -4]), (5.0, [0, 0, 0])])
+    # body: lean in to grab, jolt at the rip, wince, stand tall for the reveal
+    a.rot('torso', [(0, [8, 0, 0]), (0.55, [10, 0, 0]), (0.9, [10, 0, 0]), (0.95, [-6, 0, -8], 'easeOutExpo'),
+                    (1.2, [4, 0, 4]), (1.5, [4, 0, -2]), (1.95, [6, 0, 0]), (2.85, [-4, 0, 0]),
+                    (3.6, [-10, 0, 0]), (4.45, [-6, 0, 0]), (5.0, [-8, 0, 0])])
+    a.scale('body', [(0, [0.96, 0.95, 0.96]), (0.9, [0.96, 0.95, 0.96]), (0.95, [1.08, 0.92, 1.08], 'easeOutExpo'),
+                     (1.15, [0.97, 1.03, 0.97]), (1.4, [1, 1, 1]), (3.6, [1.03, 1.04, 1.03]), (4.5, [1.06, 1.06, 1.06]),
+                     (5.0, [1.06, 1.06, 1.06])], 'cat')
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 1.4, 0]), (0.5, [0, -0.6, 0]), (0.9, [0, -0.6, 0]), (0.95, [0, -1.4, 0], 'easeOutExpo'),
+                     (1.6, [0, -1.0, 0]), (2.85, [0, -0.5, 0]), (3.6, [0, 0.4, 0]), (5.0, [0, 0.2, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, -12 * s]), (0.5, [0, 0, 18 * s]), (0.95, [0, 0, 30 * s], 'easeOutExpo'),
+                     (1.6, [0, 0, 18 * s]), (3.6, [0, 0, 4 * s]), (5.0, [0, 0, 6 * s])], 'lin')
+    a.vis('sweat', True, [(0.9, False)])
+    a.sound(0.5, 'tie').sound(0.95, 'rip').sound(1.05, 'yelp').sound(1.85, 'whoosh').sound(2.8, 'cloth')
+    a.sound(3.55, 'reveal').sound(4.3, 'whoosh').sound(4.6, 'plop')
+    return a
+
+
+def v_realize():
+    """3.0 s. A breeze. The two hairs on top wave in it. He feels it on his scalp, pats his head,
+    and it dawns on him: everyone saw. Blushing, he clamps both hands over his head."""
+    a = unmasked(P('vendor_realize', 3.0, 'hold'))
+    a.rot('wisps', [(round(0.15 * i, 2), [0, 0, 22 if i % 2 == 0 else -22]) for i in range(21)])
+    a.rot('arm_r', [(0, [-20, 0, 34]), (0.5, [-20, 0, 34]), (1.0, [-176, -24, 10], 'easeInOutSine'),
+                    (1.15, [-168, -24, 10]), (1.3, [-176, -24, 10]), (1.45, [-168, -24, 10]), (1.75, [-20, 0, 30], 'easeInOutSine'),
+                    (2.15, [-20, 0, 30]), (2.35, ON_HEAD_R, 'easeOutBack')]
+          + [(round(2.45 + 0.07 * i, 2), [ON_HEAD_R[0] + (3 if i % 2 else -3), ON_HEAD_R[1], ON_HEAD_R[2]]) for i in range(8)], 'lin')
+    a.rot('arm_l', [(0, [-20, 0, -34]), (2.15, [-20, 0, -34]), (2.35, ON_HEAD_L, 'easeOutBack')]
+          + [(round(2.45 + 0.07 * i, 2), [ON_HEAD_L[0] + (3 if i % 2 else -3), ON_HEAD_L[1], ON_HEAD_L[2]]) for i in range(8)], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.5, 1), (1.0, 2.0, 'easeInOutSine'), (1.45, 2.0), (1.75, 1, 'easeInOutSine'),
+                          (2.15, 1), (2.35, 1.8, 'easeOutBack'), (3.0, 1.8)])
+    stretch(a, 'arm_l', [(0, 1), (2.15, 1), (2.35, 1.8, 'easeOutBack'), (3.0, 1.8)])
+    # he looks down at the crowd... then straight at you
+    a.rot('torso', [(0, [-8, 0, 0]), (0.6, [-4, 0, 0]), (1.75, [0, 0, 0]), (2.0, [10, 0, 0]), (2.35, [14, 0, 0], 'easeOutBack'),
+                    (3.0, [14, 0, 0])])
+    a.rot('root', [(0, [0, 0, 0]), (1.75, [0, 0, 0]), (2.0, [0, -10, 0]), (2.15, [0, 0, 0])])
+    a.scale('body', [(0, [1.06, 1.06, 1.06]), (0.6, [1.02, 1.02, 1.02]), (1.9, [1, 1, 1]), (2.15, [0.94, 0.94, 0.94]),
+                     (2.4, [0.92, 0.9, 0.92], 'easeOutBack'), (3.0, [0.92, 0.9, 0.92])], 'cat')
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 0.2, 0]), (1.0, [0, 0.2, 0]), (1.6, [0, 1.0, 0]), (1.9, [0, 2.0, 0], 'easeOutBack'),
+                     (3.0, [0, 1.8, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, 6 * s]), (1.6, [0, 0, -6 * s]), (1.9, [0, 0, -18 * s], 'easeOutBack'), (3.0, [0, 0, -16 * s])], 'lin')
+    a.scale('blush', [(0, HIDDEN), (1.9 - EPS, HIDDEN, 'lin'), (1.9, [1, 1, 1], 'lin'), (2.4, [1.05, 1.4, 1], 'easeOutBack'),
+                      (3.0, [1.05, 1.4, 1])], 'lin')
+    a.vis('sweat', False, [(1.95, True)])
+    a.sound(0.2, 'breeze').sound(1.1, 'pat').sound(1.4, 'pat').sound(1.9, 'gasp').sound(2.35, 'pat')
+    return a
+
+
+def v_rage():
+    """3.5 s. Embarrassment boils over into fury: trembling, swelling, red, then the hands come off
+    his head and he ROARS (1.7 s). Ends crouched to jump: the boss's leap_out starts from this pose."""
+    a = unmasked(P('vendor_rage', 3.5, 'hold'))
+    a.scale('blush', [(0, [1.05, 1.4, 1]), (1.5, [1.1, 2.4, 1]), (3.5, [1.1, 2.4, 1])], 'cat')
+    shake_r = [(round(0.08 * i, 2), [ON_HEAD_R[0] + (4 if i % 2 else -4), ON_HEAD_R[1], ON_HEAD_R[2]]) for i in range(19)]
+    shake_l = [(round(0.08 * i, 2), [ON_HEAD_L[0] + (4 if i % 2 else -4), ON_HEAD_L[1], ON_HEAD_L[2]]) for i in range(19)]
+    a.rot('arm_r', shake_r + [(1.7, [-150, 20, 80], 'easeOutExpo'), (2.6, [-150, 20, 80]),
+                              (3.1, [30, 0, 30], 'easeInOutSine'), (3.5, [40, 0, 26])], 'lin')
+    a.rot('arm_l', shake_l + [(1.7, [-150, -20, -80], 'easeOutExpo'), (2.6, [-150, -20, -80]),
+                              (3.1, [30, 0, -30], 'easeInOutSine'), (3.5, [40, 0, -26])], 'lin')
+    for arm in ('arm_r', 'arm_l'):
+        stretch(a, arm, [(0, 1.8), (1.5, 1.8), (1.7, 1.3, 'easeOutExpo'), (2.6, 1.3), (3.1, 1, 'easeInOutSine'), (3.5, 1)])
+    a.scale('body', [(round(0.1 * i, 2), [1 + 0.012 * i + (0.02 if i % 2 else 0), 1 + 0.01 * i, 1 + 0.012 * i + (0.02 if i % 2 else 0)])
+                     for i in range(16)]
+            + [(1.7, [0.9, 1.25, 0.9], 'easeOutExpo')]
+            + [(round(1.8 + 0.08 * i, 2), [0.92, 1.22, 0.92] if i % 2 else [0.88, 1.27, 0.88]) for i in range(10)]
+            + [(3.0, [1.15, 0.85, 1.15], 'easeInOutSine'), (3.5, [1.18, 0.82, 1.18])], 'lin')
+    a.rot('torso', [(0, [14, 0, 0]), (1.5, [18, 0, 0]), (1.7, [-22, 0, 0], 'easeOutExpo'), (2.6, [-20, 0, 0]),
+                    (3.1, [26, 0, 0], 'easeInOutSine'), (3.5, [28, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (2.6, [0, 0, 0]), (3.1, [0, -3, 0], 'easeInOutSine'), (3.5, [0, -3.5, 0])], 'lin')
+    for leg in ('leg_r', 'leg_l'):
+        a.rot(leg, [(0, [0, 0, 0]), (2.6, [0, 0, 0]), (3.1, [-40, 0, 0], 'easeInOutSine'), (3.5, [-44, 0, 0])], 'lin')
+    for brow, ang in (('brow_r', ANGRY_R), ('brow_l', ANGRY_L)):
+        a.pos(brow, [(0, [0, 1.8, 0]), (1.2, [0, 0, 0]), (1.6, [0, -1.2, 0]), (3.5, [0, -1.0, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, -ang[2] * 0.8]), (1.2, [0, 0, 0]), (1.6, [0, 0, ang[2] * 1.6]), (3.5, [0, 0, ang[2] * 1.5])], 'lin')
+    a.rot('wisps', [(0, [0, 0, 0]), (1.7, [0, 0, 0]), (1.8, [0, 0, 30]), (1.9, [0, 0, -30]), (2.0, [0, 0, 30]),
+                    (2.1, [0, 0, -30]), (2.3, [0, 0, 0])])
+    a.sound(0.1, 'rumble').sound(0.9, 'rumble').sound(1.7, 'roar').sound(1.75, 'slam').sound(3.1, 'crouch')
+    return a
+
+
 PAPON = [p_walk, p_walk_taco, p_hold_taco, p_idle, p_order, p_receive, p_react,
-         v_idle, v_take_order, v_cook, v_serve, v_inspect, v_fraud, v_furious]
+         v_idle, v_take_order, v_cook, v_serve, v_inspect, v_fraud, v_furious,
+         v_exposed, v_unmask, v_realize, v_rage]
 
 
 def write(name, fns, prefix):

@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
@@ -44,6 +45,11 @@ public final class TacoTruck {
     private static final BlockPos VENDOR = new BlockPos(4, 1, 4);
     /** Template-local griddle (campfire) at the back of the kitchen. */
     private static final BlockPos GRIDDLE = new BlockPos(3, 1, 1);
+    /** Gerbin's spots, template-local: at the prep counter (facing west) and at the sink (facing east). */
+    private static final BlockPos GERBIN_CHOP = new BlockPos(2, 1, 2);
+    private static final BlockPos GERBIN_SINK = new BlockPos(5, 1, 2);
+    /** Where Chef Papon's van is parked, beside the cab, nose toward the window side. */
+    private static final Vec3 PARKING = new Vec3(13.5, 0, 3.5);
     /** Headroom cleared above the footprint before placing, so trees and tall grass do not poke through. */
     private static final int CLEAR_ABOVE = 4;
     private static final int MAX_FILL_BELOW = 8;
@@ -81,6 +87,7 @@ public final class TacoTruck {
         Vec3 vendorPos = Vec3.atBottomCenterOf(vendorCell).add(out.getStepX() * 0.4, 0, out.getStepZ() * 0.4);
         BlockPos griddleCell = origin.offset(StructureTemplate.calculateRelativePosition(settings, GRIDDLE));
 
+        prepareParking(level, line);
         arrivalEffects(level, box, line, laneLength);
         PaponMod.LOG.info("Taco Truck placed at {}, window {} facing {}", origin, window, out);
         return Optional.of(new Placement(box, line, vendorPos, out.toYRot(), Vec3.atCenterOf(griddleCell)));
@@ -137,6 +144,61 @@ public final class TacoTruck {
         for (int x = box.minX() - 1; x <= box.maxX() + 1; x++) {
             for (int z = box.minZ() - 1; z <= box.maxZ() + 1; z++) {
                 levelColumn(level, x, z, groundY, box.maxY() + CLEAR_ABOVE, grass);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ places in and around the truck
+
+    /** A spot to stand and the way to face there. */
+    public record Station(Vec3 pos, float yaw) {}
+
+    private static StructurePlaceSettings settingsFor(TacoLine line) {
+        return new StructurePlaceSettings().setRotation(rotationFacing(line.out())).setMirror(Mirror.NONE);
+    }
+
+    /** The template origin of the truck a line belongs to. */
+    private static BlockPos originOf(TacoLine line) {
+        return line.window().subtract(StructureTemplate.calculateRelativePosition(settingsFor(line), WINDOW));
+    }
+
+    /** A template-local point (block corner coordinates) in the world. */
+    private static Vec3 toWorld(TacoLine line, Vec3 local) {
+        StructurePlaceSettings settings = settingsFor(line);
+        Vec3 rotated = StructureTemplate.transform(local, settings.getMirror(), settings.getRotation(), BlockPos.ZERO);
+        return Vec3.atLowerCornerOf(originOf(line)).add(rotated);
+    }
+
+    private static Station station(TacoLine line, BlockPos cell, Direction facing, double lean) {
+        Direction world = settingsFor(line).getRotation().rotate(facing);
+        Vec3 at = toWorld(line, new Vec3(cell.getX() + 0.5 + facing.getStepX() * lean, cell.getY(),
+                cell.getZ() + 0.5 + facing.getStepZ() * lean));
+        return new Station(at, world.toYRot());
+    }
+
+    /** Gerbin at the prep counter. */
+    public static Station gerbinChop(TacoLine line) {
+        return station(line, GERBIN_CHOP, Direction.WEST, 0.1);
+    }
+
+    /** Gerbin at the sink. */
+    public static Station gerbinSink(TacoLine line) {
+        return station(line, GERBIN_SINK, Direction.EAST, 0.1);
+    }
+
+    /** The van's parking spot beside the cab. */
+    public static Station parking(TacoLine line) {
+        return new Station(toWorld(line, PARKING), line.out().toYRot());
+    }
+
+    /** Levels the pad beside the cab where the van parks. */
+    private static void prepareParking(ServerLevel level, TacoLine line) {
+        BlockState grass = Blocks.GRASS_BLOCK.defaultBlockState();
+        int groundY = line.window().getY();
+        for (int x = 11; x <= 16; x++) {
+            for (int z = -1; z <= 8; z++) {
+                Vec3 w = toWorld(line, new Vec3(x + 0.5, 0, z + 0.5));
+                levelColumn(level, Mth.floor(w.x), Mth.floor(w.z), groundY, groundY + CLEAR_ABOVE, grass);
             }
         }
     }

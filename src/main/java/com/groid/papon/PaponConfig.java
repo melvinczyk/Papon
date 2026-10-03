@@ -15,6 +15,12 @@ public final class PaponConfig {
     public static final ForgeConfigSpec.IntValue EXTRA_PAPONS;
     public static final ForgeConfigSpec.BooleanValue REQUIRE_PLAYER_IN_LINE;
     public static final ForgeConfigSpec.DoubleValue LINE_SLACK;
+    public static final ForgeConfigSpec.DoubleValue BOSS_HEALTH;
+    public static final ForgeConfigSpec.DoubleValue BOSS_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue VAN_RAM_DAMAGE;
+    public static final ForgeConfigSpec.IntValue VAN_COOLDOWN;
+    public static final ForgeConfigSpec.BooleanValue CINEMATICS;
+    public static final ForgeConfigSpec.BooleanValue BOSS_MUSIC;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -46,6 +52,20 @@ public final class PaponConfig {
                 .define("requirePlayerInLine", true);
         LINE_SLACK = b.comment("How far from their spot in line, in blocks, a player may stand and still count as in line.")
                 .defineInRange("lineSlack", 2.5, 1.0, 8.0);
+        b.pop();
+        b.push("boss");
+        BOSS_HEALTH = b.comment("Chef Papon's health. Half of it gone starts his second phase.")
+                .defineInRange("health", 800.0, 50.0, 100_000.0);
+        BOSS_DAMAGE = b.comment("Multiplier on all of Chef Papon's attacks (spatula, belly slam, fire breath, molotovs).")
+                .defineInRange("damageMultiplier", 1.0, 0.1, 20.0);
+        VAN_RAM_DAMAGE = b.comment("Damage of a full-speed hit from the van (less when it is slower). Shields do not block it.")
+                .defineInRange("vanRamDamage", 22.0, 1.0, 1000.0);
+        VAN_COOLDOWN = b.comment("Ticks between van attacks in phase one (two thirds of this in phase two).")
+                .defineInRange("vanCooldownTicks", 360, 40, 20 * 60 * 10);
+        CINEMATICS = b.comment("Play the unmasking and the boss intro as cutscenes (camera, letterbox) for players nearby.")
+                .define("cinematics", true);
+        BOSS_MUSIC = b.comment("Play the mariachi boss music during the fight.")
+                .define("bossMusic", true);
         b.pop();
         SPEC = b.build();
     }

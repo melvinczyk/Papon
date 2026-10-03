@@ -35,6 +35,9 @@ ANIM_FILES = {
     'edp445': 'customer',
     'badlands_chugs': 'customer',
     'reviewbrah': 'customer',
+    'gerbin': 'gerbin',
+    'papon_boss': 'papon_boss',
+    'caravan': 'caravan',
 }
 
 VIEWS = [

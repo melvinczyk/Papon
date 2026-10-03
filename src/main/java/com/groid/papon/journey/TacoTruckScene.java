@@ -4,6 +4,8 @@ import com.groid.papon.PaponConfig;
 import com.groid.papon.PaponMod;
 import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.entity.npc.Customer;
+import com.groid.papon.entity.npc.GerbinEntity;
+import com.groid.papon.vehicle.CaravanEntity;
 import com.groid.papon.entity.npc.TacoCustomerEntity;
 import com.groid.papon.entity.npc.TacoVendorEntity;
 import com.groid.papon.registry.ModEntities;
@@ -79,12 +81,52 @@ public final class TacoTruckScene {
             level.sendParticles(ParticleTypes.POOF, at.x, at.y + 0.8, at.z, 10, 0.3, 0.5, 0.3, 0.02);
         }
         vendor.open(p.line(), customers);
+        ensureGerbin(level, p.line());
+        parkVan(level, p.line());
         if (wanderer != null) {
             vendor.join(wanderer);
             wanderer.setLineSlot(vendor.getUUID(), p.line(), customers.size(), 0, customers.size() + 1);
         }
         PaponMod.LOG.info("Taco Truck open at {} with {} in line", window, customers.size());
         return Optional.of(vendor);
+    }
+
+    /** Hires Gerbin for this truck, unless he is already in it. */
+    public static void ensureGerbin(ServerLevel level, TacoLine line) {
+        TacoTruck.Station s = TacoTruck.gerbinChop(line);
+        if (!level.getEntitiesOfClass(GerbinEntity.class, new AABB(s.pos(), s.pos()).inflate(12)).isEmpty()) return;
+        GerbinEntity g = ModEntities.GERBIN.get().create(level);
+        if (g == null) return;
+        g.moveTo(s.pos().x, s.pos().y, s.pos().z, s.yaw(), 0);
+        g.setYHeadRot(s.yaw());
+        g.setYBodyRot(s.yaw());
+        level.addFreshEntity(g);
+        g.hire(line);
+    }
+
+    /**
+     * Chef Papon's van, parked beside the truck, unless one is already about. Returns it (or null
+     * when there is no room for it).
+     */
+    @Nullable
+    public static CaravanEntity parkVan(ServerLevel level, TacoLine line) {
+        TacoTruck.Station s = TacoTruck.parking(line);
+        List<CaravanEntity> near = level.getEntitiesOfClass(CaravanEntity.class, new AABB(s.pos(), s.pos()).inflate(48));
+        if (!near.isEmpty()) return near.stream().min(Comparator.comparingDouble(v -> v.distanceToSqr(s.pos()))).orElse(null);
+        CaravanEntity van = ModEntities.CARAVAN.get().create(level);
+        if (van == null) return null;
+        // the pad beside the cab first; failing that, out along the lane
+        Vec3[] tries = {s.pos(), line.slot(0).add(Vec3.atLowerCornerOf(line.out().getNormal()).scale(12))
+                .add(Vec3.atLowerCornerOf(line.side().getNormal()).scale(-5)), line.slot(0).add(Vec3.atLowerCornerOf(line.out().getNormal()).scale(18))};
+        for (Vec3 at : tries) {
+            van.moveTo(at.x, at.y, at.z, s.yaw(), 0);
+            if (level.noCollision(van)) {
+                level.addFreshEntity(van);
+                return van;
+            }
+        }
+        PaponMod.LOG.warn("No room to park the van at the Taco Truck {}", line.window());
+        return null;
     }
 
     /**

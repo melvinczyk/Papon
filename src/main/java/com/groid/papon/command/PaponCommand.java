@@ -1,6 +1,10 @@
 package com.groid.papon.command;
 
 import com.groid.papon.PaponConfig;
+import com.groid.papon.boss.BossState;
+import com.groid.papon.boss.PaponBossEntity;
+import com.groid.papon.boss.TacoBoss;
+import com.groid.papon.vehicle.CaravanEntity;
 import com.groid.papon.entity.PaponState;
 import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.entity.npc.TacoVendorEntity;
@@ -50,6 +54,10 @@ import java.util.UUID;
  *   distance [min] [max]  show / set how far new Taco Truck sites are (saved to config)
  *   target <x> <z>      send the nearest Papon somewhere else (testing)
  *   state <STATE>       force the nearest Papon into a state, to see an animation (testing)
+ *   reveal              the nearest truck goes straight to the fraud: unmasking, then the boss fight
+ *   boss                Chef Papon (the boss) right here, his van parked beside you (testing)
+ *   van                 a van in front of you (testing; normally it comes with the truck)
+ *   bossstate <STATE>   force the nearest boss into a state (testing)
  */
 public final class PaponCommand {
     private PaponCommand() {}
@@ -81,7 +89,14 @@ public final class PaponCommand {
                 .then(Commands.literal("state").then(Commands.argument("state", StringArgumentType.word())
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                 java.util.Arrays.stream(PaponState.values()).map(Enum::name), b))
-                        .executes(c -> state(c, StringArgumentType.getString(c, "state"))))));
+                        .executes(c -> state(c, StringArgumentType.getString(c, "state")))))
+                .then(Commands.literal("reveal").executes(PaponCommand::reveal))
+                .then(Commands.literal("boss").executes(PaponCommand::boss))
+                .then(Commands.literal("van").executes(PaponCommand::van))
+                .then(Commands.literal("bossstate").then(Commands.argument("state", StringArgumentType.word())
+                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                java.util.Arrays.stream(BossState.values()).map(Enum::name), b))
+                        .executes(c -> bossState(c, StringArgumentType.getString(c, "state"))))));
     }
 
     private static int locate(CommandContext<CommandSourceStack> c) {
@@ -239,6 +254,59 @@ public final class PaponCommand {
         }
         p.setPaponState(s);
         c.getSource().sendSuccess(() -> Component.literal("Papon is now " + s + "."), true);
+        return 1;
+    }
+
+    private static int reveal(CommandContext<CommandSourceStack> c) {
+        TacoVendorEntity v = TacoTruckScene.vendorNear(c.getSource().getLevel(), c.getSource().getPosition(), 64);
+        if (v == null) return fail(c, "No Taco Truck within 64 blocks.");
+        v.skipToFraud(c.getSource().getLevel());
+        c.getSource().sendSuccess(() -> Component.literal("FRAUDE."), true);
+        return 1;
+    }
+
+    private static int boss(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getLevel();
+        Vec3 pos = c.getSource().getPosition();
+        float yaw = c.getSource().getRotation().y;
+        Vec3 ahead = Vec3.directionFromRotation(0, yaw);
+        CaravanEntity van = level.getEntitiesOfClass(CaravanEntity.class, new AABB(pos, pos).inflate(40)).stream().findFirst()
+                .orElseGet(() -> spawnVan(level, pos.add(new Vec3(-ahead.z, 0, ahead.x).scale(6)), yaw));
+        PaponBossEntity boss = TacoBoss.spawnHere(level, pos.add(ahead.scale(8)), yaw + 180, van);
+        if (boss == null) return fail(c, "Could not create the boss.");
+        c.getSource().sendSuccess(() -> Component.literal("Chef Papon is here."), true);
+        return 1;
+    }
+
+    private static int van(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getLevel();
+        float yaw = c.getSource().getRotation().y;
+        Vec3 at = c.getSource().getPosition().add(Vec3.directionFromRotation(0, yaw).scale(5));
+        return spawnVan(level, at, yaw) != null ? 1 : fail(c, "No room for a van there.");
+    }
+
+    @Nullable
+    private static CaravanEntity spawnVan(ServerLevel level, Vec3 at, float yaw) {
+        CaravanEntity van = ModEntities.CARAVAN.get().create(level);
+        if (van == null) return null;
+        van.moveTo(at.x, at.y, at.z, yaw, 0);
+        level.addFreshEntity(van);
+        return van;
+    }
+
+    private static int bossState(CommandContext<CommandSourceStack> c, String name) {
+        Vec3 pos = c.getSource().getPosition();
+        PaponBossEntity boss = c.getSource().getLevel().getEntitiesOfClass(PaponBossEntity.class, new AABB(pos, pos).inflate(64))
+                .stream().min(Comparator.comparingDouble(e -> e.distanceToSqr(pos))).orElse(null);
+        if (boss == null) return fail(c, "No boss within 64 blocks.");
+        BossState s;
+        try {
+            s = BossState.valueOf(name.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return fail(c, "Unknown state " + name + ".");
+        }
+        boss.setBossState(s);
+        c.getSource().sendSuccess(() -> Component.literal("Chef Papon is now " + s + "."), true);
         return 1;
     }
 

@@ -1,0 +1,99 @@
+{
+  "caravan.idle": {
+    "sounds": [
+      {
+        "name": "papon:caravan/idle"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.idle"
+  },
+  "caravan.drive": {
+    "sounds": [
+      {
+        "name": "papon:caravan/drive"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.drive"
+  },
+  "caravan.start": {
+    "sounds": [
+      {
+        "name": "papon:caravan/start"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.start"
+  },
+  "caravan.rev": {
+    "sounds": [
+      {
+        "name": "papon:caravan/rev"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.rev"
+  },
+  "caravan.horn": {
+    "sounds": [
+      {
+        "name": "papon:caravan/horn"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.horn"
+  },
+  "caravan.screech": {
+    "sounds": [
+      {
+        "name": "papon:caravan/screech"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.screech"
+  },
+  "caravan.crash": {
+    "sounds": [
+      {
+        "name": "papon:caravan/crash"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.crash"
+  },
+  "caravan.door_open": {
+    "sounds": [
+      {
+        "name": "papon:caravan/door_open"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.door_open"
+  },
+  "caravan.door_close": {
+    "sounds": [
+      {
+        "name": "papon:caravan/door_close"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.door_close"
+  },
+  "caravan.hit": {
+    "sounds": [
+      {
+        "name": "papon:caravan/hit"
+      }
+    ],
+    "subtitle": "subtitles.papon.caravan.hit"
+  },
+  "boss.reveal": {
+    "sounds": [
+      {
+        "name": "papon:boss/reveal"
+      }
+    ],
+    "subtitle": "subtitles.papon.boss.reveal"
+  },
+  "music.boss": {
+    "sounds": [
+      {
+        "name": "papon:music/boss",
+        "stream": true
+      }
+    ],
+    "subtitle": "subtitles.papon.music.boss"
+  }
+}

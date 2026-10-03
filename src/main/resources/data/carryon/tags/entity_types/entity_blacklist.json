@@ -1,4 +1,9 @@
 {
   "replace": false,
-  "values": ["papon:wandering_papon"]
+  "values": [
+    "papon:wandering_papon",
+    "papon:gerbin",
+    "papon:papon_boss",
+    "papon:caravan"
+  ]
 }

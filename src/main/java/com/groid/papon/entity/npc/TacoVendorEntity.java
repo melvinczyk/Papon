@@ -6,6 +6,9 @@ import com.groid.papon.boss.TacoBoss;
 import com.groid.papon.entity.Speech;
 import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.journey.TacoLine;
+import com.groid.papon.journey.TacoTruckScene;
+import com.groid.papon.network.PaponNetwork;
+import com.groid.papon.registry.ModSounds;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -61,6 +64,10 @@ public class TacoVendorEntity extends TacoNpc {
     private static final RawAnimation FRAUD_THEN_FURIOUS =
             RawAnimation.begin().thenPlay(ANIM + "vendor_fraud").thenLoop(ANIM + "vendor_furious");
     private static final RawAnimation FURIOUS = RawAnimation.begin().thenLoop(ANIM + "vendor_furious");
+    private static final RawAnimation EXPOSED = RawAnimation.begin().thenPlayAndHold(ANIM + "vendor_exposed");
+    private static final RawAnimation UNMASK = RawAnimation.begin().thenPlayAndHold(ANIM + "vendor_unmask");
+    private static final RawAnimation REALIZE = RawAnimation.begin().thenPlayAndHold(ANIM + "vendor_realize");
+    private static final RawAnimation RAGE = RawAnimation.begin().thenPlayAndHold(ANIM + "vendor_rage");
 
     /** A queued entity not seen for this long (unloaded for good, or removed) leaves the line. */
     private static final int MISSING_LIMIT = 400;
@@ -121,7 +128,7 @@ public class TacoVendorEntity extends TacoNpc {
 
     public boolean acceptsCustomers() {
         VendorState s = getVendorState();
-        return line != null && s != VendorState.FRAUD && s != VendorState.FURIOUS && s != VendorState.INSPECTING;
+        return line != null && !s.unmasking() && s != VendorState.INSPECTING;
     }
 
     /** Line position of someone, or -1. */
@@ -229,14 +236,15 @@ public class TacoVendorEntity extends TacoNpc {
                 if (stateTicks == 12) {
                     level.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 2.6, getZ(), 12, 0.8, 0.4, 0.8, 0);
                 }
-                if (stateTicks >= VendorState.FRAUD.duration) setVendorState(VendorState.FURIOUS);
+                if (stateTicks >= VendorState.FRAUD.duration) setVendorState(VendorState.EXPOSED);
             }
             case FURIOUS -> {
-                if (tickCount % 30 == 0) {
-                    level.sendParticles(ParticleTypes.SMOKE, getX(), getY() + 3.0, getZ(), 6, 0.4, 0.1, 0.4, 0.02);
-                }
+                // the old dead end, from saves made before the fight existed: on with the show
+                if (stateTicks >= 40) setVendorState(VendorState.EXPOSED);
             }
+            case EXPOSED, UNMASK, REALIZE, RAGE -> unmasking(level);
         }
+        if (line != null && tickCount % 200 == 7 && !getVendorState().unmasking()) TacoTruckScene.ensureGerbin(level, line);
 
         assignSlots(members);
         if (tickCount % 20 == 0) statusToPlayers(level, members);
@@ -304,7 +312,7 @@ public class TacoVendorEntity extends TacoNpc {
     /** Action bar for everyone near the truck, plus a marker on the spot while nobody is in line. */
     private void statusToPlayers(ServerLevel level, List<Entity> members) {
         VendorState s = getVendorState();
-        if (s == VendorState.FRAUD || s == VendorState.FURIOUS || s == VendorState.INSPECTING) return;
+        if (s.unmasking() || s == VendorState.INSPECTING) return;
         int ahead = members.size();
         boolean papon = false;
         for (int i = 0; i < members.size(); i++) {
@@ -358,6 +366,80 @@ public class TacoVendorEntity extends TacoNpc {
         TacoBoss.onFraud(level, this, wanderer);
     }
 
+    // ------------------------------------------------------------------ the unmasking
+
+    /**
+     * After the fraud: caught out, the mustache and the toque come off (Norwood 7), the horror of
+     * being seen, the rage, the boss. Effects land on the beats of the animations.
+     */
+    private void unmasking(ServerLevel level) {
+        int t = stateTicks;
+        double top = getY() + 2.3;
+        switch (getVendorState()) {
+            case EXPOSED -> {
+                if (t == 18) Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.exposed", true, false, 40);
+                if (t >= VendorState.EXPOSED.duration) setVendorState(VendorState.UNMASK);
+            }
+            case UNMASK -> {
+                if (t == 4) Speech.say(this, ChatFormatting.RED, "speech.papon.vendor.unmask", true, true, 50);
+                if (t == 19) {      // the rip
+                    Vec3 lip = position().add(getLookAngle().scale(0.8)).add(0, 1.05, 0);
+                    level.sendParticles(ParticleTypes.CRIT, lip.x, lip.y, lip.z, 10, 0.2, 0.1, 0.2, 0.2);
+                }
+                if (t == 57) {      // the toque comes up: the reveal
+                    level.sendParticles(ParticleTypes.END_ROD, getX(), top, getZ(), 30, 0.5, 0.2, 0.5, 0.06);
+                    level.sendParticles(ParticleTypes.FLASH, getX(), top + 0.3, getZ(), 1, 0, 0, 0, 0);
+                    level.playSound(null, getX(), getY(), getZ(), ModSounds.REVEAL.get(), SoundSource.HOSTILE, 2.0F, 1.0F);
+                    for (ServerPlayer p : level.players()) {
+                        if (p.distanceToSqr(this) < 48 * 48) {
+                            p.displayClientMessage(Component.translatable("status.papon.norwood")
+                                    .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC), true);
+                        }
+                    }
+                }
+                if (t >= 60 && t < 90 && t % 6 == 0) {
+                    level.sendParticles(ParticleTypes.END_ROD, getX(), top, getZ(), 2, 0.4, 0.05, 0.4, 0.01);
+                }
+                if (t >= VendorState.UNMASK.duration) setVendorState(VendorState.REALIZE);
+            }
+            case REALIZE -> {
+                if (t == 4) level.sendParticles(ParticleTypes.CLOUD, getX(), top, getZ(), 4, 0.6, 0.05, 0.6, 0.02);
+                if (t == 40) Speech.say(this, ChatFormatting.RED, "speech.papon.vendor.realize", true, true, 40);
+                if (t >= VendorState.REALIZE.duration) setVendorState(VendorState.RAGE);
+            }
+            case RAGE -> {
+                if (t < 34 && t % 5 == 0) {
+                    level.sendParticles(ParticleTypes.SMOKE, getX(), top, getZ(), 4, 0.3, 0.05, 0.3, 0.03);
+                }
+                if (t == 34) {      // the roar
+                    Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.vendor.rage", true, true, 50);
+                    level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 2.5F, 0.8F);
+                    level.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), top, getZ(), 16, 0.9, 0.5, 0.9, 0);
+                    level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), top, getZ(), 24, 0.4, 0.2, 0.4, 0.08);
+                    PaponNetwork.shake(level, position(), 16, 0.45F, 30);
+                }
+                if (t > 34 && t % 3 == 0) {
+                    level.sendParticles(ParticleTypes.CLOUD, getX(), top + 0.2, getZ(), 2, 0.2, 0.1, 0.2, 0.05);
+                }
+                if (t >= VendorState.RAGE.duration) TacoBoss.startFight(level, this);
+            }
+            default -> {}
+        }
+    }
+
+    /** Admin skip (/papon reveal): straight to the moment the coupon is found to be a fake. */
+    public void skipToFraud(ServerLevel level) {
+        for (Entity e : resolveQueue(level)) {
+            if (e instanceof WanderingPaponEntity w) {
+                setVendorState(VendorState.FRAUD);
+                fraud(level, w);
+                return;
+            }
+        }
+        setVendorState(VendorState.FRAUD);
+        Speech.say(this, ChatFormatting.RED, "speech.papon.vendor.fraud", true, true, 70);
+    }
+
     /** Admin skip (/papon serve): finish whatever is happening at the window right now. */
     public void hurryUp() {
         switch (getVendorState()) {
@@ -383,8 +465,7 @@ public class TacoVendorEntity extends TacoNpc {
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!level().isClientSide) {
-            String key = getVendorState() == VendorState.FURIOUS || getVendorState() == VendorState.FRAUD
-                    ? "message.papon.vendor_furious" : "message.papon.vendor_busy";
+            String key = getVendorState().unmasking() ? "message.papon.vendor_furious" : "message.papon.vendor_busy";
             player.displayClientMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD), true);
         }
         return InteractionResult.sidedSuccess(level().isClientSide);
@@ -408,6 +489,10 @@ public class TacoVendorEntity extends TacoNpc {
             case INSPECTING -> INSPECT;
             case FRAUD -> FRAUD_THEN_FURIOUS;
             case FURIOUS -> FRAUD_THEN_FURIOUS.equals(current) ? FRAUD_THEN_FURIOUS : FURIOUS;
+            case EXPOSED -> EXPOSED;
+            case UNMASK -> UNMASK;
+            case REALIZE -> REALIZE;
+            case RAGE -> RAGE;
         };
         return event.setAndContinue(next);
     }
