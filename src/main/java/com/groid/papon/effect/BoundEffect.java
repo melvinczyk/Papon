@@ -9,7 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 
 /**
- * Bound in place: Wrapped (rolled up in a giant tortilla: no walking, jumping, attacking or using
+ * Bound in place: Burrito (rolled up in a giant tortilla: no walking, jumping, attacking or using
  * anything) or Rooted (potato sprouts round your ankles: no walking or jumping, you can still swing).
  * The rest is in {@link com.groid.papon.event.StunEvents}. Milk does nothing for either.
  */

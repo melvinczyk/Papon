@@ -33,12 +33,12 @@ public final class StunEvents {
 
     /** Wrapped in a tortilla or rooted by sprouts: feet stuck. */
     public static boolean bound(net.minecraft.world.entity.LivingEntity e) {
-        return e.hasEffect(ModEffects.WRAPPED.get()) || e.hasEffect(ModEffects.ROOTED.get());
+        return e.hasEffect(ModEffects.BURRITO.get()) || e.hasEffect(ModEffects.ROOTED.get());
     }
 
-    /** Wrapped: hands stuck too. */
-    public static boolean wrapped(net.minecraft.world.entity.LivingEntity e) {
-        return e.hasEffect(ModEffects.WRAPPED.get());
+    /** In a burrito: hands stuck too. */
+    public static boolean burrito(net.minecraft.world.entity.LivingEntity e) {
+        return e.hasEffect(ModEffects.BURRITO.get());
     }
 
     @SubscribeEvent
@@ -52,17 +52,17 @@ public final class StunEvents {
     // ---- wrapped: no swinging, no using, no building
     @SubscribeEvent
     public static void onAttack(net.minecraftforge.event.entity.player.AttackEntityEvent event) {
-        if (wrapped(event.getEntity())) event.setCanceled(true);
+        if (burrito(event.getEntity())) event.setCanceled(true);
     }
 
     @SubscribeEvent
     public static void onUse(net.minecraftforge.event.entity.living.LivingEntityUseItemEvent.Start event) {
-        if (wrapped(event.getEntity())) event.setCanceled(true);
+        if (burrito(event.getEntity())) event.setCanceled(true);
     }
 
     @SubscribeEvent
     public static void onInteract(net.minecraftforge.event.entity.player.PlayerInteractEvent event) {
-        if (event.isCancelable() && wrapped(event.getEntity())) event.setCanceled(true);
+        if (event.isCancelable() && burrito(event.getEntity())) event.setCanceled(true);
     }
 
     /** Food Poisoning: no healing of any kind. */

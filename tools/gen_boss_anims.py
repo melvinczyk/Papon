@@ -215,7 +215,8 @@ GERBIN = [g_idle, g_walk, g_chop, g_wash, g_look, g_shocked, g_cower]
 class B(Pinned):
     # the phase-two parts are pinned too: only the "form" controller (class F) shows them
     pins = ['bottle', 'handle', 'big_spatula', 'molotov', 'lighter', 'keys', 'sweat', 'tears', 'potato_gun',
-            'blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker']
+            'blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker',
+            'comal', 'cleaver_r', 'cleaver_l', 'tortilla', 'brick', 'tot']
 
 
 ANGRY_R = [0, 0, 18]

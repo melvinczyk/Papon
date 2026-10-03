@@ -74,8 +74,8 @@ public final class Mechanics {
         e.addEffect(new MobEffectInstance(ModEffects.FOOD_POISONING.get(), ticks, 0, false, true, true));
     }
 
-    public static void wrap(LivingEntity e, int ticks) {
-        e.addEffect(new MobEffectInstance(ModEffects.WRAPPED.get(), ticks, 0, false, false, true));
+    public static void burrito(LivingEntity e, int ticks) {
+        e.addEffect(new MobEffectInstance(ModEffects.BURRITO.get(), ticks, 0, false, false, true));
         e.setDeltaMovement(0, Math.min(0, e.getDeltaMovement().y), 0);
         e.hurtMarked = true;
     }
