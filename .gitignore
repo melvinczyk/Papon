@@ -8,3 +8,4 @@ out/
 *.iml
 tools/.cache/
 tools/__pycache__/
+tools/src/song/

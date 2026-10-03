@@ -205,7 +205,7 @@ public final class Cinematic {
         Vec3 best = to;
         double bestD = from.distanceToSqr(to);
         var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(from, to, net.minecraft.world.level.ClipContext.Block.COLLIDER,
-                net.minecraft.world.level.ClipContext.Fluid.NONE, mc.player));
+                net.minecraft.world.level.ClipContext.Fluid.NONE, null));       // null: the coliseum's player-only railing is no wall to a camera
         if (hit.getType() != net.minecraft.world.phys.HitResult.Type.MISS && from.distanceToSqr(hit.getLocation()) < bestD) {
             best = hit.getLocation();
             bestD = from.distanceToSqr(best);
@@ -283,6 +283,8 @@ public final class Cinematic {
             return new Shot(eye, face, 46F - 10F * push, 0, cut);
         }
         lastQteState = -1;
+        Shot col = coliseumShot(b, s, t, f, right);
+        if (col != null) return col;
         Shot p2 = phaseTwoShot(b, s, t, f, right);
         if (p2 != null) return p2;
         return switch (s) {
@@ -368,6 +370,113 @@ public final class Cinematic {
             }
             default -> null;
         };
+    }
+
+    /**
+     * El Coliseo Papa, beat by beat:
+     *   P2_ARRIVE    from high over the stands, craning down into the bowl as he drops into it; low
+     *                on him with the crowd behind; over his shoulder as he points at the band stand
+     *   P2_NOTICE    the band, fast asleep; then his face
+     *   P2_MARCH     tracking alongside as he storms over
+     *   P2_WAKE      from behind the band (the sleepers in the foreground) up at him and his comal
+     *   P2_WAIT      him tapping his foot; a slow pan along the band getting dressed; again
+     *   P2_KICK      on the guitarron and the boot
+     *   P2_COUNT     close on the singer counting in, pushing in
+     *   P2_SHOWTIME  the guitar: in on his hands, tilting up to his face, the shades, the aura
+     *   P2_APOLOGY   the two of you as he comes over; on him apologising; the aura: a slow low orbit
+     *   P2_RESUME    close: "Where were we?", and a whip back out as the singing starts
+     */
+    @Nullable
+    private static Shot coliseumShot(PaponBossEntity b, BossState s, int t, Vec3 f, Vec3 right) {
+        if (!b.inColiseum() || !(s == BossState.P2_ARRIVE || s.coliseum())) return null;
+        Minecraft mc = Minecraft.getInstance();
+        // he is risen (1.75x) by now: his face is high on him
+        Vec3 body = b.position().add(0, b.getBbHeight() * 0.55, 0);
+        Vec3 face = b.position().add(0, b.getBbHeight() * 0.78, 0);
+        java.util.List<com.groid.papon.boss.MariachiEntity> band = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class,
+                b.getBoundingBox().inflate(64), e -> true);
+        com.groid.papon.boss.MariachiEntity singer = band.stream().filter(m -> m.getRole().singer()).findFirst().orElse(null);
+        Vec3 stage = band.isEmpty() ? b.position().add(f.scale(10))
+                : band.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / band.size());
+        Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.getYRot()) : new Vec3(0, 0, 1);
+        Vec3 stageSide = new Vec3(-stageFacing.z, 0, stageFacing.x);
+        Vec3 you = mc.player.position().add(0, 1.4, 0);
+        switch (s) {
+            case P2_ARRIVE -> {
+                if (t < 14) flashTarget = 1F - t / 14F;
+                if (t < 40) {
+                    double k = Math.min(1, t / 40.0);
+                    k = k * k * (3 - 2 * k);
+                    Vec3 from = stage.add(stageFacing.scale(64)).add(0, 46, 0);
+                    Vec3 to = b.position().add(stageFacing.scale(13)).add(0, 4, 0);
+                    return new Shot(from.lerp(to, k), body, 62 - (float) k * 8, 0, t == 0);
+                }
+                if (t < 70) {
+                    double orbit = Math.toRadians(-30 + (t - 40) * 1.4);
+                    Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
+                    return new Shot(b.position().add(dir.scale(7.5)).add(0, 0.6, 0), face, 58, 0, t == 40);
+                }
+                return new Shot(b.position().subtract(f.scale(4.2)).add(right.scale(1.6)).add(0, 3.4, 0), stage.add(0, 1.2, 0), 56, 0, t == 70);
+            }
+            case P2_NOTICE -> {
+                if (t < 26) return new Shot(stage.add(stageFacing.scale(8.5)).add(0, 2.6, 0), stage.add(0, 1.0, 0), 52, 0, t == 0);
+                return new Shot(face.add(f.scale(4.6 - (t - 26) / 34.0 * 0.8)).add(0, -0.1, 0), face, 44, 0, t == 26);
+            }
+            case P2_MARCH -> {
+                return new Shot(body.add(right.scale(6.5)).add(f.scale(1.5)).add(0, 0.8, 0), body, 58, 0, t == 0);
+            }
+            case P2_WAKE -> {
+                if (t < 44) return new Shot(stage.subtract(stageFacing.scale(2.5)).add(stageSide.scale(3.5)).add(0, 6.0, 0), face.add(0, 0.4, 0), 62, 0, t == 0);
+                com.groid.papon.boss.MariachiEntity m = band.isEmpty() ? null : band.get(Math.floorMod(b.getId(), band.size()));
+                Vec3 at = m != null ? m.position().add(0, 1.2, 0) : stage;
+                return new Shot(at.add(stageFacing.scale(3.4)).add(stageSide.scale(1.2)), at, 46, 0, t == 44);
+            }
+            case P2_WAIT -> {
+                int phase = (t / 70) % 2;
+                int tt = t % 70;
+                if (phase == 0) return new Shot(body.add(f.scale(4.8)).add(right.scale(2.2)).add(0, -0.3, 0), body.add(0, -0.4, 0), 54, 0, tt == 0);
+                Vec3 eye = stage.add(stageFacing.scale(7.5)).add(stageSide.scale(-9 + tt * 0.26)).add(0, 2.2, 0);
+                return new Shot(eye, stage.add(stageSide.scale(-6 + tt * 0.18)).add(0, 1.0, 0), 50, 0, tt == 0);
+            }
+            case P2_KICK -> {
+                return new Shot(body.add(right.scale(-5.5)).add(f.scale(2.5)).add(0, 1.2, 0), b.position().add(f.scale(2)).add(0, 1, 0), 56, 0, t == 0);
+            }
+            case P2_COUNT -> {
+                if (singer == null) return null;
+                Vec3 sf = singer.position().add(0, singer.getBbHeight() * 0.68, 0);
+                double push = Math.min(1, t / 70.0);
+                return new Shot(sf.add(stageFacing.scale(3.4 - push * 1.4)).add(stageSide.scale(0.7)), sf, 44 - (float) push * 6, 0, t == 0);
+            }
+            case P2_SHOWTIME -> {
+                if (singer == null) return null;
+                Vec3 guitar = singer.position().add(stageFacing.scale(0.9)).add(stageSide.scale(-0.2)).add(0, 0.6, 0);
+                Vec3 sf = singer.position().add(0, singer.getBbHeight() * 0.7, 0);
+                double k = t < 34 ? 0 : Math.min(1, (t - 34) / 30.0);
+                k = k * k * (3 - 2 * k);
+                Vec3 look = guitar.lerp(sf, k);
+                Vec3 eye = guitar.add(stageFacing.scale(1.6 - Math.min(1, t / 30.0) * 0.5)).add(stageSide.scale(0.9)).add(0, 0.1, 0)
+                        .lerp(sf.add(stageFacing.scale(2.6)).add(stageSide.scale(1.0)).add(0, -0.5, 0), k);
+                return new Shot(eye, look, 40, 0, t == 0);
+            }
+            case P2_APOLOGY -> {
+                if (t < 50) {
+                    Vec3 mid = body.lerp(you, 0.5);
+                    return new Shot(mid.add(right.scale(7.5)).add(0, 1.4, 0), mid, 58, 0, t == 0);
+                }
+                if (t < 110) return new Shot(body.add(f.scale(4.0)).add(right.scale(1.4)).add(0, -0.8, 0), face, 48, 0, t == 50);
+                double orbit = Math.toRadians(20 + (t - 110) * 1.5);
+                Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
+                return new Shot(b.position().add(dir.scale(5.2)).add(0, 0.4, 0), body.add(0, 0.5, 0), 50, 0, t == 110);
+            }
+            case P2_RESUME -> {
+                if (t < 28) return new Shot(face.add(f.scale(4.2)).add(right.scale(0.6)).add(0, -0.2, 0), face, 42, 0, t == 0);
+                double k = Math.min(1, (t - 28) / 6.0);
+                return new Shot(face.add(f.scale(4.2 + k * 6)).add(0, k * 1.5, 0), body, 42 + (float) k * 22, 0, false);
+            }
+            default -> {
+                return null;
+            }
+        }
     }
 
     // ------------------------------------------------------------------ the camera

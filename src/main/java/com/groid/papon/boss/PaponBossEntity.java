@@ -59,6 +59,7 @@ import software.bernie.geckolib.core.keyframe.event.SoundKeyframeEvent;
 import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -102,6 +103,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** Which QTE attack (0 La Última Cena, 1 Last Call, 2 La Papa Suplex): picks the hold and fail animations. */
     private static final EntityDataAccessor<Integer> DATA_QTE =
             SynchedEntityData.defineId(PaponBossEntity.class, EntityDataSerializers.INT);
+    /** Up in El Coliseo Papa. */
+    private static final EntityDataAccessor<Boolean> DATA_ARENA =
+            SynchedEntityData.defineId(PaponBossEntity.class, EntityDataSerializers.BOOLEAN);
 
     private static final String ANIM = "animation.papon_boss.";
     private static final RawAnimation LEAP_OUT = once("leap_out");
@@ -138,6 +142,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation A_P2_SEASON = once("p2_season");
     private static final RawAnimation A_P2_SCREAM = once("p2_scream");
     private static final RawAnimation A_P2_ARRIVE = once("p2_arrive");
+    private static final RawAnimation A_P2_ARRIVE_SKY = once("p2_arrive_sky");
+    private static final RawAnimation A_P2_NOTICE = once("p2_notice");
+    private static final RawAnimation A_P2_MARCH = loop("p2_march");
+    private static final RawAnimation A_P2_WAKE = once("p2_wake");
+    private static final RawAnimation A_P2_WAIT = loop("p2_wait");
+    private static final RawAnimation A_P2_KICK = once("p2_kick");
+    private static final RawAnimation A_P2_COUNT = once("p2_count");
+    private static final RawAnimation A_P2_GROOVE = loop("p2_groove");
+    private static final RawAnimation A_P2_APOLOGY = once("p2_apology");
+    private static final RawAnimation A_P2_RESUME = once("p2_resume");
     private static final RawAnimation A_FLY = loop("fly");
     private static final RawAnimation A_BARRAGE = once("p2_barrage");
     private static final RawAnimation A_METEOR = once("p2_meteor");
@@ -167,6 +181,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation F_SPROUT = once("p2_sprout");
     private static final RawAnimation F_IDLE = loop("p2_form_idle");
     private static final RawAnimation F_FLY = loop("p2_form_fly");
+    private static final RawAnimation F_AURA = once("p2_form_aura");
     private static final RawAnimation F_ATTACK = loop("p2_form_attack");
     private static final RawAnimation F_LIFT = once("p2_form_lift");
 
@@ -269,11 +284,24 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int meteorCd = 140;
     private int vanThrowCd = 160;
     private int diveCd = 40;
-    @Nullable private PotatoDome dome;
-    private boolean domeFailed;
-    private int domeLonely;
-    /** Ticks before he may raise a dome again after one came down empty. */
-    private int domeRetryCd;
+    /** His coliseum (phase two), up in the sky over the fight; null on the ground. */
+    @Nullable private Coliseum arena;
+    private boolean arenaFailed;
+    private int arenaLonely;
+    /** Ticks before he may raise the coliseum again after it came down empty. */
+    private int arenaRetryCd;
+    /** The band has been woken and has played: a second visit skips all that. */
+    private boolean bandWoken;
+    /** Game tick (low 31 bits) of the song's first downbeat (the band's count-in); 0 before. */
+    private int songStart;
+    /** The mariachi whose chair he is off to kick (entity id), or -1. */
+    private int kickWho = -1;
+    /** Seconds (x20 ticks) until the stands get going on their own again. */
+    private int crowdCd = 12;
+    /** An old save's potato dome, to be taken down on the first tick. */
+    @Nullable private CompoundTag oldDome;
+    private int crowdRoarCd;
+    private int crowdBooCd;
     private float orbitAngle;
     private int divesLeft;
     /** Dives for the next P2_DIVE (0: the usual three). */
@@ -366,6 +394,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         entityData.define(DATA_PHASE2, false);
         entityData.define(DATA_GHOST, false);
         entityData.define(DATA_FORM, 0);
+        entityData.define(DATA_ARENA, false);
         entityData.define(DATA_FLYING, false);
         entityData.define(DATA_HELD, -1);
         entityData.define(DATA_QTE, 0);
@@ -404,8 +433,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     @Nullable
-    public PotatoDome dome() {
-        return dome;
+    public Coliseum arena() {
+        return arena;
+    }
+
+    /** In his coliseum (both sides: the band plays the music there, not the old score). */
+    public boolean inColiseum() {
+        return entityData.get(DATA_ARENA);
     }
 
     @Override
@@ -581,7 +615,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         record(target);
         tickFires(level);
         tickLineWave(level);
-        tickDome(level);
+        tickArena(level);
         tickFoils(level);
         tickThrownVan(level);
         tickGriddle(level);
@@ -625,6 +659,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_SEASON -> tickSeason(level);
             case P2_SCREAM -> tickScream(level);
             case P2_ARRIVE -> tickArrive(level);
+            case P2_NOTICE -> tickNotice(level);
+            case P2_MARCH -> tickMarch(level);
+            case P2_WAKE -> tickWake(level);
+            case P2_WAIT -> tickWait(level);
+            case P2_KICK -> tickKick(level);
+            case P2_COUNT -> tickCount(level);
+            case P2_SHOWTIME -> tickShowtime(level);
+            case P2_APOLOGY -> tickApology(level);
+            case P2_RESUME -> tickResume(level);
             case P2_BARRAGE -> tickBarrage(level, target);
             case P2_METEOR -> tickMeteor(level, target);
             case VAN_GRAB -> tickVanGrab(level, target);
@@ -673,7 +716,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         meteorCd--;
         vanThrowCd--;
         diveCd--;
-        domeRetryCd--;
+        arenaRetryCd--;
+        crowdRoarCd--;
+        crowdBooCd--;
         guardCd--;
         evadeCd--;
         cleaverCd--;
@@ -802,8 +847,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.P2_KNEEL);
             return;
         }
-        if (isRisen() && dome == null && !domeFailed && domeRetryCd <= 0 && target != null && noTargetTicks == 0) {
-            // back for more after the dome came down: up it goes again
+        if (isRisen() && arena == null && !arenaFailed && arenaRetryCd <= 0 && target != null && noTargetTicks == 0) {
+            // back for more after the coliseum came down: up it goes again
+            planArena((ServerLevel) level());
             setBossState(BossState.P2_SCREAM);
             return;
         }
@@ -1408,7 +1454,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /** The surface under him, ghosting: the median of five samples, so a lone tree trunk does not lift him. */
     private double groundY(Vec3 at) {
-        if (dome != null && dome.built() && dome.contains(at)) return dome.floorY();
+        if (arena != null && arena.built() && arena.contains(at)) return arena.floorY();
         double[] ys = new double[5];
         int i = 0;
         for (double[] o : new double[][]{{0, 0}, {1.2, 0}, {-1.2, 0}, {0, 1.2}, {0, -1.2}}) {
@@ -1664,6 +1710,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         boolean hit = e.hurt(source(type), damage * dmg());
         if (hit) swingHit = true;
+        if (hit && e instanceof Player && crowdRoarCd <= 0 && level() instanceof ServerLevel level) {
+            crowdRoarCd = 50;
+            crowdReact(level, e.isAlive() ? CrowdMood.ROAR : CrowdMood.CHANT, e.isAlive() ? 40 : 200);
+        }
         return hit;
     }
 
@@ -2490,6 +2540,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             fires.clear();
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STUNNED, SoundSource.HOSTILE, 2.0F, 0.6F);
             if (getTarget() != null) face(getTarget().position());   // so his point of view finds you
+            // his coliseum starts going up in the sky now, a few hundred blocks a tick, done by the scream
+            if (arena == null && !arenaFailed) planArena(level);
         }
         LivingEntity target = getTarget();
         if (target != null && t > 60) turnToward(target.position(), 3F);
@@ -2552,21 +2604,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /**
-     * The scream (0.75 s): the shake, the fry wings, the crown, the butter (form 2), and meanwhile the
-     * potato dome goes up in the sky above. At the end everyone in the fight is pulled up into it.
+     * The scream (0.75 s): the shake, the fry wings, the crown, the butter (form 2); the coliseum
+     * (going up in the sky since he knelt) is finished, and at the end everyone in the fight is
+     * pulled up into it.
      */
     private void tickScream(ServerLevel level) {
         int t = stateTicks;
-        if (t == 1 && dome == null && !domeFailed) {
-            dome = PotatoDome.plan(level, home != null ? home : position());
-            if (dome == null) {
-                domeFailed = true;
-                PaponMod.LOG.info("[boss] no room in the sky for the potato dome over {}: phase two stays on the ground", blockPosition());
-            } else {
-                dome.startBuild(level);
-            }
-        }
-        if (dome != null && !dome.built()) dome.buildStep(level);
+        if (t == 1 && arena == null && !arenaFailed) planArena(level);
         if (t == 15) {
             entityData.set(DATA_FORM, 2);
             sayPlain("scream", 50);
@@ -2585,11 +2629,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             double r = 5 + random.nextDouble() * 8;
             bolt(level, position().add(Math.cos(a) * r, 0, Math.sin(a) * r));
         }
-        if (t > 15 && t < 60 && t % 4 == 0) {
-            if (t % 8 == 0) Fx.shock(level, position(), (float) (2 + (t - 15) / 4.0), 0xFFE07A);
-        }
+        if (t > 15 && t < 60 && t % 8 == 0) Fx.shock(level, position(), (float) (2 + (t - 15) / 4.0), 0xFFE07A);
         if (t >= BossState.P2_SCREAM.duration) {
-            enterDome(level);
+            enterArena(level);
             setBossState(BossState.P2_ARRIVE);
         }
     }
@@ -2603,40 +2645,80 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         level.addFreshEntity(b);
     }
 
-    /** Everyone in the fight, the van and himself, up into the dome (if there is one). */
-    private void enterDome(ServerLevel level) {
-        if (dome == null) return;
-        while (!dome.buildStep(level)) {
+    // ------------------------------------------------------------------ phase two: El Coliseo Papa
+
+    /** Where the coliseum goes (in the sky over the fight); it goes up a few hundred blocks a tick from here on. */
+    private void planArena(ServerLevel level) {
+        arena = Coliseum.plan(level, home != null ? home : position());
+        if (arena == null) {
+            arenaFailed = true;
+            PaponMod.LOG.info("[boss] no room in the sky for his coliseum over {}: phase two stays on the ground", blockPosition());
+        } else {
+            arena.startBuild(level);
+        }
+    }
+
+    /** Everyone in the fight, the van and himself, up into the coliseum (if there is one); the crowd and the band in their places. */
+    private void enterArena(ServerLevel level) {
+        if (arena == null) return;
+        while (!arena.buildStep(level, 4000)) {
             // finish it now (it is normally done well before the scream ends)
         }
-        Vec3 c = dome.centerVec();
+        Vec3 c = arena.centerVec();
+        List<ServerPlayer> in = new ArrayList<>();
         for (ServerPlayer p : level.players()) {
-            if (p.isSpectator() || p.distanceToSqr(this) > 48 * 48) continue;
+            if (!p.isSpectator() && p.distanceToSqr(this) <= 48 * 48) in.add(p);
+        }
+        for (int i = 0; i < in.size(); i++) {
+            ServerPlayer p = in.get(i);
             p.stopRiding();
-            Vec3 to = dome.inside(p.position(), 10);
-            PotatoDome.send(level, p, to);
-            float yaw = (float) (Mth.atan2(c.z - to.z, c.x - to.x) * Mth.RAD_TO_DEG) - 90F;
-            p.connection.teleport(to.x, to.y, to.z, yaw, -15F);
+            Vec3 to = arena.playerSpot(i, in.size());
+            Coliseum.send(level, p, to);
+            p.connection.teleport(to.x, to.y, to.z, 180F, -8F);        // facing north: him, and the band stand behind him
         }
         CaravanEntity van = van(level);
         if (van != null && van.distanceToSqr(this) < 64 * 64) {
             van.ejectPassengers();
-            Vec3 to = dome.inside(van.position(), 12);
-            PotatoDome.send(level, van, to);
-            van.setFloor(dome.floorY());
+            Coliseum.send(level, van, arena.vanSpot());
+            van.setFloor(arena.floorY());
         }
-        PotatoDome.send(level, this, c.add(0, 5, 0));
+        Coliseum.send(level, this, c.add(0, 12, 0));
         home = c;
         fires.clear();
         setFlying(true);
-        PaponMod.LOG.info("[boss] into the potato dome at {}", dome.center);
+        entityData.set(DATA_ARENA, true);
+        populate(level);
+        PaponMod.LOG.info("[boss] into El Coliseo Papa at {}", arena.center);
     }
 
-    /** The dome comes down: everyone and everything in it back to the ground, him included. */
-    private void leaveDome(ServerLevel level) {
-        if (dome == null) return;
-        PotatoDome d = dome;
-        dome = null;
+    /** The crowd and the band (asleep), unless they are there already; back for a second round, the band just plays. */
+    private void populate(ServerLevel level) {
+        ColiseumCrowdEntity crowd = crowd(level);
+        if (crowd == null) {
+            crowd = new ColiseumCrowdEntity(com.groid.papon.registry.ModEntities.COLISEUM_CROWD.get(), level);
+            Vec3 c = arena.centerVec();
+            crowd.moveTo(c.x, c.y, c.z, 0, 0);
+            crowd.setSeed((int) arena.center.asLong());
+            level.addFreshEntity(crowd);
+        }
+        crowd.setMood(CrowdMood.CHEER);
+        if (band(level).isEmpty()) {
+            for (BandRole role : BandRole.values()) {
+                MariachiEntity.spawn(level, role, arena.bandSpot(role.ordinal()), arena.bandYaw(role.ordinal()));
+            }
+        }
+        if (bandWoken) {
+            songStart = (int) ((level.getGameTime() + 10) & 0x7FFFFFFF);
+            for (MariachiEntity m : band(level)) m.play(songStart);
+        }
+    }
+
+    /** The coliseum comes down: everyone and everything in it back to the ground, him included. */
+    private void leaveArena(ServerLevel level) {
+        if (arena == null) return;
+        Coliseum d = arena;
+        arena = null;
+        entityData.set(DATA_ARENA, false);
         CaravanEntity van = van(level);
         if (van != null) van.setFloor(null);
         d.teardown(level);
@@ -2645,60 +2727,388 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         fires.clear();
     }
 
-    /** Every tick: keep the van on the dome's floor, and bring the dome down if nobody is left in it. */
-    private void tickDome(ServerLevel level) {
-        if (dome == null || !dome.built()) return;
+    @Nullable
+    private ColiseumCrowdEntity crowd(ServerLevel level) {
+        if (arena == null) return null;
+        List<ColiseumCrowdEntity> l = level.getEntitiesOfClass(ColiseumCrowdEntity.class, arena.bounds(), Entity::isAlive);
+        return l.isEmpty() ? null : l.get(0);
+    }
+
+    /** The band, in stage order (singer first). */
+    private List<MariachiEntity> band(ServerLevel level) {
+        if (arena == null) return List.of();
+        List<MariachiEntity> l = new ArrayList<>(level.getEntitiesOfClass(MariachiEntity.class, arena.bounds(), Entity::isAlive));
+        l.sort(java.util.Comparator.comparingInt(m -> m.getRole().ordinal()));
+        return l;
+    }
+
+    @Nullable
+    private MariachiEntity singer(ServerLevel level) {
+        for (MariachiEntity m : band(level)) if (m.getRole().singer()) return m;
+        return null;
+    }
+
+    private void crowdMood(ServerLevel level, CrowdMood m) {
+        ColiseumCrowdEntity c = crowd(level);
+        if (c != null) c.setMood(m);
+    }
+
+    private void crowdReact(ServerLevel level, CrowdMood m, int ticks) {
+        ColiseumCrowdEntity c = crowd(level);
+        if (c != null) c.react(m, ticks);
+    }
+
+    /**
+     * Every tick: build what is left of the coliseum, keep the van on its floor, keep challengers
+     * out of the stands, get the crowd going now and then, and bring it all down if nobody is left
+     * in it.
+     */
+    private void tickArena(ServerLevel level) {
+        if (oldDome != null) {
+            Coliseum.tearDownOldDome(level, oldDome);
+            oldDome = null;
+        }
+        if (arena == null) return;
+        if (!arena.built()) {
+            arena.buildStep(level);
+            return;
+        }
         CaravanEntity van = van(level);
-        if (van != null) van.setFloor(dome.contains(van.position()) ? dome.floorY() : null);
-        if (getBossState().cutscene() || getBossState() == BossState.DEATH) return;
+        if (van != null) van.setFloor(arena.contains(van.position()) ? arena.floorY() : null);
+        BossState s = getBossState();
         boolean anyone = false;
         for (ServerPlayer p : level.players()) {
-            if (!p.isSpectator() && p.isAlive() && dome.contains(p.position())) {
-                anyone = true;
-                break;
+            if (p.isSpectator() || !p.isAlive() || !arena.contains(p.position())) continue;
+            anyone = true;
+            if (!p.isCreative() && !arena.inArena(p.position()) && p.getY() > arena.floorY() + 2) {
+                // up in the stands (a pearl, a pillar): back down on the sand
+                Vec3 to = arena.clamp(p.position(), 3, 0, 0);
+                Coliseum.send(level, p, new Vec3(to.x, arena.floorY(), to.z));
             }
         }
-        domeLonely = anyone ? 0 : domeLonely + 1;
-        if (domeLonely > 200) {
-            PaponMod.LOG.info("[boss] nobody left in the potato dome: it comes down");
+        if (s.cutscene() || s == BossState.DEATH) return;
+        if (tickCount % 20 == 0 && --crowdCd <= 0) {
+            // the stands get going on their own: a chant, the wave, clapping along
+            crowdCd = 18 + random.nextInt(14);
+            CrowdMood m = switch (random.nextInt(3)) {
+                case 0 -> CrowdMood.CHANT;
+                case 1 -> CrowdMood.WAVE;
+                default -> CrowdMood.CLAP;
+            };
+            ColiseumCrowdEntity c = crowd(level);
+            if (c != null && !c.reacting()) c.react(m, 180);
+        }
+        arenaLonely = anyone ? 0 : arenaLonely + 1;
+        if (arenaLonely > 200) {
+            PaponMod.LOG.info("[boss] nobody left in his coliseum: it comes down");
             setFlying(false);
-            leaveDome(level);
-            domeLonely = 0;
-            domeRetryCd = 600;
+            leaveArena(level);
+            arenaLonely = 0;
+            arenaRetryCd = 600;
         }
     }
 
-    /** In his dimension: hanging in the air, arms folded, the title; then the fight goes on, foil potatoes and all. */
+    /** The stand's front, where he stands to have words with the band. */
+    private Vec3 standFront() {
+        return arena.centerVec().add(0, 0, -Coliseum.B + 9.6);
+    }
+
+    /**
+     * In his coliseum (5 s): the white clears on him coming down out of the sky into the middle of
+     * the sand to the roar of the stands; he lands, throws his arms up to them ("¿ESTÁN LISTOS?"),
+     * the title; and, ready to go on, he points at the band stand: "¡MÚSICA, MAESTRO!"... and
+     * nothing. Silence. With no coliseum (no room in the sky) he just hangs there and the fight
+     * goes on.
+     */
     private void tickArrive(ServerLevel level) {
         int t = stateTicks;
-        setFlying(true);
-        setDeltaMovement(0, t < 30 ? -0.03 : 0, 0);
         LivingEntity target = getTarget();
-        if (target != null) turnToward(target.position(), 6F);
-        if (t == 2) {
-            Component title = Component.translatable("title.papon.dome").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
-            Component sub = Component.translatable("title.papon.dome.subtitle").withStyle(ChatFormatting.YELLOW, ChatFormatting.ITALIC);
-            for (ServerPlayer p : level.players()) {
-                if (p.distanceToSqr(this) < 64 * 64) {
-                    p.connection.send(new ClientboundSetTitlesAnimationPacket(10, 50, 20));
-                    p.connection.send(new ClientboundSetTitleTextPacket(title));
-                    p.connection.send(new ClientboundSetSubtitleTextPacket(sub));
-                }
+        if (arena == null) {
+            setFlying(true);
+            setDeltaMovement(0, t < 30 ? -0.03 : 0, 0);
+            if (target != null) turnToward(target.position(), 6F);
+            if (t == 2) title(level, "title.papon.dome", 50);
+            if (t >= 50) finishCutscene(level);
+            return;
+        }
+        Vec3 c = arena.centerVec();
+        if (t <= 36) {
+            double k = t / 36.0;
+            k = k * k * (3 - 2 * k);
+            setFlying(true);
+            setPos(c.x, c.y + 12 * (1 - k), c.z);
+            setDeltaMovement(Vec3.ZERO);
+            face(c.add(0, 0, 8));
+        }
+        if (t == 36) {
+            setFlying(false);
+            setPos(c.x, c.y, c.z);
+            landImpact(level, position(), 4.0F, 0F, 0.6F);
+            Fx.dust(level, position(), 3.0, 10);
+        }
+        if (t == 2) crowdReact(level, CrowdMood.ROAR, 90);
+        if (t == 40) title(level, "title.papon.coliseum", 34);
+        if (t == 46) {
+            say("listos", 40);
+            crowdReact(level, CrowdMood.ROAR, 40);
+        }
+        if (t > 36 && t < 70) turnToward(c.add(Math.sin(t * 0.09) * 20, 0, Math.cos(t * 0.09) * 20), 8F);
+        if (bandWoken) {
+            if (t >= 60) finishCutscene(level);
+            return;
+        }
+        if (t >= 70) turnToward(standFront().add(0, 0, -6), 12F);
+        if (t == 74) {
+            say("musica", 40);
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.NOTE_BLOCK_HAT.value(), SoundSource.HOSTILE, 2.0F, 1.6F);
+        }
+        if (t == 86) crowdMood(level, CrowdMood.HUSH);
+        if (t >= BossState.P2_ARRIVE.duration) setBossState(BossState.P2_NOTICE);
+    }
+
+    private void title(ServerLevel level, String key, int stay) {
+        Component title = Component.translatable(key).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+        Component sub = Component.translatable(key + ".subtitle").withStyle(ChatFormatting.YELLOW, ChatFormatting.ITALIC);
+        for (ServerPlayer p : level.players()) {
+            if (p.distanceToSqr(this) < 72 * 72) {
+                p.connection.send(new ClientboundSetTitlesAnimationPacket(10, stay, 20));
+                p.connection.send(new ClientboundSetTitleTextPacket(title));
+                p.connection.send(new ClientboundSetSubtitleTextPacket(sub));
             }
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 3.0F, 0.6F);
         }
-        if (t == 20) say("welcome", 50);
-        if (t >= BossState.P2_ARRIVE.duration) {
-            think = 8;
-            vanCd = Math.max(vanCd, 240);
-            if (foils.isEmpty()) spawnFoils(level);
-            setBossState(BossState.IDLE);
+        level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 3.0F, 0.6F);
+    }
+
+    /** "...¿Maestro?": the band is asleep. He holds the point, looks round at them, back at you, and fumes. */
+    private void tickNotice(ServerLevel level) {
+        int t = stateTicks;
+        if (t >= 18 && t < 30) turnToward(standFront().add(0, 0, -6), 10F);
+        if (t >= 30 && t < 42 && getTarget() != null) turnToward(getTarget().position(), 14F);
+        if (t == 34) say("maestro", 30);
+        if (t == 48) {
+            Fx.smoke(level, position().add(0, getBbHeight() + 0.3, 0), 3, 0.3, 0.8F, 0xEDEDED);
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 1.5F, 0.6F);
         }
+        if (t >= BossState.P2_NOTICE.duration) setBossState(BossState.P2_MARCH);
+    }
+
+    /** Storms over to the band stand. */
+    private void tickMarch(ServerLevel level) {
+        Vec3 to = standFront();
+        double d = horizontalDist(to);
+        if (d < 1.2 || stateTicks > 160) {
+            if (d >= 1.2) setPos(to.x, to.y, to.z);
+            getNavigation().stop();
+            setBossState(BossState.P2_WAKE);
+            return;
+        }
+        if (stateTicks % 10 == 1) getNavigation().moveTo(to.x, to.y, to.z, 1.5);
+        if (stateTicks % 8 == 0) level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 1.0F, 1.2F);
+    }
+
+    /**
+     * Out come the comal and the spatula: three clangs right over their heads (0.85 / 1.6 / 2.1 s)
+     * and "¡¡DESPIERTEN, FLOJOS!!". They jolt awake at the first.
+     */
+    private void tickWake(ServerLevel level) {
+        int t = stateTicks;
+        face(standFront().add(0, 0, -6));
+        if (t == 17 || t == 32 || t == 42) {
+            Vec3 at = position().add(Vec3.directionFromRotation(0, getYRot()).scale(1.4)).add(0, 2.6, 0);
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 2.0F, 1.3F);
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.BELL_BLOCK, SoundSource.HOSTILE, 2.0F, 0.8F);
+            Fx.spark(level, at, 10, 0.4, 0.3F, 0xFFD27A);
+            PaponNetwork.shake(level, at, 20, 0.25F, 8);
+        }
+        if (t == 17) {
+            for (MariachiEntity m : band(level)) m.wake(m.getRole().dozer() ? 0 : random.nextInt(34));
+            crowdReact(level, CrowdMood.GASP, 16);
+        }
+        if (t == 20) sayPlain("despierten", 50);
+        if (t >= BossState.P2_WAKE.duration) setBossState(BossState.P2_WAIT);
+    }
+
+    /**
+     * Waits on them, tapping his foot (and with a finger up to you: "Un momentito..."); the
+     * guitarron has gone straight back to sleep, so he goes and kicks his chair. When they are
+     * all ready the singer counts them in.
+     */
+    private void tickWait(ServerLevel level) {
+        int t = stateTicks;
+        LivingEntity target = getTarget();
+        List<MariachiEntity> band = band(level);
+        if (t >= 16 && t < 40 && target != null) turnToward(target.position(), 12F);
+        else if (kickWho < 0) turnToward(standFront().add(0, 0, -6), 8F);
+        if (t == 22) say("momentito", 40);
+        for (MariachiEntity m : band) {
+            if (m.dozing() && kickWho < 0 && t > 40) {
+                kickWho = m.getId();
+                say("ay", 20);
+            }
+        }
+        if (kickWho >= 0) {
+            Entity e = level.getEntity(kickWho);
+            if (!(e instanceof MariachiEntity m) || !m.dozing()) {
+                kickWho = -1;
+            } else {
+                Vec3 to = m.position().add(Vec3.directionFromRotation(0, m.getYRot()).scale(2.2));
+                to = new Vec3(to.x, arena.floorY(), to.z);
+                if (horizontalDist(to) < 1.0 || t > 400) {
+                    getNavigation().stop();
+                    face(m.position());
+                    setBossState(BossState.P2_KICK);
+                    return;
+                }
+                if (t % 10 == 1) getNavigation().moveTo(to.x, to.y, to.z, 1.3);
+                return;
+            }
+        }
+        if (horizontalDist(standFront()) > 1.5 && t % 10 == 1) {
+            Vec3 f = standFront();
+            getNavigation().moveTo(f.x, f.y, f.z, 1.1);
+        }
+        boolean ready = !band.isEmpty();
+        for (MariachiEntity m : band) ready &= m.getBandState() == BandState.READY;
+        if (t > 900 && !ready) {
+            // never wait forever: whoever is still dawdling is ready now
+            for (MariachiEntity m : band) if (!m.getBandState().ready()) m.setBandState(BandState.READY);
+            ready = true;
+        }
+        if (ready && horizontalDist(standFront()) < 2.5) setBossState(BossState.P2_COUNT);
+    }
+
+    /** The chair: a boot to it and the guitarron is up, for good this time. */
+    private void tickKick(ServerLevel level) {
+        int t = stateTicks;
+        Entity e = level.getEntity(kickWho);
+        if (e != null) face(e.position());
+        if (t == 2) sayPlain("gordo", 30);
+        if (t == 12 && e instanceof MariachiEntity m) {
+            m.kick();
+            level.playSound(null, m.getX(), m.getY(), m.getZ(), SoundEvents.ZOMBIE_ATTACK_WOODEN_DOOR, SoundSource.HOSTILE, 1.5F, 1.2F);
+            Fx.dust(level, m.position(), 1.0, 4);
+            crowdReact(level, CrowdMood.ROAR, 25);
+        }
+        if (t >= BossState.P2_KICK.duration) {
+            kickWho = -1;
+            setBossState(BossState.P2_WAIT);
+            stateTicks = 41;
+        }
+    }
+
+    /**
+     * The singer counts them in (4 s): "¡Uno...! ¡...dos! ¡Uno, dos, tres!", the stands clapping
+     * along; on the downbeat the band hits it, fireworks go up off the walls and the place erupts.
+     */
+    private void tickCount(ServerLevel level) {
+        int t = stateTicks;
+        MariachiEntity singer = singer(level);
+        if (t == 1) {
+            songStart = (int) ((level.getGameTime() + BossState.P2_COUNT.duration - 1) & 0x7FFFFFFF);
+            for (MariachiEntity m : band(level)) m.count(songStart);
+        }
+        if (singer != null) turnToward(singer.position(), 6F);
+        if (t == 40) crowdMood(level, CrowdMood.CLAP);
+        if (t >= BossState.P2_COUNT.duration) {
+            for (MariachiEntity m : band(level)) m.play(songStart);
+            bandWoken = true;
+            crowdMood(level, CrowdMood.CHEER);
+            crowdReact(level, CrowdMood.ROAR, 70);
+            fireworks(level);
+            setBossState(BossState.P2_SHOWTIME);
+        }
+    }
+
+    /** Rockets off the top of the walls, in the flag's colours and gold, bursting high over the sand. */
+    private void fireworks(ServerLevel level) {
+        if (arena == null) return;
+        int[][] colours = {{0x1E8A3E, 0xFFFFFF}, {0xC4282C, 0xFFFFFF}, {0xF2C14E, 0xFFE9A0}};
+        for (int i = 0; i < 10; i++) {
+            double a = Math.PI * 2 * i / 10 + random.nextDouble() * 0.2;
+            Vec3 at = arena.centerVec().add(Math.cos(a) * (Coliseum.A + 20), Coliseum.HEIGHT + 1, Math.sin(a) * (Coliseum.B + 20));
+            net.minecraft.world.item.ItemStack rocket = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.FIREWORK_ROCKET);
+            CompoundTag fw = rocket.getOrCreateTagElement("Fireworks");
+            fw.putByte("Flight", (byte) 2);
+            net.minecraft.nbt.ListTag ex = new net.minecraft.nbt.ListTag();
+            CompoundTag e = new CompoundTag();
+            int[] col = colours[i % colours.length];
+            e.putByte("Type", (byte) (i % 2 == 0 ? 1 : 4));
+            e.putIntArray("Colors", new int[]{col[0]});
+            e.putIntArray("FadeColors", new int[]{col[1]});
+            e.putBoolean("Trail", true);
+            e.putBoolean("Flicker", i % 3 == 0);
+            ex.add(e);
+            fw.put("Explosions", ex);
+            level.addFreshEntity(new net.minecraft.world.entity.projectile.FireworkRocketEntity(level, at.x, at.y, at.z, rocket));
+        }
+    }
+
+    /** The guitar intro (the camera on the singer's hands): he grooves along, nodding, facing the band. */
+    private void tickShowtime(ServerLevel level) {
+        MariachiEntity singer = singer(level);
+        if (singer != null) turnToward(singer.position(), 6F);
+        if (stateTicks >= BossState.P2_SHOWTIME.duration) setBossState(BossState.P2_APOLOGY);
+    }
+
+    /**
+     * He turns to you and comes over: "My apologies, amigo. Such poor hospitality... making my guest
+     * wait like that." Then he just stands there being magnificent (from 5.5 s): half turned away, the
+     * wings opening slowly with the music, a hand over his bald head, a look over his shoulder; the
+     * stands swoon.
+     */
+    private void tickApology(ServerLevel level) {
+        int t = stateTicks;
+        LivingEntity target = getTarget();
+        if (target != null) {
+            double d = horizontalDist(target.position());
+            if (t < 50 && d > 5.5) {
+                if (t % 10 == 1) getNavigation().moveTo(target.getX(), target.getY(), target.getZ(), 0.9);
+            } else {
+                getNavigation().stop();
+            }
+            if (t < 110) turnToward(target.position(), 8F);
+            else turnToward(target.position().add(Vec3.directionFromRotation(0, getYRot() + 90).scale(6)), 2.5F);
+        }
+        if (t == 30) sayPlain("apology", 100);
+        if (t == 110) {
+            crowdReact(level, CrowdMood.SWOON, 90);
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 2.0F, 0.7F);
+        }
+        if (t > 110 && t % 6 == 0) {
+            double a = t * 0.4;
+            Fx.glint(level, position().add(Math.cos(a) * 1.4, 0.4 + (t % 30) / 30.0 * getBbHeight(), Math.sin(a) * 1.4), 0.5F, 0xFFE8A0);
+        }
+        if (t >= BossState.P2_APOLOGY.duration) setBossState(BossState.P2_RESUME);
+    }
+
+    /** "...Now. Where were we?": he squares up, and the moment the singer starts singing, the fight is on. */
+    private void tickResume(ServerLevel level) {
+        int t = stateTicks;
+        LivingEntity target = getTarget();
+        if (target != null) turnToward(target.position(), 10F);
+        if (t == 2) sayPlain("resume", 50);
+        Song song = Song.get();
+        long now = level.getGameTime() & 0x7FFFFFFF;
+        long start = songStart & 0x7FFFFFFFL;
+        long since = (now - start) & 0x7FFFFFFFL;
+        int fight = song != null ? song.fightStartTicks() : 300;
+        if ((since >= fight && since < (1L << 30)) || t > 200) {
+            crowdReact(level, CrowdMood.ROAR, 60);
+            finishCutscene(level);
+        }
+    }
+
+    private void finishCutscene(ServerLevel level) {
+        think = 6;
+        vanCd = Math.max(vanCd, 240);
+        crowdCd = 12;
+        if (foils.isEmpty()) spawnFoils(level);
+        setBossState(BossState.IDLE);
     }
 
     // ------------------------------------------------------------------ phase two: flight
 
-    /** Flying: circles you a few blocks up, bobbing, always facing you, kept inside the dome. */
+    /** Flying: circles you a few blocks up, bobbing, always facing you, kept over the sand. */
     private void hover(@Nullable LivingEntity target) {
         setFlying(true);
         getNavigation().stop();
@@ -2706,7 +3116,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         orbitAngle += 0.03F * orbitDir;
         double r = target == null ? 0 : 6.5;
         double h = 3.4 + Math.sin(tickCount * 0.07) * 0.8;
-        Vec3 pt = clampToDome(c.add(Math.cos(orbitAngle) * r, h, Math.sin(orbitAngle) * r));
+        Vec3 pt = clampToArena(c.add(Math.cos(orbitAngle) * r, h, Math.sin(orbitAngle) * r));
         Vec3 d = pt.subtract(position());
         double len = d.length();
         Vec3 v = len < 0.05 ? Vec3.ZERO : d.scale(Math.min(0.5, len * 0.14) / len);
@@ -2715,14 +3125,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (horizontalCollision && tickCount % 40 == 0) orbitDir = -orbitDir;
     }
 
-    private Vec3 clampToDome(Vec3 p) {
-        if (dome == null || !dome.built()) return p;
-        Vec3 c = dome.centerVec();
-        Vec3 off = new Vec3(p.x - c.x, 0, p.z - c.z);
-        double max = dome.radius - 5;
-        if (off.length() > max) off = off.normalize().scale(max);
-        double y = Mth.clamp(p.y, dome.floorY() + 1.5, dome.floorY() + dome.radius * 0.5);
-        return new Vec3(c.x + off.x, y, c.z + off.z);
+    private Vec3 clampToArena(Vec3 p) {
+        if (arena == null || !arena.built()) return p;
+        return arena.clamp(p, 4, 1.5, 14);
     }
 
     // ------------------------------------------------------------------ phase two: attacks
@@ -2765,8 +3170,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickMeteor(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
         setFlying(true);
-        double want = (dome != null ? dome.floorY() : (target != null ? target.getY() : getY())) + 10;
-        if (dome != null) want = Math.min(want, dome.floorY() + dome.radius * 0.55);
+        double want = (arena != null ? arena.floorY() : (target != null ? target.getY() : getY())) + 10;
+        if (arena != null) want = Math.min(want, arena.floorY() + 14);
         setDeltaMovement(0, Mth.clamp((want - getY()) * 0.2, -0.3, 0.5), 0);
         if (target != null) turnToward(target.position(), 6F);
         if (t == 8) say("meteor", 50);
@@ -2889,7 +3294,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         switch (diveStage) {
             case 0 -> {
                 setFlying(true);
-                Vec3 pt = clampToDome(target.position().add(0, 7.5, 0));
+                Vec3 pt = clampToArena(target.position().add(0, 7.5, 0));
                 Vec3 d = pt.subtract(position());
                 double len = d.length();
                 setDeltaMovement(len < 0.1 ? Vec3.ZERO : d.scale(Math.min(0.9, len * 0.3) / len));
@@ -2913,7 +3318,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     }
                 }
                 if (diveTicks % 2 == 0) Fx.fire(level, position().add(0, 1, 0), 1, 0.3, 0.7F);
-                boolean floor = dome != null && getY() <= dome.floorY() + 0.05;
+                boolean floor = arena != null && getY() <= arena.floorY() + 0.05;
                 if (onGround() || verticalCollision || floor || diveTicks > 25) {
                     landImpact(level, position(), 3.4F, 12F, 0.6F);
                     ring(level, position(), 3.0);
@@ -3748,7 +4153,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         if (isFlying()) hover(target);
         if (t == 1) {
-            Vec3 c = dome != null && dome.built() ? dome.centerVec() : (target != null ? target.position() : position());
+            Vec3 c = arena != null && arena.built() ? arena.centerVec() : (target != null ? target.position() : position());
             spudFloor = new Vec3(c.x, groundY(c), c.z);
             BossProp spud = BossProp.create(level, BossProp.Kind.GIANT_SPUD, this, spudFloor.add(0, 9, 0)).life(BossState.P2_GRAVITY.duration + 4);
             level.addFreshEntity(spud);
@@ -4033,6 +4438,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         amount = Math.min(amount, cap);
         boolean hurt = super.hurt(source, amount);
         if (hurt) recentHurt += amount / getMaxHealth();
+        if (hurt && attacker instanceof Player && crowdBooCd <= 0 && amount > getMaxHealth() * 0.008F && level() instanceof ServerLevel level) {
+            crowdBooCd = 70;
+            crowdReact(level, CrowdMood.BOO, 45);
+        }
         if (hurt && !isPhaseTwo() && !phaseDue && getHealth() <= getMaxHealth() * PHASE_TWO_AT && getHealth() > 0) phaseDue = true;
         return hurt;
     }
@@ -4074,8 +4483,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         release();
         stopRiding();
         if (level() instanceof ServerLevel level) {
-            leaveDome(level);
             discardFoils(level);
+            crowdReact(level, CrowdMood.GASP, 30);
+            crowdMood(level, CrowdMood.MOURN);
         }
         setFlying(false);
         setBossState(BossState.DEATH);
@@ -4091,7 +4501,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (deathTime % 10 == 0 && deathTime > 40 && deathTime < 90) {
                 Fx.fall(level, position().add(0, getBbHeight() * 0.7, 0), 2, 0.3, 0.1F, 0x7FB8FF);
             }
+            if (deathTime == 60) for (MariachiEntity m : band(level)) m.bow();
             if (deathTime >= BossState.DEATH.duration) {
+                leaveArena(level);
                 Fx.flash(level, position().add(0, 1, 0), 2.5F);
                 Fx.smoke(level, position().add(0, 1, 0), 6, 0.8, 1.4F, 0xEDE6DA);
                 Fx.chunks(level, position().add(0, 1, 0), 16, 0.35F, Fx.POTATO, 0.6);
@@ -4151,7 +4563,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     public void remove(RemovalReason reason) {
         bossEvent.removeAllPlayers();
         if (reason.shouldDestroy() && level() instanceof ServerLevel level) {
-            leaveDome(level);
+            leaveArena(level);
             discardFoils(level);
         }
         super.remove(reason);
@@ -4169,6 +4581,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private PlayState animateForm(AnimationState<PaponBossEntity> event) {
         BossState s = getBossState();
         if (s == BossState.P2_SCREAM) return event.setAndContinue(F_SPROUT);
+        if (s == BossState.P2_APOLOGY && ticksInState() > 100) return event.setAndContinue(F_AURA);
         if (!isRisen()) return PlayState.STOP;
         RawAnimation next = switch (s) {
             case VAN_GRAB, VAN_THROW, P2_METEOR -> F_LIFT;
@@ -4221,7 +4634,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_TALK -> A_P2_TALK;
             case P2_SEASON -> A_P2_SEASON;
             case P2_SCREAM -> A_P2_SCREAM;
-            case P2_ARRIVE -> A_P2_ARRIVE;
+            case P2_ARRIVE -> inColiseum() ? A_P2_ARRIVE_SKY : A_P2_ARRIVE;
+            case P2_NOTICE -> A_P2_NOTICE;
+            case P2_MARCH -> event.isMoving() ? A_P2_MARCH : A_P2_WAIT;
+            case P2_WAKE -> A_P2_WAKE;
+            case P2_WAIT -> event.isMoving() ? A_P2_MARCH : A_P2_WAIT;
+            case P2_KICK -> A_P2_KICK;
+            case P2_COUNT -> A_P2_COUNT;
+            case P2_SHOWTIME -> A_P2_GROOVE;
+            case P2_APOLOGY -> A_P2_APOLOGY;
+            case P2_RESUME -> A_P2_RESUME;
             case P2_BARRAGE -> A_BARRAGE;
             case P2_METEOR -> A_METEOR;
             case VAN_GRAB -> A_FLY;
@@ -4272,7 +4694,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         tag.putString("BossState", (s == BossState.DEATH ? BossState.DEATH : BossState.IDLE).name());
         tag.putBoolean("Phase2", isPhaseTwo());
         tag.putInt("Form", form());
-        if (dome != null) tag.put("Dome", dome.save());
+        if (arena != null) tag.put("Arena", arena.save());
+        tag.putBoolean("BandWoken", bandWoken);
+        tag.putInt("SongStart", songStart);
         if (home != null) tag.put("Home", NbtUtils.writeBlockPos(BlockPos.containing(home)));
         if (vanId != null) tag.putUUID("Van", vanId);
     }
@@ -4282,7 +4706,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         super.readAdditionalSaveData(tag);
         entityData.set(DATA_PHASE2, tag.getBoolean("Phase2"));
         entityData.set(DATA_FORM, tag.getInt("Form"));
-        dome = tag.contains("Dome") ? PotatoDome.load(tag.getCompound("Dome")) : null;
+        arena = tag.contains("Arena") ? Coliseum.load(tag.getCompound("Arena")) : null;
+        entityData.set(DATA_ARENA, arena != null);
+        oldDome = tag.contains("Dome") ? tag.getCompound("Dome") : null;
+        bandWoken = tag.getBoolean("BandWoken");
+        songStart = tag.getInt("SongStart");
         if (isRisen()) foilCd = 40;
         if (isPhaseTwo()) bossEvent.setName(Component.translatable(BAR_KEY + ".phase2"));
         if (tag.contains("Home")) home = Vec3.atBottomCenterOf(NbtUtils.readBlockPos(tag.getCompound("Home")));

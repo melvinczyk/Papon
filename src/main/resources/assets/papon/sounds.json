@@ -473,5 +473,157 @@
         "name": "papon:voice/vendor/unmask"
       }
     ]
+  },
+  "music.song.intro": {
+    "sounds": [
+      {
+        "name": "papon:music/song/intro",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.verse1": {
+    "sounds": [
+      {
+        "name": "papon:music/song/verse1",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.break1": {
+    "sounds": [
+      {
+        "name": "papon:music/song/break1",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.verse2": {
+    "sounds": [
+      {
+        "name": "papon:music/song/verse2",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.solo1": {
+    "sounds": [
+      {
+        "name": "papon:music/song/solo1",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.solo2": {
+    "sounds": [
+      {
+        "name": "papon:music/song/solo2",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.breakdown": {
+    "sounds": [
+      {
+        "name": "papon:music/song/breakdown",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.climax1": {
+    "sounds": [
+      {
+        "name": "papon:music/song/climax1",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.climax2": {
+    "sounds": [
+      {
+        "name": "papon:music/song/climax2",
+        "stream": true
+      }
+    ]
+  },
+  "music.song.ending": {
+    "sounds": [
+      {
+        "name": "papon:music/song/ending",
+        "stream": true
+      }
+    ]
+  },
+  "crowd.ambience": {
+    "sounds": [
+      {
+        "name": "papon:crowd/ambience",
+        "stream": true
+      }
+    ]
+  },
+  "crowd.roar": {
+    "sounds": [
+      {
+        "name": "papon:crowd/roar",
+        "stream": false
+      }
+    ]
+  },
+  "crowd.boo": {
+    "sounds": [
+      {
+        "name": "papon:crowd/boo",
+        "stream": false
+      }
+    ]
+  },
+  "crowd.gasp": {
+    "sounds": [
+      {
+        "name": "papon:crowd/gasp",
+        "stream": false
+      }
+    ]
+  },
+  "crowd.swoon": {
+    "sounds": [
+      {
+        "name": "papon:crowd/swoon",
+        "stream": false
+      }
+    ]
+  },
+  "crowd.chant": {
+    "sounds": [
+      {
+        "name": "papon:crowd/chant",
+        "stream": false
+      }
+    ]
+  },
+  "crowd.clap": {
+    "sounds": [
+      {
+        "name": "papon:crowd/clap",
+        "stream": false
+      }
+    ]
+  },
+  "band.toot": {
+    "sounds": [
+      {
+        "name": "papon:band/toot",
+        "stream": false
+      }
+    ]
+  },
+  "band.tune": {
+    "sounds": [
+      {
+        "name": "papon:band/tune",
+        "stream": false
+      }
+    ]
   }
 }

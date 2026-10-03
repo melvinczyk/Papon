@@ -155,7 +155,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     private static final float HALF_SQRT_3 = (float) (Math.sqrt(3.0) / 2.0);
 
     /** Golden shafts of light out of his middle in every direction, turning (the dragon's death, his way). */
-    private static void drawRays(PoseStack pose, MultiBufferSource buffers, float k, float time, float height) {
+    static void drawRays(PoseStack pose, MultiBufferSource buffers, float k, float time, float height) {
         VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
         net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(1945L);
         pose.pushPose();

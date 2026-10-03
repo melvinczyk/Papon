@@ -36,6 +36,8 @@ ANIM_FILES = {
     'gerbin': 'gerbin',
     'papon_boss': 'papon_boss',
     'caravan': 'caravan',
+    'mariachi': 'mariachi',
+    'arena_fan': None,
 }
 
 VIEWS = [
@@ -76,6 +78,11 @@ def open_model(name):
             # (the boss's is ~700 KB) segfaults its renderer
             ev('Animator.loadFile({path: %s, content: require("fs").readFileSync(%s, "utf8")}); Animation.all.length'
                % (json.dumps(apath), json.dumps(apath)))
+    hide = [h for h in os.environ.get('BB_HIDE', '').split(',') if h]
+    if hide:
+        # BB_HIDE=bone,bone: leave those out of the shots (a rig's alternatives the game hides per entity)
+        ev('var hide = %s; Group.all.filter(g => hide.includes(g.name)).forEach(g => g.forEachChild(c => { c.visibility = false; }, Cube, true)); '
+           'Canvas.updateVisibility(); true' % json.dumps(hide))
 
 
 def shot(view, pos, target):
@@ -162,6 +169,30 @@ def anim(out, name, anim_name, times, prefix=None):
     print(out)
 
 
+def anims(out, name, specs, view=(40, 12, -60)):
+    """Several animations at their times in one sheet: specs like ['sleep_a:1.2', 'count:0.2']."""
+    open_model(name)
+    vid = ensure_view(w=360, h=460)
+    mid = height_of(name) / 2
+    tiles = []
+    for spec in specs:
+        anim_name, t = spec.rsplit(':', 1)
+        full = 'animation.%s.%s' % (ANIM_FILES[name], anim_name)
+        ev('var a = Animation.all.find(a => a.name == %s); a.select(); Timeline.setTime(%f); '
+           'Animator.preview(); true' % (json.dumps(full), float(t)))
+        tiles.append(('%s %ss' % (anim_name, t), shot(vid, [view[0], mid + view[1], view[2]], [0, mid, 0])))
+    tw, th = tiles[0][1].size
+    cols = min(len(tiles), 6)
+    im = Image.new('RGBA', (tw * cols, th * ((len(tiles) + cols - 1) // cols)), (24, 24, 28, 255))
+    d = ImageDraw.Draw(im)
+    for i, (label, tile) in enumerate(tiles):
+        x, y = (i % cols) * tw, (i // cols) * th
+        im.alpha_composite(tile, (x, y))
+        d.text((x + 6, y + 4), label, fill=(255, 210, 90, 255))
+    im.save(out)
+    print(out)
+
+
 def save(names):
     os.makedirs(BB_DIR, exist_ok=True)
     for name in names:
@@ -178,6 +209,9 @@ if __name__ == '__main__':
         sheet(sys.argv[2], sys.argv[3:])
     elif cmd == 'anim':
         anim(sys.argv[2], sys.argv[3], sys.argv[4], [float(t) for t in sys.argv[5:]])
+    elif cmd == 'anims':
+        v = os.environ.get('BB_VIEW')
+        anims(sys.argv[2], sys.argv[3], sys.argv[4:], tuple(float(n) for n in v.split(',')) if v else (40, 12, -60))
     elif cmd == 'save':
         save(sys.argv[2:])
     else:

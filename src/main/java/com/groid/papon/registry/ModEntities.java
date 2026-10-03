@@ -105,6 +105,22 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(PaponMod.id("papon_echo").toString()));
 
+    // El Coliseo Papa (phase two): his mariachi band on the stand, and one entity for the whole crowd in the stands
+    public static final RegistryObject<EntityType<com.groid.papon.boss.MariachiEntity>> MARIACHI = REGISTRY.register("mariachi",
+            () -> EntityType.Builder.<com.groid.papon.boss.MariachiEntity>of(com.groid.papon.boss.MariachiEntity::new, MobCategory.MISC)
+                    .sized(1.0F, 1.9F)
+                    .fireImmune()
+                    .clientTrackingRange(12)
+                    .build(PaponMod.id("mariachi").toString()));
+
+    public static final RegistryObject<EntityType<com.groid.papon.boss.ColiseumCrowdEntity>> COLISEUM_CROWD = REGISTRY.register("coliseum_crowd",
+            () -> EntityType.Builder.<com.groid.papon.boss.ColiseumCrowdEntity>of(com.groid.papon.boss.ColiseumCrowdEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .fireImmune()
+                    .clientTrackingRange(14)
+                    .updateInterval(4)
+                    .build(PaponMod.id("coliseum_crowd").toString()));
+
     private static RegistryObject<EntityType<TacoCustomerEntity>> customer(Customer kind, float width, float height) {
         return REGISTRY.register(kind.id, () -> EntityType.Builder.of(TacoCustomerEntity.factory(kind), MobCategory.MISC)
                 .sized(width, height)

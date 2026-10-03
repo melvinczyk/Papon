@@ -17,11 +17,19 @@ package com.groid.papon.boss;
  * IDLE --> DASH_COMBO --> IDLE                                (three dashing swings and a spin)
  * IDLE --> PUNT_RUN --> VAN_KICK --> IDLE                     (runs behind the parked van and boots it at you)
  * DRIVING --> BAILOUT --> SWIPE                               (jumps out of the moving van at you; it rolls on)
- * IDLE --> P2_KNEEL --> P2_TALK --> P2_SEASON --> P2_SCREAM --> P2_ARRIVE --> IDLE
+ * IDLE --> P2_KNEEL --> P2_TALK --> P2_SEASON --> P2_SCREAM --> P2_ARRIVE --> ...
  *                                                             (three quarters health: the cutscene: blood, "enough
  *                                                              playing around", a giant salt shaker salts him and he
- *                                                              bakes golden, the scream, the potato dome; he flies
- *                                                              from here on)
+ *                                                              bakes golden, the scream, and up into El Coliseo Papa,
+ *                                                              built in the sky while he knelt; he flies from here on)
+ * P2_ARRIVE --> P2_NOTICE --> P2_MARCH --> P2_WAKE --> P2_WAIT [<--> P2_KICK] --> P2_COUNT --> P2_SHOWTIME
+ *           --> P2_APOLOGY --> P2_RESUME --> IDLE
+ *                                                             (in the coliseum: "¡Música, maestro!", but the band is
+ *                                                              asleep; he storms over, clangs his comal, waits on them,
+ *                                                              kicks the guitarron's chair; the singer counts them in;
+ *                                                              the guitar intro, his apology and his aura; "where were
+ *                                                              we?", and the fight is on when the singing starts.
+ *                                                              With no coliseum: P2_ARRIVE --> IDLE)
  * IDLE --> GRAB [--> GRAB_COMBO [--> CHARGE_WINDUP]] --> IDLE  (grabs you: blowtorch, salt, the throw)
  * IDLE --> P2_BARRAGE | P2_METEOR | P2_DIVE --> IDLE          (phase two: hands, meteors, dive bombs)
  * IDLE --> VAN_GRAB --> VAN_THROW --> IDLE                    (phase two: flies to the van, throws it)
@@ -80,7 +88,7 @@ public enum BossState {
     P2_KNEEL(80),
     P2_TALK(70),
     P2_SCREAM(70),
-    P2_ARRIVE(50),
+    P2_ARRIVE(100),
     P2_BARRAGE(40),
     P2_METEOR(70),
     VAN_GRAB(0),
@@ -110,7 +118,17 @@ public enum BossState {
     P2_MASH(50),
     P2_TOT(40),
     P2_SNARE(36),
-    P2_GRAVITY(100);
+    P2_GRAVITY(100),
+    // phase two in his coliseum: the band is asleep (see the diagram)
+    P2_NOTICE(60),
+    P2_MARCH(0),
+    P2_WAKE(70),
+    P2_WAIT(0),
+    P2_KICK(30),
+    P2_COUNT(80),
+    P2_SHOWTIME(70),
+    P2_APOLOGY(178),
+    P2_RESUME(0);
 
     public final int duration;
 
@@ -135,7 +153,13 @@ public enum BossState {
 
     /** Any part of the phase-two cutscene (he cannot be hurt). */
     public boolean cutscene() {
-        return silent() || this == P2_ARRIVE;
+        return silent() || this == P2_ARRIVE || coliseum();
+    }
+
+    /** The coliseum's own beats: the band, the count-in, the apology. */
+    public boolean coliseum() {
+        return this == P2_NOTICE || this == P2_MARCH || this == P2_WAKE || this == P2_WAIT || this == P2_KICK || this == P2_COUNT
+                || this == P2_SHOWTIME || this == P2_APOLOGY || this == P2_RESUME;
     }
 
     /** He cannot be stopped: no knockback, no stagger, half damage (drawn with a red edge). */
