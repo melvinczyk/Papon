@@ -27,7 +27,7 @@ public enum Customer {
     EDP445("edp445", true, ChatFormatting.DARK_GREEN, 60, 2, 160, 1.15F,
             new Speech.Voice(SoundEvents.VILLAGER_AMBIENT, 0.62F, 0.22F, 8), false,
             List.of(new Line(30, "leave", 70), new Line(118, "chant", 36)),
-            Set.of("walk", "order", "receive", "walk_taco", "hold_taco")),
+            Set.of("walk", "order", "receive", "walk_taco", "hold_taco", "fistbump")),
     BADLANDS_CHUGS("badlands_chugs", true, ChatFormatting.RED, 60, 2, 140, 1.1F,
             new Speech.Voice(SoundEvents.VILLAGER_AMBIENT, 0.5F, 0.22F, 8), false,
             List.of(new Line(0, "watch", 40), new Line(88, "leave", 44)),

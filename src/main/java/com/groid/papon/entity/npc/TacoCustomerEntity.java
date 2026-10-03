@@ -13,6 +13,8 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
@@ -40,6 +42,11 @@ import java.util.UUID;
 public class TacoCustomerEntity extends TacoNpc {
     private static final EntityDataAccessor<Integer> DATA_HAT =
             SynchedEntityData.defineId(TacoCustomerEntity.class, EntityDataSerializers.INT);
+    /** Ticks left of a fist bump (EDP445 only), synced so the gesture layer plays it. */
+    private static final EntityDataAccessor<Integer> DATA_BUMP =
+            SynchedEntityData.defineId(TacoCustomerEntity.class, EntityDataSerializers.INT);
+    /** Length of the fist bump: Customer.EDP445's fistbump animation. */
+    public static final int BUMP_TICKS = 40;
 
     /** A customer with no word from its vendor for this long gives up and goes home. */
     private static final int ORPHAN_LIMIT = 600;
@@ -57,6 +64,7 @@ public class TacoCustomerEntity extends TacoNpc {
     private final RawAnimation walkTaco;
     private final RawAnimation holdTaco;
     private final RawAnimation react;
+    private final RawAnimation fistbump;
 
     @Nullable private UUID vendor;
     @Nullable private TacoLine line;
@@ -78,6 +86,7 @@ public class TacoCustomerEntity extends TacoNpc {
         walkTaco = loop("walk_taco");
         holdTaco = loop("hold_taco");
         react = RawAnimation.begin().thenPlayAndHold(kind.anim(kind.reactAnim()));
+        fistbump = RawAnimation.begin().thenPlayAndHold(kind.anim("fistbump"));
         if (!level.isClientSide) {
             setHat(random.nextInt(3));
             lineVariant = random.nextInt(Customer.PAPON_LINES);
@@ -97,6 +106,50 @@ public class TacoCustomerEntity extends TacoNpc {
     protected void defineSynchedData() {
         super.defineSynchedData();
         entityData.define(DATA_HAT, 0);
+        entityData.define(DATA_BUMP, 0);
+    }
+
+    // ------------------------------------------------------------------ the fist bump
+
+    @Nullable private UUID bumpWith;
+    private int bumpCooldown;
+
+    /** Right-click EDP445 with an empty hand: he turns, bumps your fist and has plans for the two of you. */
+    @Override
+    protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (kind != Customer.EDP445 || hand != InteractionHand.MAIN_HAND || !player.getMainHandItem().isEmpty()) {
+            return super.mobInteract(player, hand);
+        }
+        CustomerState st = getCustomerState();
+        if (st == CustomerState.ORDERING || st == CustomerState.RECEIVING || st == CustomerState.TALKING
+                || st == CustomerState.FLEEING || entityData.get(DATA_BUMP) > 0 || bumpCooldown > 0) {
+            return InteractionResult.PASS;
+        }
+        if (!level().isClientSide) {
+            entityData.set(DATA_BUMP, BUMP_TICKS);
+            bumpWith = player.getUUID();
+            bumpCooldown = BUMP_TICKS + 40;
+            face(player.position());
+            player.swing(hand, true);
+            Speech.say(this, kind.color, kind.key("fistbump"), true, false, 70);
+        }
+        return InteractionResult.sidedSuccess(level().isClientSide);
+    }
+
+    private void tickBump(ServerLevel level) {
+        if (bumpCooldown > 0) bumpCooldown--;
+        int t = entityData.get(DATA_BUMP);
+        if (t <= 0) return;
+        entityData.set(DATA_BUMP, t - 1);
+        Player p = bumpWith == null ? null : level.getPlayerByUUID(bumpWith);
+        if (p != null) {
+            if (getNavigation().isDone()) face(p.position());
+            getLookControl().setLookAt(p, 30, 30);
+            if (t == BUMP_TICKS - 11) {      // knuckles meet (0.55 s into the animation)
+                Vec3 mid = position().add(p.position()).scale(0.5).add(0, 1.3, 0);
+                level.sendParticles(ParticleTypes.CRIT, mid.x, mid.y, mid.z, 10, 0.15, 0.15, 0.15, 0.25);
+            }
+        }
     }
 
     /** Papon customers only: 0 none, 1 sombrero, 2 cap. */
@@ -193,6 +246,7 @@ public class TacoCustomerEntity extends TacoNpc {
 
     @Override
     protected void serverStep(ServerLevel level) {
+        tickBump(level);
         CustomerState state = getCustomerState();
         switch (state) {
             case QUEUED, ORDERING, WAITING_FOOD, RECEIVING -> holdPlace();
@@ -370,10 +424,21 @@ public class TacoCustomerEntity extends TacoNpc {
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "main", 4, this::animate)
                 .setSoundKeyframeHandler(this::onSoundCue));
+        if (kind == Customer.EDP445) {
+            // the gesture layer: plays over whatever he is doing (its bones win while it runs)
+            controllers.add(new AnimationController<>(this, "gesture", 3, this::gesture)
+                    .setSoundKeyframeHandler(this::onSoundCue));
+        }
     }
 
     /** Client: walking, with hysteresis so a one-slot shuffle up the line does not flicker walk/idle. */
     private boolean walking;
+
+    private PlayState gesture(AnimationState<TacoCustomerEntity> event) {
+        if (entityData.get(DATA_BUMP) > 0) return event.setAndContinue(fistbump);
+        event.getController().forceAnimationReset();
+        return PlayState.STOP;
+    }
 
     private PlayState animate(AnimationState<TacoCustomerEntity> event) {
         float stride = walkAnimation.speed(event.getPartialTick());

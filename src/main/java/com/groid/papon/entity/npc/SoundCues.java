@@ -69,6 +69,7 @@ public final class SoundCues {
             case "crumple" -> { sound = SoundEvents.BOOK_PUT; volume = 1.0F; pitch = 0.7F; }
             case "pop" -> { sound = SoundEvents.ITEM_PICKUP; volume = 0.5F; pitch = 1.6F; }
             case "jump" -> { sound = SoundEvents.SLIME_JUMP_SMALL; volume = 0.6F; }
+            case "bump" -> { sound = SoundEvents.PLAYER_ATTACK_WEAK; volume = 0.9F; pitch = 1.3F; }
             case "plop" -> { sound = SoundEvents.SLIME_SQUISH; volume = 0.6F; pitch = 0.8F; }
             // the unmasking
             case "nervous" -> { sound = SoundEvents.VILLAGER_NO; volume = 0.8F; pitch = 0.6F; }
