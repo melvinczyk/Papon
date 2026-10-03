@@ -42,7 +42,11 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.EDP445.get(), ctx -> new MeshCrowdRenderer<>(ctx,
                 new CrowdModel<>("edp445_mesh", "edp445", "customer", true),
                 Customer.EDP445.renderScale, 0.5F, 0.75F, "edp445"));
-        customer(event, ModEntities.BADLANDS_CHUGS.get(), Customer.BADLANDS_CHUGS);
+        // Badlands Chugs is a MakeHuman body shaped to his build, with his photographed face
+        // (gen_chugs_mesh.py); his jug and taco are cubes, textured from the blocky model.
+        event.registerEntityRenderer(ModEntities.BADLANDS_CHUGS.get(), ctx -> new MeshCrowdRenderer<>(ctx,
+                new CrowdModel<>("badlands_chugs_mesh", "badlands_chugs", "customer", true),
+                Customer.BADLANDS_CHUGS.renderScale, 0.6F, 0.75F, "badlands_chugs"));
         customer(event, ModEntities.REVIEWBRAH.get(), Customer.REVIEWBRAH);
         customer(event, ModEntities.CUSTOMER_PAPON.get(), Customer.PAPON);
     }
