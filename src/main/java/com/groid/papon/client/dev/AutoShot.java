@@ -42,6 +42,8 @@ public final class AutoShot {
     private static final boolean REWORK = MODE.equals("rework");
     /** -Pautoshot=pose: the boss held still in his parry and his summon, front and side, then his echoes throwing. */
     private static final boolean POSE = MODE.equals("pose");
+    /** -Pautoshot=fight: he fights a player who just stands there, on his own AI, for three minutes; every state is logged. */
+    private static final boolean FIGHT = MODE.equals("fight");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -65,6 +67,10 @@ public final class AutoShot {
         }
         if (POSE) {
             pose(mc);
+            return;
+        }
+        if (FIGHT) {
+            fight(mc);
             return;
         }
         if (REWORK) {
@@ -357,6 +363,24 @@ public final class AutoShot {
     }
 
     private static final String SIDE = "execute as @e[type=papon:papon_boss,limit=1,sort=nearest] at @s run tp @p ^4.5 ^0.5 ^1.5 facing entity @s";
+
+    private static void fight(Minecraft mc) {
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "effect give @s regeneration 100000 4 true", "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000",
+                    "gamerule doMobSpawning false", "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "tp @s 4000 200 4000");
+            case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            case 90 -> run("kill @e[type=papon:papon_boss]", "execute at @s rotated 0 0 run papon boss");
+            case 90 + 20 * 200 -> mc.stop();
+            default -> {}
+        }
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b == null) return;
+        if (b.getBossState().ordinal() != lastState) {
+            lastState = b.getBossState().ordinal();
+            PaponMod.LOG.info("[autoshot] boss -> {}", b.getBossState());
+        }
+    }
 
     private static void pose(Minecraft mc) {
         switch (tick) {

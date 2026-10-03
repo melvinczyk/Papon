@@ -226,6 +226,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int misses;
     private static final int FRENZY = 4;
     @Nullable private BossState lastAttack;
+    /** The one before lastAttack: neither comes up again straight away. */
+    @Nullable private BossState prevAttack;
+    /** tickCount when each attack last started (the picker favours what he has not done in a while). */
+    private final java.util.EnumMap<BossState, Integer> lastUsed = new java.util.EnumMap<>(BossState.class);
+    /** Which QTE comes next: they take turns, so every fight shows all three. */
+    private int nextQte;
     private int chargesLeft;
     private final java.util.Set<Integer> chargeHits = new java.util.HashSet<>();
     @Nullable private Vec3 chargeLast;
@@ -293,7 +299,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int comalCd = 180;
     private int brickCd = 400;
     private int hopCd = 300;
-    private int qteCd = 500;
+    private int qteCd = 300;
+    /** Ticks spent walking in for a close-range move (he gives up and picks from range after 3 s). */
+    private int closeIn;
+    /** tickCount when the fight proper began (the roar): the picker counts unused attacks from here. */
+    private int fightStart;
     private int fryCd = 60;
     private int mashCd = 120;
     private int totCd = 80;
@@ -779,6 +789,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (t >= BossState.ROAR.duration) {
             think = 10;
+            fightStart = tickCount;
             setBossState(BossState.IDLE);
         }
     }
@@ -824,8 +835,18 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             say("keys", 40);
             return;
         }
+        // a close-range move he has not used in a while is ready: he walks in for it (3 s at most) before choosing
+        if (d > 4.5 && closeIn < 60 && closeMoveDue(target)) {
+            closeIn++;
+            if (isRisen()) hover(target);
+            else chase(target, d);
+            return;
+        }
         BossState pick = choose(level, target, d);
-        if (pick != null) startAttack(pick, target);
+        if (pick != null) {
+            closeIn = 0;
+            startAttack(pick, target);
+        }
         else if (isRisen()) hover(target);
         else chase(target, d);
     }
@@ -852,20 +873,28 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         boolean risen = isRisen();
         CaravanEntity van = van(level);
         boolean vanFree = van != null && !van.isVehicle() && !van.isSliding() && !vanThrown && brickTicks <= 0;
-        // pillaring or kiting: up after you, off the van's roof if it is handy
+        // pillaring or kiting: up after you, off the van's roof if it is handy; otherwise whichever way of
+        // closing the gap he has not used lately (the leap, the blink, the dash, the charge, the dive)
         if (dy > 3.0 || d > 18) {
             if (!risen && vanFree && hopCd <= 0 && distanceTo(van) < 12) {
                 hopCd = 360;
                 return BossState.VAN_HOP;
             }
-            if ((risen ? diveCd : leapCd) <= 0) return risen ? BossState.P2_DIVE : BossState.LEAP;
+            java.util.List<BossState> closers = new java.util.ArrayList<>();
+            if (risen ? diveCd <= 0 : leapCd <= 0) closers.add(risen ? BossState.P2_DIVE : BossState.LEAP);
+            if (blinkCd <= 0) closers.add(BossState.BLINK);
+            if (dy <= 3.0 && chargeCd <= 0) closers.add(BossState.CHARGE_WINDUP);
+            if (dy <= 3.0 && d < 24 && dashCd <= 0) closers.add(BossState.DASH_COMBO);
+            if (d < 30 && gatlingCd <= 0) closers.add(BossState.GATLING);
+            BossState c = pickWeighted(closers);
+            if (c != null) return c;
         }
         java.util.List<BossState> options = new java.util.ArrayList<>();
         // close: the flurry, the uppercut, the grab, the drunk set, the QTE
         if (d < 3.8 && uppercutCd <= 0) options.add(BossState.UPPERCUT);
         if (d < 7.0 && swipeCd <= 0) options.add(BossState.SWIPE);
         if (d < 5.5 && grabCd <= 0 && !target.isPassenger()) options.add(BossState.GRAB);
-        if (d < 6.0 && qteCd <= 0 && target instanceof Player && !target.isPassenger()) options.add(BossState.QTE_GRAB);
+        if (d < 8.0 && qteCd <= 0 && target instanceof Player && !target.isPassenger()) options.add(BossState.QTE_GRAB);
         if (d < 9 && drunkCd <= 0) options.add(BossState.DRUNK_SWIG);
         if (d >= 3 && d < 10 && haymakerCd <= 0) options.add(BossState.HAYMAKER);
         if (d < 7 && comalCd <= 0 && !risen) options.add(BossState.COMAL_SLAM);
@@ -897,17 +926,75 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (snareCd <= 0) options.add(BossState.P2_SNARE);
             if (gravityCd <= 0) options.add(BossState.P2_GRAVITY);
         }
+        return pickWeighted(options);
+    }
+
+    /** Whether a close-range move (one you only see if he is on top of you) is ready and has waited 20 s. */
+    private boolean closeMoveDue(LivingEntity target) {
+        boolean risen = isRisen();
+        int[] cds = {uppercutCd, grabCd, drunkCd, risen ? 1 : comalCd, breathCd, target instanceof Player ? qteCd : 1, risen ? barrageCd : 1};
+        BossState[] moves = {BossState.UPPERCUT, BossState.GRAB, BossState.DRUNK_SWIG, BossState.COMAL_SLAM, BossState.BREATH,
+                BossState.QTE_GRAB, BossState.P2_BARRAGE};
+        for (int i = 0; i < moves.length; i++) {
+            if (cds[i] <= 0 && tickCount - lastUsed.getOrDefault(moves[i], fightStart) > 400) return true;
+        }
+        return false;
+    }
+
+    /** How much he likes each attack when it is on offer (before how long it has been). */
+    private static float baseWeight(BossState s) {
+        return switch (s) {
+            case SWIPE, UPPERCUT, THROW -> 0.6F;                         // the cheap ones: short cooldowns, they would crowd out the rest
+            case LEAP -> 0.7F;
+            case QTE_GRAB, CLEAVER_TOSS, HAYMAKER, BURRITO_TOSS, P2_GRAVITY, P2_METEOR -> 1.6F;   // the signature moves
+            default -> 1.0F;
+        };
+    }
+
+    /**
+     * The picker (a weighted draw, Cataclysm's goals by way of a deck): the last two attacks are out,
+     * anything he has not done for 30 s and can do now he does, and otherwise each attack's chance grows
+     * with the time since he last used it, so nothing is never seen and nothing comes up all the time.
+     */
+    @Nullable
+    private BossState pickWeighted(java.util.List<BossState> options) {
         if (options.isEmpty()) return null;
-        if (options.size() > 1) options.remove(lastAttack);
-        // up close the flurry is still the bread and butter, in phase one
-        if (!p2 && options.contains(BossState.SWIPE) && d < 4.5 && random.nextFloat() < 0.35F) return BossState.SWIPE;
-        return options.get(random.nextInt(options.size()));
+        java.util.List<BossState> fresh = new java.util.ArrayList<>(options);
+        fresh.remove(lastAttack);
+        if (fresh.size() > 1) fresh.remove(prevAttack);
+        if (fresh.isEmpty()) fresh = options;
+        BossState overdue = null;
+        int oldest = -1;
+        for (BossState s : fresh) {
+            int since = tickCount - lastUsed.getOrDefault(s, fightStart);
+            if (since > 600 && since > oldest) {
+                oldest = since;
+                overdue = s;
+            }
+        }
+        if (overdue != null) return overdue;
+        float total = 0;
+        float[] w = new float[fresh.size()];
+        for (int i = 0; i < w.length; i++) {
+            BossState s = fresh.get(i);
+            int since = tickCount - lastUsed.getOrDefault(s, fightStart);
+            w[i] = baseWeight(s) * (1F + Math.min(since, 900) / 200F);
+            total += w[i];
+        }
+        float r = random.nextFloat() * total;
+        for (int i = 0; i < w.length; i++) {
+            r -= w[i];
+            if (r <= 0) return fresh.get(i);
+        }
+        return fresh.get(fresh.size() - 1);
     }
 
     private void startAttack(BossState pick, LivingEntity target) {
         boolean p2 = isPhaseTwo();
         swingHit = false;
+        if (pick != lastAttack) prevAttack = lastAttack;
         lastAttack = pick;
+        lastUsed.put(pick, tickCount);
         switch (pick) {
             case SWIPE -> swipeCd = p2 ? 16 : 24;
             case UPPERCUT -> uppercutCd = p2 ? 60 : 80;
@@ -936,9 +1023,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case HAYMAKER -> haymakerCd = p2 ? 200 : 260;
             case COMAL_SLAM -> comalCd = 320;
             case QTE_GRAB -> {
-                qteCd = p2 ? 600 : 800;
-                // phase one: the cleaver or the bottle; phase two: any, the suplex most
-                entityData.set(DATA_QTE, p2 ? (random.nextFloat() < 0.5F ? 2 : random.nextInt(2)) : random.nextInt(2));
+                qteCd = p2 ? 400 : 500;
+                // they take turns: La Última Cena, Last Call, La Papa Suplex, and round again
+                entityData.set(DATA_QTE, nextQte);
+                nextQte = (nextQte + 1) % 3;
             }
             case P2_FRY_VOLLEY -> fryCd = 160;
             case P2_MASH -> mashCd = 240;
@@ -3305,7 +3393,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /**
      * The QTEs (three of them): he lunges; touch him and he has you in his fist, the world goes slow
-     * and the camera finds his face, and keys come up on your screen one at a time, a second each
+     * and the camera finds his face, and keys come up on your screen one at a time, 1.5 s each (presses in
+     * the first 0.6 s do not count: you were mid-fight)
      * (three, four or five of them). Press each one in time: you break free and he goes over on his
      * back, open, taking double. Miss one, or press the wrong key, and he does it:
      *   0  La Última Cena    the cleaver: 35% of your health through armor, and no healing for 10 s
@@ -3340,6 +3429,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (WanderingDebug.on()) PaponMod.LOG.info("[debug] QTE grab missed: target {} at {}", target, String.format("%.2f", distanceTo(target)));
             setBossState(BossState.IDLE);
             think = 16;                          // he lunged at nothing: a moment to punish him
+            qteCd = Math.min(qteCd, 160);        // and he tries it again soon; the same one comes round next
+            nextQte = (nextQte + 2) % 3;
         }
     }
 
@@ -3348,8 +3439,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             org.lwjgl.glfw.GLFW.GLFW_KEY_U, org.lwjgl.glfw.GLFW.GLFW_KEY_I, org.lwjgl.glfw.GLFW.GLFW_KEY_O, org.lwjgl.glfw.GLFW.GLFW_KEY_Z,
             org.lwjgl.glfw.GLFW.GLFW_KEY_V, org.lwjgl.glfw.GLFW.GLFW_KEY_B, org.lwjgl.glfw.GLFW.GLFW_KEY_N, org.lwjgl.glfw.GLFW.GLFW_KEY_M,
             org.lwjgl.glfw.GLFW.GLFW_KEY_R, org.lwjgl.glfw.GLFW.GLFW_KEY_Y};
-    /** Ticks for each key. */
-    public static final int QTE_WINDOW = 20;
+    /** Ticks for each key (1.5 s). */
+    public static final int QTE_WINDOW = 30;
+    /** Ticks at the start when presses do not count (you were mid-fight, mashing keys); the first key's clock starts after. */
+    public static final int QTE_GRACE = 12;
 
     private void startQte(ServerLevel level, LivingEntity e) {
         int kind = entityData.get(DATA_QTE);
@@ -3377,6 +3470,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /** From the held player's client: key {@code step} pressed right ({@code ok}) or wrong / too late. */
     public void qteInput(ServerPlayer player, int step, boolean ok) {
+        if (WanderingDebug.on()) PaponMod.LOG.info("[debug] QTE input from {}: key {} {}", player.getName().getString(), step, ok ? "right" : "wrong");
         if (getBossState() != BossState.QTE_HOLD || qteResolved || heldId() != player.getId() || step != qteStep) return;
         if (!ok) {
             endQte(false, false);
@@ -3421,7 +3515,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         // the whole sequence plus some slack for the network; anyone who is not a player just fails
-        int limit = 20 + qteKeys.length * (QTE_WINDOW + 8);
+        int limit = 20 + QTE_GRACE + qteKeys.length * (QTE_WINDOW + 8);
         if (stateTicks > limit || (!(v instanceof Player) && stateTicks > 50)) endQte(false, false);
     }
 
