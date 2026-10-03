@@ -124,7 +124,7 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
             clientStateTicks++;
             if (babbleTicks > 0) {
                 babbleTicks--;
-                voice().blip(this, babbleTicks);
+                if (!Speech.voiced(getSpeech())) voice().blip(this, babbleTicks);
             }
             return;
         }

@@ -95,5 +95,383 @@
       }
     ],
     "subtitle": "subtitles.papon.music.boss"
+  },
+  "voice.boss.again": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/again"
+      }
+    ]
+  },
+  "voice.boss.bail": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/bail"
+      }
+    ]
+  },
+  "voice.boss.borracho": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/borracho"
+      }
+    ]
+  },
+  "voice.boss.brick": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/brick"
+      }
+    ]
+  },
+  "voice.boss.burrito": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/burrito"
+      }
+    ]
+  },
+  "voice.boss.catch": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/catch"
+      }
+    ]
+  },
+  "voice.boss.death": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/death"
+      }
+    ]
+  },
+  "voice.boss.dodge": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/dodge"
+      }
+    ]
+  },
+  "voice.boss.door": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/door"
+      }
+    ]
+  },
+  "voice.boss.echoes": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/echoes"
+      }
+    ]
+  },
+  "voice.boss.enough": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/enough"
+      }
+    ]
+  },
+  "voice.boss.foil": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/foil"
+      }
+    ]
+  },
+  "voice.boss.golden": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/golden"
+      }
+    ]
+  },
+  "voice.boss.grab": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/grab"
+      }
+    ]
+  },
+  "voice.boss.gravity": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/gravity"
+      }
+    ]
+  },
+  "voice.boss.handle": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/handle"
+      }
+    ]
+  },
+  "voice.boss.haymaker": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/haymaker"
+      }
+    ]
+  },
+  "voice.boss.intro": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/intro"
+      }
+    ]
+  },
+  "voice.boss.keys": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/keys"
+      }
+    ]
+  },
+  "voice.boss.kick": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/kick"
+      }
+    ]
+  },
+  "voice.boss.meteor": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/meteor"
+      }
+    ]
+  },
+  "voice.boss.phase": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/phase"
+      }
+    ]
+  },
+  "voice.boss.qte0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/qte0"
+      }
+    ]
+  },
+  "voice.boss.qte1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/qte1"
+      }
+    ]
+  },
+  "voice.boss.qte2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/qte2"
+      }
+    ]
+  },
+  "voice.boss.qte_broken": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/qte_broken"
+      }
+    ]
+  },
+  "voice.boss.ram": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/ram"
+      }
+    ]
+  },
+  "voice.boss.reverse": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/reverse"
+      }
+    ]
+  },
+  "voice.boss.salt": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/salt"
+      }
+    ]
+  },
+  "voice.boss.salud": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/salud"
+      }
+    ]
+  },
+  "voice.boss.scream": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/scream"
+      }
+    ]
+  },
+  "voice.boss.season": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/season"
+      }
+    ]
+  },
+  "voice.boss.stolen": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/stolen"
+      }
+    ]
+  },
+  "voice.boss.stumble": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/stumble"
+      }
+    ]
+  },
+  "voice.boss.taunt0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/taunt0"
+      }
+    ]
+  },
+  "voice.boss.taunt1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/taunt1"
+      }
+    ]
+  },
+  "voice.boss.taunt2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/taunt2"
+      }
+    ]
+  },
+  "voice.boss.taunt3": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/taunt3"
+      }
+    ]
+  },
+  "voice.boss.torch": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/torch"
+      }
+    ]
+  },
+  "voice.boss.toss": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/toss"
+      }
+    ]
+  },
+  "voice.boss.welcome": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss/welcome"
+      }
+    ]
+  },
+  "voice.vendor.exposed": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/exposed"
+      }
+    ]
+  },
+  "voice.vendor.fraud": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/fraud"
+      }
+    ]
+  },
+  "voice.vendor.inspect": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/inspect"
+      }
+    ]
+  },
+  "voice.vendor.order0": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/order0"
+      }
+    ]
+  },
+  "voice.vendor.order1": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/order1"
+      }
+    ]
+  },
+  "voice.vendor.order2": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/order2"
+      }
+    ]
+  },
+  "voice.vendor.rage": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/rage"
+      }
+    ]
+  },
+  "voice.vendor.realize": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/realize"
+      }
+    ]
+  },
+  "voice.vendor.serve0": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/serve0"
+      }
+    ]
+  },
+  "voice.vendor.serve1": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/serve1"
+      }
+    ]
+  },
+  "voice.vendor.serve2": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/serve2"
+      }
+    ]
+  },
+  "voice.vendor.suspicious": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/suspicious"
+      }
+    ]
+  },
+  "voice.vendor.unmask": {
+    "sounds": [
+      {
+        "name": "papon:voice/vendor/unmask"
+      }
+    ]
   }
 }

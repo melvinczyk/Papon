@@ -1,6 +1,8 @@
 {
   "replace": false,
   "values": [
-    "papon:caravan"
+    "papon:caravan",
+    "papon:true_hit",
+    "papon:habanero"
   ]
 }

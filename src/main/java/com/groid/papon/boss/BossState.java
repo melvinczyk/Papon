@@ -25,6 +25,18 @@ package com.groid.papon.boss;
  * IDLE --> GRAB [--> GRAB_COMBO [--> CHARGE_WINDUP]] --> IDLE  (grabs you: blowtorch, salt, the throw)
  * IDLE --> P2_BARRAGE | P2_METEOR | P2_DIVE --> IDLE          (phase two: hands, meteors, dive bombs)
  * IDLE --> VAN_GRAB --> VAN_THROW --> IDLE                    (phase two: flies to the van, throws it)
+ * IDLE --> GUARD [--> RIPOSTE] --> IDLE                      (the comal up: blocks the front, reflects arrows, then bashes back)
+ * IDLE --> EVADE --> (an attack)                             (a drunk's sidestep out of your swing, straight into a counter)
+ * IDLE --> CLEAVER_TOSS --> DASH_COMBO                       (two cleavers out on a curve and back; he follows them in)
+ * IDLE --> BURRITO_TOSS [--> CHARGE_WINDUP] --> IDLE         (a giant tortilla lands where you stand: in it, you are a
+ *                                                              burrito, and he comes bowling)
+ * IDLE --> DRUNK_SWIG --> DRUNK_FLURRY --> IDLE              (a swig, then five haymakers and a hammer: unstoppable)
+ * IDLE --> HAYMAKER --> IDLE                                 (the feint: wobbling, then an eight-block haymaker)
+ * IDLE --> COMAL_SLAM --> IDLE                               (the ground round him a hot griddle: Habanero)
+ * IDLE --> TO_VAN --> BRICK --> IDLE                         (a brick on the gas: the van hunts you while he fights)
+ * IDLE --> VAN_HOP --> LEAP                                  (onto the van's roof and off it, higher)
+ * IDLE --> QTE_GRAB --> QTE_HOLD --> QTE_FAIL | QTE_BROKEN --> IDLE   (the QTEs: keys on screen, a second each)
+ * IDLE --> P2_FRY_VOLLEY | P2_MASH | P2_TOT | P2_SNARE [--> P2_DIVE] | P2_GRAVITY --> IDLE   (phase two, potatoes)
  * (SLAM is no longer chosen; LEAP replaced it. PHASE is the old half-health roar, no longer used)
  * IDLE --> TO_VAN --> DRINK_HANDLE --> ENTER_VAN --> DRIVING --> EXIT_STUMBLE --> IDLE   (the van)
  * IDLE --> PHASE --> IDLE                                   (half health)
@@ -52,7 +64,7 @@ public enum BossState {
     SWIPE_OVERHEAD(26),
     LEAP(0),
     LEAP_LAND(30),
-    CHARGE_WINDUP(16),
+    CHARGE_WINDUP(9),
     CHARGE(0),
     STAGGER(40),
     UPPERCUT(22),
@@ -77,7 +89,28 @@ public enum BossState {
     P2_SEASON(100),
     // phase one: the grab (Ignis-style, no getting out): blowtorched, salted (Brittle), thrown
     GRAB(0),
-    GRAB_COMBO(90);
+    GRAB_COMBO(90),
+    // the rework: a guard and a dodge, chef's attacks, drunken attacks, the van as a tool, QTEs, potato attacks
+    GUARD(0),
+    RIPOSTE(18),
+    EVADE(10),
+    CLEAVER_TOSS(30),
+    BURRITO_TOSS(36),
+    DRUNK_SWIG(14),
+    DRUNK_FLURRY(60),
+    HAYMAKER(50),
+    COMAL_SLAM(40),
+    BRICK(36),
+    VAN_HOP(0),
+    QTE_GRAB(0),
+    QTE_HOLD(0),
+    QTE_FAIL(40),
+    QTE_BROKEN(80),
+    P2_FRY_VOLLEY(60),
+    P2_MASH(50),
+    P2_TOT(40),
+    P2_SNARE(36),
+    P2_GRAVITY(100);
 
     public final int duration;
 
@@ -103,6 +136,16 @@ public enum BossState {
     /** Any part of the phase-two cutscene (he cannot be hurt). */
     public boolean cutscene() {
         return silent() || this == P2_ARRIVE;
+    }
+
+    /** He cannot be stopped: no knockback, no stagger, half damage (drawn with a red edge). */
+    public boolean unstoppable() {
+        return this == DRUNK_SWIG || this == DRUNK_FLURRY || this == HAYMAKER || this == CHARGE || this == P2_GRAVITY;
+    }
+
+    /** A QTE in progress (he cannot be hurt until it resolves). */
+    public boolean qte() {
+        return this == QTE_HOLD || this == QTE_FAIL;
     }
 
     /** Music and boss bar are on. */

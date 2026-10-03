@@ -498,40 +498,53 @@ def papon_boss():
     bald_parts(m)
     phase_two(m)
 
-    # ---- the 750 ml bottle: square, clear glass, amber tequila, cream label, red cap
-    def bottle_label(p, f):
-        glassy(GLASS)(p, f)
-        for side in ('front', 'back'):
-            x0, y0, x1, y1 = (int(n) for n in f[side])
-            label(p, (x0, y0 + 2, x1, y0 + 6), (242, 230, 196), (196, 40, 36), (60, 120, 60))
-    # Both bottles hang from the fist by the neck (cap at the hand, body below), so with the arm
-    # raised to his mouth the cap is at his lips and the bottle points up and away: a chug. Their
+    # ---- the tequila (gen_props.tequila is the item): a squat añejo bottle, clear glass, gold
+    # tequila, a cream label with a red band and a blue agave, a wooden ball cork under a green stamp.
+    # Both bottles hang from the fist by the neck (cork at the hand, body below), so with the arm
+    # raised to his mouth the cork is at his lips and the bottle points up and away: a chug. Their
     # liquid pivots at the neck end, so as it shrinks it draws back toward his mouth.
-    glass_body = m.box([-12, -9, -2], [4, 8, 4], GLASS, extra=bottle_label)
-    m.add(bone('bottle', HAND_R, 'arm_r', [
-        m.box([-11, 3, -1], [2, 1, 2], (176, 34, 30), noise=0.05),
-        m.box([-11, 0, -1], [2, 3, 2], GLASS, extra=glassy(GLASS)),
-        m.box([-11.5, -1, -1.5], [3, 1, 3], GLASS, extra=glassy(GLASS)),
-        glass_body,
-    ]))
-    m.add(bone('bottle_liquid', [-10, -1.5, 0], 'bottle', [m.box([-11.5, -8.5, -1.5], [3, 7, 3], TEQUILA, noise=0.06)]))
+    def agave_label(dark=False):
+        def paint(p, f):
+            glassy(GLASS)(p, f)
+            for side in ('front', 'back'):
+                x0, y0, x1, y1 = (int(n) for n in f[side])
+                h = y1 - y0
+                lx0, lx1, ly0, ly1 = x0 + 1, x1 - 1, y0 + h // 4, y1 - 1
+                p.fill((lx0, ly0, lx1, ly1), (30, 28, 26) if dark else (244, 234, 206), 0.02)
+                p.fill((lx0, ly0, lx1, ly0 + 1), (178, 34, 30) if not dark else (214, 172, 60), 0.02)
+                cx, base = (lx0 + lx1) // 2, ly1 - 1
+                for dx, hh in ((-2, 2), (-1, 3), (0, 4), (1, 3), (2, 2)):
+                    for k in range(min(hh, ly1 - ly0 - 2)):
+                        p.put(cx + dx, base - k, (214, 172, 60) if dark else (62, 128, 140))
+        return paint
 
-    # ---- the handle: 1.75 l jug with a glass loop handle, black and gold label
-    def handle_label(p, f):
-        glassy(GLASS)(p, f)
-        for side in ('front', 'back'):
-            x0, y0, x1, y1 = (int(n) for n in f[side])
-            label(p, (x0, y0 + 2, x1, y0 + 7), (30, 28, 26), (214, 172, 60), (214, 172, 60))
-    m.add(bone('handle', HAND_R, 'arm_r', [
-        m.box([-11, 3, -1], [2, 1, 2], (30, 28, 26), noise=0.05),
-        m.box([-11, 0, -1], [2, 3, 2], GLASS, extra=glassy(GLASS)),
-        m.box([-12, -1, -2], [4, 1, 4], GLASS, extra=glassy(GLASS)),
-        m.box([-13, -11, -3], [6, 10, 6], GLASS, extra=handle_label),
-        m.box([-15, -8, -0.5], [1, 6, 1], GLASS, extra=glassy(GLASS, 150, 220)),     # the loop
-        m.box([-14, -3, -0.5], [1, 1, 1], GLASS, extra=glassy(GLASS, 150, 220)),
-        m.box([-14, -8, -0.5], [1, 1, 1], GLASS, extra=glassy(GLASS, 150, 220)),
+    def wood(p, f):
+        for r in f.values():
+            x0, y0, x1, y1 = (int(n) for n in r)
+            for x in range(x0, max(x1, x0 + 1)):
+                for y in range(y0, max(y1, y0 + 1)):
+                    p.put(x, y, (176 if (x + y) % 3 else 150, 120 if (x + y) % 3 else 100, 70), 0.05)
+    m.add(bone('bottle', HAND_R, 'arm_r', [
+        m.box([-11.5, 2, -1.5], [3, 3, 3], (176, 120, 70), extra=wood),                  # the cork
+        m.box([-10.5, 2, -2], [1, 3, 4], (52, 132, 70), noise=0.05),                     # the tax stamp over it
+        m.box([-11, -1, -1], [2, 3, 2], GLASS, extra=glassy(GLASS, 120, 220)),           # neck
+        m.box([-12, -2, -2], [4, 1, 4], GLASS, extra=glassy(GLASS, 110, 220)),           # shoulder
+        m.box([-13, -10, -3], [6, 8, 6], GLASS, extra=agave_label()),
     ]))
-    m.add(bone('handle_liquid', [-10, -1.5, 0], 'handle', [m.box([-12.5, -10.5, -2.5], [5, 9, 5], TEQUILA, noise=0.06)]))
+    m.add(bone('bottle_liquid', [-10, -2.5, 0], 'bottle', [m.box([-12.5, -9.5, -2.5], [5, 7, 5], TEQUILA, noise=0.06)]))
+
+    # ---- the handle: a 1.75 l jug of the same, black and gold label, a glass loop on the side
+    m.add(bone('handle', HAND_R, 'arm_r', [
+        m.box([-11.5, 2, -1.5], [3, 2, 3], (176, 120, 70), extra=wood),
+        m.box([-10.5, 2, -2], [1, 2, 4], (52, 132, 70), noise=0.05),
+        m.box([-11, -1, -1], [2, 3, 2], GLASS, extra=glassy(GLASS, 120, 220)),
+        m.box([-12.5, -2, -2.5], [5, 1, 5], GLASS, extra=glassy(GLASS, 110, 220)),
+        m.box([-14, -13, -4], [8, 11, 8], GLASS, extra=agave_label(True)),
+        m.box([-16, -10, -0.5], [1, 7, 1], GLASS, extra=glassy(GLASS, 150, 220)),     # the loop
+        m.box([-15, -4, -0.5], [1, 1, 1], GLASS, extra=glassy(GLASS, 150, 220)),
+        m.box([-15, -10, -0.5], [1, 1, 1], GLASS, extra=glassy(GLASS, 150, 220)),
+    ]))
+    m.add(bone('handle_liquid', [-10, -2.5, 0], 'handle', [m.box([-13.5, -12.5, -3.5], [7, 10, 7], TEQUILA, noise=0.06)]))
 
     # ---- the giant griddle spatula
     steel, steel_dk = (206, 210, 218), (140, 146, 156)
@@ -547,14 +560,96 @@ def papon_boss():
         m.box([-14, -21, -0.5], [8, 10, 1], steel, extra=slots, noise=0.03),
     ]))
 
-    # ---- molotov: held by the body, the burning rag stuffed in the neck at the far end
+    # ---- molotov: the same tequila bottle, held by the body, a burning rag stuffed in the neck at the far end
     m.add(bone('molotov', HAND_R, 'arm_r', [
-        m.box([-11.5, -2, -1.5], [3, 6, 3], TEQUILA, extra=glassy((236, 176, 70), 200, 240)),
-        m.box([-11, -4, -1], [2, 2, 2], GLASS, extra=glassy(GLASS)),
-        m.box([-11.5, -6, -1.5], [3, 2, 3], (230, 222, 200), noise=0.12),                # rag
-        m.box([-11, -9, -1], [2, 3, 2], (255, 170, 40), noise=0.15),                     # flame
-        m.box([-10.5, -11, -0.5], [1, 2, 1], (255, 230, 120), noise=0.1),
+        m.box([-12, -3, -2], [4, 6, 4], TEQUILA, extra=agave_label()),
+        m.box([-11, -5, -1], [2, 2, 2], GLASS, extra=glassy(GLASS, 120, 220)),
+        m.box([-11.5, -7, -1.5], [3, 2, 3], (230, 222, 200), noise=0.12),                # rag
+        m.box([-11, -10, -1], [2, 3, 2], (255, 170, 40), noise=0.15),                    # flame
+        m.box([-10.5, -12, -0.5], [1, 2, 1], (255, 230, 120), noise=0.1),
     ]))
+
+    # ---- the comal (left hand): a round cast-iron griddle, his shield. A disc across the end of the
+    # fist, so with the arm thrown forward its face (the bottom of the disc) faces you
+    iron, iron_hi = (46, 46, 50), (92, 92, 100)
+
+    def comal_face(p, f):
+        x0, y0, x1, y1 = (int(n) for n in f['bottom'])
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+        for x in range(x0, x1):
+            for y in range(y0, y1):
+                d = ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) ** 0.5
+                if abs(d - 4) < 0.7 or (d < 1.2):
+                    p.put(x, y, (210, 140, 50))                         # a sun cast into the iron, rubbed bright
+                elif p.rng.random() < 0.08:
+                    p.put(x, y, iron_hi)
+    m.add(bone('comal', HAND_L, 'arm_l', [
+        m.box([9.5, 1, -0.5], [1, 3, 1], (70, 50, 36), noise=0.06),                       # the grip
+        m.box([3, 0, -5], [14, 1, 10], iron, noise=0.05, extra=comal_face),
+        m.box([4, 0, -6], [12, 1, 12], iron, noise=0.05, extra=comal_face),
+        m.box([5, 0, -7], [10, 1, 14], iron, noise=0.05, extra=comal_face),
+        m.box([2.5, -0.5, -3], [1, 2, 6], iron_hi, noise=0.05),                           # the rim
+        m.box([16.5, -0.5, -3], [1, 2, 6], iron_hi, noise=0.05),
+    ]))
+
+    # ---- the cleavers (one in each fist): Dungeons Delight's iron cleaver (gen_props.cleaver_sprite, the
+    # thrown one too) in 3D, a box per run of one colour in each row of its sprite, half a unit a pixel;
+    # turned so the grip lies in his fist along the arm and the edge faces forward
+    from gen_props import cleaver_sprite
+    sprite, wood = cleaver_sprite()
+    spx = sprite.load()
+    PX = 1.2         # a giant butcher's cleaver: ~1.9 blocks long on him at 1.5x
+
+    def q(c):
+        return tuple(min(255, (v + 8) // 16 * 16) for v in c[:3])
+    for side, hx in (('r', -10.0), ('l', 10.0)):
+        cubes = []
+        yc, zc = 2.0 - 6.36 * PX, 0.0      # the grip (4.5 px from the sprite's middle, turned) in his fist
+        for v in range(sprite.size[1]):
+            u = 0
+            while u < sprite.size[0]:
+                if not spx[u, v][3]:
+                    u += 1
+                    continue
+                col, hd = q(spx[u, v]), (u, v) in wood
+                u1 = u
+                while u1 < sprite.size[0] and spx[u1, v][3] and q(spx[u1, v]) == col and ((u1, v) in wood) == hd:
+                    u1 += 1
+                t = 2.0 if hd else 1.2
+                size = [t, PX, (u1 - u) * PX]
+                # one colour all over, so the box UV can be packed whole-pixel and the cube keep its real size
+                c = m.box([hx - t / 2, yc - (v + 1 - 8) * PX, zc + (u - 8) * PX], [max(1, round(n + 0.49)) for n in size], col, noise=0)
+                c['size'] = [float(n) for n in size]
+                c['pivot'] = [hx, yc, zc]
+                c['rotation'] = [-135, 0, 0]
+                cubes.append(c)
+                u = u1
+        m.add(bone('cleaver_' + side, HAND_R if side == 'r' else HAND_L, 'arm_' + side, cubes))
+
+    # ---- the tortilla (right hand): a huge flour tortilla, held up flat over his head for the wrap
+    def tortilla(p, f):
+        for r in f.values():
+            x0, y0, x1, y1 = (int(n) for n in r)
+            for x in range(x0, max(x1, x0 + 1)):
+                for y in range(y0, max(y1, y0 + 1)):
+                    if p.rng.random() < 0.04:
+                        p.put(x, y, (166, 112, 52))
+    tcol = (238, 214, 156)
+    m.add(bone('tortilla', HAND_R, 'arm_r', [
+        m.box([-19, -2, -6], [18, 1, 12], tcol, noise=0.04, extra=tortilla),
+        m.box([-18, -2, -8], [16, 1, 16], tcol, noise=0.04, extra=tortilla),
+        m.box([-16, -2, -9], [12, 1, 18], tcol, noise=0.04, extra=tortilla),
+    ]))
+
+    # ---- the brick (left hand): for the gas pedal
+    def mortar(p, f):
+        for side in ('front', 'back', 'left', 'right'):
+            x0, y0, x1, y1 = (int(n) for n in f[side])
+            p.fill((x0, (y0 + y1) // 2, x1, (y0 + y1) // 2 + 1), (196, 186, 170), 0.03)
+    m.add(bone('brick', HAND_L, 'arm_l', [m.box([8.5, -1, -2], [3, 3, 4], (156, 62, 44), noise=0.1, extra=mortar)]))
+
+    # ---- the tater tot (right hand, phase two): the cluster bomb
+    m.add(bone('tot', HAND_R, 'arm_r', [m.box([-12, -3, -2], [4, 5, 4], (222, 164, 64), noise=0.14)]))
 
     # ---- the potato gatling: a gunmetal receiver along the arm (so it points where the fist does),
     # a hopper of spuds on top, three barrels on their own bone so they spin about the arm's axis

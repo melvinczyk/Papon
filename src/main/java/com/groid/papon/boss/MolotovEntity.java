@@ -46,9 +46,10 @@ public class MolotovEntity extends ThrowableItemProjectile {
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide) {
-            level().addParticle(ParticleTypes.FLAME, getX(), getY() + 0.2, getZ(), 0, 0.02, 0);
-            if (tickCount % 2 == 0) level().addParticle(ParticleTypes.SMOKE, getX(), getY() + 0.2, getZ(), 0, 0.02, 0);
+        if (level().isClientSide && tickCount % 2 == 0) {
+            // the burning rag
+            level().addParticle(new com.groid.papon.fx.FxOptions(com.groid.papon.registry.ModParticles.FIRE.get(), -1, 0.3F, 1.3F,
+                    0xFFFFFF, 1F, 10, 0), getX(), getY() + 0.25, getZ(), 0, 0.02, 0);
         }
     }
 
@@ -59,18 +60,20 @@ public class MolotovEntity extends ThrowableItemProjectile {
         Vec3 at = result.getLocation();
         level.playSound(null, at.x, at.y, at.z, SoundEvents.GLASS_BREAK, SoundSource.HOSTILE, 1.4F, 1.0F);
         level.playSound(null, at.x, at.y, at.z, SoundEvents.FIRECHARGE_USE, SoundSource.HOSTILE, 1.4F, 0.8F);
-        level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.GLASS_BOTTLE)), at.x, at.y + 0.2, at.z,
-                12, 0.2, 0.1, 0.2, 0.15);
-        level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 0.3, at.z, 80, RADIUS * 0.4, 0.3, RADIUS * 0.4, 0.06);
-        level.sendParticles(ParticleTypes.LAVA, at.x, at.y + 0.3, at.z, 10, 0.6, 0.2, 0.6, 0);
-        level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 0.5, at.z, 14, 0.8, 0.4, 0.8, 0.02);
+        com.groid.papon.fx.Fx.chunks(level, at.add(0, 0.2, 0), 6, 0.18F, 0xD8EEE6, 0.35);
+        com.groid.papon.fx.Fx.blast(level, at, 1.3F);
+        com.groid.papon.fx.Fx.burst(level, at.add(0, 0.3, 0), 0.7F, 4, RADIUS * 0.4);
+        com.groid.papon.fx.Fx.scorch(level, at, (float) RADIUS * 0.8F, 160);
         PaponNetwork.shake(level, at, 6, 0.12F, 8);
         float damage = 7F * PaponConfig.BOSS_DAMAGE.get().floatValue();
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(RADIUS, 2, RADIUS),
                 e -> e.isAlive() && e != getOwner() && !(e instanceof CaravanEntity) && !(e instanceof PaponBossEntity))) {
             if (e instanceof Player p && (p.isCreative() || p.isSpectator())) continue;
             if (e.position().distanceTo(at) > RADIUS + e.getBbWidth() / 2) continue;
-            if (e.hurt(ModDamage.of(level, ModDamage.MOLOTOV, this, getOwner()), damage)) e.setSecondsOnFire(6);
+            if (e.hurt(ModDamage.of(level, ModDamage.MOLOTOV, this, getOwner()), damage)) {
+                e.setSecondsOnFire(6);
+                Mechanics.heat(e, 1, getOwner());
+            }
         }
         discard();
     }

@@ -24,13 +24,13 @@ public class BrittleEffect extends MobEffect {
     @Override
     public void applyEffectTick(LivingEntity e, int amplifier) {
         if (e.level() instanceof ServerLevel level) {
-            level.sendParticles(ParticleTypes.WHITE_ASH, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(),
-                    4, e.getBbWidth() * 0.4, e.getBbHeight() * 0.3, e.getBbWidth() * 0.4, 0.01);
+            com.groid.papon.fx.Fx.fall(level, e.position().add(0, e.getBbHeight() * 0.8, 0), 1, e.getBbWidth() * 0.4, 0.1F,
+                    com.groid.papon.fx.Fx.SALT);
         }
     }
 
     @Override
     public boolean isDurationEffectTick(int duration, int amplifier) {
-        return duration % 5 == 0;
+        return duration % 10 == 0;
     }
 }

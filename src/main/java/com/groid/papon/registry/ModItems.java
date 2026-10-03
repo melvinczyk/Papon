@@ -37,6 +37,16 @@ public final class ModItems {
     public static final RegistryObject<Item> CARAVAN_KEYS = REGISTRY.register("caravan_keys",
             () -> new CaravanKeysItem(new Item.Properties().rarity(Rarity.RARE).fireResistant()));
 
+    // models for the boss fight's props (client/PropRenderer, TumbleRenderer); not in any tab
+    public static final RegistryObject<Item> FX_SPUD = prop("fx_spud");
+    public static final RegistryObject<Item> FX_METEOR = prop("fx_meteor");
+    public static final RegistryObject<Item> FX_CLEAVER = prop("fx_cleaver");
+    public static final RegistryObject<Item> FX_FRY = prop("fx_fry");
+    public static final RegistryObject<Item> FX_TOT = prop("fx_tot");
+    public static final RegistryObject<Item> FX_BURRITO = prop("fx_burrito");
+    public static final RegistryObject<Item> FX_SPROUTS = prop("fx_sprouts");
+    public static final RegistryObject<Item> FX_GIANT_SPUD = prop("fx_giant_spud");
+
     public static final RegistryObject<Item> WANDERING_PAPON_SPAWN_EGG = egg("wandering_papon", ModEntities.WANDERING_PAPON, 0xD9AA51, 0x5C7840);
     public static final RegistryObject<Item> TACO_VENDOR_SPAWN_EGG = egg("taco_vendor", ModEntities.TACO_VENDOR, 0xF6F6F0, 0xD9AA51);
     public static final RegistryObject<Item> CUSTOMER_PAPON_SPAWN_EGG = egg("customer_papon", ModEntities.CUSTOMER_PAPON, 0xD9AA51, 0xBA2428);
@@ -54,6 +64,10 @@ public final class ModItems {
 
     private static RegistryObject<Item> egg(String name, Supplier<? extends EntityType<? extends Mob>> type, int base, int spots) {
         return REGISTRY.register(name + "_spawn_egg", () -> new ForgeSpawnEggItem(type, base, spots, new Item.Properties()));
+    }
+
+    private static RegistryObject<Item> prop(String name) {
+        return REGISTRY.register(name, () -> new Item(new Item.Properties()));
     }
 
     private static RegistryObject<Item> jarrito(String name, JarritoItem.Flavor flavor) {

@@ -14,14 +14,20 @@ Lengths of one-shots are state durations in Java (GerbinState, BossState); keep 
   gerbin: chop loops 6.0 s (GerbinState.CHOP runs 3 loops), wash loops 5.0 s (3 loops),
           look 3.0 s, shocked 2.0 s
   boss:   leap_out 1.5, chug 5.0, roar 2.0, swipe 1.4 (hits 0.5 / 1.0), swipe_overhead 1.3 (hit 1.0),
-          leap (AI-held; launch 0.5, dive 1.45-1.55), leap_land 1.5, charge_windup 0.8, charge (loop),
+          leap (AI-held; launch 0.5, dive 1.45-1.55), leap_land 1.5, charge_windup 0.45, charge (loop),
           stagger 2.0, uppercut 1.1 (hit 0.6), air_spike (AI-held; spike 0.45), slam 2.5 (unused),
           breath 3.0 (fire 0.8-2.6), throw 2.0 (release 1.1), drink_handle 2.5, enter_car 0.8,
           exit_stumble 4.0, phase 3.0 (roar 1.2), death 5.0,
           dash_combo 2.5 (hits 0.4 / 0.9 / 1.4, spin 1.9), van_kick 1.2 (kick 0.55),
           grab_lunge (AI-held; lunge 0.45), grab_combo 4.5 (torch 0.8-2.2, salt 2.5-3.4, throw 3.95),
           p2_kneel 4.0, p2_talk 3.5, p2_season 5.0 (shaker 0.6-3.3, golden at 4.0), p2_scream 3.5 (scream 0.75), p2_arrive 2.5, fly (loop),
-          p2_barrage 2.0 (slam 1.85), p2_meteor 3.5, van_throw 2.6 (throw 1.8), p2_dive (loop)
+          p2_barrage 2.0 (slam 1.85), p2_meteor 3.5, van_throw 2.6 (throw 1.8), p2_dive (loop),
+          guard (AI-held, crossed cleavers), riposte 0.9 (shove 0.25, scissor 0.6), evade 0.5, cleaver_toss 1.5 (echoes 0.1 / 0.4 / 0.7), echo_throw 2.2 (throws 0.8 / 1.4),
+          burrito_toss 1.8 (throw 1.0, lands 1.3), drunk_swig 0.7, drunk_flurry 3.0 (hits 0.5/0.85/1.2/1.55/1.9, hammer 2.5),
+          haymaker 2.5 (glint 1.5, hit 1.8), comal_slam 2.0 (slam 0.9), brick 1.8 (pedal 1.0),
+          qte_hold_cleaver / qte_hold_bottle / qte_hold_suplex (loops), qte_fail_* 2.0 (hit 1.2), qte_broken 4.0,
+          p2_fry_volley 3.0 (fries 1.0-2.2), p2_mash_slam 2.5 (slams 0.8 / 1.6), p2_tot_throw 2.0 (throw 1.1),
+          p2_stomp 1.8 (stomp 0.7, sprouts 1.4), p2_gravity 5.0 (falls 4.2)
   boss "form" controller (phase two only): p2_sprout 3.5 (with p2_scream), p2_form_idle, p2_form_fly,
           p2_form_attack (loops), p2_form_lift 1.0
 """
@@ -215,7 +221,8 @@ GERBIN = [g_idle, g_walk, g_chop, g_wash, g_look, g_shocked, g_cower]
 class B(Pinned):
     # the phase-two parts are pinned too: only the "form" controller (class F) shows them
     pins = ['bottle', 'handle', 'big_spatula', 'molotov', 'lighter', 'keys', 'sweat', 'tears', 'potato_gun',
-            'blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker']
+            'blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker',
+            'comal', 'cleaver_r', 'cleaver_l', 'tortilla', 'brick', 'tot']
 
 
 ANGRY_R = [0, 0, 18]
@@ -446,18 +453,17 @@ def b_leap_land():
 
 
 def b_charge_windup():
-    """0.8 s (BossState.CHARGE_WINDUP, 16 t). Head down like a bull, paws the ground twice with his
-    right foot, arms swept back: the tequila rush is coming."""
-    a = angry(B('charge_windup', 0.8, 'hold'))
-    a.rot('torso', [(0, [0, 0, 0]), (0.25, [34, 0, 0], 'easeOutQuad'), (0.8, [38, 0, 0])], 'lin')
-    a.rot('leg_r', [(0, [0, 0, 0]), (0.15, [-30, 0, 0]), (0.3, [30, 0, 0], 'easeInQuad'), (0.45, [-30, 0, 0]),
-                    (0.6, [30, 0, 0], 'easeInQuad'), (0.8, [16, 0, 0])])
-    a.rot('leg_l', [(0, [0, 0, 0]), (0.8, [-16, 0, 0])])
+    """0.45 s (BossState.CHARGE_WINDUP, 9 t). Head snaps down like a bull, one paw of the right foot,
+    arms swept back: the tequila rush is coming, now."""
+    a = angry(B('charge_windup', 0.45, 'hold'))
+    a.rot('torso', [(0, [0, 0, 0]), (0.12, [34, 0, 0], 'easeOutExpo'), (0.45, [40, 0, 0])], 'lin')
+    a.rot('leg_r', [(0, [0, 0, 0]), (0.1, [-30, 0, 0]), (0.25, [30, 0, 0], 'easeInQuad'), (0.45, [16, 0, 0])])
+    a.rot('leg_l', [(0, [0, 0, 0]), (0.45, [-16, 0, 0])])
     for arm, s in (('arm_r', 1), ('arm_l', -1)):
-        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.25, [56, 0, 26 * s], 'easeOutQuad'), (0.8, [62, 0, 22 * s])], 'lin')
-    a.pos('root', [(0, [0, 0, 0]), (0.25, [0, -2, 0]), (0.8, [0, -2.5, 0])], 'lin')
-    a.scale('body', [(0, [1, 1, 1]), (0.25, [1.08, 0.92, 1.08]), (0.5, [1.1, 0.9, 1.1]), (0.8, [1.12, 0.88, 1.12])], 'lin')
-    a.sound(0.3, 'step').sound(0.6, 'step').sound(0.7, 'roar_small')
+        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.12, [56, 0, 26 * s], 'easeOutExpo'), (0.45, [62, 0, 22 * s])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.12, [0, -2, 0]), (0.45, [0, -2.5, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.12, [1.08, 0.92, 1.08]), (0.45, [1.12, 0.88, 1.12])], 'lin')
+    a.sound(0.25, 'step').sound(0.3, 'roar_small')
     return a
 
 
@@ -856,6 +862,464 @@ def b_grab_combo():
     return a
 
 
+# ===================================================================== the rework: defence, chef, drunk, QTE
+
+GUARD_R = [-120, -40, 0]        # both fists up in front of his face, crossed at the wrists:
+GUARD_L = [-120, 40, 0]         # the cleavers make an X he looks at you through
+GUARD_BLADE_R = [-135, -15, 135]  # solved on the rig (GeckoLib: X and Z flipped): upright, crossing, flat to you
+GUARD_BLADE_L = [-135, 15, -135]
+
+
+def b_guard():
+    """1.2 s, held (BossState.GUARD, AI-held up to 24 t). The parry: both cleavers whipped up crossed in
+    front of his face (0.12 s), an X he glares through, blades grinding; hit it and he answers at once."""
+    a = angry(B('guard', 1.2, 'hold'))
+    for c in ('cleaver_r', 'cleaver_l'):
+        a.scale(c, [(0, SHOWN)], 'lin')
+    a.rot('arm_r', [(0, [-20, 0, 24]), (0.12, GUARD_R, 'easeOutBack')]
+          + [(round(0.2 + 0.1 * i, 2), [GUARD_R[0] + (2 if i % 2 else -2), GUARD_R[1], 0]) for i in range(10)], 'lin')
+    a.rot('arm_l', [(0, [-20, 0, -24]), (0.12, GUARD_L, 'easeOutBack')]
+          + [(round(0.2 + 0.1 * i, 2), [GUARD_L[0] + (-2 if i % 2 else 2), GUARD_L[1], 0]) for i in range(10)], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.12, 2.2)])          # the fists in front of his face, crossed
+    stretch(a, 'arm_l', [(0, 1), (0.12, 2.2)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.12, [12, 0, 0], 'easeOutQuad'), (1.2, [12, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.12, [0, -2, 0], 'easeOutQuad'), (1.2, [0, -2, 0])], 'lin')
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 0]), (0.12, [-24 * s, 0, 8 * s]), (1.2, [-24 * s, 0, 8 * s])], 'lin')
+    # the blades turned up off the fists and flat to you, leaning in to cross
+    a.rot('cleaver_r', [(0, [0, 0, 0]), (0.12, GUARD_BLADE_R, 'easeOutBack'), (1.2, GUARD_BLADE_R)], 'lin')
+    a.rot('cleaver_l', [(0, [0, 0, 0]), (0.12, GUARD_BLADE_L, 'easeOutBack'), (1.2, GUARD_BLADE_L)], 'lin')
+    a.sound(0.08, 'clank')
+    return a
+
+
+def b_riposte():
+    """0.9 s (BossState.RIPOSTE, 18 t). Off the parry: the crossed cleavers shoved into you (0.25 s),
+    then scissored apart, both blades out and down across you (0.6 s)."""
+    a = angry(B('riposte', 0.9, 'hold'))
+    for c in ('cleaver_r', 'cleaver_l'):
+        a.scale(c, [(0, SHOWN)], 'lin')
+    a.rot('cleaver_r', [(0, GUARD_BLADE_R), (0.25, [0, 0, 0], 'easeInExpo')], 'lin')
+    a.rot('cleaver_l', [(0, GUARD_BLADE_L), (0.25, [0, 0, 0], 'easeInExpo')], 'lin')
+    a.rot('arm_r', [(0, GUARD_R), (0.25, [-96, -30, 0], 'easeInExpo'), (0.4, [-150, -20, 10], 'easeOutQuad'),
+                    (0.6, [-50, 50, 50], 'easeInExpo'), (0.9, [-20, 0, 24], 'easeInOutSine')], 'lin')
+    a.rot('arm_l', [(0, GUARD_L), (0.25, [-96, 30, 0], 'easeInExpo'), (0.4, [-150, 20, -10], 'easeOutQuad'),
+                    (0.6, [-50, -50, -50], 'easeInExpo'), (0.9, [-20, 0, -24], 'easeInOutSine')], 'lin')
+    for arm in ('arm_r', 'arm_l'):
+        stretch(a, arm, [(0, 2.2), (0.25, 2.4, 'easeInExpo'), (0.4, 1.4), (0.6, 1.8, 'easeInExpo'), (0.9, 1)])
+    a.rot('torso', [(0, [12, 0, 0]), (0.25, [20, 0, 0], 'easeInExpo'), (0.4, [-16, 0, 0]), (0.6, [30, 0, 0], 'easeInExpo'),
+                    (0.9, [6, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, -2, 0]), (0.25, [0, -1, -3], 'easeInExpo'), (0.6, [0, -2, -2], 'easeInExpo'), (0.9, [0, 0, 0])], 'lin')
+    a.sound(0.22, 'clank').sound(0.5, 'swing').sound(0.6, 'slam')
+    return a
+
+
+def b_evade():
+    """0.5 s (BossState.EVADE, 10 t). A drunk's sidestep: a quick hop, leaning away, arms flung out.
+    The hop itself is the entity's motion; the next attack comes straight after."""
+    a = angry(B('evade', 0.5, 'hold'))
+    a.rot('root', [(0, [0, 0, 0]), (0.1, [-10, 0, 20], 'easeOutQuad'), (0.35, [-6, 0, 14]), (0.5, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.08, [0, -2, 0]), (0.2, [0, 3, 0], 'easeOutQuad'), (0.35, [0, 0, 0], 'easeInQuad'),
+                   (0.42, [0, -1.5, 0]), (0.5, [0, 0, 0])], 'lin')
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.15, [-40, 0, 90 * s], 'easeOutQuad'), (0.5, [-20, 0, 30 * s])], 'lin')
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 0]), (0.15, [-20 * s, 0, 14 * s]), (0.35, [10 * s, 0, 6 * s]), (0.5, [0, 0, 0])])
+    a.scale('body', [(0, [1, 1, 1]), (0.08, [1.12, 0.88, 1.12]), (0.2, [0.92, 1.1, 0.92]), (0.42, [1.08, 0.94, 1.08]),
+                     (0.5, [1, 1, 1])], 'lin')
+    a.sound(0.05, 'whoosh').sound(0.4, 'step')
+    return a
+
+
+def b_cleaver_toss():
+    """1.5 s (BossState.CLEAVER_TOSS, 30 t). Los Tres Chefs: both cleavers out and crossed high over his
+    head (0.15 s), clashed together three times as his echoes blink in (0.1 / 0.4 / 0.7 s), then
+    pointed at you (1.0 s), crouched to come after them."""
+    a = angry(B('cleaver_toss', 1.5, 'hold'))
+    for c in ('cleaver_r', 'cleaver_l'):
+        a.scale(c, [(0, SHOWN)], 'lin')
+    up_r, up_l = [-165, -20, 10], [-165, 20, -10]
+    clash_r, clash_l = [-170, -32, 4], [-170, 32, -4]
+    keys_r = [(0, [-20, 0, 24]), (0.15, up_r, 'easeOutBack')]
+    keys_l = [(0, [-20, 0, -24]), (0.15, up_l, 'easeOutBack')]
+    for t in (0.1, 0.4, 0.7):
+        keys_r += [(round(t + 0.08, 2), clash_r, 'easeInExpo'), (round(t + 0.2, 2), up_r, 'easeOutQuad')]
+        keys_l += [(round(t + 0.08, 2), clash_l, 'easeInExpo'), (round(t + 0.2, 2), up_l, 'easeOutQuad')]
+    keys_r = [k for k in keys_r if k[0] >= 0.15 or k[0] == 0]
+    keys_l = [k for k in keys_l if k[0] >= 0.15 or k[0] == 0]
+    keys_r += [(1.0, [-90, 10, 20], 'easeInExpo'), (1.5, [-70, 0, 24], 'easeInOutSine')]
+    keys_l += [(1.0, [-90, -10, -20], 'easeInExpo'), (1.5, [-70, 0, -24], 'easeInOutSine')]
+    a.rot('arm_r', keys_r, 'lin')
+    a.rot('arm_l', keys_l, 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.15, 1.3), (0.9, 1.3), (1.0, 1.5, 'easeInExpo'), (1.5, 1.1)])
+    stretch(a, 'arm_l', [(0, 1), (0.15, 1.3), (0.9, 1.3), (1.0, 1.5, 'easeInExpo'), (1.5, 1.1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.15, [-14, 0, 0], 'easeOutQuad'), (0.9, [-14, 0, 0]), (1.0, [22, 0, 0], 'easeInExpo'),
+                    (1.5, [16, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.15, [0, 1, 0]), (0.9, [0, 1, 0]), (1.0, [0, -2.5, -1], 'easeInExpo'), (1.5, [0, -2, 0])], 'lin')
+    for leg, sg in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 0]), (0.9, [0, 0, 4 * sg]), (1.0, [-26 * sg, 0, 10 * sg]), (1.5, [-24 * sg, 0, 8 * sg])], 'lin')
+    for t in (0.18, 0.48, 0.78):
+        a.sound(t, 'clank')
+    a.sound(0.95, 'roar_small')
+    return a
+
+
+def b_echo_throw():
+    """2.2 s (PaponEchoEntity.LIFE, 44 t; the echo plays it on his model). Blinks in crouched, the
+    right cleaver cocked back over his shoulder (0.3-0.75 s), hurled at 0.8 s (THROW_1, 16 t), then the
+    left (cocked 0.95-1.35 s, hurled 1.4 s, THROW_2, 28 t), then drifts back as he fades."""
+    a = angry(B('echo_throw', 2.2, 'hold'))
+    a.vis('cleaver_r', True, [(0.8, False)])
+    a.vis('cleaver_l', True, [(1.4, False)])
+    a.rot('arm_r', [(0, [-20, 0, 24]), (0.3, [-200, 0, 30], 'easeOutQuad'), (0.75, [-215, 0, 34]),
+                    (0.8, [-70, -20, 10], 'easeInExpo'), (1.0, [-50, -10, 20]), (2.2, [-20, 0, 24], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.3, 1.2), (0.75, 1.25), (0.8, 1.7, 'easeInExpo'), (1.0, 1)])
+    a.rot('arm_l', [(0, [-20, 0, -24]), (0.95, [-30, 0, -30]), (1.3, [-200, 0, -30], 'easeOutQuad'), (1.35, [-215, 0, -34]),
+                    (1.4, [-70, 20, -10], 'easeInExpo'), (1.6, [-50, 10, -20]), (2.2, [-20, 0, -24], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (1.3, 1.2), (1.35, 1.25), (1.4, 1.7, 'easeInExpo'), (1.6, 1)])
+    a.rot('torso', [(0, [10, 0, 0]), (0.3, [-18, 20, 0], 'easeOutQuad'), (0.75, [-22, 26, 0]), (0.8, [26, -24, 0], 'easeInExpo'),
+                    (1.0, [8, 0, 0]), (1.3, [-18, -20, 0], 'easeOutQuad'), (1.35, [-22, -26, 0]), (1.4, [26, 24, 0], 'easeInExpo'),
+                    (1.6, [8, 0, 0]), (2.2, [0, 0, 0])], 'lin')
+    for leg, sg in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [-20 * sg, 0, 6 * sg]), (2.2, [-10 * sg, 0, 4 * sg])], 'lin')
+    a.pos('root', [(0, [0, -3, 0]), (0.3, [0, 0, 0], 'easeOutBack'), (1.8, [0, 0, 0]), (2.2, [0, 2, 4], 'easeInQuad')], 'lin')
+    a.sound(0.78, 'swing').sound(1.38, 'swing')
+    return a
+
+
+def b_burrito_toss():
+    """1.8 s (BossState.BURRITO_TOSS, 36 t). A giant tortilla up over his head, spun like pizza dough
+    (0.2-0.9 s), then flung flat at you (1.0 s): where it lands, whoever is under it is a burrito."""
+    a = angry(B('burrito_toss', 1.8, 'hold'))
+    a.vis('tortilla', False, [(0.15, True), (1.0, False)])
+    a.rot('arm_r', [(0, [-20, 0, 24]), (0.2, [-176, 0, 10], 'easeOutBack'), (0.9, [-176, 0, 10]),
+                    (1.0, [-80, 0, 10], 'easeInExpo'), (1.2, [-60, 0, 20]), (1.8, [-20, 0, 24], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.2, 1.4), (0.9, 1.4), (1.0, 1.7, 'easeInExpo'), (1.4, 1)])
+    a.rot('tortilla', [(0, [0, 0, 0]), (0.2, [0, 0, 0]), (0.9, [0, -1080, 0], 'easeInQuad')], 'lin')
+    a.rot('arm_l', [(0, [-20, 0, -24]), (0.2, [-150, 0, -40]), (0.9, [-150, 0, -40]), (1.0, [-40, 0, -50]), (1.8, [-20, 0, -24])])
+    a.rot('torso', [(0, [0, 0, 0]), (0.2, [-14, 0, 0]), (0.9, [-18, 0, 0]), (1.0, [24, 0, 0], 'easeInExpo'), (1.8, [0, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.9, [0, 0, 0]), (1.0, [0, -1.5, -1], 'easeInExpo'), (1.8, [0, 0, 0])], 'lin')
+    a.sound(0.2, 'cloth').sound(0.4, 'whoosh').sound(0.7, 'whoosh').sound(0.98, 'swing')
+    return a
+
+
+def b_drunk_swig():
+    """0.7 s (BossState.DRUNK_SWIG, 14 t). THE TELL for the drunken flurry: a fast swig off the bottle
+    (0.1-0.5 s), tossed, eyes going wide. What follows cannot be stopped."""
+    a = angry(B('drunk_swig', 0.7, 'hold'))
+    a.vis('bottle', False, [(0.05, True), (0.55, False)])
+    a.scale('bottle_liquid', [(0, [1, 0.6, 1]), (0.15, [1, 0.6, 1]), (0.45, [1, 0, 1])], 'lin')
+    a.rot('arm_r', [(0, [-20, 0, 24]), (0.12, DRINK_R, 'easeOutQuad'), (0.45, DRINK_R), (0.55, [-190, 0, 30], 'easeOutQuad'),
+                    (0.7, [-40, 0, 40])], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.12, 1.6), (0.45, 1.6), (0.55, 1)])
+    a.rot('bottle', [(0, [0, 0, 0]), (0.12, BOTTLE_UP), (0.45, BOTTLE_UP)], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.15, [-30, 0, 0], 'easeOutQuad'), (0.45, [-34, 0, 0]), (0.6, [20, 0, 0], 'easeOutBack'),
+                    (0.7, [14, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.45, [1.06, 1.02, 1.06]), (0.6, [1.18, 0.9, 1.18], 'easeOutExpo'), (0.7, [1.06, 1, 1.06])], 'lin')
+    a.scale('blush', [(0, [1.1, 1.6, 1]), (0.6, [1.2, 2.6, 1])], 'lin')
+    a.sound(0.15, 'glug').sound(0.35, 'glug').sound(0.55, 'smash').sound(0.62, 'roar_small')
+    return a
+
+
+def b_drunk_flurry():
+    """3.0 s (BossState.DRUNK_FLURRY, 60 t). Plastered and unstoppable: five wild, lurching haymakers,
+    alternating fists, each a lunge (hits 0.5 / 0.85 / 1.2 / 1.55 / 1.9 s), then a spinning
+    double-fisted hammer (2.5 s). He lists and staggers between them, which is the only rhythm."""
+    a = angry(B('drunk_flurry', 3.0, 'hold'))
+    hits = [0.5, 0.85, 1.2, 1.55, 1.9]
+    r, l, tor, root = [(0, [-40, 0, 40])], [(0, [-20, 0, -30])], [(0, [14, 0, 0])], [(0, [0, 0, 0])]
+    sr, sl = [(0, 1)], [(0, 1)]
+    for i, t in enumerate(hits):
+        right = i % 2 == 0
+        wind = round(t - 0.15, 2)
+        if right:
+            r += [(wind, [20, 30, 60], 'easeOutQuad'), (t, [-96, -40, 10], 'easeInExpo'), (round(t + 0.1, 2), [-80, -60, 0])]
+            sr += [(wind, 1), (t, 1.9, 'easeInExpo'), (round(t + 0.12, 2), 1.2)]
+            l += [(wind, [-60, 0, -60]), (t, [10, 0, -40])]
+        else:
+            l += [(wind, [20, -30, -60], 'easeOutQuad'), (t, [-96, 40, -10], 'easeInExpo'), (round(t + 0.1, 2), [-80, 60, 0])]
+            sl += [(wind, 1), (t, 1.9, 'easeInExpo'), (round(t + 0.12, 2), 1.2)]
+            r += [(wind, [-60, 0, 60]), (t, [10, 0, 40])]
+        tor += [(wind, [-6, 40 if right else -40, 10 if right else -10]), (t, [24, -40 if right else 40, -8 if right else 8], 'easeInExpo')]
+        root += [(wind, [0, 0, 0]), (t, [0, 0, -2.5], 'easeInExpo'), (round(t + 0.15, 2), [0, 0, 0])]
+        a.sound(wind, 'hiccup' if i == 2 else 'grunt').sound(round(t - 0.02, 2), 'swing')
+    r += [(2.2, [-200, 0, 30], 'easeOutQuad'), (2.5, [-60, 0, 0], 'easeInExpo'), (3.0, [-20, 0, 24], 'easeInOutSine')]
+    l += [(2.2, [-200, 0, -30], 'easeOutQuad'), (2.5, [-60, 0, 0], 'easeInExpo'), (3.0, [-20, 0, -24], 'easeInOutSine')]
+    sr += [(2.2, 1.4), (2.5, 1.8, 'easeInExpo'), (3.0, 1)]
+    sl += [(2.2, 1.4), (2.5, 1.8, 'easeInExpo'), (3.0, 1)]
+    tor += [(2.2, [-24, 0, 0]), (2.5, [40, 0, 0], 'easeInExpo'), (3.0, [0, 0, 0])]
+    a.rot('arm_r', r, 'lin')
+    a.rot('arm_l', l, 'lin')
+    stretch(a, 'arm_r', sr)
+    stretch(a, 'arm_l', sl)
+    a.rot('torso', tor, 'lin')
+    a.pos('torso', root, 'lin')
+    a.rot('root', [(0, [0, 0, -6]), (0.7, [0, 0, 8]), (1.4, [0, 0, -8]), (2.0, [0, 0, 6]), (2.2, [0, 0, 0]),
+                   (2.5, [0, 360, 0], 'easeInQuad'), (2.5 + EPS, [0, 0, 0], 'lin'), (3.0, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1.06, 1, 1.06]), (2.2, [0.94, 1.1, 0.94]), (2.5, [1.25, 0.8, 1.25], 'easeInExpo'), (3.0, [1, 1, 1])], 'lin')
+    a.scale('blush', [(0, [1.2, 2.6, 1])], 'lin')
+    a.sound(2.45, 'swing').sound(2.5, 'slam')
+    return a
+
+
+def b_haymaker():
+    """2.5 s (BossState.HAYMAKER, 50 t). The feint: he wobbles, nearly topples, hiccups, looks done for
+    (0-1.4 s); then his eye catches the light (1.5 s), he winds his right all the way back (1.75 s)
+    and lunges eight blocks with a haymaker that sends you flying (1.8 s). Then he falls on his face."""
+    a = angry(B('haymaker', 2.5, 'hold'))
+    a.rot('root', [(0, [0, 0, 0]), (0.3, [10, 0, 16]), (0.6, [-6, 0, -14]), (0.9, [16, 0, 10]), (1.2, [4, 0, -18]),
+                   (1.45, [0, 0, 0]), (1.75, [-8, 30, 0], 'easeOutQuad'), (1.8, [24, -20, 0], 'easeInExpo'),
+                   (2.1, [60, -10, 0], 'easeInQuad'), (2.3, [80, 0, 0], 'easeOutBounce'), (2.5, [70, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (1.45, [0, 0, 0]), (1.75, [0, -2, 2]), (1.8, [0, 0, -4], 'easeInExpo'),
+                   (2.3, [0, -6, -6], 'easeOutBounce'), (2.5, [0, -6, -6])], 'lin')
+    a.rot('arm_r', [(round(0.25 * i, 2), [-140 if i % 2 else 10, 0, 60]) for i in range(6)]
+          + [(1.45, [-20, 0, 30]), (1.75, [40, 50, 70], 'easeOutQuad'), (1.8, [-100, -30, 10], 'easeInExpo'),
+             (2.5, [-170, 0, 20])], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (1.75, 1), (1.8, 2.2, 'easeInExpo'), (2.0, 1.8), (2.5, 1.4)])
+    a.rot('arm_l', [(round(0.25 * i, 2), [10 if i % 2 else -140, 0, -60]) for i in range(6)]
+          + [(1.45, [-20, 0, -30]), (1.75, [-80, 0, -60]), (1.8, [20, 0, -40]), (2.5, [-170, 0, -20])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (1.45, [0, 0, 0]), (1.75, [-10, 50, 0], 'easeOutQuad'), (1.8, [26, -40, 0], 'easeInExpo'),
+                    (2.5, [10, 0, 0])], 'lin')
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(round(0.3 * i, 2), [24 * s if i % 2 else -24 * s, 0, 8 * s]) for i in range(5)]
+              + [(1.45, [0, 0, 0]), (1.75, [-30 * s, 0, 0]), (1.8, [40 * s, 0, 0]), (2.5, [10, 0, 0])])
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 1.0, 0]), (1.45, [0, 1.0, 0]), (1.5, [0, -1.0, 0], 'easeOutExpo')])
+        a.rot(brow, [(0, [0, 0, -10 * s]), (1.45, [0, 0, -10 * s]), (1.5, [0, 0, 24 * s], 'easeOutExpo')])
+    a.scale('blush', [(0, [1.2, 2.6, 1])], 'lin')
+    a.sound(0.4, 'hiccup').sound(1.0, 'hiccup').sound(1.5, 'ding').sound(1.7, 'roar_small').sound(1.78, 'swing').sound(2.3, 'thud')
+    return a
+
+
+def b_comal_slam():
+    """2.0 s (BossState.COMAL_SLAM, 40 t). The comal raised in both hands over his head (0.8 s), and
+    slammed flat on the ground (0.9 s): the ground around him becomes a hot griddle."""
+    a = angry(B('comal_slam', 2.0, 'hold'))
+    a.scale('comal', [(0, SHOWN)], 'lin')
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.7, [-180, -10 * s, 10 * s], 'easeOutBack'), (0.8, [-190, -10 * s, 8 * s]),
+                    (0.9, [-60, 0, 10 * s], 'easeInExpo'), (1.5, [-60, 0, 10 * s]), (2.0, [-20, 0, 24 * s], 'easeInOutSine')], 'lin')
+        stretch(a, arm, [(0, 1), (0.7, 1.3), (0.9, 1.9, 'easeInExpo'), (1.5, 1.9), (2.0, 1)])
+    a.rot('comal', [(0, [0, 0, 0]), (0.7, [0, 0, -30]), (0.9, [0, 0, 0])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.7, [-24, 0, 0], 'easeOutQuad'), (0.9, [48, 0, 0], 'easeInExpo'), (1.5, [44, 0, 0]),
+                    (2.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.7, [0, 1.5, 0]), (0.9, [0, -3, 0], 'easeInExpo'), (1.5, [0, -3, 0]), (2.0, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.7, [0.92, 1.12, 0.92]), (0.9, [1.25, 0.8, 1.25], 'easeInExpo'), (1.3, [1, 1, 1])], 'lin')
+    a.sound(0.3, 'grunt').sound(0.88, 'clank').sound(0.9, 'slam').sound(1.1, 'sizzle')
+    return a
+
+
+def b_brick():
+    """1.8 s (BossState.BRICK, 36 t). At the van's window with a brick: leans in (0.3-1.0 s), wedges it
+    on the gas pedal (1.0 s), steps back and slaps the door. The van goes for you on its own."""
+    a = angry(B('brick', 1.8, 'hold'))
+    a.vis('brick', False, [(0.15, True), (1.0, False)])
+    a.rot('arm_l', [(0, [-20, 0, -24]), (0.3, [-60, 20, -10]), (0.9, [-100, 30, 0], 'easeInOutSine'),
+                    (1.0, [-60, 20, 0], 'easeInExpo'), (1.3, [-20, 0, -30]), (1.8, [-20, 0, -24])], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (0.3, 1.2), (0.9, 1.8), (1.0, 1.4), (1.3, 1)])
+    a.rot('arm_r', [(0, [-20, 0, 24]), (1.2, [-20, 0, 24]), (1.4, [-90, -40, 20], 'easeOutQuad'), (1.5, [-70, 20, 30]),
+                    (1.8, [-20, 0, 24])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.3, [10, 50, 0]), (0.9, [40, 60, 0], 'easeInOutSine'), (1.2, [0, 20, 0]),
+                    (1.8, [0, 0, 0])], 'lin')
+    a.sound(0.2, 'cloth').sound(1.0, 'thud').sound(1.45, 'slam').sound(1.5, 'chuckle')
+    return a
+
+
+# ---- the QTEs: he has you, held in front of him; the camera is on him and the world slows down
+QTE_HOLD_R = [-100, -14, 6]
+
+
+def qte_hold(name, prop=None, liquid=None):
+    """1.0 s loop. Holding you up at arm's length in his right fist, glaring, the threat in his left."""
+    a = angry(B(name, 1.0, True))
+    a.rot('arm_r', [(0, QTE_HOLD_R), (0.5, [QTE_HOLD_R[0] - 4, -14, 6]), (1.0, QTE_HOLD_R)])
+    stretch(a, 'arm_r', [(0, 1.6)])
+    a.rot('torso', [(0, [-8, 0, 0]), (0.5, [-10, 0, 0]), (1.0, [-8, 0, 0])])
+    if prop:
+        a.scale(prop, [(0, SHOWN)], 'lin')
+    if liquid:
+        a.scale(liquid, [(0, SHOWN)], 'lin')
+    return a
+
+
+def b_qte_hold_cleaver():
+    """1.0 s loop (QTE: La Última Cena). The cleaver raised high behind his head, trembling."""
+    a = qte_hold('qte_hold_cleaver', 'cleaver_l')
+    a.rot('arm_l', [(0, [-196, 20, -30]), (0.5, [-200, 20, -30]), (1.0, [-196, 20, -30])])
+    stretch(a, 'arm_l', [(0, 1.3)])
+    return a
+
+
+def b_qte_hold_bottle():
+    """1.0 s loop (QTE: Last Call). The handle tipped toward your mouth, sloshing."""
+    a = qte_hold('qte_hold_bottle', 'handle', 'handle_liquid')
+    a.rot('arm_l', [(0, [-110, 30, -10]), (0.5, [-116, 28, -10]), (1.0, [-110, 30, -10])])
+    stretch(a, 'arm_l', [(0, 1.5)])
+    a.rot('handle', [(0, [-60, 0, 0]), (0.5, [-70, 0, 0]), (1.0, [-60, 0, 0])])
+    return a
+
+
+def b_qte_hold_suplex():
+    """1.0 s loop (QTE: La Papa Suplex). Both fists under you, lifted to his chest, knees bent."""
+    a = qte_hold('qte_hold_suplex')
+    a.rot('arm_l', [(0, [-100, 14, -6]), (0.5, [-104, 14, -6]), (1.0, [-100, 14, -6])])
+    stretch(a, 'arm_l', [(0, 1.6)])
+    a.pos('root', [(0, [0, -2, 0]), (0.5, [0, -2.5, 0]), (1.0, [0, -2, 0])])
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [-30 * s, 0, 10 * s])], 'lin')
+    return a
+
+
+def b_qte_fail_cleaver():
+    """2.0 s (QTE failed: La Última Cena). The cleaver comes down on you (1.2 s), hard."""
+    a = angry(B('qte_fail_cleaver', 2.0, 'hold'))
+    a.scale('cleaver_l', [(0, SHOWN)], 'lin')
+    a.rot('arm_r', [(0, QTE_HOLD_R), (1.3, QTE_HOLD_R), (1.5, [-40, 0, 30], 'easeOutQuad'), (2.0, [-20, 0, 24])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.6), (1.3, 1.6), (1.5, 1)])
+    a.rot('arm_l', [(0, [-196, 20, -30]), (1.0, [-210, 20, -30], 'easeInOutSine'), (1.2, [-80, 10, -10], 'easeInExpo'),
+                    (1.5, [-60, 0, -20]), (2.0, [-20, 0, -24])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.3), (1.0, 1.4), (1.2, 1.9, 'easeInExpo'), (1.6, 1)])
+    a.rot('torso', [(0, [-8, 0, 0]), (1.0, [-24, 0, 0]), (1.2, [30, 0, 0], 'easeInExpo'), (2.0, [0, 0, 0])], 'lin')
+    a.sound(0.9, 'roar_small').sound(1.18, 'swing').sound(1.2, 'chop')
+    return a
+
+
+def b_qte_fail_bottle():
+    """2.0 s (QTE failed: Last Call). The handle jammed in your mouth and emptied (0.4-1.3 s), then a
+    headbutt sends you off (1.4 s)."""
+    a = angry(B('qte_fail_bottle', 2.0, 'hold'))
+    a.vis('handle', True, [(1.35, False)])
+    a.scale('handle_liquid', [(0, SHOWN), (0.4, SHOWN), (1.3, [1, 0, 1])], 'lin')
+    a.rot('arm_r', [(0, QTE_HOLD_R), (1.4, QTE_HOLD_R), (1.6, [-40, 0, 30]), (2.0, [-20, 0, 24])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.6), (1.4, 1.6), (1.6, 1)])
+    a.rot('arm_l', [(0, [-110, 30, -10]), (0.4, [-120, 20, 0], 'easeOutQuad'), (1.3, [-120, 20, 0]), (1.5, [-20, 0, -40]),
+                    (2.0, [-20, 0, -24])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.5), (0.4, 1.7), (1.3, 1.7), (1.5, 1)])
+    a.rot('handle', [(0, [-60, 0, 0]), (0.4, [-110, 0, 0]), (1.3, [-110, 0, 0])], 'lin')
+    a.rot('torso', [(0, [-8, 0, 0]), (1.3, [-20, 0, 0]), (1.4, [30, 0, 0], 'easeInExpo'), (2.0, [0, 0, 0])], 'lin')
+    for i in range(4):
+        a.sound(round(0.5 + 0.22 * i, 2), 'glug')
+    a.sound(1.38, 'thud').sound(1.5, 'chuckle')
+    return a
+
+
+def b_qte_fail_suplex():
+    """2.0 s (QTE failed: La Papa Suplex). Up over his head (0.3-0.9 s), and he falls back with you,
+    driving you into the floor behind him (1.2 s)."""
+    a = angry(B('qte_fail_suplex', 2.0, 'hold'))
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-100, -14 * s, 6 * s]), (0.6, [-180, 0, 10 * s], 'easeInOutSine'), (0.9, [-200, 0, 10 * s]),
+                    (1.2, [-220, 0, 10 * s], 'easeInExpo'), (1.6, [-200, 0, 10 * s]), (2.0, [-20, 0, 24 * s], 'easeInOutSine')], 'lin')
+        stretch(a, arm, [(0, 1.6), (0.6, 1.5), (1.2, 1.6), (2.0, 1)])
+    a.rot('root', [(0, [0, 0, 0]), (0.9, [-10, 0, 0]), (1.2, [-80, 0, 0], 'easeInExpo'), (1.6, [-80, 0, 0]),
+                   (2.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.pos('root', [(0, [0, -2, 0]), (0.6, [0, 0, 0]), (1.2, [0, -4, 4], 'easeInExpo'), (1.6, [0, -4, 4]), (2.0, [0, 0, 0])], 'lin')
+    a.sound(0.4, 'grunt').sound(0.9, 'roar_small').sound(1.2, 'slam')
+    return a
+
+
+def b_qte_broken():
+    """4.0 s (BossState.QTE_BROKEN, 80 t). You broke free: he goes over backwards (0.3 s), flat on his
+    back seeing stars, legs kicking (wide open, he takes double damage), and only gets up at 3.3 s."""
+    a = B('qte_broken', 4.0, 'hold')
+    a.rot('root', [(0, [0, 0, 0]), (0.3, [-90, 0, 0], 'easeOutBounce'), (3.2, [-90, 0, 0]), (3.6, [-30, 0, 0], 'easeInOutSine'),
+                   (4.0, [0, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.3, [0, -6, 6], 'easeOutBounce'), (3.2, [0, -6, 6]), (4.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-100, 0, 30 * s]), (0.3, [-20, 0, 80 * s]), (1.5, [-30, 0, 90 * s]), (3.2, [-20, 0, 80 * s]),
+                    (4.0, [-20, 0, 24 * s])])
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(round(0.3 + 0.25 * i, 2), [(-40 if (i + (s > 0)) % 2 else -10), 0, 10 * s]) for i in range(12)]
+              + [(4.0, [0, 0, 0])])
+    for brow, s in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 1.2, 0]), (4.0, [0, 0.8, 0])])
+        a.rot(brow, [(0, [0, 0, -14 * s]), (4.0, [0, 0, -8 * s])])
+    a.scale('sweat', [(0, SHOWN)], 'lin')
+    a.sound(0.0, 'yelp').sound(0.3, 'thud').sound(1.2, 'grunt').sound(3.4, 'grunt')
+    return a
+
+
+# ---- phase two: potato attacks
+def b_p2_fry_volley():
+    """3.0 s (P2_FRY_VOLLEY, 60 t). Arms thrown forward, commanding: the fries leave his wings one by
+    one (the wings fan out on the form controller); they hang aimed and fire from 1.0 to 2.2 s."""
+    a = angry(B('p2_fry_volley', 3.0, 'hold'))
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.4, [-60, 0, 100 * s], 'easeOutBack'), (0.9, [-60, 0, 100 * s]),
+                    (1.0, [-92, -20 * s, 10 * s], 'easeInExpo')]
+              + [(round(1.0 + 0.2 * i, 2), [-92 + (6 if i % 2 else 0), -20 * s, 10 * s]) for i in range(7)]
+              + [(3.0, [-30, 0, 30 * s], 'easeInOutSine')], 'lin')
+        stretch(a, arm, [(0, 1), (0.4, 1.3), (1.0, 1.6, 'easeInExpo'), (2.4, 1.6), (3.0, 1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.4, [-20, 0, 0]), (1.0, [14, 0, 0], 'easeInExpo'), (2.4, [10, 0, 0]), (3.0, [0, 0, 0])], 'lin')
+    a.sound(0.4, 'roar_small')
+    return a
+
+
+def b_p2_mash_slam():
+    """2.5 s (P2_MASH, 50 t). Down out of the air onto both fists (0.8 s) and again (1.6 s): each slam
+    sends a ring of mashed potato rolling out across the floor. Jump it."""
+    a = angry(B('p2_mash_slam', 2.5, 'hold'))
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.6, [-190, 0, 10 * s], 'easeOutBack'), (0.8, [-50, 0, 10 * s], 'easeInExpo'),
+                    (1.3, [-190, 0, 10 * s], 'easeInOutSine'), (1.6, [-50, 0, 10 * s], 'easeInExpo'),
+                    (2.5, [-20, 0, 24 * s], 'easeInOutSine')], 'lin')
+        stretch(a, arm, [(0, 1), (0.6, 1.4), (0.8, 1.9, 'easeInExpo'), (1.3, 1.4), (1.6, 1.9, 'easeInExpo'), (2.5, 1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.6, [-24, 0, 0]), (0.8, [44, 0, 0], 'easeInExpo'), (1.3, [-24, 0, 0]),
+                    (1.6, [44, 0, 0], 'easeInExpo'), (2.5, [0, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.6, [0, 2, 0]), (0.8, [0, -3, 0], 'easeInExpo'), (1.3, [0, 1, 0]), (1.6, [0, -3, 0], 'easeInExpo'),
+                   (2.5, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.8, [1.25, 0.8, 1.25], 'easeInExpo'), (1.1, [1, 1, 1]), (1.6, [1.25, 0.8, 1.25], 'easeInExpo'),
+                     (2.0, [1, 1, 1])], 'lin')
+    a.sound(0.5, 'roar_small').sound(0.8, 'slam').sound(1.6, 'slam')
+    return a
+
+
+def b_p2_tot_throw():
+    """2.0 s (P2_TOT, 40 t). A tater tot the size of his head, wound up overhand and lobbed (1.1 s)."""
+    a = angry(B('p2_tot_throw', 2.0, 'hold'))
+    a.vis('tot', False, [(0.2, True), (1.12, False)])
+    a.rot('arm_r', [(0, [-20, 0, 24]), (0.3, [-40, 0, 30]), (0.9, [-210, 20, 20], 'easeInOutSine'), (1.1, [-100, -10, 10], 'easeInExpo'),
+                    (1.4, [-30, -20, 10], 'easeOutQuad'), (2.0, [-20, 0, 24])], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.9, 1.3), (1.1, 1.6, 'easeInExpo'), (1.5, 1)])
+    a.rot('arm_l', [(0, [-20, 0, -24]), (0.9, [-90, 0, -30]), (1.2, [-10, 0, -30]), (2.0, [-20, 0, -24])])
+    a.rot('torso', [(0, [0, 0, 0]), (0.9, [-20, 24, 0], 'easeInOutSine'), (1.1, [22, -24, 0], 'easeInExpo'), (2.0, [0, 0, 0])], 'lin')
+    a.sound(0.85, 'grunt').sound(1.08, 'swing')
+    return a
+
+
+def b_p2_stomp():
+    """1.8 s (P2_SNARE, 36 t). Knee up (0.5 s) and a stomp (0.7 s): the floor under you sprouts."""
+    a = angry(B('p2_stomp', 1.8, 'hold'))
+    a.rot('leg_r', [(0, [0, 0, 0]), (0.5, [-90, 0, 0], 'easeOutQuad'), (0.7, [0, 0, 0], 'easeInExpo'), (1.8, [0, 0, 0])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.5, [-14, 0, 0]), (0.7, [20, 0, 0], 'easeInExpo'), (1.8, [0, 0, 0])], 'lin')
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.5, [-60, 0, 70 * s]), (0.7, [10, 0, 40 * s], 'easeInExpo'), (1.8, [-20, 0, 24 * s])])
+    a.pos('root', [(0, [0, 0, 0]), (0.5, [0, 1, 0]), (0.7, [0, -2, 0], 'easeInExpo'), (1.0, [0, 0, 0])], 'lin')
+    a.sound(0.68, 'slam').sound(1.3, 'sprout')
+    return a
+
+
+def b_p2_gravity():
+    """5.0 s (P2_GRAVITY, 100 t). Arms raised to the Spud Singularity over the arena (0.4 s), pulling
+    with clawed hands as it drags everyone in (1.0-4.0 s), then both arms brought down (4.2 s):
+    it falls."""
+    a = angry(B('p2_gravity', 5.0, 'hold'))
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * s]), (0.4, [-170, 0, 40 * s], 'easeOutBack')]
+              + [(round(0.6 + 0.2 * i, 2), [-170 + (8 if i % 2 else -8), 0, 40 * s + (6 if i % 2 else 0)]) for i in range(18)]
+              + [(4.0, [-200, 0, 20 * s], 'easeInOutSine'), (4.2, [-40, 0, 20 * s], 'easeInExpo'), (5.0, [-30, 0, 30 * s])], 'lin')
+        stretch(a, arm, [(0, 1), (0.4, 1.5), (4.0, 1.6), (4.2, 1.8, 'easeInExpo'), (5.0, 1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.4, [-26, 0, 0])] + [(round(0.6 + 0.4 * i, 2), [-26, 0, 4 if i % 2 else -4]) for i in range(9)]
+          + [(4.0, [-30, 0, 0]), (4.2, [30, 0, 0], 'easeInExpo'), (5.0, [0, 0, 0])], 'lin')
+    a.sound(0.3, 'roar').sound(1.0, 'rumble').sound(2.0, 'rumble').sound(3.0, 'rumble').sound(4.2, 'slam')
+    return a
+
+
+REWORK = [b_guard, b_riposte, b_evade, b_cleaver_toss, b_echo_throw, b_burrito_toss, b_drunk_swig, b_drunk_flurry, b_haymaker, b_comal_slam,
+          b_brick, b_qte_hold_cleaver, b_qte_hold_bottle, b_qte_hold_suplex, b_qte_fail_cleaver, b_qte_fail_bottle,
+          b_qte_fail_suplex, b_qte_broken, b_p2_fry_volley, b_p2_mash_slam, b_p2_tot_throw, b_p2_stomp, b_p2_gravity]
+
+
 # ===================================================================== phase two
 
 KNEEL_ROOT = [0, -5, 0]
@@ -1209,7 +1673,7 @@ BOSS = [b_leap_out, b_chug, b_roar, b_idle, b_walk, b_walk_keys, b_run, b_swipe,
         b_swipe_overhead, b_leap, b_leap_land, b_charge_windup, b_charge, b_stagger, b_uppercut, b_air_spike,
         b_blink, b_gatling, b_dash_combo, b_van_kick, b_p2_kneel, b_p2_talk, b_p2_scream, b_p2_arrive, b_fly,
         b_p2_barrage, b_p2_meteor, b_van_throw, b_p2_dive, b_p2_season,
-        b_grab_lunge, b_grab_combo] + FORM
+        b_grab_lunge, b_grab_combo] + REWORK + FORM
 
 
 def write(name, fns, prefix):

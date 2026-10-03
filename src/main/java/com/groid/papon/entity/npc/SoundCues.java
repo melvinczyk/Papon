@@ -113,6 +113,8 @@ public final class SoundCues {
             case "punch" -> { sound = SoundEvents.PLAYER_ATTACK_STRONG; volume = 0.8F; pitch = 0.8F; }
             case "lift" -> { sound = SoundEvents.IRON_GOLEM_REPAIR; volume = 1.0F; pitch = 0.6F; }
             case "shake" -> { sound = SoundEvents.SAND_HIT; volume = 1.0F; pitch = 1.5F; }
+            case "sprout" -> { sound = SoundEvents.ROOTED_DIRT_BREAK; volume = 1.2F; pitch = 0.8F; }
+            case "torch" -> { sound = SoundEvents.BLAZE_SHOOT; volume = 0.6F; pitch = 1.8F; }
             default -> { return; }
         }
         e.level().playLocalSound(e.getX(), e.getY(), e.getZ(), sound, SoundSource.NEUTRAL, volume,

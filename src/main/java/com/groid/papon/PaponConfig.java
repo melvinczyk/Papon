@@ -20,6 +20,8 @@ public final class PaponConfig {
     public static final ForgeConfigSpec.DoubleValue VAN_RAM_DAMAGE;
     public static final ForgeConfigSpec.IntValue VAN_COOLDOWN;
     public static final ForgeConfigSpec.IntValue VAN_STUN_TICKS;
+    public static final ForgeConfigSpec.DoubleValue HIT_CAP;
+    public static final ForgeConfigSpec.DoubleValue TRUE_DAMAGE;
     public static final ForgeConfigSpec.BooleanValue CINEMATICS;
     public static final ForgeConfigSpec.BooleanValue BOSS_MUSIC;
 
@@ -64,7 +66,13 @@ public final class PaponConfig {
         VAN_COOLDOWN = b.comment("Ticks between van attacks in phase one (two thirds of this in phase two).")
                 .defineInRange("vanCooldownTicks", 360, 40, 20 * 60 * 10);
         VAN_STUN_TICKS = b.comment("Ticks a van hit leaves its victim stunned: flat on the ground, unable to move or jump.")
-                .defineInRange("vanStunTicks", 160, 0, 20 * 60);
+                .defineInRange("vanStunTicks", 60, 0, 20 * 60);
+        HIT_CAP = b.comment("The most of his maximum health one hit can take off Chef Papon (0.05 = 5%): nobody one-shots",
+                        "him or skips a phase, whatever their damage. 1.0 turns it off.")
+                .defineInRange("hitCapFraction", 0.05, 0.001, 1.0);
+        TRUE_DAMAGE = b.comment("Multiplier on his mechanics' damage: the hits that take a share of your maximum health through",
+                        "armor (drunken attacks, Habanero, the burrito, the gravity spud). Independent of damageMultiplier.")
+                .defineInRange("trueDamageMultiplier", 1.0, 0.0, 10.0);
         CINEMATICS = b.comment("Play the unmasking and the boss intro as cutscenes (camera, letterbox) for players nearby.")
                 .define("cinematics", true);
         BOSS_MUSIC = b.comment("Play the mariachi boss music during the fight.")

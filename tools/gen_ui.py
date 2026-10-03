@@ -245,7 +245,111 @@ def brittle_icon():
     print(out)
 
 
+# 18 x 18 pixel icons of the rework's effects
+EFFECT_ICONS = {
+    # Habanero: a red pepper, green stem, a flame licking off it
+    'habanero': ([
+        "..................",
+        "..........gg......",
+        ".........gG.......",
+        "........rrr.......",
+        "......rrRRrr..yy..",
+        ".....rRRRRRrr.oy..",
+        ".....rRwRRRRr.oo..",
+        ".....rRwRRRRrroo..",
+        "......rRRRRRRro...",
+        "......rRRRRRRr....",
+        ".......rRRRRRr....",
+        ".......rrRRRr.....",
+        "........rRRr......",
+        "........rRr.......",
+        ".........rr.......",
+        "..........r.......",
+        "..................",
+        "..................",
+    ], {'g': (70, 140, 50), 'G': (110, 190, 70), 'r': (150, 20, 16), 'R': (220, 40, 30), 'w': (255, 160, 140),
+        'y': (255, 220, 90), 'o': (255, 140, 40)}),
+    # Food Poisoning: a green-faced drumstick with a skull mark
+    'food_poisoning': ([
+        "..................",
+        "..................",
+        "......ggggg.......",
+        ".....gGGGGGg......",
+        "....gGGkGkGGg.....",
+        "....gGGGGGGGg.....",
+        "....gGGkkkGGg.....",
+        "....gGGGGGGGg.....",
+        ".....gGGGGGg......",
+        "......ggggwg......",
+        "..........ww......",
+        "..........ww......",
+        ".........wwww.....",
+        ".........w..w.....",
+        "..................",
+        "..................",
+        "..................",
+        "..................",
+    ], {'g': (70, 110, 40), 'G': (140, 180, 70), 'k': (40, 40, 30), 'w': (240, 236, 220)}),
+    # Burrito: a burrito, filling showing at the end
+    'burrito': ([
+        "..................",
+        "..................",
+        "..................",
+        "..........tttt....",
+        "........ttTTTTt...",
+        "......ttTTTTTlgt..",
+        ".....tTTTTTTlrgt..",
+        "....tTTTTTTTgrlt..",
+        "...tTTTTTTTTTlt...",
+        "..tTTTTTTTTTTt....",
+        "..tTTsTTTTTTt.....",
+        "..tTTTTTsTTt......",
+        "...tTTTTTTt.......",
+        "....tttttt........",
+        "..................",
+        "..................",
+        "..................",
+        "..................",
+    ], {'t': (176, 126, 64), 'T': (238, 214, 156), 's': (190, 140, 80), 'l': (96, 178, 60), 'r': (214, 54, 44),
+        'g': (246, 244, 236)}),
+    # Rooted: a foot held by potato sprouts
+    'rooted': ([
+        "..................",
+        "..................",
+        "......ffff........",
+        "......fFFf........",
+        "......fFFf........",
+        "......fFFf........",
+        "......fFFffff.....",
+        ".s....fFFFFFf..s..",
+        ".ss...fffffff.ss..",
+        "..ss.s......s.s...",
+        "...sss.s..s.ss....",
+        "....ssssssss......",
+        ".....dddddd.......",
+        "....dDDDDDDd......",
+        "....dddddddd......",
+        "..................",
+        "..................",
+        "..................",
+    ], {'f': (60, 70, 110), 'F': (100, 120, 180), 's': (140, 190, 80), 'd': (110, 80, 50), 'D': (150, 110, 70)}),
+}
+
+
+def effect_icons():
+    for name, (rows, pal) in EFFECT_ICONS.items():
+        im = Image.new('RGBA', (18, 18), (0, 0, 0, 0))
+        for y, row in enumerate(rows):
+            for x, ch in enumerate(row):
+                if ch in pal:
+                    im.putpixel((x, y), rgba(pal[ch]))
+        out = os.path.join(ROOT, 'src/main/resources/assets/papon/textures/mob_effect/%s.png' % name)
+        im.save(out)
+        print(out)
+
+
 if __name__ == '__main__':
     main()
     stun_icon()
     brittle_icon()
+    effect_icons()

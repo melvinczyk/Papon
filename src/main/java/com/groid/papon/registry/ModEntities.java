@@ -87,6 +87,24 @@ public final class ModEntities {
                     .updateInterval(5)
                     .build(PaponMod.id("molotov").toString()));
 
+    // Everything Chef Papon throws or summons: cleavers, fries, tots, meteors, the burrito, sprouts, the gravity spud, the mash wave
+    public static final RegistryObject<EntityType<com.groid.papon.boss.BossProp>> BOSS_PROP = REGISTRY.register("boss_prop",
+            () -> EntityType.Builder.<com.groid.papon.boss.BossProp>of(com.groid.papon.boss.BossProp::new, MobCategory.MISC)
+                    .sized(0.6F, 0.6F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build(PaponMod.id("boss_prop").toString()));
+
+    // His echoes (Los Tres Chefs): see-through copies of him in the air that throw cleavers
+    public static final RegistryObject<EntityType<com.groid.papon.boss.PaponEchoEntity>> PAPON_ECHO = REGISTRY.register("papon_echo",
+            () -> EntityType.Builder.<com.groid.papon.boss.PaponEchoEntity>of(com.groid.papon.boss.PaponEchoEntity::new, MobCategory.MISC)
+                    .sized(1.2F, 2.4F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build(PaponMod.id("papon_echo").toString()));
+
     private static RegistryObject<EntityType<TacoCustomerEntity>> customer(Customer kind, float width, float height) {
         return REGISTRY.register(kind.id, () -> EntityType.Builder.of(TacoCustomerEntity.factory(kind), MobCategory.MISC)
                 .sized(width, height)

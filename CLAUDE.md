@@ -247,6 +247,23 @@ player and were not exercised headless.
   `sendEveryoneHome`: players, van, items, xp, him, to the same offset from the arena on the ground). If
   he is risen with no dome and finds a target again, he screams it back up.
 
+### Boss rework (status 2026-10-03, v0.6.0)
+- **Voice:** Chef Papon's lines (vendor + boss) are text-to-speech clips (`tools/gen_voice.py`, macOS `say` Rocko
+  es_MX pitched down, mono Vorbis via soundfile; sounds `voice.<who>.<line>`), played where he stands; never in chat
+  and no English gloss. The bubble over his head shows the Spanish line; the letterbox shows it only in his POV shot.
+- **Parry** (GUARD/RIPOSTE): crossed cleavers in front of his face (the comal is only the griddle slam now); ripostes
+  on the first blocked hit or after 8 t close, at most 24 t. Pose angles solved on the rig: GeckoLib flips bone X and Z.
+- **Charge:** windup 9 t (0.45 s), 0.95 b/t (1.1 phase two), steering 3.5 deg/t.
+- **Los Tres Chefs** (CLEAVER_TOSS): three `papon:papon_echo` (see-through copies on his model, `EchoRenderer`) blink in
+  left/right/behind you up high; each draws a red line, glints, throws a `CLEAVER_DART` prop (two in phase two). Hit
+  one to shatter it. Animation `echo_throw` (44 t, throws at 16/28).
+- **Cleaver:** Dungeons Delight's iron cleaver sprite built up in 3D (`gen_props.cleaver_sprite`), thrown and held.
+- **Particles:** every FX texture comes from the pack's jars (`tools/gen_particles.py`); billboards fade out right
+  in front of the camera. The QTE has a slow-motion vignette + heartbeat.
+- Dev: `-Pautoshot=pose` (boss frozen via `PaponBossEntity.devFrozen`; parry and summon from front/side, echoes);
+  Blockbench currently segfaults loading papon_boss (since the rotated cleaver cubes), so check poses in game.
+  iCloud makes `* 2`, `* 3` duplicates under build/: `find build -name "* [0-9]" -prune -exec rm -rf {} +`.
+
 ### The Taco Truck line (the boss timer)
 - On arrival (`ARRIVED` tick 22) `TacoTruckScene.open` places the truck **windowGap** blocks
   ahead (`ceil(customers * 1.5)`), so the line fits between him and the window, spawns the
@@ -460,7 +477,8 @@ be ported back into the generator scripts, or the next regeneration overwrites t
 
 All are in the pack instance at `~/Documents/curseforge/minecraft/Instances/Groid Pack OG/mods/`.
 `tools/decompile_refs.sh [out]` unzips them and decompiles the relevant packages with Vineflower
-(default `/tmp/papon_refs`). Study material only: never copy their code or assets into this repo.
+(default `/tmp/papon_refs`). Their code is study material (don't copy it); their **assets may be used** (the user's
+call: it is their pack, e.g. `tools/src/papon_base.png`, `chort_base.png`, and every boss-fight particle texture: `tools/gen_particles.py` reads them straight from the jars, no downloaded packs).
 
 ### Walking Crops — `walking crops-1.0.7.jar` (modid `wkcr`, MCreator + GeckoLib)
 - `wkcr:papon` (`net.mcreator.wkcr.entity.PaponEntity`): hostile `Monster`, 0.9×1.5, 30 HP,

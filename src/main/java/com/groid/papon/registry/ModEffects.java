@@ -15,5 +15,17 @@ public final class ModEffects {
     /** Blowtorched and salted in Chef Papon's grab: armor and toughness down 30%. */
     public static final RegistryObject<MobEffect> BRITTLE = REGISTRY.register("brittle", com.groid.papon.effect.BrittleEffect::new);
 
+    /** Chef Papon's heat, in stacks: % max-health burn through armor; five stacks boil over. */
+    public static final RegistryObject<MobEffect> HABANERO = REGISTRY.register("habanero", com.groid.papon.effect.HabaneroEffect::new);
+    /** A dirty cleaver: no healing of any kind while it lasts. */
+    public static final RegistryObject<MobEffect> FOOD_POISONING = REGISTRY.register("food_poisoning",
+            com.groid.papon.effect.FoodPoisoningEffect::new);
+    /** Rolled up in a giant tortilla: cannot move, jump, attack or use anything. */
+    public static final RegistryObject<MobEffect> BURRITO = REGISTRY.register("burrito",
+            () -> new com.groid.papon.effect.BoundEffect(0xE8C887, "5d2a7c41-8e3b-4f19-a6d0-3b9e1c7f2a54", true));
+    /** Potato sprouts round the ankles: cannot move or jump. */
+    public static final RegistryObject<MobEffect> ROOTED = REGISTRY.register("rooted",
+            () -> new com.groid.papon.effect.BoundEffect(0x8DB04A, "c41e9b27-3f6d-4a85-9e2c-7b1d5a3f8e60", false));
+
     private ModEffects() {}
 }
