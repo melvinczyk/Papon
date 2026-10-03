@@ -32,8 +32,6 @@ ANIM_FILES = {
     'taco_vendor': 'papon_npc',
     'customer_papon': 'papon_npc',
     'don_pollo': 'customer',
-    'edp445': 'customer',
-    'badlands_chugs': 'customer',
     'reviewbrah': 'customer',
     'gerbin': 'gerbin',
     'papon_boss': 'papon_boss',

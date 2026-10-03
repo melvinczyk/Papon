@@ -18,19 +18,27 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Walks him toward the Taco Truck a short hop at a time. The site is hundreds of blocks off, far
- * beyond any path search, so each step picks a surface waypoint up to ~28 blocks ahead in a fan
- * around the true bearing and only commits to one the surface-only navigator can actually reach.
- * Candidates are ranked by how much closer they leave him (not just by angle), and the next
- * waypoint is chosen a few blocks before the current one is reached, so he never stops between
- * legs. Water is only lightly penalised: deep water means the llama raft, which is as quick as
- * walking and far shorter than going round a lake.
+ * Walks him toward the Taco Truck. The site is hundreds of blocks off, far beyond any path search,
+ * so there are two levels:
+ *
+ *   route  RoutePlanner's coarse A* over the loaded heightmap (4-block cells, ~96 blocks around
+ *          him): goes round cliffs and steep mountain faces, over gentle slopes, and across water
+ *          (the raft) when that is shorter. Replanned every few seconds as land loads, preferring
+ *          the route he is on, and never re-routed through a cell where he got stuck before.
+ *   legs   he walks the route a leg at a time: the farthest route point up to ~28 blocks ahead
+ *          that the surface-only navigator can reach. Progress along the route only ever moves
+ *          forward, and the next leg is chosen a few blocks before the current one ends, so he
+ *          neither stops between legs nor turns back.
+ *
+ * Without a route (nothing loaded yet), a leg is picked from a fan around the bearing instead.
  *
  * Getting unstuck, in escalating order:
- *   1. a waypoint he cannot reach, or stops making progress toward, is blacklisted and another picked;
+ *   1. a leg he cannot reach, or stops making progress on, marks that spot a dead end and replans;
  *   2. after repeated failures he hops a few blocks forward to dry, open ground (a puff of dust);
  *   3. right next to the site, being stuck just counts as arriving.
  * Anything worse (in a cave, a wall, the void) is handled by the entity's own keepSafe check.
@@ -49,6 +57,8 @@ public class JourneyGoal extends Goal {
     private static final int STUCK_LIMIT = 4;
     private static final int FAILED_PICK_LIMIT = 3;
     private static final double SPEED = 1.0;
+    private static final int REPLAN_TICKS = 100;
+    private static final double LEG = 28;
 
     private final WanderingPaponEntity papon;
     private final Deque<BlockPos> blacklist = new ArrayDeque<>();
@@ -58,6 +68,11 @@ public class JourneyGoal extends Goal {
     private int stuckChecks;
     private int failedPicks;
     private int repickCooldown;
+    @Nullable private List<BlockPos> route;
+    private int routeIndex;
+    private int replanIn;
+    private final Set<Long> deadEnds = new HashSet<>();
+    private final Deque<Long> deadEndOrder = new ArrayDeque<>();
 
     public JourneyGoal(WanderingPaponEntity papon) {
         this.papon = papon;
@@ -82,6 +97,7 @@ public class JourneyGoal extends Goal {
     @Override
     public void start() {
         waypoint = null;
+        route = null;
         lastCheckPos = papon.position();
         ticksSinceCheck = 0;
         stuckChecks = 0;
@@ -97,9 +113,15 @@ public class JourneyGoal extends Goal {
     public void tick() {
         if (!(papon.level() instanceof ServerLevel level)) return;
         if (repickCooldown > 0) repickCooldown--;
+        if (route == null || --replanIn <= 0) replan(level);
         boolean needLeg = waypoint == null || papon.getNavigation().isDone() || closeTo(waypoint, LOOKAHEAD);
         if (needLeg && repickCooldown == 0) {
-            pickWaypoint(level);
+            boolean ok = route != null && followRoute();
+            if (!ok && route == null) {      // the planned stretch ran out or was blocked: plan again
+                replan(level);
+                ok = route != null && followRoute();
+            }
+            if (!ok) pickWaypoint(level);
         }
         if (++ticksSinceCheck >= PROGRESS_CHECK) {
             ticksSinceCheck = 0;
@@ -116,8 +138,12 @@ public class JourneyGoal extends Goal {
 
     private void onNoProgress(ServerLevel level) {
         stuckChecks++;
-        if (waypoint != null) blacklist(waypoint);
+        if (waypoint != null) {
+            blacklist(waypoint);
+            deadEnd(waypoint);
+        }
         waypoint = null;
+        route = null;
         papon.getNavigation().stop();
         if (papon.remainingDistance() < 10) {
             papon.arriveNearby();
@@ -125,6 +151,76 @@ public class JourneyGoal extends Goal {
             stuckChecks = 0;
             hopForward(level);
         }
+    }
+
+    private void replan(ServerLevel level) {
+        replanIn = REPLAN_TICKS;
+        BlockPos dest = papon.getDestination();
+        if (dest == null) return;
+        Set<Long> previous = new HashSet<>();
+        if (route != null) {
+            for (int i = routeIndex; i < route.size(); i++) previous.add(RoutePlanner.cellKey(route.get(i)));
+        }
+        route = RoutePlanner.plan(level, papon.blockPosition(), dest, deadEnds, previous);
+        routeIndex = 0;
+        if (route != null && WanderingPaponEntity.debugEscort) {
+            PaponMod.LOG.info("[debug] Papon route: {} cells from {} toward {}", route.size(),
+                    papon.blockPosition().toShortString(), route.get(route.size() - 1).toShortString());
+        }
+    }
+
+    /** Starts the next leg along the route; false if the route has no reachable leg left. */
+    private boolean followRoute() {
+        // progress along the route only moves forward: the nearest point ahead of where we were
+        int nearest = routeIndex;
+        double nd = Double.MAX_VALUE;
+        for (int i = routeIndex; i < Math.min(route.size(), routeIndex + 16); i++) {
+            double d = distSqr(route.get(i));
+            if (d < nd) {
+                nd = d;
+                nearest = i;
+            }
+        }
+        routeIndex = nearest;
+        int far = routeIndex;
+        while (far + 1 < route.size() && distSqr(route.get(far + 1)) <= LEG * LEG) far++;
+        if (far == routeIndex) {
+            if (routeIndex + 1 >= route.size()) {   // end of the planned stretch: plan the next
+                route = null;
+                return false;
+            }
+            far = routeIndex + 1;
+        }
+        int tries = 0;
+        for (int i = far; i > routeIndex && tries < MAX_PATH_TRIES; i -= Math.max(1, (far - routeIndex) / 3), tries++) {
+            BlockPos target = route.get(i);
+            Path path = papon.getNavigation().createPath(target, 1);
+            if (path != null && path.canReach()) {
+                papon.getNavigation().moveTo(path, SPEED);
+                waypoint = target;
+                failedPicks = 0;
+                return true;
+            }
+        }
+        // the route runs somewhere the navigator cannot get to: avoid it and plan again
+        deadEnd(route.get(Math.min(routeIndex + 1, route.size() - 1)));
+        route = null;
+        replanIn = 0;
+        return false;
+    }
+
+    private void deadEnd(BlockPos pos) {
+        long k = RoutePlanner.cellKey(pos);
+        if (deadEnds.add(k)) {
+            deadEndOrder.addLast(k);
+            while (deadEndOrder.size() > 64) deadEnds.remove(deadEndOrder.pollFirst());
+        }
+    }
+
+    private double distSqr(BlockPos p) {
+        double dx = p.getX() + 0.5 - papon.getX();
+        double dz = p.getZ() + 0.5 - papon.getZ();
+        return dx * dx + dz * dz;
     }
 
     private void pickWaypoint(ServerLevel level) {

@@ -18,6 +18,8 @@ an animation says otherwise.
 Lengths of one-shot animations are state durations in Java; keep them in step:
   receive / customer_receive   1.5 s = Customer.SERVE
   react_<who>                  = Customer.<WHO>.reactTicks / 20
+EDP445 and Badlands Chugs (meshes with elbows, jaw and eyelids) have their own full sets in
+gen_celeb_anims.py, with poses solved on their models by pose_solver.py.
   vendor_serve 1.5 s = VendorState.SERVING, vendor_inspect 7.5 s = INSPECTING, vendor_fraud 3.0 s = FRAUD
   vendor_exposed 3.0 s = EXPOSED, vendor_unmask 5.0 s = UNMASK, vendor_realize 3.0 s = REALIZE,
   vendor_rage 3.5 s = RAGE (the unmasking; TacoVendorEntity fires its effects at the same ticks)
@@ -27,6 +29,7 @@ import json
 import os
 
 from gen_anims import EPS, Anim
+from gen_celeb_anims import chugs_anims, edp_anims
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, 'src/main/resources/assets/papon/animations/entity')
@@ -78,14 +81,6 @@ def osc(t0, t1, step, a, b, ease=None):
 REST_L = [0, 0, -3]
 REST_R = [0, 0, 3]
 HOLD_TACO = [-52, -12, 0]       # right hand out in front, taco up
-# Badlands Chugs is a mesh with elbows (gen_chugs_mesh.py): his own two animations bend forearm_l/_r.
-# These poses were solved by forward kinematics on that rig so the jug's cap lands on his lips.
-JUG_UP = [-68, 32, -40]         # Badlands' left arm raised, elbow out...
-JUG_ELBOW = [-58, 0, 0]         # ...forearm bent up to his mouth
-JUG_TIP = [15, 0, 0]            # jug counter-rotation there: bottom up, cap at his mouth
-JUG_LOW = [25, 0, 0]            # forearm_l at rest: the jug hangs at his side, not out in front
-TACO_IN_R = [-20, -49, 37]      # Badlands' right arm, elbow out...
-TACO_ELBOW = [-94, 0, 0]        # ...forearm folded: the taco at his mouth
 GLASS = [-48, 18, 0]            # Reviewbrah's glass at chest height
 SIP = [-104, 32, 0]             # ...and raised to his lips
 GLASS_UP = [44, 0, 0]           # goblet counter-rotations that keep it upright in those poses
@@ -153,43 +148,6 @@ def h_idle_don_pollo():
     a.rot('cape', [(0, [6, 0, 0]), (3.25, [8, 0, 3]), (3.75, [8, 0, -3]), (4.25, [8, 0, 3]), (4.75, [6, 0, 0]),
                    (6.0, [6, 0, 0])])
     a.sound(1.45, 'bite')
-    return a
-
-
-def h_idle_edp445():
-    """Scrolling his phone, bouncing on his heels, checking how long this line is."""
-    a = H('idle_edp445', 5.0, True)
-    a.scale('phone', [(0, [1, 1, 1])], 'lin')
-    phone_up = [-72, 28, 0]
-    a.rot('arm_l', [(0, phone_up), (2.4, phone_up), (2.6, [-40, 14, -4], 'easeInOutSine'), (3.4, [-40, 14, -4]),
-                    (3.6, phone_up, 'easeInOutSine'), (5.0, phone_up)], 'lin')
-    a.rot('head', [(0, [16, 6, 0]), (2.4, [16, 6, 0]), (2.6, [-6, 0, 0], 'easeOutBack'), (2.9, [-6, -22, 0]),
-                   (3.2, [-6, 18, 0]), (3.5, [-4, 0, 0]), (3.7, [16, 6, 0], 'easeInOutSine'), (5.0, [16, 6, 0])], 'lin')
-    a.pos('root', osc(0, 2.4, 0.3, [0, 0, 0], [0, -0.5, 0]) + [(3.6, [0, 0, 0])] + osc(3.9, 5.0, 0.3, [0, -0.5, 0], [0, 0, 0]))
-    a.rot('arm_r', [(0, [-8, 0, 6]), (2.5, [-8, 0, 6]), (2.8, [-30, 0, 30]), (3.3, [-30, 0, 30]), (3.6, [-8, 0, 6]),
-                    (5.0, [-8, 0, 6])])
-    a.sound(0.6, 'phone').sound(1.5, 'phone').sound(2.6, 'hmm').sound(4.2, 'phone')
-    return a
-
-
-def h_idle_badlands():
-    """Gallon jug in hand. Takes a casual pull of it now and then. Breathes like a big man in the sun."""
-    a = H('idle_badlands_chugs', 5.0, True)
-    jug_rest = [-20, 8, -6]
-    jug_up = JUG_UP
-    a.rot('arm_l', [(0, jug_rest), (1.3, jug_rest), (1.7, jug_up, 'easeInOutSine'), (2.5, jug_up),
-                    (2.9, jug_rest, 'easeInOutSine'), (5.0, jug_rest)], 'lin')
-    a.rot('forearm_l', [(0, JUG_LOW), (1.3, JUG_LOW), (1.7, JUG_ELBOW, 'easeInOutSine'), (2.5, JUG_ELBOW),
-                        (2.9, JUG_LOW, 'easeInOutSine'), (5.0, JUG_LOW)], 'lin')
-    a.rot('jug', [(0, [20, 0, 0]), (1.3, [20, 0, 0]), (1.7, JUG_TIP, 'easeInOutSine'), (2.5, JUG_TIP),
-                  (2.9, [20, 0, 0], 'easeInOutSine'), (5.0, [20, 0, 0])], 'lin')
-    a.rot('head', [(0, [0, 0, 0]), (1.4, [0, 0, 0]), (1.75, [-28, 0, 0], 'easeInOutSine'), (2.5, [-28, 0, 0]),
-                   (2.8, [0, 0, 0], 'easeInOutSine'), (5.0, [0, 0, 0])], 'lin')
-    a.rot('arm_r', [(0, REST_R), (2.8, REST_R), (3.0, [-110, -40, 0], 'easeOutQuad'), (3.15, [-100, -55, 0]),
-                    (3.4, REST_R, 'easeInOutSine'), (5.0, REST_R)], 'lin')
-    a.scale('torso', [(0, [1, 1, 1]), (1.25, [1.02, 1.03, 1.02]), (2.5, [1, 1, 1]), (3.75, [1.02, 1.03, 1.02]),
-                      (5.0, [1, 1, 1])])
-    a.sound(1.8, 'glug').sound(2.1, 'glug').sound(2.85, 'gulp')
     return a
 
 
@@ -290,89 +248,6 @@ def h_react_don_pollo():
     return a
 
 
-def h_react_edp445():
-    """5.0 s. One bite, eyes wide, arms out, points right at you, then the hype dance."""
-    a = H('react_edp445', 5.0, 'hold')
-    taco = bite(a, 0.45, shrink=0.75)
-    a.scale('taco', taco + [(0.95, [0.75, 0.75, 0.75]), (1.0, [0, 0, 0], 'easeInBack'), (5.0, [0, 0, 0])], 'lin')
-    arm_r = [(0, HOLD_TACO), (0.1, TO_MOUTH_R, 'easeInOutSine'), (0.6, TO_MOUTH_R), (0.9, [-30, -10, 10]),
-             (1.15, [-20, 0, 72], 'easeOutBack'), (1.55, [-20, 0, 72]), (1.8, [-92, 0, 4], 'easeOutBack'),
-             (2.2, [-92, 0, 4])]
-    arm_l = [(0, REST_L), (1.0, REST_L), (1.15, [-20, 0, -72], 'easeOutBack'), (1.55, [-20, 0, -72]),
-             (1.8, [-10, 0, -10]), (2.2, [-10, 0, -10])]
-    root = [(0, [0, 0, 0]), (2.25, [0, 0, 0])]
-    torso = [(0, [0, 0, 0]), (0.9, [0, 0, 0]), (1.05, [-10, 0, 0], 'easeOutBack'), (1.6, [-6, 0, 0]),
-             (1.8, [6, 0, 0]), (2.2, [4, 0, 0])]
-    for i in range(8):   # the hype: alternating fist pumps on the beat
-        t = round(2.3 + 0.26 * i, 3)
-        up, down = [-172, 0, 12], [-40, 0, 12]
-        arm_r.append((t, up if i % 2 == 0 else down))
-        arm_l.append((t, [down[0], 0, -12] if i % 2 == 0 else [up[0], 0, -12]))
-        root.append((t, [0, 1.4 if i % 2 == 0 else 0, 0]))
-        torso.append((t, [0, 10 if i % 2 == 0 else -10, 0]))
-    arm_r += [(4.6, [-10, 0, 6], 'easeInOutSine'), (5.0, REST_R)]
-    arm_l += [(4.6, [-10, 0, -6], 'easeInOutSine'), (5.0, REST_L)]
-    root += [(4.5, [0, 0, 0]), (5.0, [0, 0, 0])]
-    torso += [(4.6, [0, 0, 0]), (5.0, [0, 0, 0])]
-    a.rot('arm_r', arm_r, 'lin')
-    a.rot('arm_l', arm_l, 'lin')
-    a.pos('root', root)
-    a.rot('torso', torso)
-    a.rot('head', [(0, [0, 0, 0]), (0.3, [-8, 0, 0]), (0.5, [4, 0, 0]), (0.9, [0, 0, 0]), (1.05, [-20, 0, 0], 'easeOutBack'),
-                   (1.6, [-14, 0, 0]), (1.8, [4, 0, 0]), (1.95, [-2, 0, 0]), (2.1, [4, 0, 0]), (2.3, [0, 0, 0]),
-                   (2.56, [-8, 0, 0]), (2.82, [0, 0, 0]), (3.08, [-8, 0, 0]), (3.34, [0, 0, 0]), (3.6, [-8, 0, 0]),
-                   (3.86, [0, 0, 0]), (4.12, [-8, 0, 0]), (4.4, [0, 0, 0]), (4.7, [6, 0, 0]), (5.0, [0, 0, 0])])
-    a.scale('beanie', [(0, [1, 1, 1]), (1.0, [1, 1, 1]), (1.1, [1.08, 1.2, 1.08], 'easeOutBack'), (1.4, [1, 1, 1]),
-                       (5.0, [1, 1, 1])], 'lin')
-    a.sound(1.05, 'hype').sound(2.3, 'cheer').sound(3.34, 'hype').sound(4.12, 'cheer')
-    return a
-
-
-def h_react_badlands():
-    """6.0 s. "Watch this." Chugs the whole gallon, slams it down, the burp, the flex, eats the taco in one."""
-    a = H('react_badlands_chugs', 6.0, 'hold')
-    jug_rest = [-20, 8, -6]
-    jug_up = JUG_UP
-    a.rot('arm_l', [(0, jug_rest), (0.5, jug_up, 'easeInOutSine'), (3.1, jug_up), (3.3, [-40, 10, -8], 'easeInQuad'),
-                    (3.4, [-34, 8, -8]), (4.0, [-34, 8, -8]), (4.2, [-14, 0, -96], 'easeOutBack'),
-                    (4.5, [-24, 0, -104]), (4.8, [-14, 0, -96]), (5.1, [-24, 0, -104]), (5.4, [-20, 8, -6], 'easeInOutSine'),
-                    (6.0, jug_rest)], 'lin')
-    a.rot('forearm_l', [(0, JUG_LOW), (0.5, JUG_ELBOW, 'easeInOutSine'), (3.1, JUG_ELBOW),
-                        (3.3, [0, 0, 0], 'easeInQuad'), (5.4, [0, 0, 0]), (6.0, JUG_LOW)], 'lin')
-    # counter-rotate so the jug's cap stays at his mouth, tipping further as it empties
-    a.rot('jug', [(0, [20, 0, 0]), (0.5, JUG_TIP, 'easeInOutSine'), (3.1, [JUG_TIP[0] - 25, 0, 0]),
-                  (3.3, [30, 0, 0], 'easeInQuad'), (4.0, [30, 0, 0]), (4.2, [0, 0, 0]), (5.4, [0, 0, 0]),
-                  (6.0, [20, 0, 0])], 'lin')
-    head = [(0, [0, 0, 0]), (0.6, [-36, 0, 0], 'easeInOutSine'), (3.1, [-40, 0, 0])]
-    torso = [(0, [0, 0, 0]), (0.6, [-10, 0, 0], 'easeInOutSine'), (3.1, [-12, 0, 0])]
-    scale = [(0, [1, 1, 1]), (0.6, [1, 1, 1])]
-    t = 0.7
-    while t < 3.05:
-        a.sound(t, 'glug')
-        scale += [(round(t, 3), [1.03, 0.98, 1.03]), (round(t + 0.15, 3), [1, 1, 1])]
-        t += 0.3
-    head += [(3.35, [8, 0, 0], 'easeOutQuad'), (3.55, [0, 0, 0]), (3.6, [-6, 0, 0]), (3.68, [18, 0, 0], 'easeOutQuad'),
-             (3.95, [0, 0, 0]), (4.2, [-10, 0, 0]), (5.2, [-10, 0, 0]), (5.4, [4, 0, 0]), (5.6, [0, 0, 0]),
-             (6.0, [0, 0, 0])]
-    torso += [(3.35, [6, 0, 0], 'easeOutQuad'), (3.55, [0, 0, 0]), (3.6, [-8, 0, 0]), (3.7, [16, 0, 0], 'easeOutQuad'),
-              (4.0, [0, 0, 0]), (6.0, [0, 0, 0])]
-    scale += [(3.3, [1, 1, 1]), (3.35, [1.05, 0.95, 1.05]), (3.5, [1, 1, 1]), (3.6, [1.1, 1.06, 1.1], 'easeOutQuad'),
-              (3.72, [0.94, 1.04, 0.94], 'easeOutQuad'), (4.0, [1, 1, 1], 'easeOutBack'),
-              (4.3, [1.04, 1.04, 1.04]), (4.5, [1, 1, 1]), (4.8, [1.04, 1.04, 1.04]), (5.1, [1, 1, 1]), (6.0, [1, 1, 1])]
-    a.rot('head', head)
-    a.rot('torso', torso)
-    a.scale('torso', scale, 'lin')
-    a.rot('arm_r', [(0, HOLD_TACO), (3.9, HOLD_TACO), (4.2, [-14, 0, 96], 'easeOutBack'), (4.5, [-24, 0, 104]),
-                    (4.8, [-14, 0, 96]), (5.1, [-24, 0, 104]), (5.3, TACO_IN_R, 'easeInOutSine'), (5.55, TACO_IN_R),
-                    (5.85, REST_R, 'easeInOutSine'), (6.0, REST_R)], 'lin')
-    a.rot('forearm_r', [(0, [0, 0, 0]), (5.1, [0, 0, 0]), (5.3, TACO_ELBOW, 'easeInOutSine'), (5.55, TACO_ELBOW),
-                        (5.85, [0, 0, 0], 'easeInOutSine'), (6.0, [0, 0, 0])], 'lin')
-    a.scale('taco', [(0, [1, 1, 1]), (5.45, [1, 1, 1]), (5.55, [0, 0, 0], 'easeInBack'), (6.0, [0, 0, 0])], 'lin')
-    a.pos('root', [(0, [0, 0, 0]), (3.3, [0, 0, 0]), (3.38, [0, -0.6, 0]), (3.5, [0, 0, 0]), (6.0, [0, 0, 0])])
-    a.sound(3.3, 'plop').sound(3.6, 'burp').sound(4.2, 'flex').sound(4.8, 'flex').sound(5.5, 'bite').sound(5.7, 'gulp')
-    return a
-
-
 def h_react_reviewbrah():
     """6.0 s. A measured bite. Deliberation. The verdict, to camera. A sip. Sign-off with a small bow."""
     a = H('react_reviewbrah', 6.0, 'hold')
@@ -400,8 +275,9 @@ def h_react_reviewbrah():
     return a
 
 
-HUMAN = [h_walk, h_walk_taco, h_hold_taco, h_idle, h_idle_don_pollo, h_idle_edp445, h_idle_badlands,
-         h_idle_reviewbrah, h_order, h_receive, h_react_don_pollo, h_react_edp445, h_react_badlands, h_react_reviewbrah]
+HUMAN = [h_walk, h_walk_taco, h_hold_taco, h_idle, h_idle_don_pollo, h_idle_reviewbrah, h_order, h_receive,
+         h_react_don_pollo, h_react_reviewbrah,
+         *[lambda a=a: a for a in edp_anims(H) + chugs_anims(H)]]   # gen_celeb_anims.py
 
 
 # ===================================================================== papons
