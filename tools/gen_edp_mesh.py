@@ -131,8 +131,6 @@ class Edp(H.Character):
     name = 'edp445'
     head_top_px = 31.0
     targets = [
-        (H.ELVS + 'elvs_jowls1', 1.0), (H.ELVS + 'elvs_chipmunkcheeks_l1', 0.8), (H.ELVS + 'elvs_wattle_jowel1', 0.7),
-        (H.ELVS + 'elvs_malebackfat1', 1.0),
         ('macrodetails/african-male-young', 1.0),
         ('macrodetails/universal-male-young-averagemuscle-maxweight', WEIGHT),
         ('macrodetails/height/male-young-averagemuscle-maxweight-minheight', 0.6),
@@ -153,18 +151,32 @@ class Edp(H.Character):
         ('nose/nose-scale-horiz-incr', 0.8), ('nose/nose-flaring-incr', 0.8), ('nose/nose-nostrils-width-incr', 0.7),
         ('nose/nose-volume-incr', 0.6), ('mouth/mouth-scale-horiz-incr', 0.5),
         ('mouth/mouth-lowerlip-volume-incr', 1.0), ('mouth/mouth-upperlip-volume-incr', 0.6),
-        ('eyes/l-eye-trans-out', 0.8), ('eyes/r-eye-trans-out', 0.8),
-        ('eyes/l-eye-height2-decr', 0.3), ('eyes/r-eye-height2-decr', 0.3),     # heavy upper lids
-        ('eyes/l-eye-bag-incr', 0.5), ('eyes/r-eye-bag-incr', 0.5),
+        ('eyes/l-eye-trans-out', 1.5), ('eyes/r-eye-trans-out', 1.5),
+        ('eyes/l-eye-height1-incr', 0.5), ('eyes/r-eye-height1-incr', 0.5),     # his wide-open stare
+        ('eyes/l-eye-height2-incr', 0.6), ('eyes/r-eye-height2-incr', 0.6),
     ]
     fat = {'torso': 0.85, 'uarm': 0.45, 'larm': 0.22, 'uleg': 0.45, 'lleg': 0.25, 'neck': 0.65}
     # the belly: a big forward dome, and the apron below it hanging over his shorts
-    bellies = [(0.47, 0.9, (3.6, 2.7), 1.05, 0.2), (0.17, 1.4, (3.0, 1.1), 0.5, 0.7)]
+    bellies = [(0.47, 0.9, (3.6, 2.7), 1.05, 0.2), (0.2, 1.3, (3.0, 1.2), 0.35, 0.35)]
+    belly_smooth = 0.8
     arm_hang_deg = 20.0
-    trousers = (0.2, 0.12)
-    # A frontal, neutral phone video frame in even light. (A close-up wide-eyed selfie was tried as
-    # well: its lens distortion and pursed lips warped the face.)
+    trousers = (0.2, 0.12)      # baggy basketball shorts
+    # Two frontal phone selfies: his wide-eyed stare (detail) and a neutral one (tone and shading
+    # averaged with it). Both tilted a few degrees; even daylight.
     photos = [
+        H.Photo('photo.jpg', 'https://i.redd.it/tn5ttuws5py51.jpg', [
+            ('r_eye', (180.0, 372.0)), ('l_eye', (398.0, 340.0)),
+            (5054, (285.0, 510.0)),                              # under the nose
+            (5057, (240.0, 500.0)), (11674, (330.0, 495.0)),     # nostrils
+            (411, (205.0, 615.0)), (7171, (400.0, 605.0)),       # mouth corners
+            (466, (295.0, 625.0)),                               # mouth
+            (5162, (320.0, 830.0)),                              # chin
+            (220, (295.0, 290.0)),                               # between the brows
+            (881, (330.0, 28.0)),                                # top of the head
+            (873, (115.0, 372.0)), (7578, (575.0, 345.0)),       # sides of the face at the eyes
+            (('side', 7.25, -1), (122.0, 180.0)), (('side', 7.25, 1), (558.0, 170.0)),   # temples
+            (('side', 6.04, -1), (125.0, 615.0)), (('side', 6.04, 1), (585.0, 600.0)),   # cheeks
+        ], (345.0, 430.0, 250.0, 420.0), 1.0),
         H.Photo('photo2.jpg', 'https://i.redd.it/zvgthayh3c151.jpg', [
             ('r_eye', (692.0, 348.0)), ('l_eye', (872.0, 372.0)),
             (5054, (752.0, 492.0)), (5057, (726.0, 488.0)), (11674, (782.0, 492.0)),
@@ -176,8 +188,7 @@ class Edp(H.Character):
         ], (760.0, 380.0, 200.0, 340.0), 1.0),
     ]
     face_floor = 5.3
-    mirror_face = -1          # his head is turned a little: both halves from his better-lit right
-    skin = np.array([110, 72, 53], float)
+    skin = np.array([94, 60, 44], float)
 
     @property
     def props(self):

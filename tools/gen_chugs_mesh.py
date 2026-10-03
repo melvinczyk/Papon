@@ -21,9 +21,8 @@ WEIGHT = 1.8            # past MakeHuman's max-weight target
 
 TEE, PANTS, SHOE, SOLE = (np.array(c, float) for c in ((30, 30, 33), (36, 37, 42), (24, 24, 26), (70, 68, 66)))
 NECK_HOLE = 1.05        # radius of the tee's neck hole around the neck axis, decimetres
-# his facial hair in the photo (pixels): (cx, cy, rx, ry) ellipses for the mustache, the chin beard and
-# the thin strips joining them round the mouth
-BEARD = [(683, 352, 50, 13), (683, 470, 52, 24), (627, 418, 12, 42), (739, 418, 12, 42)]
+# his beard in the photo (pixels): (cx, cy, rx, ry) ellipses for the mustache, goatee and its sides
+BEARD = [(683, 350, 60, 18), (683, 452, 80, 46), (630, 404, 26, 46), (736, 404, 26, 46)]
 MOUTH = (682, 388, 42, 27)
 
 
@@ -37,7 +36,7 @@ def tee_masks(pos, w, J):
     arm = sum(w[:, H.BONES.index(b)] for b in ('arm_r', 'arm_l', 'forearm_r', 'forearm_l'))
     head = sum(w[:, H.BONES.index(b)] for b in H.HEAD_BONES)
     ankle = (J['foot.L'][0][1] + J['foot.R'][0][1]) / 2 + 0.25
-    hem = (J['upperleg01.L'][0][1] + J['upperleg01.R'][0][1]) / 2 + 0.55
+    hem = (J['upperleg01.L'][0][1] + J['upperleg01.R'][0][1]) / 2 + 0.3
     collar = collar_height(x, z, J)
     opening = 1 - smoothstep(NECK_HOLE - 0.05, NECK_HOLE + 0.05, np.hypot(x, z - J['neck01'][0][2]))
     sleeve = np.zeros(len(pos))
@@ -47,7 +46,9 @@ def tee_masks(pos, w, J):
         t = ((pos - sh) @ axis) / (axis @ axis)
         mine = (np.sign(x) == (1 if side == 'L' else -1))
         sleeve = np.maximum(sleeve, mine * (1 - smoothstep(0.55, 0.62, t)))
+    leg = sum(w[:, H.BONES.index(b)] for b in ('leg_r', 'leg_l', 'shin_r', 'shin_l'))
     tee = np.clip(np.clip(1 - arm, 0, 1) + arm * sleeve, 0, 1) * smoothstep(hem - 0.04, hem + 0.04, y) \
+        * (1 - smoothstep(0.35, 0.65, leg)) \
         * (1 - opening * smoothstep(collar - 0.03, collar + 0.03, y)) * (1 - smoothstep(0.6, 0.8, head))
     shoes = 1 - smoothstep(ankle - 0.03, ankle + 0.03, y)
     pants = (1 - smoothstep(hem - 0.04, hem + 0.04, y)) * np.clip(1 - arm, 0, 1) * (1 - shoes)
@@ -114,8 +115,6 @@ class Chugs(H.Character):
     name = 'badlands_chugs'
     head_top_px = 35.0
     targets = [
-        (H.ELVS + 'elvs_jowls1', 0.8), (H.ELVS + 'elvs_chipmunkcheeks_l1', 0.6), (H.ELVS + 'elvs_malebackfat1', 1.0),
-        ('bodyshapes/bodyshapes-elvs-man-apple', 0.6),
         ('macrodetails/african-male-young', 1 - OLD), ('macrodetails/african-male-old', OLD),
         ('macrodetails/universal-male-young-averagemuscle-maxweight', (1 - OLD) * WEIGHT),
         ('macrodetails/universal-male-old-averagemuscle-maxweight', OLD * WEIGHT),
@@ -135,7 +134,7 @@ class Chugs(H.Character):
     fat = {'torso': 0.6, 'uarm': 0.38, 'larm': 0.15, 'uleg': 0.35, 'lleg': 0.15, 'neck': 0.55}
     bellies = [(0.43, 1.3, (2.6, 1.6), 0.65, 0.0)]
     arm_hang_deg = 16.0
-    trousers = (0.22, 0.26)
+    trousers = (0.22, 0.26)     # loose black trousers
     photo_url = 'https://i.ytimg.com/vi/kYnmaUPVqcA/maxresdefault.jpg'   # frontal, bald, goatee, even light
     # Photo sides are mirrored from his unobstructed left side about x = 685 (a glass covers his right).
     landmarks = [
@@ -154,16 +153,27 @@ class Chugs(H.Character):
     ]
     head_ellipse = (685.0, 310.0, 118.0, 175.0)
     face_floor = 7.55
-    skin = np.array([116, 77, 57], float)
+    skin = np.array([104, 68, 52], float)
 
     @property
     def props(self):
         return chugs_props()
 
-    mirror_face = 1                       # a glass hides his right cheek: both halves from his left
-    photo_holes = [(683, 388, 58, 34)]    # he is laughing: the open mouth stays the skin's own lips
-    beard = BEARD
-    beard_gaps = [MOUTH]
+    def photo_fix(self, photo):
+        """His mustache and goatee read faint once the photo is projected and matted: darken the
+        hair inside BEARD (pixels darker than the skin around them), leaving the open mouth alone."""
+        x0, y0, x1, y1 = 540, 280, 830, 540
+        crop = photo[y0:y1, x0:x1]
+        zone = np.zeros(crop.shape[:2])
+        for cx, cy, rx, ry in BEARD:
+            zone = np.maximum(zone, H.ellipse_mask(zone.shape, cx - x0, cy - y0, rx, ry))
+        zone *= 1 - H.ellipse_mask(zone.shape, MOUTH[0] - x0, MOUTH[1] - y0, MOUTH[2], MOUTH[3], 0.35)
+        lum = crop.mean(2)
+        local = H.soft_blur(lum, 24)
+        hair = smoothstep(0.98, 0.7, lum / np.maximum(local, 1)) * zone
+        out = photo.copy()
+        out[y0:y1, x0:x1] = crop * (1 - 0.55 * hair)[..., None]
+        return out
 
     def covered(self, pos, w, J):
         tee, pants, _, _ = tee_masks(pos, w, J)

@@ -32,6 +32,8 @@ def load(name):
     layer.data.foreach_set('uv', uv[[v for f in polys for v in f]].flatten())
     for p in mesh.polygons:
         p.use_smooth = True
+    N = np.array(m['normals'], float).reshape(-1, 3)[:, [0, 2, 1]] * [-1, -1, 1]   # the game's own normals
+    mesh.normals_split_custom_set_from_vertices(N.tolist())
     ob = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(ob)
     tex = m['texture'].split(':')[1]
