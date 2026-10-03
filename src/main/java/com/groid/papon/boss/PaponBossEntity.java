@@ -140,6 +140,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int legsLeft;
     private boolean legReverse;
     private int stall;
+    private boolean refunded;
     @Nullable private Vec3 ramAim;
     // client
     private int clientStateTicks;
@@ -638,6 +639,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         drive = Drive.REV;
         driveTicks = 0;
         legsLeft = isPhaseTwo() ? 4 : 2;
+        refunded = false;
         setBossState(BossState.DRIVING);
     }
 
@@ -676,6 +678,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 van.autopilot(lock && ramAim != null ? ramAim : aim, legReverse, lock);
                 stall = driveTicks > 25 && Math.abs(van.speed()) < 0.06 ? stall + 1 : 0;
                 if (toGo < -4 || driveTicks > (legReverse ? 60 : 90) || crashed || stall > 15) {
+                    // hitting a wall (his own truck, parked beside him) does not count as a ram
+                    if ((crashed || stall > 15) && !refunded) {
+                        legsLeft++;
+                        refunded = true;
+                    }
                     van.brake();
                     nextDrive(Drive.BRAKE);
                 }
@@ -683,7 +690,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case BRAKE -> {
                 van.brake();
                 if (Math.abs(van.speed()) < 0.05 || driveTicks > 30) {
-                    if (legsLeft > 0 && target != null && target.distanceTo(van) < 26) startLeg(van, target, false);
+                    if (legsLeft > 0 && target != null && target.distanceTo(van) < 40) startLeg(van, target, false);
                     else exitVan(level, van);
                 }
             }
