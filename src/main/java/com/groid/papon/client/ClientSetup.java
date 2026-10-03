@@ -6,6 +6,7 @@ import com.groid.papon.entity.npc.TacoCustomerEntity;
 import com.groid.papon.client.mesh.MeshCrowdRenderer;
 import com.groid.papon.client.mesh.SkinnedMesh;
 import com.groid.papon.registry.ModEntities;
+import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.world.entity.EntityType;
 import com.groid.papon.registry.ModParticles;
 import net.minecraftforge.api.distmarker.Dist;
@@ -43,6 +44,12 @@ public final class ClientSetup {
         mesh(event, ModEntities.BADLANDS_CHUGS.get(), Customer.BADLANDS_CHUGS, 0.95F);
         customer(event, ModEntities.REVIEWBRAH.get(), Customer.REVIEWBRAH);
         customer(event, ModEntities.CUSTOMER_PAPON.get(), Customer.PAPON);
+        // Gerbin the dishwasher: a chort at 1.25x; his name tag is vanilla's, his bubble sits above it
+        event.registerEntityRenderer(ModEntities.GERBIN.get(),
+                ctx -> new CrowdRenderer<>(ctx, new CrowdModel<>("gerbin", "gerbin", true), 1.25F, 0.4F, 0.6F));
+        event.registerEntityRenderer(ModEntities.PAPON_BOSS.get(), BossRenderer::new);
+        event.registerEntityRenderer(ModEntities.CARAVAN.get(), CaravanRenderer::new);
+        event.registerEntityRenderer(ModEntities.MOLOTOV.get(), ThrownItemRenderer::new);
     }
 
     private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,

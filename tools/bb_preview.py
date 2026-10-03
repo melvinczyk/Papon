@@ -33,6 +33,9 @@ ANIM_FILES = {
     'customer_papon': 'papon_npc',
     'don_pollo': 'customer',
     'reviewbrah': 'customer',
+    'gerbin': 'gerbin',
+    'papon_boss': 'papon_boss',
+    'caravan': 'caravan',
 }
 
 VIEWS = [

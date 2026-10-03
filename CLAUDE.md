@@ -44,8 +44,23 @@ quality throughout."
    real people (caricatures), as editable Blockbench models.
 8. What **triggers the boss fight**: the Wandering Papon reaches the window and gives the Papon
    working the truck a **fraud taco voucher** (his Taco Coupon).
-9. Later (not built yet): the **boss fight** at the truck, with **cutscenes**, Cataclysm-level
-   mechanics. Joke boss, polished fight.
+9. The **boss fight** at the truck, with **cutscenes**, Cataclysm-level mechanics. Joke boss,
+   polished fight. (Built, see "The boss fight" below; the user's words:)
+   - **Gerbin**, a worker in the back of the truck behind the chef: a **chort** (Imps & Demons,
+     `realmrpg_demons:chort`) with **"Gerbin" as a name tag** over his head, **stripped of the
+     items the chort carries** (its sack), in a **dishwasher's apron**; animations of him working:
+     **cutting lettuce at a station** and **washing tomatoes in a sink**.
+   - Chef Papon, handed the fraud coupon, gets **angry and looks found out**, **rips off his
+     mustache** and **takes off his chef hat**: under it, **Norwood 7** male pattern baldness.
+     Realizing he showed you his hair, he **flies into a rage**: the fight starts. He **jumps out
+     through the front opening**, **chugs a whole bottle of tequila (you can see the amount)**.
+   - A **2001 Dodge Caravan** made in Blockbench, a **real entity** on the battlefield, which the
+     player can **drive** too. He **rams the player in it, unblockable**; the warning is him
+     **drinking a whole handle of tequila (visible amount), a 2-3 second window**. He **exits
+     right after the ram, stumbling drunk**, giving a few seconds before his next attack. He can
+     **only use it when he gets close to it** (so taking the van away prevents it). He can **back
+     into the player** too. The van has its **own sounds** (idling, driving...).
+   - **His own boss bar, potato and taco themed**; **boss music blending slow and fast mariachi**.
 8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
    separate entity, just more Papon animations (the llama lives in his model) — across rivers,
    lakes and oceans.
@@ -89,9 +104,18 @@ player and were not exercised headless.
 | Customers `papon:don_pollo|edp445|badlands_chugs|reviewbrah|customer_papon` | `entity/npc/TacoCustomerEntity.java`, `Customer.java`, `CustomerState.java` |
 | Shared NPC base (unkillable, speech, voice blips), sound cue table | `entity/npc/TacoNpc.java`, `entity/npc/SoundCues.java` |
 | Speech: lang-key lines as bubbles + chat (Spanish lines get a `.gloss` translation) | `entity/Speech.java`, `client/SpeechBubble.java`, `lang/en_us.json` `speech.papon.*` |
-| Boss hook (placeholder) | `boss/TacoBoss.java` |
+| Gerbin the dishwasher (`papon:gerbin`, chort at 1.25x, named): chop / wash loop at his stations, peeks and waves, cowers during the fight | `entity/npc/GerbinEntity.java`, `GerbinState.java`, `TacoTruck.gerbinChop/gerbinSink`, `TacoTruckScene.ensureGerbin` |
+| The unmasking: FRAUD → EXPOSED → UNMASK (mustache rip, toque off, Norwood 7) → REALIZE → RAGE → boss | `TacoVendorEntity.unmasking`, `VendorState`, `gen_npc_anims.py` (`vendor_exposed/unmask/realize/rage`) |
+| Chef Papon, El Calvo (`papon:papon_boss`, 1.5x): intro, five attacks, the van routine, phase two, death | `boss/PaponBossEntity.java`, `BossState.java`, `TacoBoss.java`, `MolotovEntity.java` |
+| The 2001 Dodge Caravan (`papon:caravan`): drivable, boss autopilot, run-over damage (bypasses shields), sounds | `vehicle/CaravanEntity.java`, `client/CaravanRenderer.java`, `client/CaravanSounds.java` |
+| Cutscenes (letterbox, scripted camera, subtitles), camera shake, boss music, custom boss bar | `client/Cinematic.java`, `ScreenShake.java`, `BossMusic.java`, `BossBarRenderer.java`, `ClientEvents.java` |
+| Networking (shake S→C, horn C→S) | `network/PaponNetwork.java` |
+| Tequila (drink; the molotov's look), Caravan Keys (park / pocket a van; the boss drops his) | `item/TequilaItem.java`, `item/CaravanKeysItem.java`, `loot_tables/entities/papon_boss.json` |
+| Damage types (`papon:caravan` in `minecraft:bypasses_shield`; fire ones in `is_fire`) | `registry/ModDamage.java`, `data/papon/damage_type/*`, `data/minecraft/tags/damage_type/*` |
+| Synthesized sounds and music | `registry/ModSounds.java`, `assets/papon/sounds.json`, `tools/gen_sounds.py` |
+| Dev screenshot director (`./gradlew runClient -Pautoshot`) | `client/dev/AutoShot.java` |
 | Spawn eggs for every new entity | `registry/ModItems.java` |
-| Admin commands `/papon locate|skip|arrive|remove|escort|placetruck|distance|target|state|tacoline|serve|fraud` | `command/PaponCommand.java` |
+| Admin commands `/papon locate|skip|arrive|remove|escort|placetruck|distance|target|state|tacoline|serve|fraud|reveal|boss|van|bossstate` | `command/PaponCommand.java` |
 | Renderers: Wandering Papon (only the Jarrito flavour he holds; speech bubble); crowd (per-type model, Papon hat variants, head turning, bubbles) | `client/WanderingPaponRenderer.java`, `client/CrowdRenderer.java`, `client/CrowdModel.java`, `client/ClientSetup.java` |
 | EDP445 drawn as the EDP SIM mesh skinned onto the customer rig | `client/mesh/MeshCrowdRenderer.java`, `client/mesh/SkinnedMesh.java`, `tools/gen_edp_mesh.py` |
 | EDP445 and Badlands Chugs as semi-photorealistic meshes (MakeHuman body + photographed faces), with elbows, jaw, eyelids | `tools/mh_human.py`, `tools/gen_edp_mesh.py`, `tools/gen_chugs_mesh.py`, `client/mesh/*` |
@@ -101,10 +125,46 @@ player and were not exercised headless.
 | Mesh celebrities' bodies: knees (`shin_r/_l` bones), relaxed hands, shoes, loose trousers, neck clear of the shoulders, Blender decimation to quads (~10.5k verts, head and hands untouched) | `tools/mh_human.py` (`relax_hands`, `dress`, `optimize`), `tools/blender_decimate.py` |
 | Previews without Minecraft: Blender stills and animation filmstrips (GeckoLib keyframes evaluated, mesh skinned) | `tools/blender_preview.py`, `tools/anim_preview.py` + `tools/blender_filmstrip.py` |
 
-**Boss hook:** `TacoBoss.onFraud(level, vendor, wanderer)` runs the moment the vendor declares
-the coupon a fraud (vendor enters `FRAUD`, Wandering Papon `BUSTED`, customers flee, title
-"¡FRAUDE!"). It only logs today; the fight and its cutscene start there. The vendor is the
-natural boss (already 1.5x, already furious, in his own arena).
+### The boss fight (status 2026-10-02: built; tested headless and with the autoshot client)
+- **Gerbin** is hired when a truck opens (and lazily, by the vendor, at older trucks). Stations are
+  template cells (`GERBIN_CHOP` (2,1,2) facing the new prep counter on the west wall, `GERBIN_SINK`
+  (5,1,2) facing the cauldron moved to the east wall); his props (board, lettuce, basket, bowls,
+  suds) are bones in his own model, at 1.25x they line up with those blocks. Loop: TO_CHOP → CHOP
+  (3 x 6 s) → [LOOK] → TO_SINK → WASH (3 x 5 s) → ...; SHOCKED → COWER while a vendor is unmasking
+  or a boss is within 40 blocks, back to work 10 s after.
+- **The unmasking** (vendor): FRAUD 60t → EXPOSED 60t → UNMASK 100t (rip at t19, the reveal at t57:
+  `boss.reveal` sting, glint, action bar "Norwood 7.") → REALIZE 60t → RAGE 70t (roar t34) →
+  `TacoBoss.startFight`: the vendor is discarded and `PaponBossEntity` takes his place with
+  `begin(from, to, van)`. Old saves stuck in FURIOUS move on to EXPOSED. The vendor model gained
+  `hair` (Norwood 7 horseshoe + ear puffs), `wisps`, `stache_mark`, `sweat`, `blush`, `tears`
+  (all pinned 0 except where keyed); his arms stretch (scale Y) to reach his face and hat.
+- **The boss** (synced `BossState`, Cataclysm pattern). Intro: LEAP_OUT 30t (scripted arc out of the
+  window, noPhysics, lands t20) → CHUG 100t (750 ml, `bottle_liquid` drains 1.25-3.75 s) → ROAR
+  40t (boss bar shown, title, music). Attacks from IDLE by range and cooldown: SWIPE (spatula hits
+  t12/t26), SLAM (jump t12, lands ~t30: shockwave ring, damage, shake), BREATH (fire cone t16-52),
+  THROW (molotov t22; 3 in phase two). The van: TO_VAN (walks to the driver's door jingling keys,
+  only if the van is empty and within 40 blocks) → DRINK_HANDLE 50t (1.75 l `handle_liquid` drains:
+  the warning, plus an action-bar line) → ENTER_VAN 16t → DRIVING (REV burnout 20t, then legs:
+  each forwards or in reverse depending on where the target is, steering locked inside ~7 blocks so
+  you can sidestep; 2 legs, 4 in phase two) → EXIT_STUMBLE 80t (takes 1.5x damage). PHASE at half
+  health (faster, angrier, bar renamed). DEATH 100t (kneels, cries, falls; loot: Caravan Keys,
+  2-4 Tequila). Invulnerable in the intro, PHASE and DEATH; half damage while in the van. Config
+  `[boss]`: health 800, damageMultiplier, vanRamDamage 22, vanCooldownTicks 360, cinematics, bossMusic.
+- **The van** is a `LivingEntity` (step-up, gravity, interpolation for free) with its own bicycle-model
+  physics in `travel`: the driving player's client runs it (vanilla vehicle sync), the server runs
+  it for the boss (`autopilot(target, reverse, lockSteering)`) and for an empty van. The server
+  measures real speed from position deltas for run-over hits (`runOver`: anything inside the van's
+  rotated footprint, on the bumper end it moves toward), crashes and tyre screech. Square hitbox
+  (2.4) shorter than the van (5.6 blocks); the length is handled in code. Seats: driver front left
+  (US), then 4 more. Jump = horn (packet). Only `/kill` or the keys remove it.
+- **Client**: `Cinematic` puts a client-only marker entity in as the camera entity during
+  EXPOSED..RAGE and LEAP_OUT..ROAR(t30) for players within 40 blocks; shots are computed per tick
+  from the subject's synced state and `ticksInState()`, so they stay in step with the animations.
+  HUD, hand, chat and the player's own body hidden; movement held; dialogue subtitled in the bottom
+  letterbox bar (line + `.gloss`). `BossBarRenderer` replaces the vanilla bar for the
+  `bossbar.papon.chef*` keys. `BossMusic` plays `music.boss` on the Jukebox/Note Blocks slider while a
+  fighting boss is within 72 blocks and holds vanilla music off. `CaravanSounds` loops idle/drive
+  pitched by speed; the van shows a km/h readout instead of mount hearts.
 
 ### The Taco Truck line (the boss timer)
 - On arrival (`ARRIVED` tick 22) `TacoTruckScene.open` places the truck **windowGap** blocks
@@ -177,6 +237,25 @@ Model, texture and animations are **generated by scripts** — edit the scripts,
 - `tools/gen_items.py` → coupon icon, 3D Jarrito bottle models + textures (4 flavours), 3D
   chancla model + texture, snooze particle texture + json. `tools/gen_truck.py` → truck `.nbt` (placeholder
   build; window faces +Z, `TacoTruck.WINDOW = (4,0,8)`; can be replaced by a structure-block save).
+- `tools/gen_gerbin.py` → Gerbin: the chort's bones and UVs from `tools/src/chort_base.png` (copied from
+  the Imps & Demons jar like `papon_base.png` is from Walking Crops; the user asked for a chort), the
+  sack left out, apron, gloves, station props. Animations in `tools/gen_boss_anims.py`.
+- `tools/gen_vendor.py` also writes `papon_boss` (256² texture): the vendor's body + apron + the bald
+  parts, props `bottle`(+`bottle_liquid`), `handle`(+`handle_liquid`), `big_spatula`, `molotov`,
+  `lighter`, `keys`. Bottles hang from the fist by the neck so a raised arm is a chug; glass is
+  painted translucent and the boss renders `entityTranslucent` so the level shows.
+- `tools/gen_boss_anims.py` → `gerbin.animation.json` and `papon_boss.animation.json` (lengths =
+  `GerbinState` / `BossState` durations, listed in its docstring).
+- `tools/gen_caravan.py` → the van: geo (512² texture, translucent glass), `caravan_glowmask.png`
+  (head/tail lamps, drawn while the engine runs) and `caravan.animation.json` (doors, idle shudder).
+  Wheels, steering, body roll/pitch and the fuzzy dice are driven in code (`CaravanRenderer.Model`).
+  Bedrock cube rotations: +X tilts a cube's +Z end up (hood +15, windshield +35).
+- `tools/gen_ui.py` → `textures/gui/boss_bar.png`. `tools/gen_sounds.py` → every `.ogg`
+  (`pip install numpy soundfile`): engine loops built circularly over whole engine cycles, one-shots,
+  the reveal sting, and the ~108 s mariachi score (fanfarria / ranchera / son / puente / son final,
+  original melodies in A harmonic minor; trumpets and violins additive, vihuela/guitar/guitarron
+  Karplus-Strong). Write big Vorbis files in chunks (libsndfile overflows its stack otherwise).
+  To use a real recording instead, drop it over `sounds/music/boss.ogg`.
 - `tools/blockbench/wandering_papon.bbmodel` — Blockbench project with model + all animations;
   `tools/blockbench/preview.png` — key frames.
 
@@ -446,6 +525,13 @@ ahead, the line, and queues a Wandering Papon; with `/papon escort true` the lin
 and logs every vendor/customer state change. `/papon serve` finishes the current order,
 `/papon fraud` feeds everyone ahead of the Wandering Papon so he goes straight to the window.
 `level-type=minecraft\:flat` in `run/server.properties` gives a predictable test site.
+The fight: `/papon reveal` (nearest truck straight to the fraud and the unmasking) or `/papon boss`
+(boss + van right here); with `/papon escort true` the boss targets an armor stand when no player is
+near (`summon armor_stand ...`) and logs every state and van leg. `/papon bossstate <STATE>`.
+**Visual check without a person:** `./gradlew runClient -Pautoshot` quick-plays `run/saves/New World`,
+`client/dev/AutoShot` builds a truck at 4000 4000, plays the fraud, the unmasking and the fight, and
+saves `run/screenshots/papon_*.png` at the key moments (cutscene frames, boss bar, handle, ram,
+stumble, driving), then quits.
 Walking Crops is not in the dev run, so the coupon handoff can only be tested in the real pack.
 
 ## Releases (every build)

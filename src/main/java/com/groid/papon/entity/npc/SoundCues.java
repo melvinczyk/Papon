@@ -70,6 +70,38 @@ public final class SoundCues {
             case "pop" -> { sound = SoundEvents.ITEM_PICKUP; volume = 0.5F; pitch = 1.6F; }
             case "jump" -> { sound = SoundEvents.SLIME_JUMP_SMALL; volume = 0.6F; }
             case "plop" -> { sound = SoundEvents.SLIME_SQUISH; volume = 0.6F; pitch = 0.8F; }
+            // the unmasking
+            case "nervous" -> { sound = SoundEvents.VILLAGER_NO; volume = 0.8F; pitch = 0.6F; }
+            case "rip" -> { sound = SoundEvents.SHEEP_SHEAR; volume = 1.4F; pitch = 0.7F; }
+            case "yelp" -> { sound = SoundEvents.FOX_HURT; volume = 0.9F; pitch = 0.6F; }
+            case "whoosh" -> { sound = SoundEvents.PLAYER_ATTACK_SWEEP; volume = 0.8F; pitch = 1.3F; }
+            case "cloth" -> { sound = SoundEvents.ARMOR_EQUIP_LEATHER; volume = 0.9F; pitch = 0.9F; }
+            case "reveal" -> { sound = SoundEvents.AMETHYST_BLOCK_CHIME; volume = 1.5F; pitch = 1.6F; }
+            case "breeze" -> { sound = SoundEvents.ELYTRA_FLYING; volume = 0.15F; pitch = 1.6F; }
+            case "pat" -> { sound = SoundEvents.SLIME_BLOCK_STEP; volume = 0.8F; pitch = 1.3F; }
+            case "crouch" -> { sound = SoundEvents.ARMOR_EQUIP_LEATHER; volume = 0.7F; pitch = 0.6F; }
+            // Gerbin at work
+            case "chop" -> { sound = SoundEvents.WOOD_HIT; volume = 0.35F; pitch = 1.5F; }
+            case "leaf" -> { sound = SoundEvents.AZALEA_LEAVES_HIT; volume = 0.6F; pitch = 1.2F; }
+            case "swish" -> { sound = SoundEvents.AZALEA_LEAVES_BREAK; volume = 0.5F; pitch = 1.4F; }
+            case "sigh" -> { sound = SoundEvents.FOX_AMBIENT; volume = 0.4F; pitch = 0.8F; }
+            case "pick" -> { sound = SoundEvents.ITEM_PICKUP; volume = 0.4F; pitch = 1.1F; }
+            case "splash" -> { sound = SoundEvents.GENERIC_SPLASH; volume = 0.35F; pitch = 1.4F; }
+            case "scrub" -> { sound = SoundEvents.BRUSH_GENERIC; volume = 0.6F; pitch = 1.2F; }
+            case "squeak" -> { sound = SoundEvents.GLOW_ITEM_FRAME_ROTATE_ITEM; volume = 0.6F; pitch = 1.8F; }
+            case "drip" -> { sound = SoundEvents.POINTED_DRIPSTONE_DRIP_WATER; volume = 0.6F; }
+            case "hey" -> { sound = SoundEvents.FOX_AMBIENT; volume = 0.6F; pitch = 1.6F; }
+            // Chef Papon, the boss
+            case "smash" -> { sound = SoundEvents.GLASS_BREAK; volume = 1.2F; pitch = 0.9F; }
+            case "hiccup" -> { sound = SoundEvents.PLAYER_BURP; volume = 0.9F; pitch = 1.7F; }
+            case "keys" -> { sound = SoundEvents.CHAIN_STEP; volume = 0.5F; pitch = 1.9F; }
+            case "grunt" -> { sound = SoundEvents.RAVAGER_STEP; volume = 0.7F; pitch = 1.4F; }
+            case "swing" -> { sound = SoundEvents.PLAYER_ATTACK_SWEEP; volume = 1.2F; pitch = 0.6F; }
+            case "roar_small" -> { sound = SoundEvents.RAVAGER_ROAR; volume = 0.8F; pitch = 1.3F; }
+            case "flick" -> { sound = SoundEvents.FLINTANDSTEEL_USE; volume = 1.0F; }
+            case "flame" -> { sound = SoundEvents.FIRECHARGE_USE; volume = 0.6F; pitch = 0.8F; }
+            case "thud" -> { sound = SoundEvents.WOOL_FALL; volume = 1.0F; pitch = 0.6F; }
+            case "sob" -> { sound = SoundEvents.VILLAGER_HURT; volume = 0.9F; pitch = 0.5F; }
             default -> { return; }
         }
         e.level().playLocalSound(e.getX(), e.getY(), e.getZ(), sound, SoundSource.NEUTRAL, volume,

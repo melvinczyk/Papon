@@ -6,6 +6,8 @@ DataVersion 3465 = 1.20.1). The serving window faces +Z (south). Cells TacoTruck
   WINDOW  (4, 0, 7)  the ordering spot, ground level in front of the counter
   VENDOR  (4, 1, 4)  the floor cell the Papon working the window stands on
   GRIDDLE (3, 1, 1)  the campfire he cooks on
+  GERBIN_CHOP (2, 1, 2) / GERBIN_SINK (5, 1, 2)  where Gerbin the dishwasher works
+  PARKING (13.5, 0, 3.5)  the van's spot beside the cab (outside the template; levelled on placement)
 The counter is a bottom slab at y1 (its top 1.5 blocks up, a customer's head height) with the
 window open above it, so the 1.5x Papon behind it is in full view.
 
@@ -148,9 +150,17 @@ def build():
     put(3, 4, 1, 'minecraft:iron_bars')
     put(4, 1, 1, 'minecraft:smoker[facing=south,lit=true]')
     put(5, 1, 1, 'minecraft:barrel[facing=up]')
-    put(6, 1, 1, 'minecraft:water_cauldron[level=3]')
     put(1, 1, 4, 'minecraft:barrel[facing=east]')
     put(6, 1, 4, 'minecraft:composter')
+    # Gerbin's corner of the kitchen (TacoTruck.GERBIN_CHOP / GERBIN_SINK; his props line up with
+    # these blocks): the prep counter along the west wall, he stands at (2,1,2) facing it; the sink
+    # on the east wall, he stands at (5,1,2) facing it, the tomato bowl on the barrel to his left,
+    # the basket on the counter to his right.
+    for z in (1, 2, 3):
+        put(1, 1, z, 'minecraft:smooth_quartz')
+    put(6, 1, 1, 'minecraft:barrel[facing=up]')
+    put(6, 1, 2, 'minecraft:water_cauldron[level=3]')
+    put(6, 1, 3, 'minecraft:smooth_quartz')
     put(4, 3, 3, 'minecraft:lantern[hanging=true]')
 
     # ---- cab x8..10
