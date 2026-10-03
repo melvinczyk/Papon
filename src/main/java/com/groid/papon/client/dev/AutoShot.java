@@ -44,6 +44,8 @@ public final class AutoShot {
     private static final boolean POSE = MODE.equals("pose");
     /** -Pautoshot=fight: he fights a player who just stands there, on his own AI, for three minutes; every state is logged. */
     private static final boolean FIGHT = MODE.equals("fight");
+    /** -Pautoshot=coliseum: phase two from the kneel: the coliseum, the band asleep, woken, the count, the song, the fight, the crowd. */
+    private static final boolean COLISEUM = MODE.equals("coliseum");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -71,6 +73,10 @@ public final class AutoShot {
         }
         if (FIGHT) {
             fight(mc);
+            return;
+        }
+        if (COLISEUM) {
+            coliseum(mc);
             return;
         }
         if (REWORK) {
@@ -280,6 +286,99 @@ public final class AutoShot {
             if (k == 520) once(mc, "p2_20_back_down");
             if (k == 540) mc.stop();
         }
+    }
+
+    private static int colMark = -1;
+
+    private static void coliseum(Minecraft mc) {
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "kill @e[type=papon:mariachi]",
+                    "kill @e[type=papon:coliseum_crowd]", "tp @s 4000 200 4000");
+            case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            case 100 -> run("execute at @s rotated 0 0 run papon boss");
+            case 220 -> run("papon bossstate IDLE", MID, "papon bossstate P2_KNEEL");
+            default -> {}
+        }
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b == null) return;
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        if (s.ordinal() != lastState) {
+            lastState = s.ordinal();
+            PaponMod.LOG.info("[autoshot] boss -> {} (fps {})", s, mc.getFps());
+        }
+        if (!com.groid.papon.client.Cinematic.isActive() && colMark < 0) lookAt(mc, b);
+        String n = switch (s) {
+            case P2_SCREAM -> t == 60 ? "c00_scream_white" : null;
+            case P2_ARRIVE -> t == 12 ? "c01_crane_high" : t == 30 ? "c02_crane_down" : t == 52 ? "c03_landed_crowd" : t == 88 ? "c04_musica" : null;
+            case P2_NOTICE -> t == 12 ? "c05_band_asleep" : t == 40 ? "c06_maestro" : null;
+            case P2_MARCH -> t == 20 ? "c07_march" : null;
+            case P2_WAKE -> t == 18 ? "c08_clang" : t == 32 ? "c09_clang2" : t == 56 ? "c10_startled" : null;
+            case P2_WAIT -> t == 30 ? "c11_wait" : t == 110 ? "c12_band_dressing" : t == 190 ? "c13_band_dressing2" : t == 250 ? "c13b_wait" : null;
+            case P2_KICK -> t == 13 ? "c14_kick" : null;
+            case P2_COUNT -> t == 6 ? "c15_count_uno" : t == 44 ? "c16_count_tres" : t == 76 ? "c17_downbeat" : null;
+            case P2_SHOWTIME -> t == 8 ? "c18_guitar_close" : t == 40 ? "c19_guitar_tilt" : t == 66 ? "c20_singer_aura" : null;
+            case P2_APOLOGY -> t == 30 ? "c21_walk_over" : t == 80 ? "c22_apology" : t == 135 ? "c23_aura_farm" : t == 172 ? "c24_aura_farm2" : null;
+            case P2_RESUME -> t == 10 ? "c25_where_were_we" : t == 32 ? "c26_whip" : null;
+            default -> null;
+        };
+        if (n != null) once(mc, n);
+        if (s == BossState.IDLE && b.isPhaseTwo() && colMark < 0 && taken.contains("c25_where_were_we")) colMark = tick;
+        if (colMark > 0) {
+            int k = tick - colMark;
+            // the band playing, the singer up close, the stands, the fight, from outside
+            var singer = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(80),
+                    m -> m.getRole().singer()).stream().findFirst().orElse(null);
+            if (k == 5) PaponBossEntity.devFrozen = true;
+            if (k == 8) run("gamemode spectator");
+            if (singer != null && k == 10) {
+                // eye level with his mouth, a little to his left, so the mic is not in the way
+                Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+                Vec3 side = new Vec3(-f.z, 0, f.x);
+                Vec3 mouth = singer.position().add(0, singer.getBbHeight() * 0.6, 0);
+                tpLook(mouth.add(f.scale(2.4)).add(side.scale(0.8)).add(0, -1.5, 0), mouth);
+            }
+            if (k >= 20 && k <= 80 && k % 6 == 2) shot(mc, "c3" + String.format("%02d", k) + "_singing");
+            if (k == 90) run("tp @s ~ ~ ~ 0 0");
+            if (singer != null && k == 92) {
+                Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+                tpLook(singer.position().add(f.scale(10)).add(0, 2, 0), singer.position().add(0, 1.2, 0));
+            }
+            if (k == 100) shot(mc, "c40_band_playing");
+            if (k == 104) PaponMod.LOG.info("[autoshot] band fps {}", mc.getFps());
+            if (k == 110) tpLook(b.position().add(0, 1, 6), b.position().add(18, 9, -10));
+            if (k == 120) shot(mc, "c41_stands_east");
+            if (k == 122) tpLook(b.position().add(0, 1, 6), b.position().add(-18, 9, 16));
+            if (k == 132) shot(mc, "c42_stands_south");
+            if (k == 134) PaponMod.LOG.info("[autoshot] stands fps {}", mc.getFps());
+            if (k == 270) run("gamemode spectator");
+            if (k == 274) tpLook(b.position().add(0, 50, 75), b.position());
+            if (k == 290) shot(mc, "c45_outside_high");
+            if (k == 292) tpLook(b.position().add(-75, 14, 10), b.position().add(0, 10, 0));
+            if (k == 306) shot(mc, "c46_outside_side");
+            if (k == 308) PaponMod.LOG.info("[autoshot] outside fps {}", mc.getFps());
+            if (k == 310) tpLook(b.position().add(0, 3, 15), b.position().add(0, 2, -30));
+            if (k == 324) shot(mc, "c47_whole_bowl");
+            if (k == 326) {
+                PaponBossEntity.devFrozen = false;
+                run("gamemode survival");
+                tpLook(b.position().add(0, 1, 8), b.position().add(0, 2, 0));
+            }
+            if (k == 360) shot(mc, "c43_fight");
+            if (k == 380) run("kill @e[type=papon:papon_boss]");
+            if (k == 440) once(mc, "c48_his_fall");
+            if (k == 520) once(mc, "c49_back_down");
+            if (k == 540) mc.stop();
+        }
+    }
+
+    private static void tpLook(Vec3 at, Vec3 look) {
+        double dx = look.x - at.x, dy = look.y - (at.y + 1.62), dz = look.z - at.z;
+        float yaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * Mth.RAD_TO_DEG);
+        run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f %.1f %.1f", at.x, at.y, at.z, yaw, pitch));
     }
 
     private static int reworkMark = -1;

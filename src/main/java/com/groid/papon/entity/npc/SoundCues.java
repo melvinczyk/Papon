@@ -115,6 +115,15 @@ public final class SoundCues {
             case "shake" -> { sound = SoundEvents.SAND_HIT; volume = 1.0F; pitch = 1.5F; }
             case "sprout" -> { sound = SoundEvents.ROOTED_DIRT_BREAK; volume = 1.2F; pitch = 0.8F; }
             case "torch" -> { sound = SoundEvents.BLAZE_SHOOT; volume = 0.6F; pitch = 1.8F; }
+            // the mariachi band, and him at their stand
+            case "snore" -> { sound = SoundEvents.FOX_SLEEP; volume = 1.4F; pitch = 0.45F; }
+            case "snore_lo" -> { sound = SoundEvents.FOX_SLEEP; volume = 1.6F; pitch = 0.32F; }
+            case "yawn" -> { sound = SoundEvents.POLAR_BEAR_AMBIENT; volume = 0.6F; pitch = 1.3F; }
+            case "count" -> { sound = SoundEvents.WOOD_STEP; volume = 1.0F; pitch = 0.7F; }
+            case "toot" -> { sound = SoundEvent.createVariableRangeEvent(com.groid.papon.PaponMod.id("band.toot")); volume = 0.8F; }
+            case "violin_tune" -> { sound = SoundEvent.createVariableRangeEvent(com.groid.papon.PaponMod.id("band.tune")); volume = 0.7F; }
+            case "strum" -> { sound = SoundEvents.NOTE_BLOCK_GUITAR.value(); volume = 0.9F; pitch = 0.8F; }
+            case "snap" -> { sound = SoundEvents.NOTE_BLOCK_HAT.value(); volume = 1.2F; pitch = 1.8F; }
             default -> { return; }
         }
         e.level().playLocalSound(e.getX(), e.getY(), e.getZ(), sound, SoundSource.NEUTRAL, volume,

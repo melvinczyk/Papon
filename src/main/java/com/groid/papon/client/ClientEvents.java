@@ -28,7 +28,17 @@ public final class ClientEvents {
         if (mc.isPaused()) return;
         ScreenShake.tick();
         Cinematic.tick();
+        SongPlayer.tick();
         BossMusic.tick();
+        CrowdSounds.tick();
+    }
+
+    /** The crowd renderer culls its fans against the level's own frustum. */
+    @SubscribeEvent
+    public static void onRenderStage(net.minecraftforge.client.event.RenderLevelStageEvent event) {
+        if (event.getStage() == net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY) {
+            ColiseumCrowdRenderer.frustum = event.getFrustum();
+        }
     }
 
     @SubscribeEvent

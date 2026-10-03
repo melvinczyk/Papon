@@ -29,11 +29,16 @@ public final class BossMusic {
         if (track != null) {
             // the phase-two cutscene: the music cuts out, fast; in his dimension it comes back hotter
             track.cut = boss != null && boss.getBossState().silent();
-            track.setPitch(boss != null && boss.isRisen() ? 1.12F : 1.0F);
+            track.setPitch(boss != null && boss.isRisen() ? 1.12F : 1.0F);   // risen with no coliseum to go to
         }
         if (boss != null && boss.getBossState().silent()) {
             mc.getMusicManager().stopPlaying();
             want = false;
+        }
+        if (SongPlayer.isActive() || (boss != null && boss.inColiseum())) {
+            // in his coliseum the band plays (SongPlayer); before they do, only the crowd
+            want = false;
+            if (track != null) track.cut = true;
         }
         if (want) {
             mc.getMusicManager().stopPlaying();

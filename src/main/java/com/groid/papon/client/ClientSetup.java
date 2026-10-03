@@ -74,6 +74,8 @@ public final class ClientSetup {
                 ctx -> new TumbleRenderer<>(ctx, () -> new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_SPUD.get()), 0.7F, 40F));
         event.registerEntityRenderer(ModEntities.BOSS_PROP.get(), PropRenderer::new);
         event.registerEntityRenderer(ModEntities.PAPON_ECHO.get(), EchoRenderer::new);
+        event.registerEntityRenderer(ModEntities.MARIACHI.get(), MariachiRenderer::new);
+        event.registerEntityRenderer(ModEntities.COLISEUM_CROWD.get(), ColiseumCrowdRenderer::new);
     }
 
     private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,
