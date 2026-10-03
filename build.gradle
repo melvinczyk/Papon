@@ -29,8 +29,9 @@ minecraft {
             // ./gradlew runClient -Pautoshot : quick-play "New World" and let client/dev/AutoShot
             // take screenshots of the truck, the unmasking and the fight (run/screenshots/papon_*.png)
             if (project.hasProperty('autoshot')) {
-                property 'papon.autoshot', 'true'
-                args '--quickPlaySingleplayer', 'New World'
+                // -Pautoshot: the truck, the unmasking and phase one; -Pautoshot=phase2: phase two
+                property 'papon.autoshot', (project.property('autoshot') ?: 'true').toString()
+                args '--quickPlaySingleplayer', 'papon_shots'
             }
         }
         server { args '--nogui' }

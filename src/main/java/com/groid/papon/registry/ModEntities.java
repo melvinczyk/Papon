@@ -65,6 +65,15 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(PaponMod.id("caravan").toString()));
 
+    // Phase two: the foil-wrapped potatoes that circle him and soak up hits.
+    public static final RegistryObject<EntityType<com.groid.papon.boss.FoilPotatoEntity>> FOIL_POTATO = REGISTRY.register("foil_potato",
+            () -> EntityType.Builder.<com.groid.papon.boss.FoilPotatoEntity>of(com.groid.papon.boss.FoilPotatoEntity::new, MobCategory.MISC)
+                    .sized(0.9F, 0.7F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build(PaponMod.id("foil_potato").toString()));
+
     public static final RegistryObject<EntityType<com.groid.papon.boss.PotatoShotEntity>> POTATO_SHOT = REGISTRY.register("potato_shot",
             () -> EntityType.Builder.<com.groid.papon.boss.PotatoShotEntity>of(com.groid.papon.boss.PotatoShotEntity::new, MobCategory.MISC)
                     .sized(0.25F, 0.25F)

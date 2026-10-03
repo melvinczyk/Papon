@@ -12,6 +12,8 @@ public final class ModEffects {
 
     /** Run over (or rear-ended) by the van: down on the ground, unable to move. */
     public static final RegistryObject<MobEffect> STUNNED = REGISTRY.register("stunned", StunnedEffect::new);
+    /** Blowtorched and salted in Chef Papon's grab: armor and toughness down 30%. */
+    public static final RegistryObject<MobEffect> BRITTLE = REGISTRY.register("brittle", com.groid.papon.effect.BrittleEffect::new);
 
     private ModEffects() {}
 }

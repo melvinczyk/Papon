@@ -117,8 +117,20 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     private boolean autoLock;
     private boolean autoBrake;
 
+    // sliding (kicked, drifting, left to roll on): a velocity of its own, not along the heading
+    private Vec3 shoveVel = Vec3.ZERO;
+    private int shoveTicks;
+    private float shoveSpin;
+    private float shoveDamage = 1F;
+    private boolean wasSliding;
+    /** Carried over Chef Papon's head: no physics of its own, he places it. */
+    private boolean carried;
+    /** The ground for a ghosting or flying van when the heightmap lies (the potato dome's floor). */
+    @Nullable private Double floorOverride;
+
     // server bookkeeping
     @Nullable private Vec3 lastPos;
+    private Vec3 planar = Vec3.ZERO;
     private double measured;
     private double measuredPrev;
     private float lastYaw;
@@ -206,8 +218,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
                 double a = Math.PI * 2 * k / (8 * r);
                 double x = getX() + Math.cos(a) * r;
                 double z = getZ() + Math.sin(a) * r;
-                double y = level().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                        Mth.floor(x), Mth.floor(z));
+                double y = floorOverride != null ? floorOverride : level().getHeight(
+                        net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(x), Mth.floor(z));
                 if (Math.abs(y - getY()) > 5) continue;
                 if (level().noCollision(this, getBoundingBox().move(x - getX(), y - getY(), z - getZ()))) {
                     setPos(x, y, z);
@@ -228,11 +240,57 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         return l;
     }
 
+    /** Sets (or, with null, clears) the floor a ghosting or flying van comes down on. */
+    public void setFloor(@Nullable Double y) {
+        floorOverride = y;
+    }
+
+    /**
+     * Sends the van sliding with a velocity of its own, turning {@code spin} degrees a tick: kicked
+     * at someone, thrown into a handbrake drift, or left to roll on with nobody at the wheel. Hits
+     * whatever it slides through ({@code damage} scales the usual van hit).
+     */
+    public void shove(Vec3 vel, float spin, int ticks, float damage) {
+        shoveVel = new Vec3(vel.x, 0, vel.z);
+        shoveSpin = spin;
+        shoveTicks = ticks;
+        shoveDamage = damage;
+        speed = shoveVel.dot(forward());
+    }
+
+    public boolean isSliding() {
+        return shoveTicks > 0;
+    }
+
+    /** Lifted over Chef Papon's head (he moves it); false puts it back on its own physics. */
+    public void setCarried(boolean c) {
+        carried = c;
+        noPhysics = c;
+        setNoGravity(c);
+        if (c) {
+            shoveTicks = 0;
+            speed = 0;
+            setDeltaMovement(Vec3.ZERO);
+        }
+    }
+
+    /** Flings the driver's door open (Chef Papon checking someone with it on the way past). */
+    public void slamDoor() {
+        openDoor();
+        level().playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_DOOR_OPEN.get(), SoundSource.HOSTILE, 2.0F, 1.3F);
+    }
+
+    /** The planar velocity the server measured last tick, blocks a tick. */
+    public Vec3 planarVelocity() {
+        return planar;
+    }
+
     /**
      * The ground under a ghosting van: the median of five height samples (centre, nose, tail, both
      * sides), so it rides over the terrain and never climbs a lone tree trunk.
      */
     private double groundY() {
+        if (floorOverride != null) return floorOverride;
         double[] ys = new double[5];
         int i = 0;
         for (double[] o : new double[][]{{0, 0}, {0, HALF_LENGTH * 0.8}, {0, -HALF_LENGTH * 0.8}, {HALF_WIDTH, 0}, {-HALF_WIDTH, 0}}) {
@@ -323,6 +381,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     @Override
     public void travel(Vec3 input) {
         if (!isControlledByLocalInstance()) return;
+        if (carried) return;
         if (launchTicks > 0) {
             launchTicks++;
             noPhysics = true;
@@ -336,6 +395,10 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
                 launchTicks = 0;
                 landed = true;
             }
+            return;
+        }
+        if (shoveTicks > 0) {
+            slide();
             return;
         }
         LivingEntity driver = getControllingPassenger();
@@ -353,15 +416,21 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             top = BOSS_TOP;
             back = BOSS_REVERSE;
             accel = ACCEL * 2.2;
-            turn = MAX_TURN * 1.5F;
+            turn = MAX_TURN * 1.9F;
             if (autoBrake || autoTarget == null) {
                 brake = true;
             } else {
+                // pure pursuit with a stiff gain; lifts off and scrubs speed into a sharp turn so the
+                // turning circle shrinks instead of carving a wide arc past the target
                 double yawTo = Mth.atan2(autoTarget.z - getZ(), autoTarget.x - getX()) * Mth.RAD_TO_DEG - 90.0;
                 double want = autoReverse ? yawTo + 180.0 : yawTo;
                 double diff = Mth.wrapDegrees(want - getYRot());
-                steer = autoLock ? 0F : (float) Mth.clamp(-diff / 18.0 * (autoReverse ? -1 : 1), -1, 1);
+                steer = autoLock ? 0F : (float) Mth.clamp(-diff / 10.0 * (autoReverse ? -1 : 1), -1, 1);
                 throttle = autoReverse ? -1F : 1F;
+                if (!autoLock && Math.abs(diff) > 55 && Math.abs(speed) > 0.6) {
+                    throttle *= 0.3F;
+                    speed *= 0.95;
+                }
             }
         } else {
             brake = true;
@@ -414,6 +483,54 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         if (onGround()) setDeltaMovement(getDeltaMovement().multiply(1, 0, 1));
     }
 
+    /** One tick of a slide: its own velocity, decaying, the body spinning; stopped by a wall unless ghosting. */
+    private void slide() {
+        shoveTicks--;
+        Vec3 v = shoveVel;
+        double vy;
+        if (isGhost()) {
+            noPhysics = true;
+            vy = Mth.clamp((groundY() - getY()) * 0.5, -0.8, 0.9);
+        } else {
+            noPhysics = false;
+            vy = (getDeltaMovement().y - 0.08) * 0.98;
+        }
+        Vec3 vel = new Vec3(v.x, vy, v.z);
+        setDeltaMovement(vel);
+        move(MoverType.SELF, vel);
+        setYRot(getYRot() + shoveSpin);
+        yBodyRot = getYRot();
+        yHeadRot = getYRot();
+        shoveVel = v.scale(0.955);
+        shoveSpin *= 0.93F;
+        speed = shoveVel.dot(forward());
+        if (isGhost()) {
+            setOnGround(true);
+        } else {
+            if (horizontalCollision && v.horizontalDistance() > 0.35) {
+                if (!level().isClientSide) wallHit = true;
+                shoveTicks = 0;
+            }
+            if (onGround()) setDeltaMovement(getDeltaMovement().multiply(1, 0, 1));
+        }
+        if (shoveVel.horizontalDistance() < 0.05) shoveTicks = 0;
+        if (shoveTicks == 0) {
+            speed = shoveVel.dot(forward()) * 0.5;
+            shoveVel = Vec3.ZERO;
+        }
+    }
+
+    /**
+     * Driven by someone else (Chef Papon, another player), the van takes each server update whole
+     * instead of easing toward it over three ticks: it gets one every tick, and the vanilla easing
+     * cuts the corners of every turn while the body still points the old way, so it looked like it
+     * was crabbing along diagonally. Rendering still interpolates between ticks.
+     */
+    @Override
+    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps, boolean teleport) {
+        super.lerpTo(x, y, z, yRot, xRot, isControlledByLocalInstance() ? steps : 1, teleport);
+    }
+
     @Override
     protected void tickRidden(Player player, Vec3 input) {
         super.tickRidden(player, input);
@@ -459,6 +576,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         Vec3 pos = position();
         measuredPrev = measured;
         measured = lastPos == null ? 0 : pos.subtract(lastPos).dot(forward());
+        planar = lastPos == null ? Vec3.ZERO : pos.subtract(lastPos).multiply(1, 0, 1);
         float yawDelta = Mth.wrapDegrees(getYRot() - lastYaw);
         lastPos = pos;
         lastYaw = getYRot();
@@ -485,7 +603,24 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             Vec3 pipe = local(-0.7, 0.25, -HALF_LENGTH - 0.1);
             level.sendParticles(ParticleTypes.SMOKE, pipe.x, pipe.y, pipe.z, 1, 0.02, 0.02, 0.02, 0.01);
         }
-        if (Math.abs(measured) > 0.16) runOver(level, measured, driver);
+        if (com.groid.papon.entity.WanderingPaponEntity.debugEscort && driver instanceof PaponBossEntity && tickCount % 4 == 0
+                && planar.horizontalDistance() > 0.05) {
+            double heading = getYRot();
+            double moving = Mth.atan2(planar.z, planar.x) * Mth.RAD_TO_DEG - 90.0;
+            com.groid.papon.PaponMod.LOG.info("[debug] van server yaw {} moving {} off {} speed {} sliding {}", (int) heading, (int) moving,
+                    (int) Mth.wrapDegrees(moving - heading), String.format("%.2f", planar.horizontalDistance()), isSliding());
+        }
+        if (isSliding() || wasSliding) {
+            if (planar.horizontalDistance() > 0.16) slideOver(level, driver);
+            if (planar.horizontalDistance() > 0.3) tyreSmoke(level);
+        } else if (Math.abs(measured) > 0.16) {
+            runOver(level, measured, driver);
+        }
+        if (wasSliding && !isSliding() && driver == null && isGhost()) {
+            setGhost(false);
+            settle();
+        }
+        wasSliding = isSliding();
         if (isGhost() && tickCount % 2 == 0) {
             for (int i = 0; i < 3; i++) {
                 Vec3 p = local((random.nextDouble() - 0.5) * 2 * HALF_WIDTH, 0.3 + random.nextDouble() * 1.8,
@@ -511,16 +646,48 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box,
                 e -> e != this && e.isAlive() && !hasPassenger(e) && !(e instanceof CaravanEntity))) {
             if (e instanceof Player p && (p.isSpectator() || p.isCreative())) continue;
-            if (e instanceof TacoNpc || e instanceof WanderingPaponEntity) continue;
+            if (e instanceof TacoNpc || e instanceof WanderingPaponEntity || e instanceof com.groid.papon.boss.FoilPotatoEntity) continue;
             if (hitCooldown.containsKey(e.getId())) continue;
             Vec3 r = e.position().subtract(position());
             double along = r.x * f.x + r.z * f.z;
             double lat = r.x * l.x + r.z * l.z;
-            double pad = e.getBbWidth() / 2;
+            double pad = e.getBbWidth() / 2 + (driver instanceof PaponBossEntity ? 0.35 : 0);
             if (Math.abs(lat) > HALF_WIDTH + pad || Math.abs(along) > HALF_LENGTH + pad || r.y > 2.0 || r.y < -1.6) continue;
             // the bumper doing the work: the end the van is moving toward
             if (along * Math.signum(v) < -HALF_LENGTH * 0.4) continue;
             ram(level, e, v, lat, driver);
+        }
+    }
+
+    /** Sliding: anything in the body's footprint is hit, pushed the way the van is going. */
+    private void slideOver(ServerLevel level, @Nullable LivingEntity driver) {
+        Vec3 f = forward();
+        Vec3 l = left();
+        double v = planar.horizontalDistance();
+        Vec3 dir = planar.normalize();
+        AABB box = getBoundingBox().inflate(HALF_LENGTH, 0.5, HALF_LENGTH);
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, box,
+                e -> e != this && e.isAlive() && !hasPassenger(e) && !(e instanceof CaravanEntity))) {
+            if (e instanceof Player p && (p.isSpectator() || p.isCreative())) continue;
+            if (e instanceof TacoNpc || e instanceof WanderingPaponEntity || e instanceof PaponBossEntity
+                    || e instanceof com.groid.papon.boss.FoilPotatoEntity) continue;
+            if (hitCooldown.containsKey(e.getId())) continue;
+            Vec3 r = e.position().subtract(position());
+            double along = r.x * f.x + r.z * f.z;
+            double lat = r.x * l.x + r.z * l.z;
+            double pad = e.getBbWidth() / 2 + 0.4;
+            if (Math.abs(lat) > HALF_WIDTH + pad || Math.abs(along) > HALF_LENGTH + pad || r.y > 2.0 || r.y < -1.6) continue;
+            hitCooldown.put(e.getId(), 16);
+            float damage = (float) (PaponConfig.VAN_RAM_DAMAGE.get() * Mth.clamp(v / BOSS_TOP, 0.3, 1.0) * shoveDamage);
+            e.hurt(ModDamage.caravan(level, this, driver), damage);
+            e.setDeltaMovement(dir.scale(1.2 + v).add(0, 0.55, 0));
+            e.hurtMarked = true;
+            e.hasImpulse = true;
+            int stun = PaponConfig.VAN_STUN_TICKS.get();
+            if (stun > 0) e.addEffect(new MobEffectInstance(ModEffects.STUNNED.get(), stun, 0, false, false, true));
+            if (e instanceof net.minecraft.server.level.ServerPlayer sp) PaponNetwork.shake(sp, 1.0F, 30);
+            level.playSound(null, e.getX(), e.getY(), e.getZ(), ModSounds.CARAVAN_HIT.get(), SoundSource.NEUTRAL, 2.0F, 0.9F);
+            level.sendParticles(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), 16, 0.4, 0.4, 0.4, 0.4);
         }
     }
 

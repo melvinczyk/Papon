@@ -11,7 +11,8 @@ client/BossBarRenderer:
   taco           16,44 16x16   the taco at the empty end of the bar
   potato, angry  32,44 16x16   phase two: beet red, steaming
 
-Also the Stunned effect icon, textures/mob_effect/stunned.png (18x18): a dizzy swirl with stars.
+Also the Stunned effect icon, textures/mob_effect/stunned.png (18x18): a dizzy swirl with stars,
+and the Brittle one, textures/mob_effect/brittle.png: a cracked, salted chestplate.
 """
 import math
 import os
@@ -208,6 +209,43 @@ def stun_icon():
     print(out)
 
 
+BRITTLE = [
+    '..................',
+    '...gg........gg...',
+    '..gGgg......ggGg..',
+    '..gGGgggggggggGg..',
+    '..gGGGGGGkGGGGGg..',
+    '...gGGGGkGGGGGg...',
+    '....gGGGGkkGGg..w.',
+    '....gGGGkGGkGg....',
+    '....gGGkGGGGGg.w..',
+    '....gGGGkGGGGg....',
+    '..w.gGGGGkGGGg....',
+    '....gGGGkGGGGg..w.',
+    '....gGGGGkGGGg....',
+    '.w..gggGGGGggg....',
+    '.......ggggg...w..',
+    '...w..............',
+    '..........w.......',
+    '..................',
+]
+
+
+def brittle_icon():
+    """The Brittle effect (Chef Papon's grab: blowtorched and salted): a chestplate split by a crack,
+    salt grains falling round it."""
+    im = Image.new('RGBA', (18, 18), (0, 0, 0, 0))
+    pal = {'g': (120, 124, 132), 'G': (196, 200, 208), 'k': (40, 30, 26), 'w': (250, 250, 246)}
+    for y, row in enumerate(BRITTLE):
+        for x, ch in enumerate(row):
+            if ch in pal:
+                im.putpixel((x, y), rgba(pal[ch]))
+    out = os.path.join(ROOT, 'src/main/resources/assets/papon/textures/mob_effect/brittle.png')
+    im.save(out)
+    print(out)
+
+
 if __name__ == '__main__':
     main()
     stun_icon()
+    brittle_icon()

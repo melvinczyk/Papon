@@ -49,6 +49,7 @@ public final class ClientSetup {
                 ctx -> new CrowdRenderer<>(ctx, new CrowdModel<>("gerbin", "gerbin", true), 1.25F, 0.4F, 0.6F));
         event.registerEntityRenderer(ModEntities.PAPON_BOSS.get(), BossRenderer::new);
         event.registerEntityRenderer(ModEntities.CARAVAN.get(), CaravanRenderer::new);
+        event.registerEntityRenderer(ModEntities.FOIL_POTATO.get(), FoilPotatoRenderer::new);
         event.registerEntityRenderer(ModEntities.MOLOTOV.get(), ThrownItemRenderer::new);
         event.registerEntityRenderer(ModEntities.POTATO_SHOT.get(), ThrownItemRenderer::new);
     }
