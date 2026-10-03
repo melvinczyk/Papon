@@ -128,7 +128,10 @@ public enum BossState {
     P2_COUNT(80),
     P2_SHOWTIME(70),
     P2_APOLOGY(178),
-    P2_RESUME(0);
+    P2_RESUME(0),
+    // ---- the hardening: punishes and new attacks (append only: the ordinal is synced)
+    /** Face-tanked: he balls up and bursts in a blast of habanero salsa (0.5 s), throwing everyone off him. */
+    SALSA_BURST(26);
 
     public final int duration;
 
@@ -164,7 +167,8 @@ public enum BossState {
 
     /** He cannot be stopped: no knockback, no stagger, half damage (drawn with a red edge). */
     public boolean unstoppable() {
-        return this == DRUNK_SWIG || this == DRUNK_FLURRY || this == HAYMAKER || this == CHARGE || this == P2_GRAVITY;
+        return this == DRUNK_SWIG || this == DRUNK_FLURRY || this == HAYMAKER || this == CHARGE || this == P2_GRAVITY
+                || this == TO_VAN || this == DRINK_HANDLE || this == ENTER_VAN || this == SALSA_BURST;
     }
 
     /** A QTE in progress (he cannot be hurt until it resolves). */

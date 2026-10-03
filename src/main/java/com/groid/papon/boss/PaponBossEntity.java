@@ -161,6 +161,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation A_GRAB_COMBO = once("grab_combo");
     private static final RawAnimation A_GUARD = once("guard");
     private static final RawAnimation A_RIPOSTE = once("riposte");
+    private static final RawAnimation A_SALSA_BURST = once("salsa_burst");
     private static final RawAnimation A_EVADE = once("evade");
     private static final RawAnimation A_CLEAVER_TOSS = once("cleaver_toss");
     private static final RawAnimation A_BURRITO_TOSS = once("burrito_toss");
@@ -331,6 +332,17 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int guardBlocks;
     /** His recent losses, as a share of his health, decaying: a burst of damage puts the comal up. */
     private float recentHurt;
+    /** His composure: health lost lately (drains 2.5% a tick); past PaponConfig.BURST_CAP hits glance off. */
+    private float burst;
+    /** Hits that glanced off his composure lately (decays): the sign of someone overpowered (more QTEs). */
+    private float capHits;
+    private int composureMsgCd;
+    /** Per attacker, the ticks of their last melee hits on him: four in 2.5 s and he bursts (SALSA_BURST). */
+    private final java.util.Map<java.util.UUID, java.util.ArrayDeque<Integer>> pressure = new java.util.HashMap<>();
+    private int saltBurstCd;
+    private int shoveCd;
+    /** Ticks the current target has stayed out of reach (kiting with a bow, flying about). */
+    private int farTicks;
     private int evadeCd = 40;
     private int cleaverCd = 60;
     private int burritoCd = 140;
@@ -390,7 +402,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 800.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.35)
+                .add(Attributes.MOVEMENT_SPEED, 0.42)
                 .add(Attributes.ATTACK_DAMAGE, 14.0)
                 .add(Attributes.ARMOR, 10.0)
                 .add(Attributes.ARMOR_TOUGHNESS, 4.0)
@@ -761,6 +773,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_TOT -> tickTot(level, target);
             case P2_SNARE -> tickSnare(level, target);
             case P2_GRAVITY -> tickGravity(level, target);
+            case SALSA_BURST -> tickSalsaBurst(level);
         }
     }
 
@@ -801,6 +814,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         snareCd--;
         gravityCd--;
         recentHurt *= 0.94F;
+        burst *= 0.975F;
+        capHits *= 0.995F;
+        composureMsgCd--;
+        saltBurstCd--;
+        shoveCd--;
         if (getBossState() != BossState.DRIVING && getBossState() != BossState.EXIT_STUMBLE) vanCd--;
         think--;
     }
@@ -934,6 +952,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         getLookControl().setLookAt(target, 30, 30);
         double d = distanceTo(target);
+        farTicks = d > 9 ? farTicks + 1 : 0;
         if (tickCount % 200 == 0 && random.nextInt(3) == 0) say(taunt(), 50);
         if (think > 0) {
             if (isRisen()) hover(target);
@@ -978,6 +997,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     private BossState choose(ServerLevel level, LivingEntity target, double d) {
+        ctxTarget = target;
         if (misses >= FRENZY) {
             misses = 0;
             think = 0;
@@ -1059,6 +1079,34 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return false;
     }
 
+    @Nullable private LivingEntity ctxTarget;
+
+    /**
+     * How much more he likes an attack for what the target is doing: a raised shield gets the grabs and the
+     * shield-breakers; someone in the air gets the guns, the leap and the cleavers; someone hitting him point
+     * blank gets the close punishes and the blink away; someone kiting him gets the gap closers; someone
+     * nearly dead, or overpowered (hits glancing off his composure, a wall of armor), gets the QTE.
+     */
+    private float context(BossState s) {
+        LivingEntity t = ctxTarget;
+        if (t == null) return 1F;
+        float k = 1F;
+        boolean blocking = t instanceof Player p && p.isBlocking();
+        boolean airborne = t instanceof Player p && (p.isFallFlying() || p.getAbilities().flying)
+                || (!t.onGround() && t.getY() - groundY(t.position()) > 3);
+        boolean grabby = s == BossState.GRAB || s == BossState.QTE_GRAB;
+        if (blocking && (grabby || s == BossState.HAYMAKER || s == BossState.SWIPE || s == BossState.COMAL_SLAM)) k *= 3F;
+        if (airborne && (s == BossState.GATLING || s == BossState.LEAP || s == BossState.P2_DIVE || s == BossState.CLEAVER_TOSS
+                || s == BossState.THROW || s == BossState.BLINK)) k *= 3F;
+        if (underPressure(t) && (grabby || s == BossState.UPPERCUT || s == BossState.DRUNK_SWIG || s == BossState.BREATH
+                || s == BossState.P2_BARRAGE || s == BossState.BLINK || s == BossState.P2_MASH)) k *= 2F;
+        if (farTicks > 100 && (s == BossState.CHARGE_WINDUP || s == BossState.DASH_COMBO || s == BossState.BLINK || s == BossState.LEAP
+                || s == BossState.P2_DIVE || s == BossState.BURRITO_TOSS || s == BossState.P2_GRAVITY)) k *= 2F;
+        boolean overpowered = capHits > 2.5F || t.getArmorValue() >= 20;
+        if (s == BossState.QTE_GRAB && (overpowered || t.getHealth() < t.getMaxHealth() * 0.35F)) k *= 3F;
+        return k;
+    }
+
     /** How much he likes each attack when it is on offer (before how long it has been). */
     private static float baseWeight(BossState s) {
         return switch (s) {
@@ -1096,7 +1144,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         for (int i = 0; i < w.length; i++) {
             BossState s = fresh.get(i);
             int since = tickCount - lastUsed.getOrDefault(s, fightStart);
-            w[i] = baseWeight(s) * (1F + Math.min(since, 900) / 200F);
+            w[i] = baseWeight(s) * context(s) * (1F + Math.min(since, 900) / 200F);
             total += w[i];
         }
         float r = random.nextFloat() * total;
@@ -1141,7 +1189,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case HAYMAKER -> haymakerCd = p2 ? 200 : 260;
             case COMAL_SLAM -> comalCd = 320;
             case QTE_GRAB -> {
-                qteCd = p2 ? 400 : 500;
+                qteCd = (p2 ? 260 : 340) / (capHits > 2.5F || target.getArmorValue() >= 20 ? 2 : 1);
                 // they take turns: La Última Cena, Last Call, La Papa Suplex, and round again
                 entityData.set(DATA_QTE, nextQte);
                 nextQte = (nextQte + 1) % 3;
@@ -1212,7 +1260,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         if (getNavigation().isDone() || tickCount % 6 == 0) {
-            getNavigation().moveTo(target, isPhaseTwo() ? (d > 8 ? 1.6 : 1.4) : (d > 8 ? 1.4 : 1.25));
+            getNavigation().moveTo(target, isPhaseTwo() ? (d > 8 ? 1.75 : 1.5) : (d > 8 ? 1.55 : 1.35));
         }
     }
 
@@ -1782,6 +1830,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         boolean hit = e.hurt(source(type), damage * dmg());
         if (hit) swingHit = true;
+        // a heavy hit also takes a share of your maximum health through armor: no amount of armor lets you trade with him
+        if (hit && heavy && e.isAlive()) {
+            Mechanics.trueHit(e, PaponConfig.ARMOR_PIERCE.get().floatValue() * (isPhaseTwo() ? 1.35F : 1F), this, true);
+        }
         if (hit && e instanceof Player && crowdRoarCd <= 0 && level() instanceof ServerLevel level) {
             crowdRoarCd = 50;
             crowdReact(level, e.isAlive() ? CrowdMood.ROAR : CrowdMood.CHANT, e.isAlive() ? 40 : 200);
@@ -1888,6 +1940,38 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     // ------------------------------------------------------------------ the van
 
+    /** A hit that glanced off his composure: a clank and gold sparks, and now and then a word to the one hitting. */
+    private void composure(@Nullable Entity attacker) {
+        if (!(level() instanceof ServerLevel level)) return;
+        Vec3 at = position().add(0, getBbHeight() * 0.6, 0);
+        Fx.spark(level, at, 5, 0.5, 0.3F, 0xFFE07A);
+        level.playSound(null, at.x, at.y, at.z, SoundEvents.SHIELD_BLOCK, SoundSource.HOSTILE, 1.0F, 1.8F);
+        if (composureMsgCd <= 0 && attacker instanceof ServerPlayer sp) {
+            composureMsgCd = 80;
+            sp.displayClientMessage(Component.translatable("status.papon.composure").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), true);
+        }
+    }
+
+    /** Counts {@code p}'s melee hit; true when it is the fourth in 2.5 s and he can burst now. */
+    private boolean pressed(Player p, BossState s) {
+        java.util.ArrayDeque<Integer> q = pressure.computeIfAbsent(p.getUUID(), k -> new java.util.ArrayDeque<>());
+        q.addLast(tickCount);
+        while (!q.isEmpty() && tickCount - q.peekFirst() > 50) q.pollFirst();
+        boolean free = s == BossState.IDLE || s == BossState.SWIPE || s == BossState.SWIPE_OVERHEAD || s == BossState.UPPERCUT
+                || s == BossState.RIPOSTE || s == BossState.EVADE || s == BossState.TO_VAN || s == BossState.DRINK_HANDLE
+                || s == BossState.THROW || s == BossState.BREATH || s == BossState.GATLING || s == BossState.CLEAVER_TOSS;
+        return q.size() >= 4 && saltBurstCd <= 0 && free && !isFlying();
+    }
+
+    /** The current target has been hitting him in melee lately (two or more hits in 3 s). */
+    private boolean underPressure(LivingEntity target) {
+        java.util.ArrayDeque<Integer> q = pressure.get(target.getUUID());
+        if (q == null) return false;
+        int n = 0;
+        for (int t : q) if (tickCount - t < 60) n++;
+        return n >= 2;
+    }
+
     private void tickToVan(ServerLevel level, @Nullable LivingEntity target) {
         CaravanEntity van = van(level);
         if (van == null || van.isVehicle() || stateTicks > 260 || (forBrick && van.isBricked())) {
@@ -1918,16 +2002,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
             return;
         }
+        // a sprint to the door (he cannot be stopped on the way: half damage, no knockback), shoving anyone in his way
+        shoveNear(level);
         if (horizontalDist(door) < 4) {
-            getMoveControl().setWantedPosition(door.x, door.y, door.z, isPhaseTwo() ? 1.4 : 1.15);
-        } else if (getNavigation().isDone() || tickCount % 10 == 0) {
-            getNavigation().moveTo(door.x, door.y, door.z, isPhaseTwo() ? 1.4 : 1.15);
+            getMoveControl().setWantedPosition(door.x, door.y, door.z, isPhaseTwo() ? 2.0 : 1.75);
+        } else if (getNavigation().isDone() || tickCount % 6 == 0) {
+            getNavigation().moveTo(door.x, door.y, door.z, isPhaseTwo() ? 2.0 : 1.75);
         }
     }
 
     private void tickDrinkHandle(ServerLevel level, @Nullable LivingEntity target) {
         getNavigation().stop();
         if (target != null) face(target.position());
+        shoveNear(level);
         if (stateTicks == 46) {
             Vec3 back = position().subtract(getLookAngle().scale(1.5)).add(0, 0.5, 0);
             Fx.chunks(level, back, 8, 0.18F, 0xD8EEE6, 0.35);
@@ -1942,6 +2029,63 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 vanCd = 100;
                 setBossState(BossState.IDLE);
             }
+        }
+    }
+
+    /**
+     * On his way to the van and downing the handle he is not open: anyone who gets within reach is backhanded
+     * away (and takes a share of their health through armor), once a second.
+     */
+    private void shoveNear(ServerLevel level) {
+        if (shoveCd > 0) return;
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(2.6), this::hittable)) {
+            if (!(e instanceof Player)) continue;
+            shoveCd = 20;
+            face(e.position());
+            Vec3 away = e.position().subtract(position()).multiply(1, 0, 1).normalize();
+            e.setDeltaMovement(away.scale(1.3).add(0, 0.45, 0));
+            e.hurtMarked = true;
+            strike(e, 5F, ModDamage.SPATULA, true);
+            level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.HOSTILE, 1.4F, 0.7F);
+            Fx.spark(level, e.position().add(0, 1, 0), 6, 0.3, 0.3F, 0xFFD27A);
+        }
+    }
+
+    /**
+     * Face-tanked (four melee hits from one player in 2.5 s): he balls up, shaking (0.45 s), and bursts in a
+     * blast of habanero salsa: everyone within 6.5 blocks thrown off him, a share of their health through
+     * armor, a Habanero stack. Not fire: fire immunity does not help.
+     */
+    private void tickSalsaBurst(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        if (t == 1) level.playSound(null, getX(), getY(), getZ(), SoundEvents.CREEPER_PRIMED, SoundSource.HOSTILE, 2.0F, 0.6F);
+        if (t < 10 && t % 2 == 0) Fx.spark(level, position().add(0, getBbHeight() * 0.5, 0), 6, 0.6, 0.3F, 0xE0301C);
+        if (t == 10) {
+            Vec3 c = position().add(0, getBbHeight() * 0.45, 0);
+            Fx.blast(level, c, 2.6F);
+            Fx.shock(level, position(), 7F, 0xD8261A);
+            for (int i = 0; i < 14; i++) {
+                double a = Math.PI * 2 * i / 14;
+                Vec3 at = position().add(Math.cos(a) * (2 + random.nextDouble() * 4), 0, Math.sin(a) * (2 + random.nextDouble() * 4));
+                Fx.splat(level, new Vec3(at.x, groundY(at), at.z), 0.6F, 0xB81C14, 120);
+            }
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 2.0F, 0.8F);
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 2.0F, 0.5F);
+            PaponNetwork.shake(level, position(), 18, 0.7F, 16);
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(6.5), this::hittable)) {
+                Vec3 away = e.position().subtract(position()).multiply(1, 0, 1).normalize();
+                e.setDeltaMovement(away.scale(1.8).add(0, 0.7, 0));
+                e.hurtMarked = true;
+                strike(e, 6F, ModDamage.SPATULA, false);
+                Mechanics.trueHit(e, isPhaseTwo() ? 0.14F : 0.10F, this, true);
+                Mechanics.heat(e, 1, this);
+            }
+            pressure.clear();
+        }
+        if (t >= BossState.SALSA_BURST.duration) {
+            think = 6;
+            setBossState(BossState.IDLE);
         }
     }
 
@@ -4587,8 +4731,25 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         float cap = getMaxHealth() * PaponConfig.HIT_CAP.get().floatValue() * (s == BossState.QTE_BROKEN ? 2F : 1F);
         amount = Math.min(amount, cap);
+        // his composure: past a burst's worth, hits glance off (big damage does not skip the mechanics)
+        boolean open = s == BossState.STAGGER || s == BossState.EXIT_STUMBLE || s == BossState.QTE_BROKEN;
+        float room = Math.max(0, getMaxHealth() * PaponConfig.BURST_CAP.get().floatValue() * (open ? 2.5F : 1F) - burst);
+        if (amount > room) {
+            capHits += 1;
+            composure(attacker);
+            amount = room;
+            if (amount < 0.05F) return false;
+        }
+        if (attacker instanceof Player p && p.distanceTo(this) < 4.5 && level() instanceof ServerLevel level && pressed(p, s)) {
+            setBossState(BossState.SALSA_BURST);
+            saltBurstCd = isPhaseTwo() ? 120 : 180;
+            return false;
+        }
         boolean hurt = super.hurt(source, amount);
-        if (hurt) recentHurt += amount / getMaxHealth();
+        if (hurt) {
+            recentHurt += amount / getMaxHealth();
+            burst += amount;
+        }
         if (hurt && attacker instanceof Player && crowdBooCd <= 0 && amount > getMaxHealth() * 0.008F && level() instanceof ServerLevel level) {
             crowdBooCd = 70;
             crowdReact(level, CrowdMood.BOO, 45);
@@ -4805,6 +4966,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case GRAB_COMBO -> A_GRAB_COMBO;
             case GUARD -> A_GUARD;
             case RIPOSTE -> A_RIPOSTE;
+            case SALSA_BURST -> A_SALSA_BURST;
             case EVADE -> A_EVADE;
             case CLEAVER_TOSS -> A_CLEAVER_TOSS;
             case BURRITO_TOSS -> A_BURRITO_TOSS;

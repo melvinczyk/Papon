@@ -2000,12 +2000,40 @@ def f_aura():
 FORM = [f_sprout, f_idle, f_fly, f_attack, f_lift, f_aura]
 
 
+def b_salsa_burst():
+    """1.3 s (BossState.SALSA_BURST, 26 t). Face-tanked: he balls up, arms clamped round himself, shaking and
+    swelling red-hot (0-0.45 s), then BURSTS (0.5 s): arms and legs flung out in a star, body stretched tall,
+    a hop off the ground; and settles, panting."""
+    a = angry(B('salsa_burst', 1.3, 'hold'))
+    shake = [(round(0.04 * i, 2), [0.4 if i % 2 else -0.4, -2.5, 0]) for i in range(12)]
+    a.pos('root', [(0, [0, 0, 0])] + shake + [(0.5, [0, 3, 0], 'easeOutExpo'), (0.75, [0, 0, 0], 'easeInQuad'), (1.3, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.45, [1.18, 0.82, 1.18], 'easeInQuad'), (0.5, [0.84, 1.32, 0.84], 'easeOutExpo'),
+                     (0.7, [1.06, 0.96, 1.06]), (0.9, [1, 1, 1]), (1.3, [1.02, 1.02, 1.02])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.45, [24, 0, 0], 'easeInQuad'), (0.5, [-26, 0, 0], 'easeOutExpo'), (0.9, [6, 0, 0]),
+                    (1.3, [10, 0, 0])], 'lin')
+    for arm, sg in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * sg]), (0.4, [-70, -60 * sg, 0], 'easeInQuad'), (0.5, [-40, 0, 130 * sg], 'easeOutExpo'),
+                    (0.85, [-30, 0, 110 * sg]), (1.3, [10, 0, 30 * sg], 'easeInOutSine')], 'lin')
+        stretch(a, arm, [(0, 1), (0.4, 1.2), (0.5, 1.6, 'easeOutExpo'), (0.85, 1.4), (1.3, 1)])
+    for leg, sg in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 0]), (0.45, [-10, 0, 0]), (0.5, [0, 0, 30 * sg], 'easeOutExpo'), (0.8, [0, 0, 6 * sg]),
+                    (1.3, [0, 0, 0])], 'lin')
+    a.scale('sweat', [(0, HIDDEN), (0.1, SHOWN), (1.3, SHOWN)], 'lin')
+    a.sound(0.05, 'nervous').sound(0.5, 'slam').sound(0.55, 'roar')
+    return a
+
+
+HARDENING = [b_salsa_burst]
+
+
 BOSS = [b_leap_out, b_chug, b_roar, b_idle, b_walk, b_walk_keys, b_run, b_swipe, b_slam, b_breath, b_throw,
         b_drink_handle, b_enter_car, b_drive, b_exit_stumble, b_phase, b_death,
         b_swipe_overhead, b_leap, b_leap_land, b_charge_windup, b_charge, b_stagger, b_uppercut, b_air_spike,
         b_blink, b_gatling, b_dash_combo, b_van_kick, b_p2_kneel, b_p2_talk, b_p2_scream, b_p2_arrive, b_fly,
         b_p2_barrage, b_p2_meteor, b_van_throw, b_p2_dive, b_p2_season,
-        b_grab_lunge, b_grab_combo] + REWORK + COLISEUM + FORM
+        b_grab_lunge, b_grab_combo] + REWORK + COLISEUM + FORM + HARDENING
+
+
 
 
 def write(name, fns, prefix):
