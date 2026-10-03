@@ -23,6 +23,7 @@ Downloads what it needs into tools/.cache (gitignored). Writes, under src/main/r
 import json
 import math
 import os
+import shutil
 import subprocess
 import urllib.request
 from collections import deque
@@ -34,8 +35,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
 CACHE = os.path.join(ROOT, 'tools/.cache')
 MH_RAW = 'https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/'
+# CC0 community targets by Elvaerwyn (makehumancommunity.org asset library)
+ELVS = 'http://files.makehumancommunity.org/sites/default/files/targets/2512/'
 OUT_TEX = 2048
-BONES = ['torso', 'head', 'arm_r', 'arm_l', 'leg_r', 'leg_l', 'forearm_r', 'forearm_l', 'jaw', 'lid_r', 'lid_l']
+BONES = ['torso', 'head', 'arm_r', 'arm_l', 'leg_r', 'leg_l', 'forearm_r', 'forearm_l', 'jaw', 'lid_r', 'lid_l',
+         'shin_r', 'shin_l']
 HEAD_BONES = ('head', 'jaw', 'lid_r', 'lid_l')
 # Atlas regions MakeHuman's body UVs leave empty (checked against a rasterised coverage map).
 # Props pack into these blocks in order (texture pixels, x0 y0 x1 y1).
@@ -109,6 +113,46 @@ def tps_fit(src, dst, reg=1e-6):
     return apply
 
 
+def umeyama_np(src, dst):
+    """Similarity (s, R, t) with dst ~ s R src + t, least squares (3D)."""
+    ms, md = src.mean(0), dst.mean(0)
+    a, b = src - ms, dst - md
+    U, S, Vt = np.linalg.svd(b.T @ a / len(src))
+    D = np.eye(3)
+    if np.linalg.det(U @ Vt) < 0:
+        D[-1, -1] = -1
+    R = U @ D @ Vt
+    s = (S * np.diag(D)).sum() / (a ** 2).sum(1).mean()
+    return s, R, md - s * R @ ms
+
+
+def rbf3_fit(src, vals, reg):
+    """Smooth 3D interpolation (biharmonic kernel |r| plus an affine part) of vector `vals` at
+    points `src`; `reg` relaxes it from passing exactly through every point."""
+    n = len(src)
+    K = -np.linalg.norm(src[:, None] - src[None], axis=2) + reg * np.eye(n)   # -|r| is the positive-definite form
+    Pm = np.hstack([np.ones((n, 1)), src])
+    A = np.zeros((n + 4, n + 4))
+    A[:n, :n], A[:n, n:], A[n:, :n] = K, Pm, Pm.T
+    b = np.zeros((n + 4, vals.shape[1]))
+    b[:n] = vals
+    sol = np.linalg.solve(A, b)
+
+    def apply(p):
+        out = np.zeros((len(p), vals.shape[1]))
+        for i in range(0, len(p), 4000):
+            q = p[i:i + 4000]
+            out[i:i + 4000] = -np.linalg.norm(q[:, None] - src[None], axis=2) @ sol[:n] + sol[n] + q @ sol[n + 1:]
+        return out
+    return apply
+
+
+def find_blender():
+    return os.environ.get('BLENDER') or next((b for b in (
+        '/Applications/Blender.app/Contents/MacOS/Blender', 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe')
+        if os.path.exists(b)), None) or shutil.which('blender')
+
+
 def sample(img, xy):
     """Bilinear sample of an HxWxC float image at pixel coords (N,2)."""
     h, w = img.shape[:2]
@@ -175,7 +219,9 @@ def load_obj(path):
 
 def load_target(rel):
     idx, d = [], []
-    for line in open(mh('targets/' + rel + '.target')):
+    path = fetch('targets/' + rel.rsplit('/', 1)[1] + '.target', rel + '.target') if rel.startswith('http') \
+        else mh('targets/' + rel + '.target')
+    for line in open(path):
         if line.startswith('#') or not line.strip():
             continue
         p = line.split()
@@ -244,8 +290,10 @@ def fold(bone):
         return [('torso', 0.5), ('arm_' + side, 0.5)]
     if base.startswith('clavicle'):
         return [('torso', 0.85), ('arm_' + side, 0.15)]
-    if base.startswith(('upperleg', 'lowerleg', 'foot', 'toe')):
+    if base.startswith('upperleg'):
         return [('leg_' + side, 1.0)]
+    if base.startswith(('lowerleg', 'foot', 'toe')):
+        return [('shin_' + side, 1.0)]
     if base == 'neck01':
         return [('torso', 0.6), ('head', 0.4)]
     if base == 'neck02':
@@ -344,6 +392,29 @@ class Character:
     bellies = []                # [(t, z, (rx, ry), push, sag)]: gaussian bulges on the front at height t between
                                 # the hips (0) and the neck (1), z forward; sag = how far they hang down
     arm_hang_deg = 16.0         # arms hang this far out from vertical
+    finger_curl = (22.0, 34.0, 22.0)   # relaxed bend at each finger joint, knuckle first (degrees)
+    trousers = (0.0, 0.0)       # how far trouser legs stand off the thigh and shin (decimetres)
+    shoe_puff = 0.14            # how much bigger than the foot a shoe is (decimetres)
+    decimate = 0.5              # Blender keeps this share of the body's faces (head and hands keep all)
+    shoulder_slim = 0.6         # share of the fat kept off the tops of the shoulders (shows the neck)
+    skin_texture = ('http://files.makehumancommunity.org/sites/default/files/skins/1422/891800559/'
+                    'skin_male_african_middleage.png')   # CC0, MakeHuman UVs; None = painted skin only
+    mirror_face = 0             # +1 / -1: paint both halves of the face from his left / right half
+    photo_holes = []            # ellipses (first photo's pixels) never projected, e.g. an open mouth
+    beard = []                  # ellipses (first photo's pixels) painted as facial hair
+    beard_gaps = []             # ellipses kept clear inside the beard (the lips)
+    beard_density = 0.9
+    hair = np.array([20, 15, 13], float)
+    face_scan = True            # reconstruct the face from the first photo (MediaPipe) instead of `landmarks`
+    scan_stiffness = 0.02       # spline regularisation for the scan fit (higher = smoother, looser)
+    face_symmetry = 0.5         # 0.5 = the scanned face made fully symmetric
+    face_conform = 0.6          # how firmly Blender shrinkwraps the face onto the scan (0 = skip)
+    face_fit = 1.0              # how far the head is reshaped to the first photo's landmarks (0 = off)
+    warp_stiffness = 0.02       # TPS regularisation: higher keeps the face warp near-affine (no folds)
+    flatten_light = 0.5         # how much of the photo's broad lighting is evened out (0..1)
+    skin_smooth = (0.75, 0.6)   # crease and pore detail kept on plain skin (features keep all of it)
+    photo_even = 0.25           # how far the photo's hue is evened toward his skin tone
+    clean_shaven = True         # shave the stubble the base skin has on the jaw and upper lip
     photo_url = None            # one photo: photo_url, landmarks, head_ellipse; or several in `photos`
     landmarks = []              # [(vertex | 'r_eye' | 'l_eye' | ('side', y, sign), (photo x, photo y))]
     head_ellipse = None         # his head in the photo: (cx, cy, rx, ry)
@@ -387,7 +458,9 @@ class Character:
         body_verts = np.unique(quads)
         eye_verts = np.unique([i for f in eye_f for i in f[0]])
 
+        self._quads = quads
         V, pairs = self.fatten(V, quads, body_verts, weights, J)
+        V = self.relax_hands(V, weights, J)
         w = np.zeros((len(V), len(BONES)))
         for bone, lst in weights.items():
             a = np.array(lst)
@@ -400,9 +473,15 @@ class Character:
             w[vs] = 0
             w[vs, BONES.index(bone)] = 1
         w /= np.maximum(w.sum(1, keepdims=True), 1e-9)
+        V = self.fit_face(V, w, body_verts, eye_f)
+        jpos = {k: V[v].mean(0) for k, v in skel['joints'].items()}
+        for bone, d in skel['bones'].items():
+            if all(rb in HEAD_BONES for rb, _ in fold(bone)):
+                J[bone] = [jpos[d['head']], jpos[d['tail']]]
 
         # cloth: smooth away anatomy under the clothes, then iron the navel and nipples flat
         cover = self.covered(V, w, J)
+        V = self.dress(V, w, J, quads, pairs, body_verts, cover)
         V = taubin(V, pairs, cover, 30)
         vuv = np.zeros((len(V), 2))
         for f in body_f:
@@ -448,9 +527,12 @@ class Character:
         trunk = smooth_scalar(np.clip(trunk, 0, 1), pairs, 6)
         P = V.copy()
         steps = 8
+        neck_y = J['neck01'][0][1]
         for _ in range(steps):
             N = vertex_normals(P, quads)
-            push = amount[:, None] * N
+            # less on the tops of the shoulders, or they swallow the neck
+            shoulders = smoothstep(neck_y - 1.6, neck_y - 0.6, P[:, 1]) * smoothstep(0.2, 0.8, N[:, 1])
+            push = (amount * (1 - self.shoulder_slim * shoulders))[:, None] * N
             hip = (J['upperleg01.L'][0][1] + J['upperleg01.R'][0][1]) / 2
             neck = J['neck01'][0][1]
             for t, cz, (rx, ry), k, sag in self.bellies:
@@ -459,6 +541,201 @@ class Character:
                 push = push + k * (g * trunk[:, None]) * (N + np.array([0, -sag, 0]))
             P[body_verts] += push[body_verts] / steps
         return P, pairs
+
+    def relax_hands(self, V, weights, J):
+        """MakeHuman's hands are splayed flat; real hands at rest curl a little. Bends each finger
+        at its three joints (distal first, so the proximal bend carries the rest along) about the
+        line across the knuckles, and tucks the thumb in a touch."""
+        V = V.copy()
+        wt = {b: np.array(l) for b, l in weights.items()}
+
+        def bend(bones, pivot, axis, deg):
+            m = np.zeros(len(V))
+            for b in bones:
+                if b in wt:
+                    np.add.at(m, wt[b][:, 0].astype(int), wt[b][:, 1])
+            m = np.clip(m, 0, 1)
+            a = axis / np.linalg.norm(axis)
+            t = math.radians(deg)
+            K = np.array([[0, -a[2], a[1]], [a[2], 0, -a[0]], [-a[1], a[0], 0]])
+            R = np.eye(3) + math.sin(t) * K + (1 - math.cos(t)) * K @ K
+            return V + m[:, None] * ((V - pivot) @ R.T + pivot - V)
+
+        for side, sign in (('L', 1), ('R', -1)):
+            across = J['finger5-1.' + side][0] - J['finger2-1.' + side][0]
+            for f in range(2, 6):
+                for k, deg in ((3, self.finger_curl[2]), (2, self.finger_curl[1]), (1, self.finger_curl[0])):
+                    bones = ['finger%d-%d.%s' % (f, j, side) for j in range(k, 4)]
+                    pivot = J[bones[0]][0]
+                    V = bend(bones, pivot, across, sign * deg)
+            thumb = ['finger1-%d.%s' % (j, side) for j in (2, 3)]
+            V = bend(thumb, J[thumb[0]][0], across, sign * self.finger_curl[0] * 0.5)
+        return V
+
+    def fit_face(self, V, w, body_verts, eye_f):
+        """Shapes the head to the first photo: its landmarks are brought into mesh space by a
+        similarity fit (scale, roll, shift), and the head is bent in X/Y by a smooth spline through
+        the differences, so his features sit where the photo has them and the photo then lands on
+        the face without stretching. Depth follows the width change. `face_fit` sets how far."""
+        if not self.face_fit:
+            return V
+        if self.face_scan:
+            return self.fit_scan(V, w, body_verts, eye_f)
+        ph = self.all_photos()[0]
+        B = dict(V=V, w=w, body_verts=body_verts, eye_f=eye_f)
+        src = np.array(self.landmark_points(B, ph.landmarks), float)
+        dst = np.array([p for _, p in ph.landmarks], float) * [1, -1]
+        ms, md = src.mean(0), dst.mean(0)
+        a, b = src - ms, dst - md
+        U, S, Vt = np.linalg.svd(b.T @ a)
+        R = (U @ Vt).T
+        scale = S.sum() / (b ** 2).sum()
+        target = (b @ R.T) * scale + ms
+        # photos are rarely dead-on: average each landmark with its mirror twin so a slight turn of
+        # his head does not make one cheek fatter than the other
+        twin = np.argmin(np.linalg.norm(src[:, None] - src[None] * [-1, 1], axis=2), axis=1)
+        mid = src[:, 0].mean() * 0
+        mirrored = target[twin] * [-1, 1] + [2 * mid, 0]
+        target = (target + mirrored) / 2
+        disp = tps_fit(src, target - src, self.warp_stiffness * 5)
+        head = np.clip(sum(w[:, BONES.index(k)] for k in HEAD_BONES), 0, 1)
+        head = smoothstep(0.05, 0.6, head)
+        out = V.copy()
+        d = disp(V[:, :2]) * (head * self.face_fit)[:, None]
+        # depth: as much wider (or narrower) as the head became across, measured at each height
+        sx = 1 + np.clip((disp(V[:, :2] + [0.5, 0])[:, 0] - disp(V[:, :2] - [0.5, 0])[:, 0]) / 1.0, -0.4, 0.6)
+        cz = V[V[:, 1] > np.percentile(V[body_verts, 1], 90)][:, 2].mean()
+        out[:, :2] += d
+        out[:, 2] = V[:, 2] + (cz + (V[:, 2] - cz) * sx ** 0.5 - V[:, 2]) * head * self.face_fit
+        err = np.linalg.norm(target - src, axis=1).mean()
+        print('face fit: mean landmark offset %.3f dm before' % err)
+        return out
+
+    # ---- face from a photo (MediaPipe reconstruction, tools/face_scan.py)
+    def scan(self):
+        if getattr(self, '_scan', None) is None:
+            import face_scan
+            ph = self.all_photos()[0]
+            self._scan = face_scan.Scan(fetch(self.name + '/' + ph.file, ph.url))
+        return self._scan
+
+    def scan_ids(self, w, body_verts, eye_f):
+        """MediaPipe point -> MakeHuman vertex, found once on the plain base head: the canonical
+        face is fitted onto it by seven features, then each point takes the nearest face vertex."""
+        import face_scan as FS
+        V0, _, _ = load_obj(mh('3dobjs/base.obj'))
+        C, _ = FS.canonical()
+        B0 = dict(V=V0, eye_f=eye_f)
+        mh_pts = np.array([self.eye(B0, 'r')[0], self.eye(B0, 'l')[0], V0[5054], V0[411], V0[7171], V0[5162], V0[220]])
+        mp_pts = np.array([C[list(FS.R_EYE)].mean(0), C[list(FS.L_EYE)].mean(0), C[FS.SUBNASALE], C[FS.MOUTH_R],
+                           C[FS.MOUTH_L], C[FS.CHIN], C[FS.BROWS]])
+        s, R, t = FS.umeyama(mp_pts, mh_pts)
+        Cm = s * C @ R.T + t
+        head = sum(w[:, BONES.index(b)] for b in HEAD_BONES)
+        cand = body_verts[head[body_verts] > 0.5]
+        n0 = vertex_normals(V0, self._quads)
+        cand = cand[(V0[cand, 2] > V0[cand, 2].max() - 1.2) & (n0[cand, 2] > 0.25)]   # outer skin, not sockets or nostrils
+        d = np.linalg.norm(Cm[:, None] - V0[cand][None], axis=2)
+        return cand[np.argmin(d, axis=1)], d.min(1)
+
+    def fit_scan(self, V, w, body_verts, eye_f):
+        """Reshapes the head to his face as MediaPipe reconstructed it from the photo: the scan,
+        made symmetric (`face_symmetry`) and scaled onto the head, pulls the 468 matching vertices
+        to it through a smooth 3D spline (lips and eyelids are left out: they move when he talks
+        and blinks), and Blender conforms the face surface to it (tools/blender_face_fit.py)."""
+        S = self.scan()
+        ids, dist = self.scan_ids(w, body_verts, eye_f)
+        F = S.symmetric(self.face_symmetry)
+        use = np.ones(468, bool)
+        use[S.lips] = False
+        use[S.eyes] = False
+        use &= dist < 0.12
+        sim = umeyama_np(F[use], V[ids[use]])
+        dst = sim[0] * F @ sim[1].T + sim[2]
+        self._scan_sim = sim
+        # several scan points can land on one vertex: one target each (their mean)
+        uid, inv = np.unique(ids[use], return_inverse=True)
+        tgt = np.zeros((len(uid), 3))
+        np.add.at(tgt, inv, dst[use])
+        tgt /= np.bincount(inv)[:, None]
+        src = V[uid]
+        head = smoothstep(0.05, 0.6, np.clip(sum(w[:, BONES.index(b)] for b in HEAD_BONES), 0, 1))
+        # the scan only covers the face: hold the skull behind and above it, and the neck, still
+        hb = body_verts[head[body_verts] > 0.5]
+        brow = V[ids[S.eyes]][:, 1].max() + 0.6
+        hold = hb[(V[hb, 2] < np.median(V[hb, 2]) - 0.2) | (V[hb, 1] > brow)]
+        hold = np.concatenate([hold, body_verts[(head[body_verts] > 0.05) & (head[body_verts] < 0.2)]])
+        hold = hold[::max(1, len(hold) // 150)]
+        hold = np.setdiff1d(hold, uid)
+        field = rbf3_fit(np.vstack([src, V[hold]]), np.vstack([tgt - src, np.zeros((len(hold), 3))]),
+                         self.scan_stiffness)
+        out = V.copy()
+        hv = np.nonzero(head > 0)[0]
+        out[hv] += field(V[hv]) * (head[hv] * self.face_fit)[:, None]
+        print('face scan: %d points, mean offset %.3f dm' % (len(uid), np.linalg.norm(tgt - src, axis=1).mean()))
+        return self.conform(out, w, body_verts, eye_f, dst, S.tris, head)
+
+    def conform(self, V, w, body_verts, eye_f, face_pts, face_tris, head):
+        """Blender: Shrinkwrap the front of the face onto the reconstructed surface, then a
+        Corrective Smooth puts MakeHuman's own fine detail (lids, nostrils, lips) back on top."""
+        blender = find_blender()
+        if not blender or not self.face_conform:
+            return V
+        B0 = dict(V=V, eye_f=eye_f)
+        keep = np.zeros(len(V))
+        for side in 'rl':
+            c, r = self.eye(B0, side)
+            keep = np.maximum(keep, 1 - smoothstep(r * 1.4, r * 2.4, np.linalg.norm(V - c, axis=1)))
+        mouth = V[466]
+        keep = np.maximum(keep, 1 - smoothstep(0.3, 0.55, np.linalg.norm((V - mouth) * [1, 1.6, 1], axis=1)))
+        nrm = vertex_normals(V, np.array([f for f in self._quads]))
+        wgt = head * smoothstep(0.15, 0.5, nrm[:, 2]) * (1 - keep) * self.face_conform
+        tmp = os.path.join(CACHE, self.name)
+        os.makedirs(tmp, exist_ok=True)
+        src, dst = os.path.join(tmp, 'face_in.npz'), os.path.join(tmp, 'face_out.npz')
+        np.savez(src, V=V, quads=self._quads, weight=wgt, F=face_pts, tris=face_tris)
+        out = subprocess.run([blender, '-b', '--factory-startup', '--python', os.path.join(ROOT, 'tools/blender_face_fit.py'),
+                              '--', src, dst], capture_output=True, text=True)
+        if out.returncode != 0 or not os.path.exists(dst):
+            raise SystemExit('Blender face fit failed:\n' + out.stdout[-2000:] + out.stderr[-2000:])
+        print(next(l for l in out.stdout.splitlines() if l.startswith('conformed')))
+        P = np.load(dst)['V']
+        os.remove(src)
+        os.remove(dst)
+        return P
+
+    def dress(self, V, w, J, quads, pairs, body_verts, cover):
+        """Real clothes stand off the body: trouser legs hang loose (`trousers`: decimetres off the
+        thigh and shin), and the feet become shoes (toes smoothed away, the foot fattened into a
+        sneaker's volume)."""
+        leg = w[:, BONES.index('leg_r')] + w[:, BONES.index('leg_l')]
+        shin = w[:, BONES.index('shin_r')] + w[:, BONES.index('shin_l')]
+        ankle = (J['foot.L'][0][1] + J['foot.R'][0][1]) / 2
+        foot = np.zeros(len(V))
+        foot[body_verts] = smoothstep(ankle + 0.35, ankle + 0.05, V[body_verts, 1])
+        P = V.copy()
+        up, lo = self.trousers
+        loose = np.zeros(len(V))
+        loose[body_verts] = (cover * (leg * up + shin * lo))[body_verts] * (1 - foot[body_verts])
+        loose = smooth_scalar(loose, pairs, 6)
+        for _ in range(4):
+            N = vertex_normals(P, quads)
+            P[body_verts] += (loose[:, None] * N)[body_verts] / 4
+        # shoes: each foot pulled onto a rounded box round it (a sneaker's shape), toes and all
+        floor = P[body_verts, 1].min()
+        for sign in (1, -1):
+            mine = body_verts[(np.sign(P[body_verts, 0]) == sign) & (foot[body_verts] > 0)]
+            core = mine[foot[mine] > 0.95]
+            lo, hi = P[core].min(0), P[core].max(0)
+            lo, hi = lo - [self.shoe_puff, 0, self.shoe_puff], hi + [self.shoe_puff, 0, self.shoe_puff * 1.2]
+            lo[1], hi[1] = floor, ankle + 0.1
+            c, r = (lo + hi) / 2, (hi - lo) / 2
+            d = (P[mine] - c) / r
+            n = (np.abs(d[:, 0]) ** 3 + np.abs(d[:, 2]) ** 3) ** (4 / 3) + np.abs(d[:, 1]) ** 4
+            on = c + (P[mine] - c) / np.maximum(n, 1e-9)[:, None] ** 0.25
+            k = foot[mine][:, None]
+            P[mine] = P[mine] + (on - P[mine]) * k
+        return taubin(P, pairs, foot * 0.5, 6)
 
     def swing_arms(self, P, w, J):
         """Swings each A-pose arm down about its shoulder until it hangs arm_hang_deg off vertical."""
@@ -490,7 +767,7 @@ class Character:
         return self.photos or [Photo('photo.jpg', self.photo_url, self.landmarks, self.head_ellipse)]
 
     def landmark_points(self, B, landmarks=None):
-        V, head = B['V'], B['w'][:, BONES.index('head')]
+        V, head = B['V'], sum(B['w'][:, BONES.index(b)] for b in HEAD_BONES)
         bv = B['body_verts']
         out = []
         for k, _ in (self.landmarks if landmarks is None else landmarks):
@@ -534,25 +811,90 @@ class Character:
     # ---- paint
     def project(self, photo, T, B, primary):
         """One photo warped onto the face: (colour, weight) per texel, matted to his skin tone."""
-        img = Image.open(fetch(self.name + '/' + photo.file, photo.url)).convert('RGB')
-        img = np.asarray(img.filter(ImageFilter.UnsharpMask(radius=3, percent=50, threshold=3)), float)
+        img = np.asarray(Image.open(fetch(self.name + '/' + photo.file, photo.url)).convert('RGB'), float)
         img = self.photo_fix(img) if primary else img
-        tps = tps_fit(self.landmark_points(B, photo.landmarks), [p for _, p in photo.landmarks])
+        scanned = primary and self.face_scan
+        img = self.retouch(img, photo, self.scan().anchors() if scanned else None)
         head = sum(T.bone(b) for b in HEAD_BONES)
         near = (head > 0.2) | (T.kind == 1)
         pxy = np.zeros((len(T.pos), 2))
-        pxy[near] = tps(T.pos[near, :2])
-        cx, cy, rx, ry = photo.head_ellipse
-        ell = ((pxy[:, 0] - cx) / rx) ** 2 + ((pxy[:, 1] - cy) / ry) ** 2
-        # facing the camera fully; fading out where the photo sees the surface edge-on
-        wf = near * smoothstep(-0.05, 0.35, T.nrm[:, 2]) * smoothstep(self.face_floor - 0.1, self.face_floor + 0.1, T.y) \
-            * (1 - smoothstep(0.85, 1.0, ell)) * (T.kind == 0)
+        pos, nrm = T.pos.copy(), T.nrm.copy()
+        if self.mirror_face:      # one side of his face is hidden in the photo: use the other twice
+            flip = np.sign(pos[:, 0]) != self.mirror_face
+            pos[:, 0] = self.mirror_face * np.abs(pos[:, 0])
+            nrm[flip, 0] *= -1
+        if scanned:
+            # through the reconstruction: head space -> the scan's canonical frame -> photo pixels,
+            # with the camera pose MediaPipe recovered (so a turned head projects correctly)
+            S, (s, R, t) = self.scan(), self._scan_sim
+            canon = ((pos[near] - t) @ R) / s
+            pxy[near] = S.to_pixel(canon)
+            facing = np.zeros(len(pos))
+            facing[near] = S.dir_to_photo(nrm[near] @ R)[:, 2]
+            oval = Image.new('L', img.shape[1::-1], 0)
+            ImageDraw.Draw(oval).polygon([tuple(p) for p in S.oval()], fill=255)
+            oval = soft_blur(np.asarray(oval, float) / 255, 12)[..., None]
+            inside = sample(oval, np.where(near[:, None], pxy, 0))[:, 0]
+        else:
+            tps = tps_fit(self.landmark_points(B, photo.landmarks), [p for _, p in photo.landmarks], self.warp_stiffness)
+            pxy[near] = tps(pos[near, :2])
+            cx, cy, rx, ry = photo.head_ellipse
+            ell = ((pxy[:, 0] - cx) / rx) ** 2 + ((pxy[:, 1] - cy) / ry) ** 2
+            facing, inside = nrm[:, 2], 1 - smoothstep(0.7, 0.95, ell)
+        # only where the photo sees the surface nearly head-on: past that a frontal photo smears
+        # sideways across the cheeks and temples, so the painted skin takes over there
+        wf = near * smoothstep(0.25, 0.62, facing) * smoothstep(self.face_floor - 0.1, self.face_floor + 0.1, T.y) \
+            * smoothstep(0.3, 0.8, inside) * (T.kind == 0)
         skinness = smoothstep(18, 40, img[..., 0] - img[..., 2]) * smoothstep(25, 60, img.sum(2) / 3)
         skinness = soft_blur(skinness, 4)[..., None]
         wf = wf * sample(skinness, np.where(wf[:, None] > 0, pxy, 0))[:, 0]
+        for hx, hy, hrx, hry in (self.photo_holes if primary else []):    # e.g. an open mouth
+            wf = wf * smoothstep(0.7, 1.3, ((pxy[:, 0] - hx) / hrx) ** 2 + ((pxy[:, 1] - hy) / hry) ** 2)
+        self._pxy = pxy if primary else self._pxy
         face = np.zeros((len(T.pos), 3))
         face[wf > 0] = sample(img, pxy[wf > 0])
         return self.matte(face, wf > 0.95), wf
+
+    def features(self, photo, shape, anchors=None):
+        """0..1 over the photo where his features are (eyes and brows, nose, mouth, plus any
+        `feature_ellipses`): there the photo keeps its detail, elsewhere the skin is smoothed."""
+        lm = anchors or {k if isinstance(k, (str, int)) else None: np.array(p, float) for k, p in photo.landmarks}
+        er, el = lm['r_eye'], lm['l_eye']
+        ed = np.linalg.norm(el - er)
+        m = np.zeros(shape)
+        for e in (er, el):          # eye, lids and brow above it
+            m = np.maximum(m, ellipse_mask(shape, e[0], e[1] - 0.12 * ed, 0.36 * ed, 0.3 * ed, 0.5))
+        nose = lm.get(5054)
+        if nose is not None:
+            m = np.maximum(m, ellipse_mask(shape, nose[0], nose[1] - 0.22 * ed, 0.34 * ed, 0.4 * ed, 0.5))
+        if 411 in lm and 7171 in lm:
+            mc = (lm[411] + lm[7171]) / 2
+            hw = np.linalg.norm(lm[7171] - lm[411]) / 2
+            m = np.maximum(m, ellipse_mask(shape, mc[0], mc[1], hw * 1.3, 0.3 * ed, 0.5))
+        for cx, cy, rx, ry in self.feature_ellipses(photo):
+            m = np.maximum(m, ellipse_mask(shape, cx, cy, rx, ry, 0.5))
+        return m, ed
+
+    def feature_ellipses(self, photo):
+        """Extra photo regions (cx, cy, rx, ry) whose detail to keep, e.g. facial hair."""
+        return []
+
+    def retouch(self, img, photo, anchors=None):
+        """Frequency separation, as a retoucher would: the photo's broad lighting is evened out
+        (the 3D shading supplies it), wrinkles and creases outside his features are softened, and
+        the features themselves keep their detail. Bands scale with the eye distance."""
+        feat, ed = self.features(photo, img.shape[:2], anchors)
+        feat = feat[..., None]
+        lum = lambda a: a.mean(2, keepdims=True) + 1.0
+        low = np.stack([soft_blur(img[..., c], max(4, 0.45 * ed)) for c in range(3)], 2)
+        mid = np.stack([soft_blur(img[..., c], max(2, 0.035 * ed)) for c in range(3)], 2)
+        fine = lum(img) / lum(mid)                   # pores and fine lines
+        band = lum(mid) / lum(low)                    # creases, folds, the shape of the features
+        lowl = lum(low)
+        flat = low * (np.median(lowl) / lowl) ** self.flatten_light
+        k_mid = self.skin_smooth[0] + (1 - self.skin_smooth[0]) * feat
+        k_fine = self.skin_smooth[1] + (1 - self.skin_smooth[1]) * feat
+        return flat * band ** k_mid * fine ** k_fine
 
     def paint(self, B, faces):
         tris, tri_uv, kinds = [], [], []
@@ -600,10 +942,12 @@ class Character:
         reach = smoothstep(0.0, 0.08, img[:, 3])
         tone = self.skin + (img[:, :3] / np.maximum(img[:, 3:], 1e-6) - self.skin) * reach[:, None]
         base = tone * (1 + 0.10 * T.n_mid + 0.07 * T.n_fine)[:, None] * (0.45 + 0.55 * T.ao)[:, None]
+        base = self.real_skin(T, tone, base, iy, ix)
         shine = T.bone('head') * smoothstep(9.0, 9.7, T.y) * smoothstep(0.35, 0.9, T.nrm[:, 1])
         base = base + (self.skin * 1.5 - base) * (0.18 * shine)[:, None]
         face = face * (0.85 + 0.15 * T.ao)[:, None]
         col = base + (face - base) * wf[:, None]
+        col = self.facial_hair(T, col)
         # inside the mouth: dark, wet, red
         mouth = self.mouth_inside(T, B)
         col = col + (np.array([58, 22, 24.0]) * (0.6 + 0.4 * T.ao)[:, None] - col) * mouth[:, None]
@@ -623,6 +967,47 @@ class Character:
         rgb[rgb.sum(2) == 0] = self.skin * 0.5
         return rgb
 
+    def real_skin(self, T, tone, fallback, iy, ix):
+        """MakeHuman's CC0 photographic skin (Mindfront, 'skin male african middleage') on the same
+        UV layout, recoloured to his tone: real pores, knuckles, lips, nails and creases. Its scalp
+        has short hair, which on these bald heads is replaced by the plain painted skin."""
+        if not self.skin_texture:
+            return fallback
+        img = Image.open(fetch('skins/' + os.path.basename(self.skin_texture), self.skin_texture)).convert('RGB')
+        img = np.asarray(img.resize((OUT_TEX, OUT_TEX), Image.LANCZOS), float)[iy, ix]
+        head = sum(T.bone(b) for b in HEAD_BONES)
+        cheek = (head > 0.9) & (T.nrm[:, 2] > 0.5) & (T.kind == 0)
+        ref = np.median(img[cheek], axis=0)
+        skin = img / ref * tone * (0.7 + 0.3 * T.ao)[:, None]
+        # the scalp (hair in the source): above the brows, and round the back and sides of the head
+        eye_y = self.eye(T.B, 'r')[0][1]
+        brow = eye_y + 0.35
+        scalp = head * np.maximum(smoothstep(brow - 0.1, brow + 0.25, T.y),
+                                  smoothstep(0.5, 0.2, T.nrm[:, 2]) * smoothstep(eye_y - 1.0, eye_y - 0.4, T.y))
+        if self.clean_shaven:
+            nose_y = T.B['V'][5054][1]
+            scalp = np.maximum(scalp, head * smoothstep(nose_y + 0.1, nose_y - 0.05, T.y))
+        scalp *= 1 - (T.kind != 0)
+        return skin + (fallback - skin) * np.clip(scalp, 0, 1)[:, None]
+
+    def facial_hair(self, T, col):
+        """Mustache and beard painted as short dark hair inside `beard` (ellipses in the first
+        photo's pixels, carried onto the face by its warp): dense in the middle, thinning to the
+        edges, with strand-scale breakup."""
+        if not self.beard:
+            return col
+        pxy = self._pxy
+        m = np.zeros(len(col))
+        for cx, cy, rx, ry in self.beard:
+            m = np.maximum(m, 1 - smoothstep(0.55, 1.0, ((pxy[:, 0] - cx) / rx) ** 2 + ((pxy[:, 1] - cy) / ry) ** 2))
+        for hx, hy, hrx, hry in self.beard_gaps:
+            m *= smoothstep(0.8, 1.15, ((pxy[:, 0] - hx) / hrx) ** 2 + ((pxy[:, 1] - hy) / hry) ** 2)
+        m *= (sum(T.bone(b) for b in HEAD_BONES) > 0.5) * (T.kind == 0) * smoothstep(0.1, 0.4, T.nrm[:, 2])
+        strands = np.clip(0.5 + 1.6 * T.n_fine + 0.5 * T.n_mid, 0, 1)
+        dens = np.clip(m * (0.45 + 0.55 * strands) * self.beard_density, 0, 1)
+        hair = self.hair * (0.75 + 0.5 * strands)[:, None] * (0.6 + 0.4 * T.ao)[:, None]
+        return col + (hair - col) * dens[:, None]
+
     def matte(self, face, core):
         """Flattens the photo's highlights, white-balances it to his skin and evens its hue."""
         if core.sum() < 50:
@@ -637,7 +1022,7 @@ class Character:
         face *= self.skin / tint
         ratio = face.mean(1, keepdims=True) / self.skin.mean()
         face *= np.clip(ratio, 0.05, 4) ** 0.2
-        return face + (face.mean(1, keepdims=True) * (self.skin / self.skin.mean()) - face) * 0.6
+        return face + (face.mean(1, keepdims=True) * (self.skin / self.skin.mean()) - face) * self.photo_even
 
     def mouth_inside(self, T, B):
         """Body texels behind the lips (the mouth bag): only seen when the jaw opens."""
@@ -656,7 +1041,8 @@ class Character:
             mine = (pos[:, 0] > 0) == (c[0] > 0)
             d = np.hypot(pos[:, 0] - c[0], pos[:, 1] - c[1]) / r
             front = nrm[:, 2] > 0
-            e = np.where((front & (d < 0.45))[:, None], self.iris * (0.8 + 0.4 * d)[:, None], np.array([180, 166, 150.0]))
+            sclera = np.array([168, 150, 132.0]) * (1 - 0.35 * smoothstep(0.5, 1.0, d))[:, None]
+            e = np.where((front & (d < 0.45))[:, None], self.iris * (0.8 + 0.4 * d)[:, None], sclera)
             e = np.where((front & (d < 0.2))[:, None], np.array([8, 6, 6.0]), e)
             e = np.where((front & (np.abs(d - 0.45) < 0.05))[:, None], self.iris * 0.5, e)
             hl = front & (np.hypot(pos[:, 0] - c[0] + 0.12 * r, pos[:, 1] - c[1] - 0.15 * r) / r < 0.08)
@@ -666,39 +1052,90 @@ class Character:
         return col
 
     # ---- export
+    def optimize(self, B, faces):
+        """Blender pass (tools/blender_decimate.py): the body down to `decimate` of its faces, the
+        head, hands, eyes and mouth untouched. Returns (P, w, polygons) with polygons as
+        (vertex ids, corner uvs). Without Blender, the full mesh."""
+        P, w = B['P'], B['w']
+        polys = [(list(vs), list(uv)) for vs, uv, _ in faces]
+        blender = find_blender()
+        if not blender or self.decimate >= 1:
+            print('Blender not found: mesh not decimated')
+            return P, w, polys
+        # the face keeps every vertex; the scalp, the back of the head and the hands give some up
+        head = np.clip(sum(w[:, BONES.index(b)] for b in HEAD_BONES) * 3, 0, 1)
+        protect = head * (0.75 + 0.25 * smoothstep(0.0, 0.35, B['N'][:, 2]))
+        Jh = B['Jh']
+        for side in 'LR':
+            a, c = Jh['lowerarm01.' + side], Jh['wrist.' + side]
+            t = ((P - a) @ (c - a)) / ((c - a) @ (c - a))
+            protect = np.maximum(protect, 0.85 * smoothstep(0.75, 0.9, t) * (w[:, BONES.index('forearm_' + side.lower())] > 0.3))
+        protect[np.setdiff1d(np.arange(len(P)), B['body_verts'])] = 1
+        tmp = os.path.join(CACHE, self.name)
+        os.makedirs(tmp, exist_ok=True)
+        src, dst = os.path.join(tmp, 'mesh_in.npz'), os.path.join(tmp, 'mesh_out.npz')
+        np.savez(src, P=P, W=w, protect=protect, faces=np.array([vs for vs, _ in polys]),
+                 uvs=np.array([uv for _, uv in polys], float))
+        out = subprocess.run([blender, '-b', '--factory-startup', '--python', os.path.join(ROOT, 'tools/blender_decimate.py'),
+                              '--', src, dst, str(self.decimate)], capture_output=True, text=True)
+        if out.returncode != 0 or not os.path.exists(dst):
+            raise SystemExit('Blender decimation failed:\n' + out.stdout[-2000:] + out.stderr[-2000:])
+        print(next(l for l in out.stdout.splitlines() if l.startswith('decimated')))
+        d = np.load(dst)
+        W2 = d['W'].astype(float)
+        W2 /= np.maximum(W2.sum(1, keepdims=True), 1e-9)
+        polys, k = [], 0
+        for n in d['sizes']:
+            vs = d['loops'][k:k + n]
+            polys.append((list(vs), [tuple(u) for u in d['uvs'][k:k + n]]))
+            k += n
+        os.remove(src)
+        os.remove(dst)
+        return d['P'].astype(float), W2, polys
+
     def export(self, B, faces):
+        P0, W, polys = self.optimize(B, faces)
+        # smooth normals, area-weighted (Newell) over each polygon
+        N0 = np.zeros_like(P0)
+        for vs, _ in polys:
+            q = P0[vs]
+            n = np.cross(q, np.roll(q, -1, 0)).sum(0)
+            N0[vs] += n
+        N0 /= np.maximum(np.linalg.norm(N0, axis=1, keepdims=True), 1e-9)
         key, positions, uvs, joints, wts, indices = {}, [], [], [], [], []
-        for vs, cuv, _ in faces:
+        for vs, cuv in polys:
             ids = []
             for v, uv in zip(vs, cuv):
-                k = (v, round(uv[0], 5), round(uv[1], 5))
+                k = (int(v), round(float(uv[0]), 5), round(float(uv[1]), 5))
                 if k not in key:
                     key[k] = len(key)
-                    positions.append(v)
+                    positions.append(int(v))
                     uvs.extend([round(float(uv[0]), 4), round(float(uv[1]), 4)])
                 ids.append(key[k])
-            indices.extend([ids[0], ids[1], ids[2], ids[0], ids[2], ids[3]])
+            # quads as they are; triangles as quads with the last corner doubled
+            indices.extend(ids if len(ids) == 4 else [ids[0], ids[1], ids[2], ids[2]])
         vi = np.array(positions)
-        P = self.to_rig(B['P'][vi], B)
-        N = B['N'][vi] * [1, 1, -1]
+        P = self.to_rig(P0[vi], B)
+        N = N0[vi] * [1, 1, -1]
         for v in vi:
-            order = np.argsort(-B['w'][v])[:2]
-            ws = B['w'][v][order]
+            order = np.argsort(-W[v])[:2]
+            ws = W[v][order]
             ws = ws / ws.sum() if ws.sum() > 0 else np.array([1.0, 0.0])
             joints.extend(int(o) for o in order)
             wts.extend(round(float(a), 3) for a in ws)
         mesh = {
             'credit': 'MakeHuman 1.1 base mesh, targets, skeleton and weights (CC0), shaped and painted by '
-                      'tools/mh_human.py',
+                      'tools/mh_human.py, decimated in Blender by tools/blender_decimate.py',
             'texture': 'papon:textures/entity/%s_mesh.png' % self.name,
             'bones': BONES,
+            'corners': 4,
             'positions': P.round(3).flatten().tolist(), 'normals': N.round(3).flatten().tolist(), 'uvs': uvs,
             'indices': indices, 'joints': joints, 'weights': wts,
         }
         os.makedirs(os.path.join(ASSETS, 'meshes'), exist_ok=True)
         with open(os.path.join(ASSETS, 'meshes/%s.json' % self.name), 'w') as f:
             json.dump(mesh, f, separators=(',', ':'))
-        return len(vi), len(indices) // 3
+        return len(vi), len(indices) // 4
 
     def joint(self, B, name, swung=False):
         """A MakeHuman bone head in rig pixels (swung = after the arms came down)."""
@@ -714,6 +1151,8 @@ class Character:
             {'name': 'root', 'pivot': [0, 0, 0]},
             {'name': 'leg_r', 'parent': 'root', 'pivot': r3(self.joint(B, 'upperleg01.R'))},
             {'name': 'leg_l', 'parent': 'root', 'pivot': r3(self.joint(B, 'upperleg01.L'))},
+            {'name': 'shin_r', 'parent': 'leg_r', 'pivot': r3(self.joint(B, 'lowerleg01.R'))},
+            {'name': 'shin_l', 'parent': 'leg_l', 'pivot': r3(self.joint(B, 'lowerleg01.L'))},
             {'name': 'torso', 'parent': 'root', 'pivot': r3([0, hip[1], hip[2]])},
             {'name': 'head', 'parent': 'torso', 'pivot': r3(self.joint(B, 'neck02'))},
             {'name': 'jaw', 'parent': 'head', 'pivot': r3(self.joint(B, 'jaw'))},
@@ -741,8 +1180,9 @@ class Character:
             'chest': r3(self.to_rig(front(hip + 0.8 * (neck - hip)), B)),
             'belly': r3(self.to_rig(front(hip + 0.4 * (neck - hip)), B)),
         }
-        bones[4]['locators'] = {k: v for k, v in locators.items() if k in ('mouth', 'eyes', 'forehead')}
-        bones[3]['locators'] = {k: v for k, v in locators.items() if k in ('chest', 'belly')}
+        named = {b['name']: b for b in bones}
+        named['head']['locators'] = {k: v for k, v in locators.items() if k in ('mouth', 'eyes', 'forehead')}
+        named['torso']['locators'] = {k: v for k, v in locators.items() if k in ('chest', 'belly')}
         geo = {'format_version': '1.12.0', 'minecraft:geometry': [{
             'description': {'identifier': 'geometry.%s_mesh' % self.name, 'texture_width': OUT_TEX,
                             'texture_height': OUT_TEX, 'visible_bounds_width': 3, 'visible_bounds_height': 3.5,
@@ -761,7 +1201,7 @@ class Character:
         Image.fromarray(rgb.astype(np.uint8)).save(
             os.path.join(ASSETS, 'textures/entity/%s_mesh.png' % self.name), optimize=True)
         nv, nt = self.export(B, faces)
-        print(self.name, 'mesh', nv, 'vertices,', nt, 'triangles')
+        print(self.name, 'mesh', nv, 'vertices,', nt, 'polygons')
         return B
 
 
