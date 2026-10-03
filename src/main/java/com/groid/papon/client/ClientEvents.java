@@ -119,7 +119,9 @@ public final class ClientEvents {
     public static void onRenderPlayer(net.minecraftforge.client.event.RenderPlayerEvent.Pre event) {
         // the cutscene camera stands where it likes; the player's own body must not block the shot
         // (except in his point-of-view shot, where the camera is his eyes and you are what he sees)
-        if (Cinematic.isActive() && !Cinematic.povActive() && event.getEntity() == Minecraft.getInstance().player) event.setCanceled(true);
+        if (Cinematic.isActive() && !Cinematic.povActive() && !Cinematic.qteActive() && event.getEntity() == Minecraft.getInstance().player) {
+            event.setCanceled(true);
+        }
     }
 
     /** Letterbox bars (and, in phase two's cutscene, the red edge of his point of view and the white-out). */

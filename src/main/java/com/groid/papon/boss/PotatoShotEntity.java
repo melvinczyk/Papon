@@ -68,8 +68,7 @@ public class PotatoShotEntity extends ThrowableItemProjectile {
         super.onHit(result);
         if (!(level() instanceof ServerLevel level)) return;
         Vec3 at = result.getLocation();
-        level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.BAKED_POTATO)), at.x, at.y, at.z,
-                6, 0.1, 0.1, 0.1, 0.12);
+        com.groid.papon.fx.Fx.chunks(level, at, 2, 0.18F, com.groid.papon.fx.Fx.POTATO, 0.25);
         if (random.nextInt(3) == 0) {
             level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.6F, 1.4F);
         }

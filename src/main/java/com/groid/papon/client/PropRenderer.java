@@ -140,6 +140,13 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 .normal(n, nx, 0, nz).endVertex();
     }
 
+    /** The mash wave is a ring far wider than its entity: draw it whenever it is near enough to see. */
+    @Override
+    public boolean shouldRender(BossProp p, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
+        if (p.kind() == BossProp.Kind.MASH || p.kind() == BossProp.Kind.GIANT_SPUD) return p.distanceToSqr(x, y, z) < 96 * 96;
+        return super.shouldRender(p, frustum, x, y, z);
+    }
+
     @Override
     public ResourceLocation getTextureLocation(BossProp p) {
         return MASH;

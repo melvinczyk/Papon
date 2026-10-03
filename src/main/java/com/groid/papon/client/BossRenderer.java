@@ -127,6 +127,11 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     /** Ghost mode (half alive, half dead): see-through and a little green, like a spirit. */
     @Override
     public software.bernie.geckolib.core.object.Color getRenderColor(PaponBossEntity entity, float partialTick, int light) {
+        if (entity.getBossState().unstoppable() && !entity.isGhost()) {
+            // unstoppable: a red heat pulsing through him
+            float k = 0.5F + 0.5F * net.minecraft.util.Mth.sin((entity.tickCount + partialTick) * 0.6F);
+            return software.bernie.geckolib.core.object.Color.ofRGBA(1.0F, 0.55F + 0.2F * k, 0.5F + 0.15F * k, 1F);
+        }
         boolean ghost = entity.isGhost();
         if (!ghost && entity.getVehicle() instanceof com.groid.papon.vehicle.CaravanEntity v) ghost = v.isGhost();
         return ghost ? software.bernie.geckolib.core.object.Color.ofRGBA(0.72F, 1.0F, 0.86F, 0.5F)

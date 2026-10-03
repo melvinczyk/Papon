@@ -168,6 +168,11 @@ public final class Fx {
         }
     }
 
+    /** One flake flying with velocity v (a stream of salt). */
+    public static void flake(ServerLevel level, Vec3 at, Vec3 v, float size, int color) {
+        send(level, ModParticles.CHUNK.get(), 2, at.x, at.y, at.z, size, 0.8F, color, 1F, 18, 0, 0, 0, v.x, v.y, v.z);
+    }
+
     /** Falling flakes over an area (salt). */
     public static void fall(ServerLevel level, Vec3 at, int count, double spread, float size, int color) {
         RandomSource r = level.random;

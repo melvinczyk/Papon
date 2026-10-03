@@ -61,8 +61,9 @@ public class FoilPotatoEntity extends LivingEntity implements GeoEntity {
     public void tick() {
         super.tick();
         if (level().isClientSide) {
-            if (tickCount % 6 == 0) {
-                level().addParticle(ParticleTypes.WHITE_ASH, getX(), getY() + 0.7, getZ(), 0, 0.03, 0);
+            if (tickCount % 20 == 0) {
+                level().addParticle(new com.groid.papon.fx.FxOptions(com.groid.papon.registry.ModParticles.SPARK.get(), 3, 0.25F, 0.2F,
+                        0xEEF4FF, 1F, 8, 0), getX(), getY() + 0.7, getZ(), 0, 0, 0);
             }
             return;
         }
@@ -75,7 +76,7 @@ public class FoilPotatoEntity extends LivingEntity implements GeoEntity {
         boolean hurt = super.hurt(source, amount);
         if (hurt && level() instanceof ServerLevel level) {
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.CHAIN_HIT, SoundSource.HOSTILE, 1.2F, 0.7F + random.nextFloat() * 0.3F);
-            level.sendParticles(ParticleTypes.CRIT, getX(), getY() + 0.4, getZ(), 8, 0.3, 0.3, 0.3, 0.2);
+            com.groid.papon.fx.Fx.spark(level, position().add(0, 0.4, 0), 4, 0.3, 0.25F, 0xDDE6F0);
         }
         return hurt;
     }
@@ -85,10 +86,8 @@ public class FoilPotatoEntity extends LivingEntity implements GeoEntity {
         if (level() instanceof ServerLevel level && deathTime == 0) {
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.9F, 1.8F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 1.2F, 0.8F);
-            level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.IRON_NUGGET)), getX(), getY() + 0.4, getZ(),
-                    20, 0.3, 0.3, 0.3, 0.2);
-            level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.BAKED_POTATO)), getX(), getY() + 0.4, getZ(),
-                    12, 0.3, 0.3, 0.3, 0.15);
+            com.groid.papon.fx.Fx.chunks(level, position().add(0, 0.4, 0), 8, 0.22F, 0xD8DEE6, 0.4);
+            com.groid.papon.fx.Fx.chunks(level, position().add(0, 0.4, 0), 6, 0.3F, com.groid.papon.fx.Fx.POTATO, 0.35);
         }
         remove(RemovalReason.KILLED);
     }

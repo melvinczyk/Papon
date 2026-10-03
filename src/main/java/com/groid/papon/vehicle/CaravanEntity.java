@@ -116,6 +116,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     private boolean autoReverse;
     private boolean autoLock;
     private boolean autoBrake;
+    private boolean bricked;
 
     // sliding (kicked, drifting, left to roll on): a velocity of its own, not along the heading
     private Vec3 shoveVel = Vec3.ZERO;
@@ -349,6 +350,16 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         autoBrake = false;
     }
 
+    /** A brick on the gas pedal: it drives itself at whatever {@link #autopilot} says, nobody at the wheel. */
+    public void setBricked(boolean b) {
+        bricked = b;
+        if (!b) releaseAutopilot();
+    }
+
+    public boolean isBricked() {
+        return bricked;
+    }
+
     /** Stand on the brakes. */
     public void brake() {
         autoBrake = true;
@@ -412,8 +423,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         if (driver instanceof Player p) {
             throttle = p.zza;
             steer = p.xxa;
-        } else if (driver instanceof PaponBossEntity) {
-            top = BOSS_TOP;
+        } else if (driver instanceof PaponBossEntity || (driver == null && bricked)) {
+            top = driver == null ? BOSS_TOP * 0.8 : BOSS_TOP;
             back = BOSS_REVERSE;
             accel = ACCEL * 2.2;
             turn = MAX_TURN * 1.9F;
@@ -566,7 +577,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         }
         ServerLevel level = (ServerLevel) level();
         LivingEntity driver = getControllingPassenger();
-        entityData.set(DATA_ENGINE, driver != null);
+        entityData.set(DATA_ENGINE, driver != null || bricked);
         if (doorTicks > 0 && --doorTicks == 0) entityData.set(DATA_DOOR, false);
         if (hornCooldown > 0) hornCooldown--;
         if (screechCooldown > 0) screechCooldown--;
@@ -589,8 +600,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             crashed = true;
             level.playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_CRASH.get(), SoundSource.NEUTRAL, 2.5F, 0.9F + random.nextFloat() * 0.2F);
             Vec3 nose = local(0, 0.8, HALF_LENGTH * Math.signum(measuredPrev == 0 ? 1 : measuredPrev));
-            level.sendParticles(ParticleTypes.CRIT, nose.x, nose.y, nose.z, 20, 0.6, 0.4, 0.6, 0.3);
-            level.sendParticles(ParticleTypes.LARGE_SMOKE, nose.x, nose.y, nose.z, 8, 0.4, 0.3, 0.4, 0.02);
+            com.groid.papon.fx.Fx.hit(level, nose, 1.4F, 0xFFFFFF);
+            com.groid.papon.fx.Fx.smoke(level, nose, 3, 0.4, 1.0F, 0x5A5450);
             PaponNetwork.shake(level, pos, 10, 0.25F, 12);
         }
         if (screechCooldown == 0 && Math.abs(measured) > 0.42 && Math.abs(yawDelta) > 3.0F) {
@@ -599,9 +610,9 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         }
         if (Math.abs(yawDelta) > 3.0F && Math.abs(measured) > 0.4 || burnout > 0) tyreSmoke(level);
         if (burnout > 0) burnout--;
-        if (driver != null && tickCount % 8 == 0) {
+        if ((driver != null || bricked) && tickCount % 10 == 0) {
             Vec3 pipe = local(-0.7, 0.25, -HALF_LENGTH - 0.1);
-            level.sendParticles(ParticleTypes.SMOKE, pipe.x, pipe.y, pipe.z, 1, 0.02, 0.02, 0.02, 0.01);
+            com.groid.papon.fx.Fx.smoke(level, pipe, 1, 0.02, 0.35F, 0x6E6A66);
         }
         if (com.groid.papon.entity.WanderingPaponEntity.debugEscort && driver instanceof PaponBossEntity && tickCount % 4 == 0
                 && planar.horizontalDistance() > 0.05) {
@@ -621,20 +632,16 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             settle();
         }
         wasSliding = isSliding();
-        if (isGhost() && tickCount % 2 == 0) {
-            for (int i = 0; i < 3; i++) {
-                Vec3 p = local((random.nextDouble() - 0.5) * 2 * HALF_WIDTH, 0.3 + random.nextDouble() * 1.8,
-                        (random.nextDouble() - 0.5) * 2 * HALF_LENGTH);
-                level.sendParticles(random.nextBoolean() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SOUL, p.x, p.y, p.z,
-                        1, 0, 0.04, 0, 0.01);
-            }
+        if (isGhost() && tickCount % 3 == 0) {
+            Vec3 p = local((random.nextDouble() - 0.5) * 2 * HALF_WIDTH, 0.3 + random.nextDouble() * 1.8, -HALF_LENGTH);
+            com.groid.papon.fx.Fx.smoke(level, p, 1, 0.2, 0.9F, com.groid.papon.fx.Fx.SOUL);
         }
     }
 
     private void tyreSmoke(ServerLevel level) {
         for (double side : new double[]{0.9, -0.9}) {
             Vec3 w = local(side, 0.1, -1.7);
-            level.sendParticles(ParticleTypes.CLOUD, w.x, w.y, w.z, 2, 0.15, 0.05, 0.15, 0.02);
+            if (tickCount % 2 == 0) com.groid.papon.fx.Fx.smoke(level, w, 1, 0.15, 0.7F, 0xC8C4BE);
         }
     }
 
@@ -687,7 +694,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             if (stun > 0) e.addEffect(new MobEffectInstance(ModEffects.STUNNED.get(), stun, 0, false, false, true));
             if (e instanceof net.minecraft.server.level.ServerPlayer sp) PaponNetwork.shake(sp, 1.0F, 30);
             level.playSound(null, e.getX(), e.getY(), e.getZ(), ModSounds.CARAVAN_HIT.get(), SoundSource.NEUTRAL, 2.0F, 0.9F);
-            level.sendParticles(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), 16, 0.4, 0.4, 0.4, 0.4);
+            com.groid.papon.fx.Fx.hit(level, e.position().add(0, e.getBbHeight() * 0.6, 0), 1.3F, 0xFFFFFF);
         }
     }
 
@@ -715,7 +722,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         if (e instanceof net.minecraft.server.level.ServerPlayer sp) PaponNetwork.shake(sp, rear ? 1.1F : 0.9F, 30);
         level.playSound(null, e.getX(), e.getY(), e.getZ(), ModSounds.CARAVAN_HIT.get(), SoundSource.NEUTRAL, 2.0F,
                 0.9F + random.nextFloat() * 0.2F);
-        level.sendParticles(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), 16, 0.4, 0.4, 0.4, 0.4);
+        com.groid.papon.fx.Fx.hit(level, e.position().add(0, e.getBbHeight() * 0.6, 0), 1.3F, 0xFFFFFF);
         PaponNetwork.shake(level, e.position(), 8, 0.18F, 8);
         if (driver == null || driver instanceof PaponBossEntity) speed *= 0.85;
     }

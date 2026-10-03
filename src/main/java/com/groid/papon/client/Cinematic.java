@@ -45,6 +45,7 @@ public final class Cinematic {
     /** Whoever the camera is on, for the subtitles. */
     @Nullable private static Entity subject;
     private static int lastBossState = -1;
+    private static int lastQteState = -1;
     /** The boss whose eyes the camera is (the phase-two point-of-view shot), or null. */
     @Nullable private static PaponBossEntity pov;
     private static float vignette;
@@ -73,6 +74,13 @@ public final class Cinematic {
     /** True while the camera looks out of this boss's eyes (he is not drawn; the player is). */
     public static boolean isPovOf(Entity e) {
         return active && pov != null && pov == e;
+    }
+
+    /** The QTE shot: over the held player's shoulder onto his face (the player stays in shot). */
+    private static boolean qte;
+
+    public static boolean qteActive() {
+        return active && qte;
     }
 
     public static boolean povActive() {
@@ -260,6 +268,20 @@ public final class Cinematic {
         Vec3 f = Vec3.directionFromRotation(0, b.getYRot());
         Vec3 right = new Vec3(-f.z, 0, f.x);
         Vec3 body = b.position().add(0, 1.3, 0);
+        qte = false;
+        if (QteClient.focus(b)) {
+            // in slow motion, over your shoulder, his face filling the frame; pushing in as it goes on
+            qte = true;
+            float k = b.isRisen() ? 1.75F / 1.5F : 1F;
+            Vec3 face = b.position().add(0, 2.0 * k, 0);
+            Vec3 eye = b.position().add(f.scale(3.6 * k)).add(right.scale(1.5 * k)).add(0, 2.3 * k, 0);
+            float push = Math.min(1F, t / 80F);
+            eye = eye.lerp(face, 0.25 * push);
+            boolean cut = s.ordinal() != lastQteState;
+            lastQteState = s.ordinal();
+            return new Shot(eye, face, 46F - 10F * push, 0, cut);
+        }
+        lastQteState = -1;
         Shot p2 = phaseTwoShot(b, s, t, f, right);
         if (p2 != null) return p2;
         return switch (s) {

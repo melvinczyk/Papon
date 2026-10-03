@@ -24,18 +24,15 @@ public class StunnedEffect extends MobEffect {
     @Override
     public void applyEffectTick(LivingEntity e, int amplifier) {
         if (!(e.level() instanceof ServerLevel level)) return;
-        // stars round the head
-        double a = e.tickCount * 0.45;
-        for (int i = 0; i < 3; i++) {
-            double t = a + i * Math.PI * 2 / 3;
-            double y = e.getY() + (e.getBbHeight() < 1.0 ? 0.7 : e.getBbHeight() + 0.25);
-            level.sendParticles(i == 0 ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.CRIT,
-                    e.getX() + Math.cos(t) * 0.45, y, e.getZ() + Math.sin(t) * 0.45, 1, 0, 0, 0, 0);
-        }
+        // a star round the head
+        double t = e.tickCount * 0.45;
+        double y = e.getY() + (e.getBbHeight() < 1.0 ? 0.7 : e.getBbHeight() + 0.25);
+        com.groid.papon.fx.Fx.glint(level, new net.minecraft.world.phys.Vec3(e.getX() + Math.cos(t) * 0.45, y, e.getZ() + Math.sin(t) * 0.45),
+                0.3F, 0xFFE070);
     }
 
     @Override
     public boolean isDurationEffectTick(int duration, int amplifier) {
-        return duration % 4 == 0;
+        return duration % 8 == 0;
     }
 }
