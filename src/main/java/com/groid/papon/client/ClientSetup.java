@@ -6,7 +6,6 @@ import com.groid.papon.entity.npc.TacoCustomerEntity;
 import com.groid.papon.client.mesh.MeshCrowdRenderer;
 import com.groid.papon.client.mesh.SkinnedMesh;
 import com.groid.papon.registry.ModEntities;
-import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.world.entity.EntityType;
 import com.groid.papon.registry.ModParticles;
 import net.minecraftforge.api.distmarker.Dist;
@@ -68,8 +67,11 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.PAPON_BOSS.get(), BossRenderer::new);
         event.registerEntityRenderer(ModEntities.CARAVAN.get(), CaravanRenderer::new);
         event.registerEntityRenderer(ModEntities.FOIL_POTATO.get(), FoilPotatoRenderer::new);
-        event.registerEntityRenderer(ModEntities.MOLOTOV.get(), ThrownItemRenderer::new);
-        event.registerEntityRenderer(ModEntities.POTATO_SHOT.get(), ThrownItemRenderer::new);
+        event.registerEntityRenderer(ModEntities.MOLOTOV.get(),
+                ctx -> new TumbleRenderer<>(ctx, () -> new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.TEQUILA.get()), 1.1F, 24F));
+        event.registerEntityRenderer(ModEntities.POTATO_SHOT.get(),
+                ctx -> new TumbleRenderer<>(ctx, () -> new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_SPUD.get()), 0.7F, 40F));
+        event.registerEntityRenderer(ModEntities.BOSS_PROP.get(), PropRenderer::new);
     }
 
     private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,
