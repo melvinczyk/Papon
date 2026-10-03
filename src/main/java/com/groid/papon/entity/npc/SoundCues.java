@@ -5,6 +5,10 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
+
 /**
  * Sound keyframes in customer.animation.json and papon_npc.animation.json name a cue; this picks
  * the vanilla sound for it, so cues can be retuned here without regenerating the animations.
@@ -13,16 +17,26 @@ import net.minecraft.world.entity.Entity;
 public final class SoundCues {
     private SoundCues() {}
 
+    /** Client: when each entity last played each cue, so overlapping animations never stack one sound. */
+    private static final Map<Entity, Map<String, Long>> LAST = new WeakHashMap<>();
+    /** Ticks before the same entity may play the same cue again. */
+    private static final int REPEAT_TICKS = 8;
+
     public static void play(Entity e, String cue) {
+        long now = e.level().getGameTime();
+        Map<String, Long> last = LAST.computeIfAbsent(e, k -> new HashMap<>());
+        Long prev = last.get(cue);
+        if (prev != null && now - prev < REPEAT_TICKS && now >= prev) return;
+        last.put(cue, now);
         SoundEvent sound;
         float volume = 0.7F;
         float pitch = 1.0F;
         switch (cue) {
             // eating and drinking
             case "bite" -> { sound = SoundEvents.GENERIC_EAT; volume = 0.6F; }
-            case "glug" -> { sound = SoundEvents.GENERIC_DRINK; volume = 0.7F; pitch = 0.8F; }
+            case "glug" -> { sound = SoundEvents.GENERIC_DRINK; volume = 0.4F; pitch = 0.8F; }
             case "sip" -> { sound = SoundEvents.GENERIC_DRINK; volume = 0.35F; pitch = 1.5F; }
-            case "burp" -> { sound = SoundEvents.PLAYER_BURP; volume = 2.0F; pitch = 0.5F; }
+            case "burp" -> { sound = SoundEvents.PLAYER_BURP; volume = 0.8F; pitch = 0.5F; }
             case "gulp" -> { sound = SoundEvents.PLAYER_BURP; volume = 0.5F; pitch = 1.4F; }
             // Don Pollo's phone, which always rings at the worst moment
             case "ring_hi" -> { sound = SoundEvents.NOTE_BLOCK_BELL.value(); volume = 0.9F; pitch = 1.6F; }
@@ -31,10 +45,10 @@ public final class SoundCues {
             case "fan" -> { sound = SoundEvents.WOOL_PLACE; volume = 0.5F; pitch = 1.6F; }
             case "hot" -> { sound = SoundEvents.FIRE_EXTINGUISH; volume = 0.35F; pitch = 1.8F; }
             // crowd noises
-            case "hype" -> { sound = SoundEvents.VILLAGER_CELEBRATE; volume = 0.8F; pitch = 0.7F; }
-            case "cheer" -> { sound = SoundEvents.VILLAGER_CELEBRATE; volume = 0.7F; pitch = 1.45F; }
-            case "hmm" -> { sound = SoundEvents.VILLAGER_AMBIENT; volume = 0.5F; pitch = 0.75F; }
-            case "flex" -> { sound = SoundEvents.ARMOR_EQUIP_LEATHER; volume = 0.8F; pitch = 0.7F; }
+            case "hype" -> { sound = SoundEvents.VILLAGER_CELEBRATE; volume = 0.4F; pitch = 0.7F; }
+            case "cheer" -> { sound = SoundEvents.VILLAGER_CELEBRATE; volume = 0.35F; pitch = 1.45F; }
+            case "hmm" -> { sound = SoundEvents.VILLAGER_AMBIENT; volume = 0.3F; pitch = 0.75F; }
+            case "flex" -> { sound = SoundEvents.ARMOR_EQUIP_LEATHER; volume = 0.5F; pitch = 0.7F; }
             case "step" -> { sound = SoundEvents.WOOL_STEP; volume = 0.4F; }
             case "tap" -> { sound = SoundEvents.WOOD_STEP; volume = 0.3F; pitch = 1.4F; }
             case "phone" -> { sound = SoundEvents.UI_BUTTON_CLICK.value(); volume = 0.25F; pitch = 1.8F; }
@@ -48,7 +62,7 @@ public final class SoundCues {
             case "ding" -> { sound = SoundEvents.NOTE_BLOCK_BELL.value(); volume = 0.7F; pitch = 1.9F; }
             case "paper" -> { sound = SoundEvents.BOOK_PAGE_TURN; volume = 1.0F; }
             case "squint" -> { sound = SoundEvents.WANDERING_TRADER_AMBIENT; volume = 0.6F; pitch = 0.75F; }
-            case "gasp" -> { sound = SoundEvents.VILLAGER_TRADE; volume = 0.8F; pitch = 1.6F; }
+            case "gasp" -> { sound = SoundEvents.VILLAGER_TRADE; volume = 0.45F; pitch = 1.6F; }
             case "rumble" -> { sound = SoundEvents.RAVAGER_STUNNED; volume = 0.6F; pitch = 1.6F; }
             case "slam" -> { sound = SoundEvents.ANVIL_LAND; volume = 0.7F; pitch = 0.6F; }
             case "roar" -> { sound = SoundEvents.RAVAGER_ROAR; volume = 1.2F; pitch = 1.5F; }

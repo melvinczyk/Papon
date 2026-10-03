@@ -34,6 +34,8 @@ public final class SkinnedMesh {
     public final int[] indices;
     public final int[] joints;
     public final float[] weights;
+    /** Corners per polygon in {@link #indices}: 4 (quads; a triangle repeats its last corner) or 3. */
+    public final int corners;
 
     private SkinnedMesh(JsonObject json) {
         texture = new ResourceLocation(json.get("texture").getAsString());
@@ -46,6 +48,7 @@ public final class SkinnedMesh {
         indices = ints(json.getAsJsonArray("indices"));
         joints = ints(json.getAsJsonArray("joints"));
         weights = floats(json.getAsJsonArray("weights"));
+        corners = json.has("corners") ? json.get("corners").getAsInt() : 3;
         for (int i = 0; i < positions.length; i += 3) {
             positions[i] = -positions[i] / 16F;
             positions[i + 1] /= 16F;

@@ -35,8 +35,8 @@ public final class ModEntities {
                     .build(PaponMod.id("taco_vendor").toString()));
 
     public static final RegistryObject<EntityType<TacoCustomerEntity>> DON_POLLO = customer(Customer.DON_POLLO, 0.7F, 1.95F);
-    public static final RegistryObject<EntityType<TacoCustomerEntity>> EDP445 = customer(Customer.EDP445, 0.8F, 1.95F);
-    public static final RegistryObject<EntityType<TacoCustomerEntity>> BADLANDS_CHUGS = customer(Customer.BADLANDS_CHUGS, 0.95F, 2.1F);
+    public static final RegistryObject<EntityType<TacoCustomerEntity>> EDP445 = customer(Customer.EDP445, 1.1F, 2.2F);
+    public static final RegistryObject<EntityType<TacoCustomerEntity>> BADLANDS_CHUGS = customer(Customer.BADLANDS_CHUGS, 1.15F, 2.4F);
     public static final RegistryObject<EntityType<TacoCustomerEntity>> REVIEWBRAH = customer(Customer.REVIEWBRAH, 0.6F, 1.95F);
     public static final RegistryObject<EntityType<TacoCustomerEntity>> CUSTOMER_PAPON = customer(Customer.PAPON, 0.9F, 1.5F);
 

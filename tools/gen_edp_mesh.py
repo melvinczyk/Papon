@@ -157,8 +157,10 @@ class Edp(H.Character):
     ]
     fat = {'torso': 0.85, 'uarm': 0.45, 'larm': 0.22, 'uleg': 0.45, 'lleg': 0.25, 'neck': 0.65}
     # the belly: a big forward dome, and the apron below it hanging over his shorts
-    bellies = [(0.47, 0.9, (3.6, 2.7), 1.05, 0.2), (0.17, 1.4, (3.0, 1.1), 0.5, 0.7)]
+    bellies = [(0.47, 0.9, (3.6, 2.7), 1.05, 0.2), (0.2, 1.3, (3.0, 1.2), 0.35, 0.35)]
+    belly_smooth = 0.8
     arm_hang_deg = 20.0
+    trousers = (0.2, 0.12)      # baggy basketball shorts
     # Two frontal phone selfies: his wide-eyed stare (detail) and a neutral one (tone and shading
     # averaged with it). Both tilted a few degrees; even daylight.
     photos = [
@@ -214,7 +216,7 @@ class Edp(H.Character):
             leg = T.bone('leg_' + side.lower())
             centre = T.J['upperleg01.' + side][0]
             ang = np.arctan2(T.z - centre[2], (T.x - centre[0]) * sign)     # 0 = straight out to the side
-            stripe = np.maximum(stripe, (leg > 0.5) * (np.abs(ang) < 0.16))
+            stripe = np.maximum(stripe, (leg + T.bone('shin_' + side.lower()) > 0.5) * (np.abs(ang) < 0.16))
         stripe = np.maximum(stripe, smoothstep(k['knee'] - 0.4, k['knee'] - 0.44, T.y) * 1.0)
         sh = sh + (STRIPE * (0.6 + 0.4 * T.ao)[:, None] - sh) * stripe[:, None]
         sole = T.y < (k['ankle'] - 0.62)

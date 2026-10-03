@@ -23,6 +23,7 @@ Downloads what it needs into tools/.cache (gitignored). Writes, under src/main/r
 import json
 import math
 import os
+import shutil
 import subprocess
 import urllib.request
 from collections import deque
@@ -35,7 +36,8 @@ ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
 CACHE = os.path.join(ROOT, 'tools/.cache')
 MH_RAW = 'https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/'
 OUT_TEX = 2048
-BONES = ['torso', 'head', 'arm_r', 'arm_l', 'leg_r', 'leg_l', 'forearm_r', 'forearm_l', 'jaw', 'lid_r', 'lid_l']
+BONES = ['torso', 'head', 'arm_r', 'arm_l', 'leg_r', 'leg_l', 'forearm_r', 'forearm_l', 'jaw', 'lid_r', 'lid_l',
+         'shin_r', 'shin_l']
 HEAD_BONES = ('head', 'jaw', 'lid_r', 'lid_l')
 # Atlas regions MakeHuman's body UVs leave empty (checked against a rasterised coverage map).
 # Props pack into these blocks in order (texture pixels, x0 y0 x1 y1).
@@ -244,8 +246,10 @@ def fold(bone):
         return [('torso', 0.5), ('arm_' + side, 0.5)]
     if base.startswith('clavicle'):
         return [('torso', 0.85), ('arm_' + side, 0.15)]
-    if base.startswith(('upperleg', 'lowerleg', 'foot', 'toe')):
+    if base.startswith('upperleg'):
         return [('leg_' + side, 1.0)]
+    if base.startswith(('lowerleg', 'foot', 'toe')):
+        return [('shin_' + side, 1.0)]
     if base == 'neck01':
         return [('torso', 0.6), ('head', 0.4)]
     if base == 'neck02':
@@ -344,6 +348,12 @@ class Character:
     bellies = []                # [(t, z, (rx, ry), push, sag)]: gaussian bulges on the front at height t between
                                 # the hips (0) and the neck (1), z forward; sag = how far they hang down
     arm_hang_deg = 16.0         # arms hang this far out from vertical
+    finger_curl = (22.0, 34.0, 22.0)   # relaxed bend at each finger joint, knuckle first (degrees)
+    trousers = (0.0, 0.0)       # how far trouser legs stand off the thigh and shin (decimetres)
+    shoe_puff = 0.14            # how much bigger than the foot a shoe is (decimetres)
+    shoulder_slim = 0.6         # share of the fat kept off the tops of the shoulders (shows the neck)
+    decimate = 0.7              # Blender keeps this share of the body's faces (head and hands keep all)
+    belly_smooth = 0.0          # smoothing over the fattened trunk (0..1)
     photo_url = None            # one photo: photo_url, landmarks, head_ellipse; or several in `photos`
     landmarks = []              # [(vertex | 'r_eye' | 'l_eye' | ('side', y, sign), (photo x, photo y))]
     head_ellipse = None         # his head in the photo: (cx, cy, rx, ry)
@@ -388,6 +398,7 @@ class Character:
         eye_verts = np.unique([i for f in eye_f for i in f[0]])
 
         V, pairs = self.fatten(V, quads, body_verts, weights, J)
+        V = self.relax_hands(V, weights, J)
         w = np.zeros((len(V), len(BONES)))
         for bone, lst in weights.items():
             a = np.array(lst)
@@ -403,6 +414,7 @@ class Character:
 
         # cloth: smooth away anatomy under the clothes, then iron the navel and nipples flat
         cover = self.covered(V, w, J)
+        V = self.dress(V, w, J, quads, pairs, body_verts, cover)
         V = taubin(V, pairs, cover, 30)
         vuv = np.zeros((len(V), 2))
         for f in body_f:
@@ -413,6 +425,13 @@ class Character:
         spot[np.setdiff1d(np.arange(len(V)), body_verts)] = 0
         for _ in range(60):
             V = V + (spot * 0.5)[:, None] * laplacian(V, pairs)
+        # and the crotch under trousers: no anatomy showing through
+        hip_y = (J['upperleg01.L'][0][1] + J['upperleg01.R'][0][1]) / 2
+        crotch = np.zeros(len(V))
+        crotch[body_verts] = (1 - smoothstep(0.35, 0.7, np.abs(V[body_verts, 0]))) \
+            * (1 - smoothstep(0.5, 0.9, np.abs(V[body_verts, 1] - hip_y + 0.3))) * smoothstep(-0.2, 0.3, V[body_verts, 2])
+        crotch *= cover
+        V = taubin(V, pairs, crotch, 40)
 
         mouth_quads = [f[0] for g in MOUTH_BOXES for f in mouth_f[g]]
         all_quads = np.array([f[0] for f in body_f + eye_f] + mouth_quads)
@@ -448,9 +467,12 @@ class Character:
         trunk = smooth_scalar(np.clip(trunk, 0, 1), pairs, 6)
         P = V.copy()
         steps = 8
+        neck_y = J['neck01'][0][1]
         for _ in range(steps):
             N = vertex_normals(P, quads)
-            push = amount[:, None] * N
+            # less on the tops of the shoulders, or they swallow the neck
+            shoulders = smoothstep(neck_y - 1.6, neck_y - 0.6, P[:, 1]) * smoothstep(0.2, 0.8, N[:, 1])
+            push = (amount * (1 - self.shoulder_slim * shoulders))[:, None] * N
             hip = (J['upperleg01.L'][0][1] + J['upperleg01.R'][0][1]) / 2
             neck = J['neck01'][0][1]
             for t, cz, (rx, ry), k, sag in self.bellies:
@@ -458,7 +480,69 @@ class Character:
                 g = (np.exp(-((d[:, 0] / rx) ** 2 + (d[:, 1] / ry) ** 2)) * smoothstep(-0.3, 0.6, P[:, 2]))[:, None]
                 push = push + k * (g * trunk[:, None]) * (N + np.array([0, -sag, 0]))
             P[body_verts] += push[body_verts] / steps
+        if self.belly_smooth:     # big bulges leave creases and ledges where they overlap: iron them out
+            P = taubin(P, pairs, trunk * smoothstep(-0.3, 0.6, P[:, 2]) * self.belly_smooth, 25)
         return P, pairs
+
+    def relax_hands(self, V, weights, J):
+        """MakeHuman's hands are splayed flat; real hands at rest curl a little. Bends each finger
+        at its three joints (distal first, so the proximal bend carries the rest along) about the
+        line across the knuckles, and tucks the thumb in a touch."""
+        V = V.copy()
+        wt = {b: np.array(l) for b, l in weights.items()}
+
+        def bend(bones, pivot, axis, deg):
+            m = np.zeros(len(V))
+            for b in bones:
+                if b in wt:
+                    np.add.at(m, wt[b][:, 0].astype(int), wt[b][:, 1])
+            m = np.clip(m, 0, 1)
+            a = axis / np.linalg.norm(axis)
+            t = math.radians(deg)
+            K = np.array([[0, -a[2], a[1]], [a[2], 0, -a[0]], [-a[1], a[0], 0]])
+            R = np.eye(3) + math.sin(t) * K + (1 - math.cos(t)) * K @ K
+            return V + m[:, None] * ((V - pivot) @ R.T + pivot - V)
+
+        for side, sign in (('L', 1), ('R', -1)):
+            across = J['finger5-1.' + side][0] - J['finger2-1.' + side][0]
+            for f in range(2, 6):
+                for k, deg in ((3, self.finger_curl[2]), (2, self.finger_curl[1]), (1, self.finger_curl[0])):
+                    bones = ['finger%d-%d.%s' % (f, j, side) for j in range(k, 4)]
+                    V = bend(bones, J[bones[0]][0], across, sign * deg)
+            thumb = ['finger1-%d.%s' % (j, side) for j in (2, 3)]
+            V = bend(thumb, J[thumb[0]][0], across, sign * self.finger_curl[0] * 0.5)
+        return V
+
+    def dress(self, V, w, J, quads, pairs, body_verts, cover):
+        """Real clothes stand off the body: trouser legs hang loose (`trousers`: decimetres off the
+        thigh and shin), and the feet become shoes (each foot, toes and all, pulled onto a rounded
+        box round it: a sneaker's shape)."""
+        leg = w[:, BONES.index('leg_r')] + w[:, BONES.index('leg_l')]
+        shin = w[:, BONES.index('shin_r')] + w[:, BONES.index('shin_l')]
+        ankle = (J['foot.L'][0][1] + J['foot.R'][0][1]) / 2
+        foot = np.zeros(len(V))
+        foot[body_verts] = smoothstep(ankle + 0.35, ankle + 0.05, V[body_verts, 1])
+        P = V.copy()
+        up, lo = self.trousers
+        loose = np.zeros(len(V))
+        loose[body_verts] = (cover * (leg * up + shin * lo))[body_verts] * (1 - foot[body_verts])
+        loose = smooth_scalar(loose, pairs, 6)
+        for _ in range(4):
+            N = vertex_normals(P, quads)
+            P[body_verts] += (loose[:, None] * N)[body_verts] / 4
+        floor = P[body_verts, 1].min()
+        for sign in (1, -1):
+            mine = body_verts[(np.sign(P[body_verts, 0]) == sign) & (foot[body_verts] > 0)]
+            core = mine[foot[mine] > 0.95]
+            lo3, hi3 = P[core].min(0), P[core].max(0)
+            lo3, hi3 = lo3 - [self.shoe_puff, 0, self.shoe_puff], hi3 + [self.shoe_puff, 0, self.shoe_puff * 1.2]
+            lo3[1], hi3[1] = floor, ankle + 0.1
+            c, r = (lo3 + hi3) / 2, (hi3 - lo3) / 2
+            d = (P[mine] - c) / r
+            n = (np.abs(d[:, 0]) ** 3 + np.abs(d[:, 2]) ** 3) ** (4 / 3) + np.abs(d[:, 1]) ** 4
+            on = c + (P[mine] - c) / np.maximum(n, 1e-9)[:, None] ** 0.25
+            P[mine] = P[mine] + (on - P[mine]) * foot[mine][:, None]
+        return taubin(P, pairs, foot * 0.5, 6)
 
     def swing_arms(self, P, w, J):
         """Swings each A-pose arm down about its shoulder until it hangs arm_hang_deg off vertical."""
@@ -666,39 +750,90 @@ class Character:
         return col
 
     # ---- export
+    def optimize(self, B, faces):
+        """Blender pass (tools/blender_decimate.py): the body down to `decimate` of its faces; the
+        head, hands, eyes and mouth keep every vertex. Returns (P, w, polygons) with polygons as
+        (vertex ids, corner uvs). Without Blender, the full mesh."""
+        P, w = B['P'], B['w']
+        polys = [(list(vs), list(uv)) for vs, uv, _ in faces]
+        blender = os.environ.get('BLENDER') or next((b for b in (
+            '/Applications/Blender.app/Contents/MacOS/Blender', 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe')
+            if os.path.exists(b)), None) or shutil.which('blender')
+        if not blender or self.decimate >= 1:
+            print('Blender not found: mesh not decimated')
+            return P, w, polys
+        protect = np.clip(sum(w[:, BONES.index(b)] for b in HEAD_BONES) * 3, 0, 1)
+        Jh = B['Jh']
+        for side in 'LR':
+            a, c = Jh['lowerarm01.' + side], Jh['wrist.' + side]
+            t = ((P - a) @ (c - a)) / ((c - a) @ (c - a))
+            protect = np.maximum(protect, 0.85 * smoothstep(0.75, 0.9, t) * (w[:, BONES.index('forearm_' + side.lower())] > 0.3))
+        # the front of the torso carries printed text and the belly's silhouette: decimate it gently
+        protect = np.maximum(protect, 0.5 * w[:, BONES.index('torso')] * smoothstep(0.2, 0.6, B['N'][:, 2]))
+        protect[np.setdiff1d(np.arange(len(P)), B['body_verts'])] = 1
+        tmp = os.path.join(CACHE, self.name)
+        os.makedirs(tmp, exist_ok=True)
+        src, dst = os.path.join(tmp, 'mesh_in.npz'), os.path.join(tmp, 'mesh_out.npz')
+        np.savez(src, P=P, W=w, protect=protect, faces=np.array([vs for vs, _ in polys]),
+                 uvs=np.array([uv for _, uv in polys], float))
+        out = subprocess.run([blender, '-b', '--factory-startup', '--python', os.path.join(ROOT, 'tools/blender_decimate.py'),
+                              '--', src, dst, str(self.decimate)], capture_output=True, text=True)
+        if out.returncode != 0 or not os.path.exists(dst):
+            raise SystemExit('Blender decimation failed:\n' + out.stdout[-2000:] + out.stderr[-2000:])
+        print(next(l for l in out.stdout.splitlines() if l.startswith('decimated')))
+        d = np.load(dst)
+        W2 = d['W'].astype(float)
+        W2 /= np.maximum(W2.sum(1, keepdims=True), 1e-9)
+        polys, k = [], 0
+        for n in d['sizes']:
+            polys.append((list(d['loops'][k:k + n]), [tuple(u) for u in d['uvs'][k:k + n]]))
+            k += n
+        os.remove(src)
+        os.remove(dst)
+        return d['P'].astype(float), W2, polys
+
     def export(self, B, faces):
+        P0, W, polys = self.optimize(B, faces)
+        # smooth normals, area-weighted (Newell) over each polygon
+        N0 = np.zeros_like(P0)
+        for vs, _ in polys:
+            q = P0[vs]
+            N0[vs] += np.cross(q, np.roll(q, -1, 0)).sum(0)
+        N0 /= np.maximum(np.linalg.norm(N0, axis=1, keepdims=True), 1e-9)
         key, positions, uvs, joints, wts, indices = {}, [], [], [], [], []
-        for vs, cuv, _ in faces:
+        for vs, cuv in polys:
             ids = []
             for v, uv in zip(vs, cuv):
-                k = (v, round(uv[0], 5), round(uv[1], 5))
+                k = (int(v), round(float(uv[0]), 5), round(float(uv[1]), 5))
                 if k not in key:
                     key[k] = len(key)
-                    positions.append(v)
+                    positions.append(int(v))
                     uvs.extend([round(float(uv[0]), 4), round(float(uv[1]), 4)])
                 ids.append(key[k])
-            indices.extend([ids[0], ids[1], ids[2], ids[0], ids[2], ids[3]])
+            # quads as they are; triangles as quads with the last corner doubled
+            indices.extend(ids if len(ids) == 4 else [ids[0], ids[1], ids[2], ids[2]])
         vi = np.array(positions)
-        P = self.to_rig(B['P'][vi], B)
-        N = B['N'][vi] * [1, 1, -1]
+        P = self.to_rig(P0[vi], B)
+        N = N0[vi] * [1, 1, -1]
         for v in vi:
-            order = np.argsort(-B['w'][v])[:2]
-            ws = B['w'][v][order]
+            order = np.argsort(-W[v])[:2]
+            ws = W[v][order]
             ws = ws / ws.sum() if ws.sum() > 0 else np.array([1.0, 0.0])
             joints.extend(int(o) for o in order)
             wts.extend(round(float(a), 3) for a in ws)
         mesh = {
             'credit': 'MakeHuman 1.1 base mesh, targets, skeleton and weights (CC0), shaped and painted by '
-                      'tools/mh_human.py',
+                      'tools/mh_human.py, decimated in Blender by tools/blender_decimate.py',
             'texture': 'papon:textures/entity/%s_mesh.png' % self.name,
             'bones': BONES,
+            'corners': 4,
             'positions': P.round(3).flatten().tolist(), 'normals': N.round(3).flatten().tolist(), 'uvs': uvs,
             'indices': indices, 'joints': joints, 'weights': wts,
         }
         os.makedirs(os.path.join(ASSETS, 'meshes'), exist_ok=True)
         with open(os.path.join(ASSETS, 'meshes/%s.json' % self.name), 'w') as f:
             json.dump(mesh, f, separators=(',', ':'))
-        return len(vi), len(indices) // 3
+        return len(vi), len(indices) // 4
 
     def joint(self, B, name, swung=False):
         """A MakeHuman bone head in rig pixels (swung = after the arms came down)."""
@@ -714,6 +849,8 @@ class Character:
             {'name': 'root', 'pivot': [0, 0, 0]},
             {'name': 'leg_r', 'parent': 'root', 'pivot': r3(self.joint(B, 'upperleg01.R'))},
             {'name': 'leg_l', 'parent': 'root', 'pivot': r3(self.joint(B, 'upperleg01.L'))},
+            {'name': 'shin_r', 'parent': 'leg_r', 'pivot': r3(self.joint(B, 'lowerleg01.R'))},
+            {'name': 'shin_l', 'parent': 'leg_l', 'pivot': r3(self.joint(B, 'lowerleg01.L'))},
             {'name': 'torso', 'parent': 'root', 'pivot': r3([0, hip[1], hip[2]])},
             {'name': 'head', 'parent': 'torso', 'pivot': r3(self.joint(B, 'neck02'))},
             {'name': 'jaw', 'parent': 'head', 'pivot': r3(self.joint(B, 'jaw'))},
@@ -741,8 +878,9 @@ class Character:
             'chest': r3(self.to_rig(front(hip + 0.8 * (neck - hip)), B)),
             'belly': r3(self.to_rig(front(hip + 0.4 * (neck - hip)), B)),
         }
-        bones[4]['locators'] = {k: v for k, v in locators.items() if k in ('mouth', 'eyes', 'forehead')}
-        bones[3]['locators'] = {k: v for k, v in locators.items() if k in ('chest', 'belly')}
+        named = {b['name']: b for b in bones}
+        named['head']['locators'] = {k: v for k, v in locators.items() if k in ('mouth', 'eyes', 'forehead')}
+        named['torso']['locators'] = {k: v for k, v in locators.items() if k in ('chest', 'belly')}
         geo = {'format_version': '1.12.0', 'minecraft:geometry': [{
             'description': {'identifier': 'geometry.%s_mesh' % self.name, 'texture_width': OUT_TEX,
                             'texture_height': OUT_TEX, 'visible_bounds_width': 3, 'visible_bounds_height': 3.5,
@@ -761,7 +899,7 @@ class Character:
         Image.fromarray(rgb.astype(np.uint8)).save(
             os.path.join(ASSETS, 'textures/entity/%s_mesh.png' % self.name), optimize=True)
         nv, nt = self.export(B, faces)
-        print(self.name, 'mesh', nv, 'vertices,', nt, 'triangles')
+        print(self.name, 'mesh', nv, 'vertices,', nt, 'polygons')
         return B
 
 

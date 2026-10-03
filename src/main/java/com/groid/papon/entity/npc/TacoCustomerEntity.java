@@ -368,12 +368,19 @@ public class TacoCustomerEntity extends TacoNpc {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", 5, this::animate)
+        controllers.add(new AnimationController<>(this, "main", 4, this::animate)
                 .setSoundKeyframeHandler(this::onSoundCue));
     }
 
+    /** Client: walking, with hysteresis so a one-slot shuffle up the line does not flicker walk/idle. */
+    private boolean walking;
+
     private PlayState animate(AnimationState<TacoCustomerEntity> event) {
-        boolean moving = event.isMoving();
+        float stride = walkAnimation.speed(event.getPartialTick());
+        walking = walking ? stride > 0.04F : stride > 0.12F;
+        boolean moving = walking;
+        // the walk plays as fast as he actually moves, so his feet never skate
+        event.getController().setAnimationSpeed(moving ? Mth.clamp(stride * 2.4F, 0.6F, 1.6F) : 1.0);
         RawAnimation next = switch (getCustomerState()) {
             case QUEUED -> moving ? walk : idle;
             case ORDERING -> order;

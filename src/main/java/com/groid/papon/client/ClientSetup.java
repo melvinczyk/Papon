@@ -40,8 +40,8 @@ public final class ClientSetup {
         customer(event, ModEntities.DON_POLLO.get(), Customer.DON_POLLO);
         // EDP445 and Badlands Chugs are MakeHuman bodies shaped to their builds, with their
         // photographed faces (tools/mh_human.py); their props are cubes painted into the same atlas.
-        mesh(event, ModEntities.EDP445.get(), Customer.EDP445, 0.75F);
-        mesh(event, ModEntities.BADLANDS_CHUGS.get(), Customer.BADLANDS_CHUGS, 0.7F);
+        mesh(event, ModEntities.EDP445.get(), Customer.EDP445, 0.9F);
+        mesh(event, ModEntities.BADLANDS_CHUGS.get(), Customer.BADLANDS_CHUGS, 0.95F);
         customer(event, ModEntities.REVIEWBRAH.get(), Customer.REVIEWBRAH);
         customer(event, ModEntities.CUSTOMER_PAPON.get(), Customer.PAPON);
         // Gerbin the dishwasher: a chort at 1.25x; his name tag is vanilla's, his bubble sits above it

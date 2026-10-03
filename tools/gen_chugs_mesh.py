@@ -36,7 +36,7 @@ def tee_masks(pos, w, J):
     arm = sum(w[:, H.BONES.index(b)] for b in ('arm_r', 'arm_l', 'forearm_r', 'forearm_l'))
     head = sum(w[:, H.BONES.index(b)] for b in H.HEAD_BONES)
     ankle = (J['foot.L'][0][1] + J['foot.R'][0][1]) / 2 + 0.25
-    hem = (J['upperleg01.L'][0][1] + J['upperleg01.R'][0][1]) / 2 + 0.55
+    hem = (J['upperleg01.L'][0][1] + J['upperleg01.R'][0][1]) / 2 + 0.3
     collar = collar_height(x, z, J)
     opening = 1 - smoothstep(NECK_HOLE - 0.05, NECK_HOLE + 0.05, np.hypot(x, z - J['neck01'][0][2]))
     sleeve = np.zeros(len(pos))
@@ -46,7 +46,9 @@ def tee_masks(pos, w, J):
         t = ((pos - sh) @ axis) / (axis @ axis)
         mine = (np.sign(x) == (1 if side == 'L' else -1))
         sleeve = np.maximum(sleeve, mine * (1 - smoothstep(0.55, 0.62, t)))
+    leg = sum(w[:, H.BONES.index(b)] for b in ('leg_r', 'leg_l', 'shin_r', 'shin_l'))
     tee = np.clip(np.clip(1 - arm, 0, 1) + arm * sleeve, 0, 1) * smoothstep(hem - 0.04, hem + 0.04, y) \
+        * (1 - smoothstep(0.35, 0.65, leg)) \
         * (1 - opening * smoothstep(collar - 0.03, collar + 0.03, y)) * (1 - smoothstep(0.6, 0.8, head))
     shoes = 1 - smoothstep(ankle - 0.03, ankle + 0.03, y)
     pants = (1 - smoothstep(hem - 0.04, hem + 0.04, y)) * np.clip(1 - arm, 0, 1) * (1 - shoes)
@@ -132,6 +134,7 @@ class Chugs(H.Character):
     fat = {'torso': 0.6, 'uarm': 0.38, 'larm': 0.15, 'uleg': 0.35, 'lleg': 0.15, 'neck': 0.55}
     bellies = [(0.43, 1.3, (2.6, 1.6), 0.65, 0.0)]
     arm_hang_deg = 16.0
+    trousers = (0.22, 0.26)     # loose black trousers
     photo_url = 'https://i.ytimg.com/vi/kYnmaUPVqcA/maxresdefault.jpg'   # frontal, bald, goatee, even light
     # Photo sides are mirrored from his unobstructed left side about x = 685 (a glass covers his right).
     landmarks = [
