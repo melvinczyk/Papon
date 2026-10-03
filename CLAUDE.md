@@ -115,6 +115,8 @@ player and were not exercised headless.
 | Synthesized sounds and music | `registry/ModSounds.java`, `assets/papon/sounds.json`, `tools/gen_sounds.py` |
 | Dev screenshot director (`./gradlew runClient -Pautoshot`) | `client/dev/AutoShot.java` |
 | Spawn eggs for every new entity | `registry/ModItems.java` |
+| EDP445 fist bump: right-click him empty-handed; a second "gesture" animation controller over his current one | `TacoCustomerEntity.mobInteract/tickBump`, `gen_celeb_anims.edp_fistbump` |
+| Disguise: the vendor wears an obviously fake costume mustache (glue strip, price tag) over his own thin one (`real_stache`, also on the boss); brows raised 0.5 px and `gen_anims.guard_brows` keeps every animation off the eyes | `tools/gen_vendor.py`, `tools/gen_anims.py` |
 | Admin commands `/papon locate|skip|arrive|remove|escort|placetruck|distance|target|state|tacoline|serve|fraud|reveal|boss|van|bossstate` | `command/PaponCommand.java` |
 | Renderers: Wandering Papon (only the Jarrito flavour he holds; speech bubble); crowd (per-type model, Papon hat variants, head turning, bubbles) | `client/WanderingPaponRenderer.java`, `client/CrowdRenderer.java`, `client/CrowdModel.java`, `client/ClientSetup.java` |
 | EDP445 drawn as the EDP SIM mesh skinned onto the customer rig | `client/mesh/MeshCrowdRenderer.java`, `client/mesh/SkinnedMesh.java`, `tools/gen_edp_mesh.py` |
@@ -140,13 +142,40 @@ player and were not exercised headless.
   (all pinned 0 except where keyed); his arms stretch (scale Y) to reach his face and hat.
 - **The boss** (synced `BossState`, Cataclysm pattern). Intro: LEAP_OUT 30t (scripted arc out of the
   window, noPhysics, lands t20) → CHUG 100t (750 ml, `bottle_liquid` drains 1.25-3.75 s) → ROAR
-  40t (boss bar shown, title, music). Attacks from IDLE by range and cooldown: SWIPE (spatula hits
-  t12/t26), SLAM (jump t12, lands ~t30: shockwave ring, damage, shake), BREATH (fire cone t16-52),
-  THROW (molotov t22; 3 in phase two). The van: TO_VAN (walks to the driver's door jingling keys,
+  40t (boss bar shown, title, music). **Phase one, reworked (2026-10-03, after a study of Cataclysm's
+  bosses):** `choose()` picks by range/cooldown, avoids repeating the last attack, and anyone 3+ blocks
+  above him or 18+ away gets the leap; four misses in a row (`misses`, reset on any hit) = frenzy:
+  no pause, charges twice. Every hit goes through `strike()`: heavy hits break a raised shield
+  (`Player.disableShield`) and land at 60%. `predict()` leads targets from their sampled positions
+  (never the server-side player velocity). Attacks:
+  SWIPE 28t (track to t6, lunge sized to the gap, forehand t10; re-track t12-16, lunge, backhand t20
+  heavy) → SWIPE_OVERHEAD 26t if anything landed or you step back in (tracks to t16, hit t20 heavy +
+  a 10-block ground wave `tickLineWave`, grounded only);
+  LEAP (AI: crouch to t10, launch, hover with no gravity drifting over you while `warnRing` marks the
+  spot, dive after 14t (10 in phase two)) → LEAP_LAND 30t (impact r3.6 heavy, then rings r3.5/5.5/7.5
+  at t4/8/12 that only hit grounded targets: jump them);
+  CHARGE_WINDUP 16t (tracks to t12) → CHARGE (AI: 0.62 b/t, 0.72 in phase two, turns ≤2.5°/t, hits each
+  target once, flings sideways; a wall → STAGGER 40t, 1.75x damage taken) [→ another windup from t7];
+  UPPERCUT 22t (launch at t12) → AIR_SPIKE (leaps after the launched target, spikes them down t7-13)
+  → LEAP_LAND (small); BREATH sweeps across you at 2.8°/t (3.6) and leaves burning puddles (`fires`);
+  THROW: a fan of 3 molotovs (5) at your predicted spot. SLAM is still in the enum but never chosen.
+  BLINK (AI, 12t cycles, 9 in phase two with the anim at 1.33x): a red mark beside/behind you, he
+  teleports there at mid-cycle and punches 3t later; 4 blinks (6), then a mark above you: he appears
+  there and dives (LEAP from t11, short hover `blinkHover`). GATLING 70t: the `potato_gun` prop
+  (spinning `gun_barrels`), a `PotatoShotEntity` a tick (two in phase two) t15-55, the barrel
+  turning ≤6°/t toward your predicted spot; rounds ignore i-frames (1.2 dmg each).
+  The CHARGE is a ghost (`DATA_GHOST`, noPhysics): through trees and walls, height from the median
+  of 5 heightmap samples (`groundY`, so a lone trunk does not lift him), `unstick()` after; a charge
+  that hit nothing ends in STAGGER (the punish window). Ghosts render see-through green
+  (`getRenderColor` in BossRenderer/CaravanRenderer).
+  Speed attribute 0.35; pause between attacks 4t (2 in phase two). The van: TO_VAN (walks to the driver's door jingling keys,
   only if the van is empty and within 40 blocks) → DRINK_HANDLE 50t (1.75 l `handle_liquid` drains:
   the warning, plus an action-bar line) → ENTER_VAN 16t → DRIVING (REV burnout 20t, then legs:
-  each forwards or in reverse depending on where the target is, steering locked inside ~7 blocks so
-  you can sidestep; 2 legs, 4 in phase two) → EXIT_STUMBLE 80t (takes 1.5x damage). PHASE at half
+  ghost van (after the handle: `CaravanEntity.setGhost`, through anything, riding the terrain, soul
+  fire; `settle()` puts it on open ground after), boss top speed 1.35 b/t; manoeuvres: RAM at the
+  predicted spot (steering locks only inside 4 blocks), DONUT (circles at 8 blocks throwing molotovs
+  out of the window, then cuts in), AIR once a drive (`launch` arc onto you: `vanImpact` crushes and
+  stuns within 4.5); drive-by molotovs on the straights; 3 manoeuvres, 5 in phase two) → EXIT_STUMBLE 80t (takes 1.5x damage). PHASE at half
   health (faster, angrier, bar renamed). DEATH 100t (kneels, cries, falls; loot: Caravan Keys,
   2-4 Tequila). Invulnerable in the intro, PHASE and DEATH; half damage while in the van. Config
   `[boss]`: health 800, damageMultiplier, vanRamDamage 22, vanCooldownTicks 360, cinematics, bossMusic.
@@ -155,8 +184,12 @@ player and were not exercised headless.
   it for the boss (`autopilot(target, reverse, lockSteering)`) and for an empty van. The server
   measures real speed from position deltas for run-over hits (`runOver`: anything inside the van's
   rotated footprint, on the bumper end it moves toward), crashes and tyre screech. Square hitbox
-  (2.4) shorter than the van (5.6 blocks); the length is handled in code. Seats: driver front left
-  (US), then 4 more. Jump = horn (packet). Only `/kill` or the keys remove it.
+  (2.4) shorter than the van (5.6 blocks); the length is handled in code. Seats (van space, z
+  forward; the model faces -Z): driver front left (0.5, +0.62), passenger, the middle bench (-0.47),
+  the back bench (-1.75). Climbs 1.5 blocks. Every hit applies **Stunned** (`ModEffects.STUNNED`,
+  config `vanStunTicks` 160: no walking, no jumping, crawl pose via `event/StunEvents`, a hard shake
+  for that player via `PaponNetwork.shake(ServerPlayer, ..)`); the front bumper runs you over where you
+  stand, the rear bumper (reversing) launches you far. Jump = horn (packet). Only `/kill` or the keys remove it.
 - **Client**: `Cinematic` puts a client-only marker entity in as the camera entity during
   EXPOSED..RAGE and LEAP_OUT..ROAR(t30) for players within 40 blocks; shots are computed per tick
   from the subject's synced state and `ticksInState()`, so they stay in step with the animations.

@@ -16,7 +16,7 @@ taco_vendor   the Papon in the truck. Chef's toque, a (fake) mustache,
 customer_papon a Papon in line. Hats sombrero / cap / none are variants: the renderer hides
               the hats a given customer is not wearing. Prop: his taco.
 papon_boss    Chef Papon after the unmasking, the boss (256x256): no toque, no fake mustache, the
-              Norwood 7 hair, his own mustache and the glue mark always on; tequila bottle and handle with
+              Norwood 7 hair and his own mustache always on (no red anywhere on his face: a normal Papon's); tequila bottle and handle with
               draining liquid, giant spatula, molotov, lighter, van keys. See papon_boss().
 """
 import os
@@ -134,7 +134,6 @@ def bald_parts(m):
     wisps        the two last hairs on top, which wave about
     real_stache  his own mustache: thin, grey-brown like the horseshoe. Under the fake one all along,
                  so ripping the disguise off leaves it there (and the boss has it)
-    stache_mark  the red patch the fake mustache's glue leaves above it when it is ripped off
     sweat, blush caught out / embarrassed (the boss also blushes as he gets drunk)
     tears        the boss, beaten
     """
@@ -170,7 +169,6 @@ def bald_parts(m):
         m.box([-4.5, 11, -8.12], [1, 1, 0], HAIR, noise=0.1),
         m.box([3.5, 11, -8.12], [1, 1, 0], HAIR, noise=0.1),
     ]))
-    m.add(bone('stache_mark', [0, 13, -8], 'body', [m.box([-5.5, 13, -8.15], [11, 1, 0], (214, 120, 104), noise=0.05)]))
     drop = (176, 222, 255)
     m.add(bone('sweat', [0, 20, -8], 'body', [
         m.box([-7, 19, -8.6], [1, 2, 1], drop, noise=0.04),
@@ -345,7 +343,7 @@ GLASS = (214, 236, 228)
 
 def papon_boss():
     """Chef Papon after the reveal, as the boss: toque and fake mustache gone for good, Norwood 7 out
-    in the open, his own thin mustache with the red glue patch above it. Rendered at 1.5x (1.0 in the van) with a
+    in the open, his own thin mustache (the fake one took nothing with it: no marks). Rendered at 1.5x (1.0 in the van) with a
     translucent render type, so the bottles are see-through and their level reads from outside.
 
     Props (right hand unless noted; all along the arm's axis, so they follow the arm):
@@ -417,6 +415,22 @@ def papon_boss():
         m.box([-11.5, -6, -1.5], [3, 2, 3], (230, 222, 200), noise=0.12),                # rag
         m.box([-11, -9, -1], [2, 3, 2], (255, 170, 40), noise=0.15),                     # flame
         m.box([-10.5, -11, -0.5], [1, 2, 1], (255, 230, 120), noise=0.1),
+    ]))
+
+    # ---- the potato gatling: a gunmetal receiver along the arm (so it points where the fist does),
+    # a hopper of spuds on top, three barrels on their own bone so they spin about the arm's axis
+    gun = (58, 60, 66)
+    m.add(bone('potato_gun', HAND_R, 'arm_r', [
+        m.box([-13, -4, -2.5], [5, 8, 5], gun, noise=0.06),
+        m.box([-14, -2, -6], [4, 5, 4], (150, 110, 60), noise=0.12),                  # the hopper
+        m.box([-13.5, 1, -6.5], [5, 1, 5], (196, 150, 84), noise=0.15),                # spuds heaped in it
+        m.box([-12, 4, -1.5], [3, 2, 3], (40, 40, 44), noise=0.05),                    # grip end
+    ]))
+    m.add(bone('gun_barrels', [-10.5, -4, 0], 'potato_gun', [
+        m.box([-11.5, -14, -2.4], [2, 10, 2], (110, 112, 118), noise=0.04),
+        m.box([-11.5, -14, 0.4], [2, 10, 2], (110, 112, 118), noise=0.04),
+        m.box([-13.6, -14, -1], [2, 10, 2], (110, 112, 118), noise=0.04),
+        m.box([-14, -15, -3], [5, 1, 6], (40, 40, 44), noise=0.04),                    # muzzle ring
     ]))
 
     # ---- left hand: lighter and the van keys

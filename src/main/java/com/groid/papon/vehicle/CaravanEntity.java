@@ -76,6 +76,9 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> DATA_DOOR =
             SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Ghost mode: Papon drives it drunk, half alive and half dead, and it goes through anything. */
+    private static final EntityDataAccessor<Boolean> DATA_GHOST =
+            SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.BOOLEAN);
 
     /** Half the van's length and width in blocks (the model is 89 x 34 px). */
     public static final double HALF_LENGTH = 2.78;
@@ -89,9 +92,9 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     public static final double SEAT_HEIGHT = 0.5;
 
     private static final double PLAYER_TOP = 0.78;
-    private static final double BOSS_TOP = 1.0;
+    private static final double BOSS_TOP = 1.35;
     private static final double PLAYER_REVERSE = 0.3;
-    private static final double BOSS_REVERSE = 0.62;
+    private static final double BOSS_REVERSE = 0.85;
     private static final double ACCEL = 0.03;
     private static final double BRAKE = 0.075;
     private static final double COAST = 0.972;
@@ -155,6 +158,90 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         super.defineSynchedData();
         entityData.define(DATA_ENGINE, false);
         entityData.define(DATA_DOOR, false);
+        entityData.define(DATA_GHOST, false);
+    }
+
+    public boolean isGhost() {
+        return entityData.get(DATA_GHOST);
+    }
+
+    public void setGhost(boolean ghost) {
+        if (ghost != isGhost() && !level().isClientSide) {
+            level().playSound(null, getX(), getY(), getZ(), ghost ? SoundEvents.WITHER_SPAWN : SoundEvents.SOUL_ESCAPE,
+                    SoundSource.HOSTILE, ghost ? 0.7F : 2.0F, ghost ? 1.6F : 0.8F);
+        }
+        entityData.set(DATA_GHOST, ghost);
+        if (!ghost) noPhysics = false;
+    }
+
+    // ------------------------------------------------------------------ the airborne slam
+
+    /** Ticks into a flight (0 = on the ground). */
+    private int launchTicks;
+    private boolean landed;
+
+    /**
+     * Flies the van (ghosting) in an arc onto {@code aim}, landing after {@code flight} ticks: the
+     * boss's van slam. {@link #consumeLanding} reports the touchdown.
+     */
+    public void launch(Vec3 aim, int flight) {
+        Vec3 d = aim.subtract(position());
+        double g = 0.07;
+        double vy = (d.y + 0.5 * g * flight * flight) / flight;
+        setDeltaMovement(d.x / flight, vy, d.z / flight);
+        launchTicks = 1;
+        landed = false;
+        speed = 0;
+        setYRot((float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F);
+    }
+
+    /**
+     * After ghosting: if the van came to rest inside something (a tree, a wall), move it to the
+     * nearest open ground that fits it.
+     */
+    public void settle() {
+        if (level().noCollision(this)) return;
+        for (int r = 1; r <= 8; r++) {
+            for (int k = 0; k < 8 * r; k++) {
+                double a = Math.PI * 2 * k / (8 * r);
+                double x = getX() + Math.cos(a) * r;
+                double z = getZ() + Math.sin(a) * r;
+                double y = level().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                        Mth.floor(x), Mth.floor(z));
+                if (Math.abs(y - getY()) > 5) continue;
+                if (level().noCollision(this, getBoundingBox().move(x - getX(), y - getY(), z - getZ()))) {
+                    setPos(x, y, z);
+                    return;
+                }
+            }
+        }
+        setPos(getX(), groundY(), getZ());
+    }
+
+    public boolean isFlying() {
+        return launchTicks > 0;
+    }
+
+    public boolean consumeLanding() {
+        boolean l = landed;
+        landed = false;
+        return l;
+    }
+
+    /**
+     * The ground under a ghosting van: the median of five height samples (centre, nose, tail, both
+     * sides), so it rides over the terrain and never climbs a lone tree trunk.
+     */
+    private double groundY() {
+        double[] ys = new double[5];
+        int i = 0;
+        for (double[] o : new double[][]{{0, 0}, {0, HALF_LENGTH * 0.8}, {0, -HALF_LENGTH * 0.8}, {HALF_WIDTH, 0}, {-HALF_WIDTH, 0}}) {
+            Vec3 p = local(o[0], 0, o[1]);
+            ys[i++] = level().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    Mth.floor(p.x), Mth.floor(p.z));
+        }
+        java.util.Arrays.sort(ys);
+        return ys[2];
     }
 
     public boolean isEngineOn() {
@@ -236,10 +323,27 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     @Override
     public void travel(Vec3 input) {
         if (!isControlledByLocalInstance()) return;
+        if (launchTicks > 0) {
+            launchTicks++;
+            noPhysics = true;
+            Vec3 v = getDeltaMovement().add(0, -0.07, 0);
+            setDeltaMovement(v);
+            move(MoverType.SELF, v);
+            double ground = groundY();
+            if ((v.y < 0 && getY() <= ground) || launchTicks > 80) {
+                setPos(getX(), Math.max(getY(), ground), getZ());
+                setDeltaMovement(Vec3.ZERO);
+                launchTicks = 0;
+                landed = true;
+            }
+            return;
+        }
         LivingEntity driver = getControllingPassenger();
         float throttle = 0;
         float steer = 0;
         boolean brake = false;
+        double accel = ACCEL;
+        float turn = MAX_TURN;
         double top = PLAYER_TOP;
         double back = PLAYER_REVERSE;
         if (driver instanceof Player p) {
@@ -248,6 +352,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         } else if (driver instanceof PaponBossEntity) {
             top = BOSS_TOP;
             back = BOSS_REVERSE;
+            accel = ACCEL * 2.2;
+            turn = MAX_TURN * 1.5F;
             if (autoBrake || autoTarget == null) {
                 brake = true;
             } else {
@@ -266,9 +372,9 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         }
 
         if (throttle > 0.01F) {
-            speed += speed < -0.02 ? BRAKE : ACCEL * throttle * Math.max(0.12, 1 - speed / top);
+            speed += speed < -0.02 ? BRAKE : accel * throttle * Math.max(0.12, 1 - speed / top);
         } else if (throttle < -0.01F) {
-            speed -= speed > 0.02 ? BRAKE : ACCEL * 0.8 * -throttle * Math.max(0.12, 1 + speed / back);
+            speed -= speed > 0.02 ? BRAKE : accel * 0.8 * -throttle * Math.max(0.12, 1 + speed / back);
         } else {
             speed *= COAST;
         }
@@ -279,12 +385,23 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         if (Math.abs(speed) < 0.004 && Math.abs(throttle) < 0.01F) speed = 0;
 
         double grip = Math.min(1.0, Math.abs(speed) / 0.2);
-        float yawRate = (float) (steer * MAX_TURN * grip * Math.signum(speed));
+        float yawRate = (float) (steer * turn * grip * Math.signum(speed));
         setYRot(getYRot() - yawRate);
         yBodyRot = getYRot();
         yHeadRot = getYRot();
 
         Vec3 f = forward();
+        if (isGhost()) {
+            // through trees, walls and water alike, riding the lie of the land
+            noPhysics = true;
+            double vy = Mth.clamp((groundY() - getY()) * 0.5, -0.8, 0.9);
+            Vec3 vel = new Vec3(f.x * speed, vy, f.z * speed);
+            setDeltaMovement(vel);
+            move(MoverType.SELF, vel);
+            setOnGround(true);
+            return;
+        }
+        noPhysics = false;
         double vy = getDeltaMovement().y;
         vy = (vy - 0.08) * 0.98;
         Vec3 vel = new Vec3(f.x * speed, vy, f.z * speed);
@@ -369,6 +486,14 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             level.sendParticles(ParticleTypes.SMOKE, pipe.x, pipe.y, pipe.z, 1, 0.02, 0.02, 0.02, 0.01);
         }
         if (Math.abs(measured) > 0.16) runOver(level, measured, driver);
+        if (isGhost() && tickCount % 2 == 0) {
+            for (int i = 0; i < 3; i++) {
+                Vec3 p = local((random.nextDouble() - 0.5) * 2 * HALF_WIDTH, 0.3 + random.nextDouble() * 1.8,
+                        (random.nextDouble() - 0.5) * 2 * HALF_LENGTH);
+                level.sendParticles(random.nextBoolean() ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SOUL, p.x, p.y, p.z,
+                        1, 0, 0.04, 0, 0.01);
+            }
+        }
     }
 
     private void tyreSmoke(ServerLevel level) {
@@ -489,6 +614,10 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     @Override
     protected void removePassenger(Entity passenger) {
         super.removePassenger(passenger);
+        if (passenger instanceof PaponBossEntity && !level().isClientSide && isGhost()) {
+            setGhost(false);
+            settle();
+        }
         openDoor();
         if (getPassengers().isEmpty()) {
             speed *= 0.5;

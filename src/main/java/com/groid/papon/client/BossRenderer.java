@@ -55,6 +55,15 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         return entity.getBossState() == com.groid.papon.boss.BossState.LEAP_OUT ? Math.max(block, 8) : block;
     }
 
+    /** Ghost mode (half alive, half dead): see-through and a little green, like a spirit. */
+    @Override
+    public software.bernie.geckolib.core.object.Color getRenderColor(PaponBossEntity entity, float partialTick, int light) {
+        boolean ghost = entity.isGhost();
+        if (!ghost && entity.getVehicle() instanceof com.groid.papon.vehicle.CaravanEntity v) ghost = v.isGhost();
+        return ghost ? software.bernie.geckolib.core.object.Color.ofRGBA(0.72F, 1.0F, 0.86F, 0.5F)
+                : super.getRenderColor(entity, partialTick, light);
+    }
+
     @Override
     protected float getDeathMaxRotation(PaponBossEntity entity) {
         return 0;

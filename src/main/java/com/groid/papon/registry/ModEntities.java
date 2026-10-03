@@ -65,6 +65,12 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(PaponMod.id("caravan").toString()));
 
+    public static final RegistryObject<EntityType<com.groid.papon.boss.PotatoShotEntity>> POTATO_SHOT = REGISTRY.register("potato_shot",
+            () -> EntityType.Builder.<com.groid.papon.boss.PotatoShotEntity>of(com.groid.papon.boss.PotatoShotEntity::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .clientTrackingRange(6)
+                    .updateInterval(2)
+                    .build("potato_shot"));
     public static final RegistryObject<EntityType<MolotovEntity>> MOLOTOV = REGISTRY.register("molotov",
             () -> EntityType.Builder.<MolotovEntity>of(MolotovEntity::new, MobCategory.MISC)
                     .sized(0.3F, 0.3F)
