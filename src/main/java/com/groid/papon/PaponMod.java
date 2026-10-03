@@ -1,6 +1,10 @@
 package com.groid.papon;
 
+import com.groid.papon.boss.PaponBossEntity;
 import com.groid.papon.entity.WanderingPaponEntity;
+import com.groid.papon.network.PaponNetwork;
+import com.groid.papon.registry.ModSounds;
+import com.groid.papon.vehicle.CaravanEntity;
 import com.groid.papon.entity.npc.TacoNpc;
 import com.groid.papon.registry.ModEntities;
 import com.groid.papon.registry.ModItems;
@@ -27,6 +31,8 @@ public class PaponMod {
         ModEntities.REGISTRY.register(bus);
         ModItems.REGISTRY.register(bus);
         ModParticles.REGISTRY.register(bus);
+        ModSounds.REGISTRY.register(bus);
+        PaponNetwork.register();
         bus.addListener(this::attributes);
         bus.addListener(this::creativeTabs);
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, PaponConfig.SPEC);
@@ -44,6 +50,9 @@ public class PaponMod {
         event.put(ModEntities.BADLANDS_CHUGS.get(), TacoNpc.createAttributes().build());
         event.put(ModEntities.REVIEWBRAH.get(), TacoNpc.createAttributes().build());
         event.put(ModEntities.CUSTOMER_PAPON.get(), TacoNpc.createAttributes().build());
+        event.put(ModEntities.GERBIN.get(), TacoNpc.createAttributes().build());
+        event.put(ModEntities.PAPON_BOSS.get(), PaponBossEntity.createAttributes().build());
+        event.put(ModEntities.CARAVAN.get(), CaravanEntity.createAttributes().build());
     }
 
     private void creativeTabs(BuildCreativeModeTabContentsEvent event) {
@@ -54,8 +63,10 @@ public class PaponMod {
             event.accept(ModItems.JARRITO_ORANGE);
             event.accept(ModItems.JARRITO_YELLOW);
             event.accept(ModItems.JARRITO_GREEN);
+            event.accept(ModItems.TEQUILA);
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.CHANCLA);
+            event.accept(ModItems.CARAVAN_KEYS);
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
             ModItems.SPAWN_EGGS.forEach(event::accept);
         }

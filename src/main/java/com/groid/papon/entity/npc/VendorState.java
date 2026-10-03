@@ -7,8 +7,13 @@ package com.groid.papon.entity.npc;
  * <pre>
  * IDLE --> TAKING_ORDER --> COOKING --> SERVING --> IDLE ...      (each customer)
  *  |
- *  +--> INSPECTING --> FRAUD --> FURIOUS                         (the Wandering Papon's coupon)
+ *  +--> INSPECTING --> FRAUD --> EXPOSED --> UNMASK --> REALIZE --> RAGE --> the boss
+ *                                                                (the Wandering Papon's coupon)
  * </pre>
+ * FRAUD: he slams the counter. EXPOSED: the game is up (sweat, darting eyes). UNMASK: rips off his
+ * fake mustache and lifts off his toque: Norwood 7. REALIZE: it dawns on him that everyone saw.
+ * RAGE: he loses it; at its end TacoBoss.startFight swaps him for the boss, who leaps out of the
+ * window. FURIOUS is the old dead end (saves from before the fight existed move on to EXPOSED).
  * Append new states at the end: the ordinal is synced and the name is saved.
  */
 public enum VendorState {
@@ -18,12 +23,21 @@ public enum VendorState {
     SERVING(30),
     INSPECTING(150),
     FRAUD(60),
-    FURIOUS(0);
+    FURIOUS(0),
+    EXPOSED(60),
+    UNMASK(100),
+    REALIZE(60),
+    RAGE(70);
 
     public final int duration;
 
     VendorState(int duration) {
         this.duration = duration;
+    }
+
+    /** From the fraud until he turns into the boss. */
+    public boolean unmasking() {
+        return this == FRAUD || this == FURIOUS || this == EXPOSED || this == UNMASK || this == REALIZE || this == RAGE;
     }
 
     public static VendorState byId(int id) {

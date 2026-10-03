@@ -1,7 +1,9 @@
 package com.groid.papon.registry;
 
 import com.groid.papon.PaponMod;
+import com.groid.papon.item.CaravanKeysItem;
 import com.groid.papon.item.ChanclaItem;
+import com.groid.papon.item.TequilaItem;
 import com.groid.papon.item.JarritoItem;
 import com.groid.papon.item.TacoCouponItem;
 import net.minecraft.world.entity.EntityType;
@@ -30,6 +32,11 @@ public final class ModItems {
     public static final RegistryObject<Item> CHANCLA = REGISTRY.register("chancla",
             () -> new ChanclaItem(new Item.Properties()));
 
+    public static final RegistryObject<Item> TEQUILA = REGISTRY.register("tequila",
+            () -> new TequilaItem(new Item.Properties().rarity(Rarity.UNCOMMON)));
+    public static final RegistryObject<Item> CARAVAN_KEYS = REGISTRY.register("caravan_keys",
+            () -> new CaravanKeysItem(new Item.Properties().rarity(Rarity.RARE).fireResistant()));
+
     public static final RegistryObject<Item> WANDERING_PAPON_SPAWN_EGG = egg("wandering_papon", ModEntities.WANDERING_PAPON, 0xD9AA51, 0x5C7840);
     public static final RegistryObject<Item> TACO_VENDOR_SPAWN_EGG = egg("taco_vendor", ModEntities.TACO_VENDOR, 0xF6F6F0, 0xD9AA51);
     public static final RegistryObject<Item> CUSTOMER_PAPON_SPAWN_EGG = egg("customer_papon", ModEntities.CUSTOMER_PAPON, 0xD9AA51, 0xBA2428);
@@ -38,8 +45,12 @@ public final class ModItems {
     public static final RegistryObject<Item> BADLANDS_CHUGS_SPAWN_EGG = egg("badlands_chugs", ModEntities.BADLANDS_CHUGS, 0xEEEEEA, 0xC42428);
     public static final RegistryObject<Item> REVIEWBRAH_SPAWN_EGG = egg("reviewbrah", ModEntities.REVIEWBRAH, 0x383A42, 0xA01E28);
 
+    public static final RegistryObject<Item> GERBIN_SPAWN_EGG = egg("gerbin", ModEntities.GERBIN, 0x2E2E32, 0xF2F2EE);
+    public static final RegistryObject<Item> PAPON_BOSS_SPAWN_EGG = egg("papon_boss", ModEntities.PAPON_BOSS, 0xD9AA51, 0x2C201A);
+
     public static final List<RegistryObject<Item>> SPAWN_EGGS = List.of(WANDERING_PAPON_SPAWN_EGG, TACO_VENDOR_SPAWN_EGG,
-            CUSTOMER_PAPON_SPAWN_EGG, DON_POLLO_SPAWN_EGG, EDP445_SPAWN_EGG, BADLANDS_CHUGS_SPAWN_EGG, REVIEWBRAH_SPAWN_EGG);
+            CUSTOMER_PAPON_SPAWN_EGG, DON_POLLO_SPAWN_EGG, EDP445_SPAWN_EGG, BADLANDS_CHUGS_SPAWN_EGG, REVIEWBRAH_SPAWN_EGG,
+            GERBIN_SPAWN_EGG, PAPON_BOSS_SPAWN_EGG);
 
     private static RegistryObject<Item> egg(String name, Supplier<? extends EntityType<? extends Mob>> type, int base, int spots) {
         return REGISTRY.register(name + "_spawn_egg", () -> new ForgeSpawnEggItem(type, base, spots, new Item.Properties()));

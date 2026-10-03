@@ -1,6 +1,10 @@
 package com.groid.papon.registry;
 
 import com.groid.papon.PaponMod;
+import com.groid.papon.boss.MolotovEntity;
+import com.groid.papon.boss.PaponBossEntity;
+import com.groid.papon.entity.npc.GerbinEntity;
+import com.groid.papon.vehicle.CaravanEntity;
 import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.entity.npc.Customer;
 import com.groid.papon.entity.npc.TacoCustomerEntity;
@@ -35,6 +39,38 @@ public final class ModEntities {
     public static final RegistryObject<EntityType<TacoCustomerEntity>> BADLANDS_CHUGS = customer(Customer.BADLANDS_CHUGS, 0.95F, 2.1F);
     public static final RegistryObject<EntityType<TacoCustomerEntity>> REVIEWBRAH = customer(Customer.REVIEWBRAH, 0.6F, 1.95F);
     public static final RegistryObject<EntityType<TacoCustomerEntity>> CUSTOMER_PAPON = customer(Customer.PAPON, 0.9F, 1.5F);
+
+    // Gerbin, the dishwasher in the back of the truck (a chort, at 1.25x).
+    public static final RegistryObject<EntityType<GerbinEntity>> GERBIN = REGISTRY.register("gerbin",
+            () -> EntityType.Builder.of(GerbinEntity::new, MobCategory.MISC)
+                    .sized(0.75F, 1.9F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .build(PaponMod.id("gerbin").toString()));
+
+    // The boss: the taquero after the unmasking, 1.5x like before.
+    public static final RegistryObject<EntityType<PaponBossEntity>> PAPON_BOSS = REGISTRY.register("papon_boss",
+            () -> EntityType.Builder.of(PaponBossEntity::new, MobCategory.MONSTER)
+                    .sized(1.35F, 2.4F)
+                    .fireImmune()
+                    .clientTrackingRange(12)
+                    .build(PaponMod.id("papon_boss").toString()));
+
+    // His 2001 Dodge Caravan. Square hitbox about the van's width; the length is handled in code.
+    public static final RegistryObject<EntityType<CaravanEntity>> CARAVAN = REGISTRY.register("caravan",
+            () -> EntityType.Builder.<CaravanEntity>of(CaravanEntity::new, MobCategory.MISC)
+                    .sized(2.4F, 2.1F)
+                    .fireImmune()
+                    .clientTrackingRange(12)
+                    .updateInterval(1)
+                    .build(PaponMod.id("caravan").toString()));
+
+    public static final RegistryObject<EntityType<MolotovEntity>> MOLOTOV = REGISTRY.register("molotov",
+            () -> EntityType.Builder.<MolotovEntity>of(MolotovEntity::new, MobCategory.MISC)
+                    .sized(0.3F, 0.3F)
+                    .clientTrackingRange(8)
+                    .updateInterval(5)
+                    .build(PaponMod.id("molotov").toString()));
 
     private static RegistryObject<EntityType<TacoCustomerEntity>> customer(Customer kind, float width, float height) {
         return REGISTRY.register(kind.id, () -> EntityType.Builder.of(TacoCustomerEntity.factory(kind), MobCategory.MISC)

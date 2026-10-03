@@ -42,6 +42,8 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     protected int stateTicks;
+    /** Client: ticks since the synced state last changed (for cutscenes keyed to animations). */
+    private int clientStateTicks;
     private int speechTicks;
     /** Client: ticks left of voice babble for the line now showing. */
     private int babbleTicks;
@@ -75,6 +77,11 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
         return entityData.get(DATA_STATE);
     }
 
+    /** Ticks in the current state, on either side. */
+    public int ticksInState() {
+        return level().isClientSide ? clientStateTicks : stateTicks;
+    }
+
     protected void setStateId(int id) {
         entityData.set(DATA_STATE, id);
         stateTicks = 0;
@@ -96,6 +103,7 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
     @Override
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
+        if (DATA_STATE.equals(key) && level().isClientSide) clientStateTicks = 0;
         if (DATA_SPEECH.equals(key) && level().isClientSide) {
             babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech());
         }
@@ -113,6 +121,7 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
     public void tick() {
         super.tick();
         if (level().isClientSide) {
+            clientStateTicks++;
             if (babbleTicks > 0) {
                 babbleTicks--;
                 voice().blip(this, babbleTicks);
