@@ -33,7 +33,9 @@ public final class QteClient {
     private static int bossId = -1;
     private static int kind;
     private static int[] keys = new int[0];
-    private static int window = 20;
+    private static int window = 30;
+    /** Ticks left before presses count: whatever you were pressing as he grabbed you is ignored. */
+    private static int grace;
     private static int step;
     private static int stepTicks;
     /** Ticks since the last press, and whether it was right (the keycap flashes). */
@@ -53,6 +55,7 @@ public final class QteClient {
         kind = k;
         keys = ks;
         window = Math.max(4, w);
+        grace = PaponBossEntity.QTE_GRACE;
         step = 0;
         stepTicks = 0;
         flashTicks = 99;
@@ -81,7 +84,7 @@ public final class QteClient {
 
     /** Dev (AutoShot): press the right key now, as a player would. */
     public static void devPress() {
-        if (!active || locked || step >= keys.length) return;
+        if (!active || locked || grace > 0 || step >= keys.length) return;
         PaponNetwork.qteInput(bossId, step, true);
         step++;
         stepTicks = 0;
@@ -108,6 +111,10 @@ public final class QteClient {
                     SoundEvents.WARDEN_HEARTBEAT, 0.6F, 1.6F));
         }
         if (locked) return;
+        if (grace > 0) {
+            grace--;
+            return;
+        }
         if (++stepTicks > window) {
             PaponNetwork.qteInput(bossId, step, false);
             locked = true;
@@ -126,6 +133,11 @@ public final class QteClient {
         }
         if (key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_F1 || key == GLFW.GLFW_KEY_F2 || key == GLFW.GLFW_KEY_F3
                 || (key >= GLFW.GLFW_KEY_LEFT_SHIFT && key <= GLFW.GLFW_KEY_RIGHT_SUPER)) return;
+        if (grace > 0) {
+            // still the fight's presses: they do not count
+            swallow();
+            return;
+        }
         if (!locked && step < keys.length) {
             boolean ok = key == keys[step];
             PaponNetwork.qteInput(bossId, step, ok);
@@ -193,7 +205,8 @@ public final class QteClient {
             int sz = (int) (size * (0.7F + 0.3F * pop));
             int jx = left < 0.35F ? (int) ((mc.level.random.nextFloat() - 0.5F) * 4) : 0;
             int x0 = cx - sz / 2 + jx, y0 = cy - sz / 2;
-            int edge = flashTicks < 4 ? (flashGood ? 0xFF55FF55 : 0xFFFF4444) : (left < 0.35F ? 0xFFFF6A3A : 0xFFFFD27A);
+            int edge = grace > 0 ? 0xFF8A7A6A                        // not live yet: greyed until the grace runs out
+                    : flashTicks < 4 ? (flashGood ? 0xFF55FF55 : 0xFFFF4444) : (left < 0.35F ? 0xFFFF6A3A : 0xFFFFD27A);
             g.fill(x0 - 2, y0 - 2, x0 + sz + 2, y0 + sz + 2, edge);
             g.fill(x0, y0, x0 + sz, y0 + sz, 0xE0201812);
             g.fill(x0 + 2, y0 + sz - 5, x0 + sz - 2, y0 + sz - 2, 0xFF3A2C20);

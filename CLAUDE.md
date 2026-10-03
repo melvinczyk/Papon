@@ -253,6 +253,12 @@ player and were not exercised headless.
   and no English gloss. The bubble over his head shows the Spanish line; the letterbox shows it only in his POV shot.
 - **Parry** (GUARD/RIPOSTE): crossed cleavers in front of his face (the comal is only the griddle slam now); ripostes
   on the first blocked hit or after 8 t close, at most 24 t. Pose angles solved on the rig: GeckoLib flips bone X and Z.
+- **Picker** (`choose` → `pickWeighted`): weighted draw, the last two attacks excluded, an attack unused for 30 s and
+  valid now is forced, otherwise weight = base x (1 + ticks since used / 200); far/high targets get a weighted gap
+  closer (leap, blink, charge, dash, gatling, dive) instead of always the leap; a ready close-range move unused for 20 s
+  makes him walk in (3 s max, `closeMoveDue`). The QTEs take turns (`nextQte`), a missed QTE lunge retries in 8 s.
+- **QTE:** 1.5 s per key (`QTE_WINDOW` 30), the first 0.6 s ignores presses (`QTE_GRACE`, keycap greyed).
+  Dev: `-Pautoshot=fight` logs a 3-minute AI fight against a standing player.
 - **Charge:** windup 9 t (0.45 s), 0.95 b/t (1.1 phase two), steering 3.5 deg/t.
 - **Los Tres Chefs** (CLEAVER_TOSS): three `papon:papon_echo` (see-through copies on his model, `EchoRenderer`) blink in
   left/right/behind you up high; each draws a red line, glints, throws a `CLEAVER_DART` prop (two in phase two). Hit
