@@ -339,9 +339,10 @@ public final class Cinematic {
             case P2_TALK -> {
                 int up = VoiceLines.beat("talk.enough", 40);
                 double rise = t < up ? 0 : Math.min(1, (t - up) / 18.0);
-                Vec3 at = face.add(0, rise * 0.5, 0);
+                // eyes to mouth in frame: aimed between them, far enough back that his 1.5x face fits
+                Vec3 at = face.add(0, rise * 0.5 - 0.3, 0);
                 double push = t / (double) VoiceLines.beat("talk.end", 70);
-                yield new Shot(at.add(f.scale(2.6 - push * 0.5)).add(0, -0.25, 0), at.add(0, 0.05, 0), 42, 0, t == 0);
+                yield new Shot(at.add(f.scale(3.6 - push * 0.5)).add(0, -0.1, 0), at.add(0, 0.05, 0), 42, 0, t == 0);
             }
             case P2_SEASON -> {
                 double orbit = Math.toRadians(-40 + t * 0.9);
@@ -482,7 +483,8 @@ public final class Cinematic {
             }
             case P2_RESUME -> {
                 int whip = VoiceLines.beat("resume.total", 36) - 8;        // whip out as the line ends and he sings
-                if (t < whip) return new Shot(face.add(f.scale(4.2)).add(right.scale(0.6)).add(0, -0.2, 0), face, 42, 0, t == 0);
+                Vec3 mid = face.add(0, -0.3, 0);                            // his eyes and his mouth
+                if (t < whip) return new Shot(mid.add(f.scale(4.8)).add(right.scale(0.6)).add(0, -0.1, 0), mid, 42, 0, t == 0);
                 double k = Math.min(1, (t - whip) / 6.0);
                 return new Shot(face.add(f.scale(4.2 + k * 6)).add(0, k * 1.5, 0), body, 42 + (float) k * 22, 0, false);
             }

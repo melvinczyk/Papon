@@ -354,6 +354,18 @@ player and were not exercised headless.
   `gen_boss_anims.beat` (keyframes) read the same numbers, so after new takes run `gen_boss_voice.py` then
   `gen_boss_anims.py`. The `BossState` durations of those states are only fallbacks now. The apology + aura farm
   need more than two passes of the guitar intro, so `Song.introPasses()` comes from `song.passes` (3).
+- **Eyes** (`eye_r/l`, painted off the face, cubes now): `BossFace.eyes` moves them in their sockets toward the
+  camera (verified: they follow it from either side), a mood's side-eye or downcast look, a dart every 2-4 s,
+  wide (shout, surprise) or narrowed (sly, angry). **Shared bones** (body, brows) are added to through
+  `BossFace.add`, which takes last frame's addition back off: GeckoLib does not reset a bone no animation keys
+  if anything set it that frame, so a plain addition piles up (he spun round and round).
+- **Mix**: lines mastered at -9.5 LUFS through a limiter; `client/VoiceDuck` brings the band and the crowd down
+  to 32% while he talks. Fight lines never start within 1.5 s of the last one's end (`voiceFree`); the
+  cutscene lines have a breath after each (the beats). A key light on him through the ground cutscene
+  (`BossRenderer.keyLight`: the coliseum going up overhead shades him).
+- **Apron**: torn off and flung away in P2_TALK (`talk.rip`), hidden for the rest of phase two (BossFace).
+- **Crowd**: the bed and ROAR are the user's stadium recordings (`tools/gen_crowd_samples.py`, sources in
+  `tools/src/crowd`, gitignored): three seamless ambience loops, three roars; gen_crowd.py keeps the rest.
 - New lines of his: `bleed` (before "enough"), `charm0-5` (phase-two taunts), `hit0-1` (hurt), `landed0-1` (lands
   one in the coliseum) via `quip` (never over another line or in a cutscene).
 
