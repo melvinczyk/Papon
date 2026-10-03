@@ -31,6 +31,11 @@ public class MeshCrowdRenderer<T extends TacoNpc> extends CrowdRenderer<T> {
     private final String meshName;
     private final Map<String, Matrix4f> poses = new HashMap<>();
     private final Map<String, Matrix3f> normalPoses = new HashMap<>();
+    // skinning scratch, reused every frame (rendering is single-threaded)
+    private float[] px = new float[0];
+    private float[] nx = new float[0];
+    private final Vector4f p = new Vector4f();
+    private final Vector3f q = new Vector3f();
 
     public MeshCrowdRenderer(EntityRendererProvider.Context ctx, CrowdModel<T> model, float scale, float shadow,
                              float bubbleLift, String meshName) {
@@ -61,10 +66,12 @@ public class MeshCrowdRenderer<T extends TacoNpc> extends CrowdRenderer<T> {
             if (m[i] == null) return;   // the rig is missing a bone: draw nothing rather than garbage
         }
         int count = mesh.vertexCount();
-        float[] px = new float[count * 3];
-        float[] nx = new float[count * 3];
-        Vector4f p = new Vector4f();
-        Vector3f q = new Vector3f();
+        if (px.length < count * 3) {
+            px = new float[count * 3];
+            nx = new float[count * 3];
+        }
+        float[] px = this.px;
+        float[] nx = this.nx;
         for (int v = 0; v < count; v++) {
             float sx = 0, sy = 0, sz = 0, tx = 0, ty = 0, tz = 0;
             for (int k = 0; k < 2; k++) {
@@ -81,14 +88,19 @@ public class MeshCrowdRenderer<T extends TacoNpc> extends CrowdRenderer<T> {
             px[v * 3] = sx; px[v * 3 + 1] = sy; px[v * 3 + 2] = sz;
             nx[v * 3] = tx; nx[v * 3 + 1] = ty; nx[v * 3 + 2] = tz;
         }
-        // Entity render types draw quads: each triangle goes in as a quad with its last corner doubled.
+        // Entity render types draw quads: the mesh is mostly quads already (a triangle repeats its last
+        // corner); an older triangle-only mesh goes in as quads with the last corner doubled.
         VertexConsumer out = buffers.getBuffer(RenderType.entityCutoutNoCull(mesh.texture));
         int[] idx = mesh.indices;
-        for (int t = 0; t < idx.length; t += 3) {
-            put(out, mesh, px, nx, idx[t], light, overlay, r, g, b, a);
-            put(out, mesh, px, nx, idx[t + 1], light, overlay, r, g, b, a);
-            put(out, mesh, px, nx, idx[t + 2], light, overlay, r, g, b, a);
-            put(out, mesh, px, nx, idx[t + 2], light, overlay, r, g, b, a);
+        if (mesh.corners == 4) {
+            for (int i : idx) put(out, mesh, px, nx, i, light, overlay, r, g, b, a);
+        } else {
+            for (int t = 0; t < idx.length; t += 3) {
+                put(out, mesh, px, nx, idx[t], light, overlay, r, g, b, a);
+                put(out, mesh, px, nx, idx[t + 1], light, overlay, r, g, b, a);
+                put(out, mesh, px, nx, idx[t + 2], light, overlay, r, g, b, a);
+                put(out, mesh, px, nx, idx[t + 2], light, overlay, r, g, b, a);
+            }
         }
     }
 
