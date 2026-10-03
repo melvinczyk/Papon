@@ -29,6 +29,24 @@ public final class ClientSetup {
     @SubscribeEvent
     public static void registerParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.SNOOZE.get(), SnoozeParticle.Provider::new);
+        fx(event, ModParticles.FIRE.get(), FxParticle.Mode.FIRE);
+        fx(event, ModParticles.FLAME.get(), FxParticle.Mode.FLAME);
+        fx(event, ModParticles.BLAST.get(), FxParticle.Mode.BLAST);
+        fx(event, ModParticles.BURST.get(), FxParticle.Mode.BURST);
+        fx(event, ModParticles.SMOKE.get(), FxParticle.Mode.SMOKE);
+        fx(event, ModParticles.DUST.get(), FxParticle.Mode.DUST);
+        fx(event, ModParticles.SLASH.get(), FxParticle.Mode.SLASH);
+        fx(event, ModParticles.HIT.get(), FxParticle.Mode.HIT);
+        fx(event, ModParticles.SHOCK.get(), FxParticle.Mode.SHOCK);
+        fx(event, ModParticles.DECAL.get(), FxParticle.Mode.DECAL);
+        fx(event, ModParticles.SPARK.get(), FxParticle.Mode.SPARK);
+        fx(event, ModParticles.CHUNK.get(), FxParticle.Mode.CHUNK);
+        fx(event, ModParticles.FLASH.get(), FxParticle.Mode.FLASH);
+    }
+
+    private static void fx(RegisterParticleProvidersEvent event, net.minecraft.core.particles.ParticleType<com.groid.papon.fx.FxOptions> type,
+                           FxParticle.Mode mode) {
+        event.registerSpriteSet(type, sprites -> new FxParticle.Provider(sprites, mode));
     }
 
     @SubscribeEvent

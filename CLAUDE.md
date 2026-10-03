@@ -460,7 +460,8 @@ be ported back into the generator scripts, or the next regeneration overwrites t
 
 All are in the pack instance at `~/Documents/curseforge/minecraft/Instances/Groid Pack OG/mods/`.
 `tools/decompile_refs.sh [out]` unzips them and decompiles the relevant packages with Vineflower
-(default `/tmp/papon_refs`). Study material only: never copy their code or assets into this repo.
+(default `/tmp/papon_refs`). Their code is study material (don't copy it); their **assets may be used** (the user's
+call: it is their pack, e.g. `tools/src/papon_base.png`, `chort_base.png`, and particle textures from the pack's mods).
 
 ### Walking Crops — `walking crops-1.0.7.jar` (modid `wkcr`, MCreator + GeckoLib)
 - `wkcr:papon` (`net.mcreator.wkcr.entity.PaponEntity`): hostile `Monster`, 0.9×1.5, 30 HP,
