@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
  * come down under him, like a mix ducking music under dialogue, and come back up when he is done.
  */
 public final class VoiceDuck {
-    private static final float UNDER = 0.32F;
+    private static final float UNDER = 0.18F;
     private static final double RANGE = 64;
 
     private static float level = 1F;
@@ -27,10 +27,10 @@ public final class VoiceDuck {
             boolean talking = false;
             for (PaponBossEntity b : mc.level.getEntitiesOfClass(PaponBossEntity.class, mc.player.getBoundingBox().inflate(RANGE), e -> true)) {
                 VoiceLines.Line l = b.talking();
-                if (l != null && b.talkTime(0) <= l.length() + 0.15) talking = true;
+                if (l != null && b.talkTime(0) >= -0.1 && b.talkTime(0) <= l.length() + 0.3) talking = true;
             }
             float want = talking ? UNDER : 1F;
-            level += (want - level) * (want < level ? 0.45F : 0.12F);
+            level += (want - level) * (want < level ? 0.6F : 0.1F);
         }
         return level;
     }

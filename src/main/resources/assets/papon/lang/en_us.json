@@ -376,5 +376,16 @@
   "speech.papon.boss2.hit0": "AH!!! Not the FACE!",
   "speech.papon.boss2.hit1": "You will PAY for that... in TACOS.",
   "speech.papon.boss2.landed0": "Gracias, gracias... you are TOO kind.",
-  "speech.papon.boss2.landed1": "And the crowd... goes WILD!!!"
+  "speech.papon.boss2.landed1": "And the crowd... goes WILD!!!",
+  "entity.papon.arena_portal": "Way Back to El Coliseo Papa",
+  "status.papon.composure": "He shrugs it off! Raw damage won't do it: beat his mechanics.",
+  "status.papon.meteor": "IT FALLS! Get to the wall and JUMP the shockwaves!",
+  "block.papon.arena_hot_sand": "Cracking Arena Sand",
+  "block.papon.arena_frying_oil": "Frying Oil",
+  "death.attack.papon.true_hit.item": "%1$s was taken apart by %2$s",
+  "qte.papon.title.3": "¡APAGA EL FUEGO!",
+  "qte.papon.title.4": "EL TANGO DEL PAPA",
+  "qte.papon.how.3": "MASH IT! The hot sauce is coming!",
+  "qte.papon.how.4": "Step on the beat!",
+  "status.papon.masher": "EL MACHACADOR! Stand under a hole (the green squares)!"
 }

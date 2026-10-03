@@ -369,6 +369,27 @@ player and were not exercised headless.
 - New lines of his: `bleed` (before "enough"), `charm0-5` (phase-two taunts), `hit0-1` (hurt), `landed0-1` (lands
   one in the coliseum) via `quip` (never over another line or in a cutscene).
 
+### Boss hardening (status 2026-10-03, v0.7.2; check with `./gradlew runClient -Pautoshot=arena`)
+- **Containment**: `Coliseum.Gate` refuses any foreign mob joining within 32 blocks of a standing coliseum (`keepAlive`
+  each tick by its boss; `belongs`: non-mobs, `papon:` entities, tamed pets); strays are puffed away every 10 t. He and
+  his van are put back on the sand if they leave it; players (not creative, not held) within 48 blocks off the sand
+  are put back. A spectator does not count as someone in it (the coliseum comes down after 10 s with nobody).
+- **Mix**: `client/SoundMix` scales one-shots near him to 60% and much lower while he talks; `VoiceDuck` 18%; crowd 55%.
+- **Portal**: `ArenaPortalEntity` in the truck window (`portalAt` from `begin`) while the coliseum stands; sends you to
+  the middle of the sand with 3 s of Resistance V. Not saved; closed in `leaveArena`.
+- **QTE input**: `client/QteScreen` (blank, non-pausing) is up during a QTE so keys never reach keybinds.
+- **Fire immunity**: our damage types are no longer in `minecraft:is_fire`, so fire attacks hurt the fire-immune.
+- **Anti-cheese**: composure (`burstCapFraction` 0.04: hits past a rolling burst glance off; 2.5x when staggered),
+  heavy hits also deal `armorPierceFraction` of max health through armor, SALSA_BURST when one player lands 4 melee
+  hits in 2.5 s, TO_VAN/DRINK_HANDLE are unstoppable with a shove, speed 0.42, context-aware picker (`context`:
+  shields, flyers, melee pressure, kiting, low health, overpowered → more QTEs), no breather after a landed hit in p2.
+- **Arena attacks** (phase two, in the coliseum): `ARENA_FRYER` (boss/Freidora: hot sand → frying oil in a pattern,
+  1.5 s + 5.5 s, `FryingOilBlock`/`HotSandBlock`, `Coliseum.restoreFloor` after a reload), `ARENA_HECKLE` (the stands
+  lob PRODUCE props for 7 s), `P2_MASHER` (boss/Masher: a lattice plate prop, only the holes are safe),
+  `P2_GRAVITY` rebuilt as El Gran Meteoro (180 t, arena-sized spud, pull, distance-scaled impact, jumpable rings).
+- **QTEs**: kinds 3 ¡Apaga el Fuego! (mash one key 14x, 9 t each; bottle hold) and 4 El Tango del Papa (arrow keys on
+  the song's beat, coliseum only; suplex hold); `qteBase()` maps them onto the three hold/fail animations.
+
 ### Boss rework (status 2026-10-03, v0.6.0)
 - **Voice:** Chef Papon's lines (vendor + boss) are text-to-speech clips (`tools/gen_voice.py`, macOS `say` Rocko
   es_MX pitched down, mono Vorbis via soundfile; sounds `voice.<who>.<line>`), played where he stands; never in chat

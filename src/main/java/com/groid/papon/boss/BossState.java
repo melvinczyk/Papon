@@ -118,7 +118,7 @@ public enum BossState {
     P2_MASH(50),
     P2_TOT(40),
     P2_SNARE(36),
-    P2_GRAVITY(100),
+    P2_GRAVITY(180),
     // phase two in his coliseum: the band is asleep (see the diagram)
     P2_NOTICE(60),
     P2_MARCH(0),
@@ -128,7 +128,16 @@ public enum BossState {
     P2_COUNT(80),
     P2_SHOWTIME(70),
     P2_APOLOGY(178),
-    P2_RESUME(0);
+    P2_RESUME(0),
+    // ---- the hardening: punishes and new attacks (append only: the ordinal is synced)
+    /** Face-tanked: he balls up and bursts in a blast of habanero salsa (0.5 s), throwing everyone off him. */
+    SALSA_BURST(26),
+    /** La Freidora: a leap and a double stomp (0.7 s / 1.2 s): the sand in a pattern gives way to frying oil. */
+    ARENA_FRYER(40),
+    /** ¡Abucheo!: he turns to the stands, thumbs down: they pelt you with produce for the next 7 s. */
+    ARENA_HECKLE(32),
+    /** El Machacador (phase two): a masher the size of the sand comes down out of the sky (4.0 s): only its holes are safe. */
+    P2_MASHER(110);
 
     public final int duration;
 
@@ -164,7 +173,8 @@ public enum BossState {
 
     /** He cannot be stopped: no knockback, no stagger, half damage (drawn with a red edge). */
     public boolean unstoppable() {
-        return this == DRUNK_SWIG || this == DRUNK_FLURRY || this == HAYMAKER || this == CHARGE || this == P2_GRAVITY;
+        return this == DRUNK_SWIG || this == DRUNK_FLURRY || this == HAYMAKER || this == CHARGE || this == P2_GRAVITY
+                || this == TO_VAN || this == DRINK_HANDLE || this == ENTER_VAN || this == SALSA_BURST;
     }
 
     /** A QTE in progress (he cannot be hurt until it resolves). */
