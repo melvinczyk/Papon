@@ -42,6 +42,10 @@ public class PropRenderer extends EntityRenderer<BossProp> {
             drawMash(p, pose, buffers, light);
             return;
         }
+        if (k == BossProp.Kind.MASHER) {
+            drawMasher(p, pose, buffers, light, age);
+            return;
+        }
         pose.pushPose();
         int lit = light;
         ItemStack stack;
@@ -135,6 +139,79 @@ public class PropRenderer extends EntityRenderer<BossProp> {
         super.render(p, yaw, partialTick, pose, buffers, light);
     }
 
+    private static final ResourceLocation METAL = new ResourceLocation("minecraft", "textures/block/iron_block.png");
+    private static final ResourceLocation GRIP = new ResourceLocation("minecraft", "textures/block/stripped_oak_log.png");
+    private static final float PLATE = 1.4F;
+
+    /**
+     * El Machacador: the plate (boss/Masher's shape: a grid of square holes) one block cell at a time, its
+     * rim, the handle going up out of sight with a wooden grip, and on the sand under it the holes lit green.
+     */
+    private static void drawMasher(BossProp p, PoseStack pose, MultiBufferSource buffers, int light, float age) {
+        float yaw = p.getYRot();
+        pose.pushPose();
+        pose.mulPose(Axis.YP.rotationDegrees(-yaw));
+        int lit = LightTexture.FULL_BRIGHT;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(METAL));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        int hx = (int) com.groid.papon.boss.Masher.HALF_X, hz = (int) com.groid.papon.boss.Masher.HALF_Z;
+        for (int x = -hx; x < hx; x++) {
+            for (int z = -hz; z < hz; z++) {
+                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z + 0.5)) continue;
+                // top and bottom of this cell
+                quad(vc, m, n, x, PLATE, z, x, PLATE, z + 1, x + 1, PLATE, z + 1, x + 1, PLATE, z, lit, 0, 1, 0);
+                quad(vc, m, n, x, 0, z, x + 1, 0, z, x + 1, 0, z + 1, x, 0, z + 1, lit, 0, -1, 0);
+                // sides where it meets a hole or the edge
+                if (!com.groid.papon.boss.Masher.metal(x - 0.5, z + 0.5)) quad(vc, m, n, x, 0, z, x, 0, z + 1, x, PLATE, z + 1, x, PLATE, z, lit, -1, 0, 0);
+                if (!com.groid.papon.boss.Masher.metal(x + 1.5, z + 0.5)) quad(vc, m, n, x + 1, 0, z + 1, x + 1, 0, z, x + 1, PLATE, z, x + 1, PLATE, z + 1, lit, 1, 0, 0);
+                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z - 0.5)) quad(vc, m, n, x + 1, 0, z, x, 0, z, x, PLATE, z, x + 1, PLATE, z, lit, 0, 0, -1);
+                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z + 1.5)) quad(vc, m, n, x, 0, z + 1, x + 1, 0, z + 1, x + 1, PLATE, z + 1, x, PLATE, z + 1, lit, 0, 0, 1);
+            }
+        }
+        // the shaft up to the handle, and the grip across it
+        box(vc, m, n, -1.2F, PLATE, -1.2F, 1.2F, PLATE + 34, 1.2F, lit);
+        VertexConsumer wood = buffers.getBuffer(RenderType.entityCutoutNoCull(GRIP));
+        box(wood, m, n, -9F, PLATE + 34, -1.6F, 9F, PLATE + 37, 1.6F, lit);
+        pose.popPose();
+        // the holes lit green on the sand below it
+        float h = p.radius();
+        if (h > 0.6F) {
+            VertexConsumer glow = buffers.getBuffer(RenderType.lightning());
+            float pulse = 0.35F + 0.2F * Mth.sin(age * 0.4F);
+            Matrix4f g = pose.last().pose();
+            float hw = (float) com.groid.papon.boss.Masher.HOLE;
+            for (net.minecraft.world.phys.Vec3 c : com.groid.papon.boss.Masher.holes(yaw)) {
+                net.minecraft.world.phys.Vec3 a = c.add(com.groid.papon.boss.Masher.toWorld(-hw, -hw, yaw));
+                net.minecraft.world.phys.Vec3 b = c.add(com.groid.papon.boss.Masher.toWorld(hw, -hw, yaw));
+                net.minecraft.world.phys.Vec3 d = c.add(com.groid.papon.boss.Masher.toWorld(hw, hw, yaw));
+                net.minecraft.world.phys.Vec3 e = c.add(com.groid.papon.boss.Masher.toWorld(-hw, hw, yaw));
+                float y = -h + 0.06F;
+                glow.vertex(g, (float) a.x, y, (float) a.z).color(0.4F, 1F, 0.4F, pulse).endVertex();
+                glow.vertex(g, (float) e.x, y, (float) e.z).color(0.4F, 1F, 0.4F, pulse).endVertex();
+                glow.vertex(g, (float) d.x, y, (float) d.z).color(0.4F, 1F, 0.4F, pulse).endVertex();
+                glow.vertex(g, (float) b.x, y, (float) b.z).color(0.4F, 1F, 0.4F, pulse).endVertex();
+            }
+        }
+    }
+
+    private static void quad(VertexConsumer vc, Matrix4f m, Matrix3f n, float x0, float y0, float z0, float x1, float y1, float z1,
+                             float x2, float y2, float z2, float x3, float y3, float z3, int light, float nx, float ny, float nz) {
+        vc.vertex(m, x0, y0, z0).color(255, 255, 255, 255).uv(0, 0).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(n, nx, ny, nz).endVertex();
+        vc.vertex(m, x1, y1, z1).color(255, 255, 255, 255).uv(0, 1).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(n, nx, ny, nz).endVertex();
+        vc.vertex(m, x2, y2, z2).color(255, 255, 255, 255).uv(1, 1).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(n, nx, ny, nz).endVertex();
+        vc.vertex(m, x3, y3, z3).color(255, 255, 255, 255).uv(1, 0).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(n, nx, ny, nz).endVertex();
+    }
+
+    private static void box(VertexConsumer vc, Matrix4f m, Matrix3f n, float x0, float y0, float z0, float x1, float y1, float z1, int light) {
+        quad(vc, m, n, x0, y1, z0, x0, y1, z1, x1, y1, z1, x1, y1, z0, light, 0, 1, 0);
+        quad(vc, m, n, x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, light, 0, -1, 0);
+        quad(vc, m, n, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, light, -1, 0, 0);
+        quad(vc, m, n, x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, light, 1, 0, 0);
+        quad(vc, m, n, x1, y0, z0, x0, y0, z0, x0, y1, z0, x1, y1, z0, light, 0, 0, -1);
+        quad(vc, m, n, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, light, 0, 0, 1);
+    }
+
     /** The mash wave: a lumpy wall 1.4 high in a ring of the synced radius, gravy along the top. */
     private static void drawMash(BossProp p, PoseStack pose, MultiBufferSource buffers, int light) {
         float r = p.radius();
@@ -167,7 +244,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
     /** The mash wave is a ring far wider than its entity: draw it whenever it is near enough to see. */
     @Override
     public boolean shouldRender(BossProp p, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
-        if (p.kind() == BossProp.Kind.GIANT_SPUD) return p.distanceToSqr(x, y, z) < 192 * 192;
+        if (p.kind() == BossProp.Kind.GIANT_SPUD || p.kind() == BossProp.Kind.MASHER) return p.distanceToSqr(x, y, z) < 192 * 192;
         if (p.kind() == BossProp.Kind.MASH) return p.distanceToSqr(x, y, z) < 96 * 96;
         return super.shouldRender(p, frustum, x, y, z);
     }

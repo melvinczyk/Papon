@@ -2065,7 +2065,29 @@ def b_arena_heckle():
     return a
 
 
-HARDENING = [b_salsa_burst, b_arena_fryer, b_arena_heckle]
+def b_p2_masher():
+    """5.5 s (BossState.P2_MASHER, 110 t: El Machacador). Up over the sand, both fists up on the masher's
+    handle overhead (0.4 s), hauling it down hand over hand as it looms (1.0-3.6 s), a heave up (3.6-4.0) and
+    DOWN with all his weight (4.0-4.3 s: it lands), holding it there, then letting go (4.8)."""
+    a = angry(B('p2_masher', 5.5, 'hold'))
+    for arm, sg in (('arm_r', 1), ('arm_l', -1)):
+        keys = [(0, [-20, 0, 24 * sg]), (0.4, [-175, 0, 10 * sg], 'easeOutBack')]
+        for i in range(8):
+            t0 = round(1.0 + 0.32 * i, 2)
+            up = (i + (0 if sg > 0 else 1)) % 2 == 0
+            keys.append((t0, [-175 if up else -140, 0, 10 * sg]))
+        keys += [(3.6, [-160, 0, 10 * sg]), (4.0, [-190, 0, 6 * sg], 'easeOutQuad'), (4.3, [-60, 0, 10 * sg], 'easeInExpo'),
+                 (4.8, [-60, 0, 10 * sg]), (5.5, [-30, 0, 30 * sg], 'easeInOutSine')]
+        a.rot(arm, keys, 'lin')
+        stretch(a, arm, [(0, 1), (0.4, 1.6), (3.6, 1.6), (4.0, 1.8), (4.3, 1.4, 'easeInExpo'), (5.5, 1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.4, [-20, 0, 0]), (3.6, [-18, 0, 0]), (4.0, [-28, 0, 0]), (4.3, [34, 0, 0], 'easeInExpo'),
+                    (4.8, [30, 0, 0]), (5.5, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (4.0, [1.06, 1.06, 1.06]), (4.3, [1.2, 0.84, 1.2], 'easeInExpo'), (4.6, [1, 1, 1])], 'lin')
+    a.sound(0.4, 'grunt').sound(1.6, 'grunt').sound(2.6, 'grunt').sound(4.0, 'roar').sound(4.3, 'slam')
+    return a
+
+
+HARDENING = [b_salsa_burst, b_arena_fryer, b_arena_heckle, b_p2_masher]
 
 
 BOSS = [b_leap_out, b_chug, b_roar, b_idle, b_walk, b_walk_keys, b_run, b_swipe, b_slam, b_breath, b_throw,

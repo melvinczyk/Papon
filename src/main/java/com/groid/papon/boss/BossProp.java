@@ -57,7 +57,9 @@ public class BossProp extends Entity {
         /** A cleaver from one of his echoes: hangs aimed for its warning, then flies straight, end over end. */
         CLEAVER_DART,
         /** ¡Abucheo!: a tomato, a potato, a carrot thrown from the stands, lobbed. */
-        PRODUCE
+        PRODUCE,
+        /** El Machacador: the giant masher, its plate (with the holes: boss/Masher) at this height; radius = height over the sand. */
+        MASHER
     }
 
     private static final EntityDataAccessor<Integer> DATA_KIND = SynchedEntityData.defineId(BossProp.class, EntityDataSerializers.INT);

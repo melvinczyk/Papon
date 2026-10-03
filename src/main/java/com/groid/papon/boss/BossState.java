@@ -135,7 +135,9 @@ public enum BossState {
     /** La Freidora: a leap and a double stomp (0.7 s / 1.2 s): the sand in a pattern gives way to frying oil. */
     ARENA_FRYER(40),
     /** ¡Abucheo!: he turns to the stands, thumbs down: they pelt you with produce for the next 7 s. */
-    ARENA_HECKLE(32);
+    ARENA_HECKLE(32),
+    /** El Machacador (phase two): a masher the size of the sand comes down out of the sky (4.0 s): only its holes are safe. */
+    P2_MASHER(110);
 
     public final int duration;
 

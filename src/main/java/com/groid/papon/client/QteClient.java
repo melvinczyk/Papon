@@ -179,6 +179,11 @@ public final class QteClient {
         g.pose().scale(1.5F, 1.5F, 1);
         g.drawString(font, title, -font.width(title) / 2, 0, 0xFFFFFF, true);
         g.pose().popPose();
+        if (kind >= 3) {
+            // what to do: mash the one key / dance on the beat
+            Component how = Component.translatable("qte.papon.how." + kind).withStyle(ChatFormatting.YELLOW);
+            g.drawString(font, how, cx - font.width(how) / 2, cy - 32, 0xFFFFFF, true);
+        }
         if (step < keys.length) {
             // the keycap: grows in, shakes as time runs out, flashes on a press
             float left = 1F - Mth.clamp((stepTicks + pt) / window, 0, 1);
@@ -192,7 +197,13 @@ public final class QteClient {
             g.fill(x0 - 2, y0 - 2, x0 + sz + 2, y0 + sz + 2, edge);
             g.fill(x0, y0, x0 + sz, y0 + sz, 0xE0201812);
             g.fill(x0 + 2, y0 + sz - 5, x0 + sz - 2, y0 + sz - 2, 0xFF3A2C20);
-            String name = InputConstants.Type.KEYSYM.getOrCreate(keys[step]).getDisplayName().getString().toUpperCase();
+            String name = switch (keys[step]) {
+                case GLFW.GLFW_KEY_UP -> "\u2191";
+                case GLFW.GLFW_KEY_DOWN -> "\u2193";
+                case GLFW.GLFW_KEY_LEFT -> "\u2190";
+                case GLFW.GLFW_KEY_RIGHT -> "\u2192";
+                default -> InputConstants.Type.KEYSYM.getOrCreate(keys[step]).getDisplayName().getString().toUpperCase();
+            };
             g.pose().pushPose();
             g.pose().translate(cx + jx, cy, 0);
             g.pose().scale(2.4F * (0.7F + 0.3F * pop), 2.4F * (0.7F + 0.3F * pop), 1);
