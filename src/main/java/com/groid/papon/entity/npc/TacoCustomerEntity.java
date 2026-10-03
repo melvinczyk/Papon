@@ -316,12 +316,15 @@ public class TacoCustomerEntity extends TacoNpc {
                 }
             }
             case EDP445 -> {
-                if (t >= 24 && t <= 80 && t % 10 == 0) {
+                if (t >= 29 && t <= 100 && t % 10 == 0) {   // the heat hits (react_edp445 1.45 s)
                     level.sendParticles(ParticleTypes.FLAME, getX(), top - 0.2, getZ(), 4, 0.4, 0.2, 0.4, 0.02);
+                }
+                if (t >= 145 && t <= 155 && t % 3 == 0) {   // E-A-G-L-E-S!
+                    level.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), top + 0.3, getZ(), 3, 0.5, 0.3, 0.5, 0);
                 }
             }
             case BADLANDS_CHUGS -> {
-                if (t == 74) {   // the burp
+                if (t == 88) {   // the burp (react_badlands_chugs 4.4 s)
                     Vec3 f = getLookAngle().scale(0.8);
                     level.sendParticles(ParticleTypes.CLOUD, getX() + f.x, getEyeY(), getZ() + f.z, 14, 0.2, 0.2, 0.2, 0.08);
                 }

@@ -725,6 +725,24 @@ class Character:
             {'name': 'forearm_l', 'parent': 'arm_l', 'pivot': r3(self.joint(B, 'lowerarm01.L', True))},
         ]
         bones += paint_props(self.props, B, rgb)
+        # where things are, for tools/pose_solver.py (GeckoLib ignores locators it has no use for)
+        V = B['V']
+        er, el = self.eye(B, 'r')[0], self.eye(B, 'l')[0]
+        def front(y):     # the most forward body vertex near the midline at height y
+            bv = B['body_verts']
+            near = bv[(np.abs(V[bv, 1] - y) < 0.3) & (np.abs(V[bv, 0]) < 1.2)]
+            return V[near[np.argmax(V[near, 2])]] * [0, 1, 1]
+        hip = (B['J']['upperleg01.L'][0][1] + B['J']['upperleg01.R'][0][1]) / 2
+        neck = B['J']['neck01'][0][1]
+        locators = {
+            'mouth': r3(self.to_rig(V[466], B)),
+            'eyes': r3(self.to_rig((er + el) / 2, B)),
+            'forehead': r3(self.to_rig(V[220] + [0, 0.35, 0], B)),
+            'chest': r3(self.to_rig(front(hip + 0.8 * (neck - hip)), B)),
+            'belly': r3(self.to_rig(front(hip + 0.4 * (neck - hip)), B)),
+        }
+        bones[4]['locators'] = {k: v for k, v in locators.items() if k in ('mouth', 'eyes', 'forehead')}
+        bones[3]['locators'] = {k: v for k, v in locators.items() if k in ('chest', 'belly')}
         geo = {'format_version': '1.12.0', 'minecraft:geometry': [{
             'description': {'identifier': 'geometry.%s_mesh' % self.name, 'texture_width': OUT_TEX,
                             'texture_height': OUT_TEX, 'visible_bounds_width': 3, 'visible_bounds_height': 3.5,

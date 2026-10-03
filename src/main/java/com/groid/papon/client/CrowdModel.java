@@ -51,11 +51,37 @@ public class CrowdModel<T extends TacoNpc> extends GeoModel<T> {
 
     @Override
     public void setCustomAnimations(T animatable, long instanceId, AnimationState<T> state) {
+        face(animatable, state.getPartialTick());
         if (!turnsHead) return;
         CoreGeoBone head = getAnimationProcessor().getBone("head");
         EntityModelData data = state.getData(DataTickets.ENTITY_MODEL_DATA);
         if (head == null || data == null) return;
         head.setRotX(head.getRotX() + data.headPitch() * Mth.DEG_TO_RAD);
         head.setRotY(head.getRotY() + Mth.clamp(data.netHeadYaw(), -60, 60) * Mth.DEG_TO_RAD);
+    }
+
+    /**
+     * Mesh faces (rigs with "jaw" and "lid_r"/"lid_l" bones): the jaw flaps while a line is spoken,
+     * on top of whatever the animation does with it, and the eyes blink every few seconds, at a
+     * rhythm of their own per entity so a crowd never blinks in unison.
+     */
+    private void face(T animatable, float partialTick) {
+        CoreGeoBone jaw = getAnimationProcessor().getBone("jaw");
+        if (jaw == null) return;
+        float t = animatable.tickCount + partialTick;
+        if (animatable.isBabbling()) {
+            // two incommensurate waves: syllables that never repeat exactly
+            float open = Math.max(0F, Mth.sin(t * 1.9F) * 0.6F + Mth.sin(t * 0.73F + 1.3F) * 0.4F);
+            jaw.setRotX(jaw.getRotX() + open * 14F * Mth.DEG_TO_RAD);
+        }
+        int seed = animatable.getId() * 7919;
+        int period = 70 + Math.floorMod(seed, 50);
+        float phase = (t + Math.floorMod(seed, period)) % period;
+        float blink = phase < 2F ? phase / 2F : phase < 4F ? (4F - phase) / 2F : 0F;
+        if (blink <= 0F) return;
+        for (String name : new String[]{"lid_r", "lid_l"}) {
+            CoreGeoBone lid = getAnimationProcessor().getBone(name);
+            if (lid != null) lid.setRotX(lid.getRotX() + blink * 32F * Mth.DEG_TO_RAD);
+        }
     }
 }

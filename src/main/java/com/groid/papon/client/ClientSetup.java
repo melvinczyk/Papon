@@ -37,18 +37,19 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.TACO_VENDOR.get(),
                 ctx -> new CrowdRenderer<>(ctx, new CrowdModel<>("taco_vendor", "papon_npc", false), 1.5F, 0.9F, 0.35F));
         customer(event, ModEntities.DON_POLLO.get(), Customer.DON_POLLO);
-        // EDP445's body is the EDP SIM character, skinned onto the customer rig (gen_edp_mesh.py);
-        // his beanie, taco and phone are still cubes, textured from the blocky model.
-        event.registerEntityRenderer(ModEntities.EDP445.get(), ctx -> new MeshCrowdRenderer<>(ctx,
-                new CrowdModel<>("edp445_mesh", "edp445", "customer", true),
-                Customer.EDP445.renderScale, 0.5F, 0.75F, "edp445"));
-        // Badlands Chugs is a MakeHuman body shaped to his build, with his photographed face
-        // (gen_chugs_mesh.py); his jug and taco are cubes, textured from the blocky model.
-        event.registerEntityRenderer(ModEntities.BADLANDS_CHUGS.get(), ctx -> new MeshCrowdRenderer<>(ctx,
-                new CrowdModel<>("badlands_chugs_mesh", "badlands_chugs", "customer", true),
-                Customer.BADLANDS_CHUGS.renderScale, 0.6F, 0.75F, "badlands_chugs"));
+        // EDP445 and Badlands Chugs are MakeHuman bodies shaped to their builds, with their
+        // photographed faces (tools/mh_human.py); their props are cubes painted into the same atlas.
+        mesh(event, ModEntities.EDP445.get(), Customer.EDP445, 0.75F);
+        mesh(event, ModEntities.BADLANDS_CHUGS.get(), Customer.BADLANDS_CHUGS, 0.7F);
         customer(event, ModEntities.REVIEWBRAH.get(), Customer.REVIEWBRAH);
         customer(event, ModEntities.CUSTOMER_PAPON.get(), Customer.PAPON);
+    }
+
+    private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,
+                             Customer kind, float shadow) {
+        event.registerEntityRenderer(type, ctx -> new MeshCrowdRenderer<>(ctx,
+                new CrowdModel<>(kind.id + "_mesh", kind.id + "_mesh", "customer", true),
+                kind.renderScale, shadow, 0.75F, kind.id));
     }
 
     private static void customer(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,

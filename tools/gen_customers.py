@@ -3,7 +3,8 @@
 
 Writes, under src/main/resources/assets/papon/:
   geo/entity/<name>.geo.json and textures/entity/<name>.png
-for don_pollo, edp445, badlands_chugs and reviewbrah.
+for don_pollo and reviewbrah. (EDP445 and Badlands Chugs are semi-photorealistic meshes now:
+gen_edp_mesh.py, gen_chugs_mesh.py.)
 
 All four share one humanoid rig, so they share one animation file (gen_npc_anims.py):
 
@@ -278,172 +279,6 @@ def don_pollo():
 
 # ---------------------------------------------------------------- EDP445
 
-DIGITS = {
-    '4': ['W.W', 'W.W', 'WWW', '..W', '..W'],
-    '5': ['WWW', 'W..', 'WWW', '..W', 'WWW'],
-    'E': ['WWW', 'W..', 'WW.', 'W..', 'WWW'],
-    'D': ['WW.', 'W.W', 'W.W', 'W.W', 'WW.'],
-    'P': ['WWW', 'W.W', 'WWW', 'W..', 'W..'],
-}
-
-
-def text_rows(text, width, fill, ink='W'):
-    """Five rows of 3x5 glyphs, one space between, right-padded to width with `fill`."""
-    rows = []
-    for r in range(5):
-        line = fill.join(DIGITS[c][r].replace('.', fill).replace('W', ink) for c in text)
-        pad = width - len(line)
-        rows.append(fill * (pad - pad // 2) + line + fill * (pad // 2))
-    return rows
-
-
-def edp445():
-    m = Model('edp445', 445)
-    rig = Rig(leg=(5, 11, 5), torso=(12, 12, 6), arm=(4, 12, 5), head=(10, 10, 10))
-    skin, skin_dk = (74, 46, 32), (58, 36, 24)
-    green, green_dk = (0, 78, 86), (0, 56, 62)
-    white, black, silver = (244, 244, 244), (22, 22, 24), (168, 174, 178)
-    pants = (64, 66, 72)
-
-    def leg(m_, o, size):
-        def paint(p, f):
-            for s in ('front', 'back', 'left', 'right'):
-                rows_of(f[s], 9, 11, p, white)
-                band(p, f[s], 10, (40, 120, 90))
-        return m_.box(o, size, pants, extra=paint)
-
-    m.add(bone('root', [0, 0, 0]))
-    m.add(*rig.legs(m, leg))
-
-    pal = {'G': green, 'g': green_dk, 'W': white, 'K': black, 'D': skin, 'S': silver}
-    front = (['GGGGWDDWGGGG', 'GGGGGWWGGGGG']
-             + text_rows('445', 12, 'G')
-             + ['GGGGGGGGGGGG'] * 4 + ['gggggggggggg'])
-    back = (['GGGGGGGGGGGG'] + text_rows('EDP', 12, 'G', 'S')
-            + ['GGGGGGGGGGGG'] + text_rows('445', 12, 'G')[:4] + ['gggggggggggg'])
-    # back holds the name above the number; the number's last row sits on the hem
-    back = back[:11] + [text_rows('445', 12, 'g')[4]]
-    chest = rig.chest(m, green, {'front': (front, pal), 'back': (back, pal)})
-    belly = m.box([-5, rig.hip + 1, -rig.torso[2] / 2 - 2], [10, 5, 2], green,
-                  {'front': (['GGGGGGGGGG', 'GGGGGGGGGG', 'GGGGGGGGGG', 'GGGGGGGGGG', 'gggggggggg'], pal)})
-    m.add(bone('torso', [0, rig.hip, 0], 'root', [chest, belly]))
-
-    face = {'front': ([
-        'DDDDDDDDDD',
-        'DDDDDDDDDD',
-        'DDDDDDDDDD',
-        'DBBDDDDBBD',
-        'DEEEDDEEED',
-        'DEPEDDEPED',
-        'DDDDNNDDDD',
-        'DMWWWWWWMD',
-        'DDMWWWWMDD',
-        'DDDMMMMDDD',
-    ], {'D': skin, 'B': (20, 14, 12), 'E': (246, 244, 240), 'P': (18, 12, 10), 'N': skin_dk,
-        'M': (90, 36, 34), 'W': (246, 244, 236)}),
-        'right': (['DDDDDDDDDD'] * 4 + ['DDDDkDDDDD', 'DDDDkkDDDD'] + ['DDDDDDDDDD'] * 4, {'D': skin, 'k': skin_dk}),
-        'left': (['DDDDDDDDDD'] * 4 + ['DDDDDkDDDD', 'DDDDkkDDDD'] + ['DDDDDDDDDD'] * 4, {'D': skin, 'k': skin_dk}),
-    }
-    head = rig.head_cube(m, skin, face)
-
-    def beanie_paint(p, f):
-        for s in ('front', 'back', 'left', 'right'):
-            band(p, f[s], 0, green)
-            band(p, f[s], 1, silver)
-            band(p, f[s], 2, green_dk)
-            band(p, f[s], 3, green_dk)
-    top = rig.neck + rig.head[1]
-    beanie = m.box([-5, top - 3, -5], [10, 4, 10], green, extra=beanie_paint, inflate=0.5)
-    pom = m.box([-1, top + 1.5, -1], [2, 2, 2], silver, noise=0.15)
-    m.add(bone('head', [0, rig.neck, 0], 'torso', [head]),
-          bone('beanie', [0, top, 0], 'head', [beanie, pom]))
-
-    def arm(m_, o, size, s):
-        def paint(p, f):
-            for side in ('front', 'back', 'left', 'right'):
-                rows_of(f[side], 0, 4, p, green)
-                band(p, f[side], 1, white)
-                band(p, f[side], 2, black)
-            p.fill(f['top'], green)
-        return m_.box(o, size, skin, extra=paint)
-    m.add(*rig.arms(m, arm))
-    m.add(taco(m, rig), phone(m, rig, 1))
-    return m.save()
-
-
-# ---------------------------------------------------------------- Badlands Chugs
-
-def badlands_chugs():
-    m = Model('badlands_chugs', 1969)
-    rig = Rig(leg=(6, 12, 6), torso=(14, 13, 8), arm=(5, 13, 6), head=(10, 10, 10))
-    skin, skin_dk, shine = (66, 40, 28), (50, 30, 20), (110, 76, 58)
-    tee, tee_dk, red = (238, 238, 234), (208, 208, 204), (196, 36, 40)
-    jeans, shoe = (40, 46, 66), (24, 24, 26)
-
-    def leg(m_, o, size):
-        def paint(p, f):
-            for s in ('front', 'back', 'left', 'right'):
-                rows_of(f[s], 10, 12, p, shoe)
-        return m_.box(o, size, jeans, extra=paint)
-
-    m.add(bone('root', [0, 0, 0]))
-    m.add(*rig.legs(m, leg))
-    pal = {'T': tee, 't': tee_dk, 'R': red, 'D': skin}
-    front = (['TTTTTRDDRTTTTT', 'TTTTTTRRTTTTTT', 'TTTTTTTTTTTTTT', 'RRRRRRRRRRRRRR', 'RRRRRRRRRRRRRR']
-             + ['TTTTTTTTTTTTTT'] * 7 + ['tttttttttttttt'])
-    back = ['TTTTTRRRRTTTTT'] + ['TTTTTTTTTTTTTT'] * 2 + ['RRRRRRRRRRRRRR'] * 2 + ['TTTTTTTTTTTTTT'] * 7 + ['tttttttttttttt']
-    side = ['TTTTTTTT'] * 3 + ['RRRRRRRR'] * 2 + ['TTTTTTTT'] * 7 + ['tttttttt']
-    chest = rig.chest(m, tee, {'front': (front, pal), 'back': (back, pal), 'left': (side, pal), 'right': (side, pal)})
-    belly = m.box([-6, rig.hip, -rig.torso[2] / 2 - 3], [12, 7, 3], tee,
-                  {'front': (['TTTTTTTTTTTT'] * 6 + ['tttttttttttt'], pal)})
-    m.add(bone('torso', [0, rig.hip, 0], 'root', [chest, belly]))
-
-    face = {'front': ([
-        'SSShhhhSSS',
-        'SSSShhSSSS',
-        'SbbbSSbbbS',
-        'SEPSSSSPES',
-        'SSSSSSSSSS',
-        'SSSSNNSSSS',
-        'SSBBBBBBSS',
-        'SSBWWWWBSS',
-        'SSSBBBBSSS',
-        'SSSSBBSSSS',
-    ], {'S': skin, 'h': shine, 'b': (16, 12, 10), 'E': (236, 230, 222), 'P': (16, 10, 8), 'N': skin_dk,
-        'B': (18, 14, 12), 'W': (244, 240, 230)}),
-        'top': (['SSSSSSSSSS', 'SSSSSSSSSS', 'SSSShhhSSS', 'SSShhhhhSS', 'SSShhhhhSS', 'SSSShhhSSS',
-                 'SSSSShSSSS', 'SSSSSSSSSS', 'SSSShhSSSS', 'SSShhhhSSS'],
-                {'S': skin, 'h': shine}),
-        'right': (['SSSSSSSSSS'] * 4 + ['SSSSkSSSSS', 'SSSSkkSSSS'] + ['SSSSSSSSSS'] * 4, {'S': skin, 'k': skin_dk}),
-        'left': (['SSSSSSSSSS'] * 4 + ['SSSSSkSSSS', 'SSSSkkSSSS'] + ['SSSSSSSSSS'] * 4, {'S': skin, 'k': skin_dk}),
-    }
-    m.add(bone('head', [0, rig.neck, 0], 'torso', [rig.head_cube(m, skin, face)]))
-
-    def arm(m_, o, size, s):
-        def paint(p, f):
-            for side in ('front', 'back', 'left', 'right'):
-                rows_of(f[side], 0, 4, p, tee)
-                band(p, f[side], 3, red)
-            p.fill(f['top'], tee)
-        return m_.box(o, size, skin, extra=paint)
-    m.add(*rig.arms(m, arm))
-
-    # the gallon jug, left hand: lemonade-yellow, white cap, a handle on the outside
-    hx, hy, _ = rig.hand_pivot(1)
-    ad = rig.arm[2]
-
-    def jug_paint(p, f):
-        for s in ('front', 'back', 'left', 'right'):
-            rows_of(f[s], 0, 2, p, (236, 236, 226))
-            band(p, f[s], 4, (250, 250, 250), 0.02)
-    body = m.box([hx - 2.5, hy - 6, -ad / 2 - 5], [5, 7, 5], (246, 226, 112), extra=jug_paint, noise=0.04)
-    cap = m.box([hx - 1, hy + 1, -ad / 2 - 3.5], [2, 1, 2], (240, 240, 240))
-    handle = m.box([hx + 2.5, hy - 4, -ad / 2 - 3], [1, 4, 2], (236, 236, 226))
-    m.add(bone('jug', [hx, hy, 0], 'arm_l', [body, cap, handle]))
-    m.add(taco(m, rig))
-    return m.save()
-
-
 # ---------------------------------------------------------------- Reviewbrah
 
 def reviewbrah():
@@ -540,7 +375,7 @@ def reviewbrah():
     return m.save()
 
 
-CUSTOMERS = [don_pollo, edp445, badlands_chugs, reviewbrah]
+CUSTOMERS = [don_pollo, reviewbrah]
 
 if __name__ == '__main__':
     for fn in CUSTOMERS:
