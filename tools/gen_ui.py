@@ -10,6 +10,8 @@ client/BossBarRenderer:
   potato         0,44  16x16   Chef Papon's face: bald, horseshoe hair, angry, red mustache mark
   taco           16,44 16x16   the taco at the empty end of the bar
   potato, angry  32,44 16x16   phase two: beet red, steaming
+
+Also the Stunned effect icon, textures/mob_effect/stunned.png (18x18): a dizzy swirl with stars.
 """
 import math
 import os
@@ -170,5 +172,42 @@ def main():
     print(OUT)
 
 
+STUN = [
+    '..................',
+    '...y..............',
+    '..yYy.......y.....',
+    '...y.......yYy....',
+    '.....oooooo.y.....',
+    '....o......o......',
+    '...o..oooo..o.....',
+    '...o.o....o.o.....',
+    '...o.o.oo.o.o.....',
+    '...o.o..o.o.o..y..',
+    '...o..oo..o.o.yYy.',
+    '....o....o..o..y..',
+    '.....oooo..o......',
+    '..........o.......',
+    '..y....ooo........',
+    '.yYy..............',
+    '..y...............',
+    '..................',
+]
+
+
+def stun_icon():
+    """The Stunned effect: an orange swirl and twinkling stars."""
+    im = Image.new('RGBA', (18, 18), (0, 0, 0, 0))
+    pal = {'o': (242, 160, 40), 'y': (250, 222, 80), 'Y': (255, 255, 230)}
+    for y, row in enumerate(STUN):
+        for x, ch in enumerate(row):
+            if ch in pal:
+                im.putpixel((x, y), rgba(pal[ch]))
+    out = os.path.join(ROOT, 'src/main/resources/assets/papon/textures/mob_effect/stunned.png')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    im.save(out)
+    print(out)
+
+
 if __name__ == '__main__':
     main()
+    stun_icon()

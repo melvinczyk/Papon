@@ -6,6 +6,7 @@ import com.groid.papon.entity.WanderingPaponEntity;
 import com.groid.papon.entity.npc.TacoNpc;
 import com.groid.papon.network.PaponNetwork;
 import com.groid.papon.registry.ModDamage;
+import com.groid.papon.registry.ModEffects;
 import com.groid.papon.registry.ModItems;
 import com.groid.papon.registry.ModSounds;
 import net.minecraft.core.NonNullList;
@@ -61,12 +62,14 @@ import java.util.Map;
  * Physics are a simple bicycle model run by whoever controls it (the driving player's client,
  * or the server for Papon and for a parked van): a signed speed along the van's heading,
  * accelerated, braked and coasted; the yaw rate follows the steering input and the speed. It
- * climbs one-block steps. The server measures the real speed from position changes (players
+ * climbs steps up to a block and a half. The server measures the real speed from position changes (players
  * drive client-side) and uses it for everything with consequences: running people over, crashes,
  * tyre screech.
  *
  * Getting hit by a moving van ignores shields ({@link ModDamage#CARAVAN} is in
- * minecraft:bypasses_shield) and scales with speed.
+ * minecraft:bypasses_shield) and scales with speed. Every hit stuns ({@link ModEffects#STUNNED}: flat on
+ * the ground, no moving, a hard screen shake): the front bumper runs you over where you stand, the
+ * rear bumper (backing into you) launches you a long way first.
  */
 public class CaravanEntity extends LivingEntity implements GeoEntity {
     private static final EntityDataAccessor<Boolean> DATA_ENGINE =
@@ -77,8 +80,12 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     /** Half the van's length and width in blocks (the model is 89 x 34 px). */
     public static final double HALF_LENGTH = 2.78;
     public static final double HALF_WIDTH = 1.08;
-    /** Seats in van space: x to the left, z forward (driver first; US van, driver on the left). */
-    private static final double[][] SEATS = {{0.5, -0.62}, {-0.5, -0.62}, {0.5, 0.5}, {-0.5, 0.5}, {0.0, 1.75}};
+    /**
+     * Seats in van space: x to the left, z forward (driver first; US van, driver on the left). The
+     * model faces -Z, so its front buckets (cushions z -14..-6 px) are at +0.62 here, the middle
+     * bench at -0.47 and the back bench at -1.75.
+     */
+    private static final double[][] SEATS = {{0.5, 0.62}, {-0.5, 0.62}, {0.5, -0.47}, {-0.5, -0.47}, {0.0, -1.75}};
     public static final double SEAT_HEIGHT = 0.5;
 
     private static final double PLAYER_TOP = 0.78;
@@ -133,7 +140,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
 
     public CaravanEntity(EntityType<? extends LivingEntity> type, Level level) {
         super(type, level);
-        setMaxUpStep(1.05F);
+        setMaxUpStep(1.55F);     // drives up a block and a half (a slab on a block, a path edge)
         lastYaw = getYRot();
     }
 
@@ -179,7 +186,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
 
     /** Where to stand to get in behind the wheel: outside the driver's door. */
     public Vec3 driverDoor() {
-        return local(HALF_WIDTH + 1.0, 0, -0.6);
+        return local(HALF_WIDTH + 1.0, 0, 0.6);
     }
 
     /** The van's real speed along its heading, blocks per tick (measured on the server). */
@@ -400,11 +407,20 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         DamageSource source = ModDamage.caravan(level, this, driver);
         e.hurt(source, damage);
         Vec3 f = forward().scale(Math.signum(v));
-        Vec3 push = f.scale(0.7 + Math.abs(v) * 1.7).add(left().scale(Math.signum(lat == 0 ? 1 : lat) * 0.45))
-                .add(0, 0.5 + Math.abs(v) * 0.35, 0);
+        Vec3 side = left().scale(Math.signum(lat == 0 ? 1 : lat));
+        boolean rear = v < 0;
+        Vec3 push = rear
+                // backed into: the rear bumper sends you flying
+                ? f.scale(2.2 + Math.abs(v) * 3.0).add(side.scale(0.3)).add(0, 0.75 + Math.abs(v) * 0.4, 0)
+                // run over: bowled over and flattened where you stood, a short shove and down
+                : f.scale(0.35 + Math.abs(v) * 0.6).add(side.scale(0.5)).add(0, 0.12, 0);
         e.setDeltaMovement(push);
         e.hurtMarked = true;
         e.hasImpulse = true;
+        int stun = PaponConfig.VAN_STUN_TICKS.get();
+        if (stun > 0) e.addEffect(new MobEffectInstance(ModEffects.STUNNED.get(), stun, 0, false, false, true));
+        if (e instanceof Player p) p.setPose(net.minecraft.world.entity.Pose.SWIMMING);
+        if (e instanceof net.minecraft.server.level.ServerPlayer sp) PaponNetwork.shake(sp, rear ? 1.1F : 0.9F, 30);
         level.playSound(null, e.getX(), e.getY(), e.getZ(), ModSounds.CARAVAN_HIT.get(), SoundSource.NEUTRAL, 2.0F,
                 0.9F + random.nextFloat() * 0.2F);
         level.sendParticles(ParticleTypes.CRIT, e.getX(), e.getY() + e.getBbHeight() * 0.6, e.getZ(), 16, 0.4, 0.4, 0.4, 0.4);
@@ -490,7 +506,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
         int i = getPassengers().indexOf(passenger);
         double side = (i < 0 || i % 2 == 0) ? 1 : -1;
-        Vec3 out = local(side * (HALF_WIDTH + 0.9), 0, i >= 2 ? 0.5 : -0.6);
+        Vec3 out = local(side * (HALF_WIDTH + 0.9), 0, i >= 2 ? -0.5 : 0.6);
         return new Vec3(out.x, getY(), out.z);
     }
 
