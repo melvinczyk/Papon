@@ -96,7 +96,7 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
         if (level().isClientSide) {
             if (tickCount < 3 || tickCount % 6 == 0) {
                 level().addParticle(new com.groid.papon.fx.FxOptions(com.groid.papon.registry.ModParticles.SMOKE.get(), -1, 0.7F, 1.6F,
-                        0xFF6A4A, 0.6F, 14, 0), getX() + (random.nextDouble() - 0.5), getY() + random.nextDouble() * 2.2, getZ() + (random.nextDouble() - 0.5),
+                        0xFFD27A, 0.5F, 14, 0), getX() + (random.nextDouble() - 0.5), getY() + random.nextDouble() * 2.2, getZ() + (random.nextDouble() - 0.5),
                         0, 0.02, 0);
             }
             return;
@@ -136,7 +136,7 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
     }
 
     private void vanish(ServerLevel level, boolean shattered) {
-        Fx.smoke(level, position().add(0, 1.2, 0), shattered ? 8 : 4, 0.6, 0.9F, 0xFF6A4A);
+        Fx.smoke(level, position().add(0, 1.2, 0), shattered ? 8 : 4, 0.6, 0.9F, 0xFFD27A);
         if (shattered) {
             Fx.spark(level, position().add(0, 1.4, 0), 10, 0.6, 0.35F, 0xFFD27A);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.GLASS_BREAK, SoundSource.HOSTILE, 1.4F, 0.7F);

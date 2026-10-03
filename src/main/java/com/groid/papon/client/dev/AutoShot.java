@@ -364,7 +364,7 @@ public final class AutoShot {
                     "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
                     "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "tp @s 4000 200 4000");
             case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
-            case 90 -> run("execute at @s rotated 0 0 run papon boss", "kill @e[type=papon:caravan]");
+            case 90 -> run("kill @e[type=papon:papon_boss]", "execute at @s rotated 0 0 run papon boss", "kill @e[type=papon:caravan]");
             case 400 -> run("papon bossstate IDLE", CLOSE, "papon bossstate GUARD");
             case 402 -> PaponBossEntity.devFrozen = true;
             case 414 -> shot(mc, "p01_guard_front");
