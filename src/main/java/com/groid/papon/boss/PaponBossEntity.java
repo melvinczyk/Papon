@@ -198,6 +198,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     private int stateTicks;
     private int speechTicks;
+    private static final String VOICE2 = "speech.papon.boss2.";
+    /** Ticks before he may make another remark in the fight (see quip). */
+    private int quipCd;
+    /** Client: the phase-two line he is saying (lip sync) and the tick it started. */
+    @Nullable private VoiceLines.Line talk;
+    private int talkStart;
     @Nullable private Vec3 home;
     @Nullable private Vec3 leapFrom;
     @Nullable private Vec3 leapTo;
@@ -542,7 +548,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         super.onSyncedDataUpdated(key);
         if (level().isClientSide) {
             if (DATA_STATE.equals(key)) clientStateTicks = 0;
-            if (DATA_SPEECH.equals(key)) babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech());
+            if (DATA_SPEECH.equals(key)) {
+                String sp = getSpeech();
+                babbleTicks = sp.isEmpty() || Speech.voiced(sp) ? 0 : Speech.babbleLength(sp);
+                // a line in his phase-two voice: the lip sync starts now, with the sound (sent the same tick)
+                if (sp.startsWith(VOICE2)) {
+                    talk = VoiceLines.line(sp.substring(VOICE2.length()));
+                    talkStart = tickCount;
+                }
+            }
         }
         if (DATA_FORM.equals(key)) refreshDimensions();
     }
@@ -556,17 +570,53 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     @Override
     public void setSpeech(String encoded, int ticks) {
-        entityData.set(DATA_SPEECH, encoded);
+        entityData.set(DATA_SPEECH, encoded, true);      // forced: the same line again restarts the lip sync
         speechTicks = ticks;
     }
 
     private void say(String line, int ticks) {
-        Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.boss." + line, true, true, ticks);
+        speak(line, ticks, true);
     }
 
     /** A line with no translation under it (it is already in English, or a scream). */
     private void sayPlain(String line, int ticks) {
-        Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.boss." + line, true, false, ticks);
+        speak(line, ticks, false);
+    }
+
+    /**
+     * From the moment he kneels he talks in his own voice (gen_boss_voice.py: English, lip-synced by
+     * client/BossFace): a line recorded for it is said as speech.papon.boss2.*, its bubble held for as
+     * long as it plays. Before that, and for anything not recorded, his old Spanish line.
+     */
+    private void speak(String line, int ticks, boolean gloss) {
+        VoiceLines.Line v = isPhaseTwo() ? VoiceLines.line(line) : null;
+        if (v != null) {
+            Speech.say(this, ChatFormatting.DARK_RED, VOICE2 + line, true, false, Math.max(ticks, v.ticks() + 12));
+            quipCd = Math.max(quipCd, v.ticks() + 60);
+            return;
+        }
+        Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.boss." + line, true, gloss, ticks);
+    }
+
+    /** A moment of the phase-two cutscene, timed to his lines (VoiceLines.beat; {@code fallback} with no voice). */
+    private static int beat(String key, int fallback) {
+        return VoiceLines.beat(key, fallback);
+    }
+
+    /** A remark in the fight (phase two, never over another line or in a cutscene), now and then. */
+    private void quip(String line, float chance) {
+        if (!isPhaseTwo() || quipCd > 0 || speechTicks > 0 || getBossState().cutscene() || random.nextFloat() >= chance) return;
+        say(line, 40);
+    }
+
+    /** Client: the phase-two line he is saying and how far into it he is (seconds), or null. */
+    @Nullable
+    public VoiceLines.Line talking() {
+        return talk;
+    }
+
+    public double talkTime(float partial) {
+        return (tickCount - talkStart + partial) / 20.0;
     }
 
     // ------------------------------------------------------------------ ticking
@@ -592,6 +642,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         if (speechTicks > 0 && --speechTicks == 0) entityData.set(DATA_SPEECH, "");
+        if (quipCd > 0) quipCd--;
         bossEvent.setProgress(Mth.clamp(getHealth() / getMaxHealth(), 0F, 1F));
         if (tickCount % 10 == 0) updateBossBarPlayers();
     }
@@ -868,7 +919,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         getLookControl().setLookAt(target, 30, 30);
         double d = distanceTo(target);
-        if (tickCount % 200 == 0 && random.nextInt(3) == 0) say("taunt" + random.nextInt(4), 50);
+        if (tickCount % 200 == 0 && random.nextInt(3) == 0) say(taunt(), 50);
         if (think > 0) {
             if (isRisen()) hover(target);
             else chase(target, d);
@@ -905,13 +956,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
      * stops pausing and charges (twice).
      */
     @Nullable
+    /** One of his taunts; in phase two mostly the new, charming ones. */
+    private String taunt() {
+        if (isPhaseTwo() && random.nextInt(10) < 7) return "charm" + random.nextInt(6);
+        return "taunt" + random.nextInt(4);
+    }
+
     private BossState choose(ServerLevel level, LivingEntity target, double d) {
         if (misses >= FRENZY) {
             misses = 0;
             think = 0;
             if (drunkCd <= 0 && d < 10) return BossState.DRUNK_SWIG;          // a miss streak makes him drink
             chargesLeft = isPhaseTwo() ? 2 : 1;
-            say("taunt" + random.nextInt(4), 40);
+            say(taunt(), 40);
             return BossState.CHARGE_WINDUP;
         }
         double dy = target.getY() - getY();
@@ -1713,6 +1770,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (hit && e instanceof Player && crowdRoarCd <= 0 && level() instanceof ServerLevel level) {
             crowdRoarCd = 50;
             crowdReact(level, e.isAlive() ? CrowdMood.ROAR : CrowdMood.CHANT, e.isAlive() ? 40 : 200);
+            if (e.isAlive() && inColiseum()) quip("landed" + random.nextInt(2), 0.3F);
         }
         return hit;
     }
@@ -2554,11 +2612,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t >= BossState.P2_KNEEL.duration) setBossState(BossState.P2_TALK);
     }
 
-    /** Wipes it off, chuckles: "Okay... enough playing around." Gets up, cracks his neck. */
+    /**
+     * Still on one knee, he chuckles at the blood, wipes it off: "Heh... heh heh. You made me... BLEED,
+     * amigo." Then up he gets on "Okay... OKAY. Enough... playing around." and cracks his neck. Timed
+     * to the lines (beats talk.*).
+     */
     private void tickTalk(ServerLevel level) {
         int t = stateTicks;
-        if (t == 4) sayPlain("enough", 70);
-        if (t >= BossState.P2_TALK.duration) setBossState(BossState.P2_SEASON);
+        if (t == beat("talk.bleed", -1)) sayPlain("bleed", 70);
+        if (t == beat("talk.enough", 4)) sayPlain("enough", 70);
+        if (t >= beat("talk.end", BossState.P2_TALK.duration)) setBossState(BossState.P2_SEASON);
     }
 
     /**
@@ -2570,7 +2633,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         LivingEntity target = getTarget();
         if (target != null) turnToward(target.position(), 3F);
-        if (t == 4) say("salt", 50);
+        if (t == beat("season.salt", 4)) say("salt", 50);
         if (t == 18) level.playSound(null, getX(), getY() + 4, getZ(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.HOSTILE, 2.0F, 0.6F);
         Vec3 shaker = position().add(0, getBbHeight() + 1.2, 0);
         if (t >= 24 && t <= 64) {
@@ -2599,8 +2662,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.LAVA_EXTINGUISH, SoundSource.HOSTILE, 2.0F, 0.8F);
             PaponNetwork.shake(level, position(), 24, 0.5F, 20);
         }
-        if (t == 84) say("golden", 50);
-        if (t >= BossState.P2_SEASON.duration) setBossState(BossState.P2_SCREAM);
+        if (t == beat("season.golden", 84)) say("golden", 50);
+        if (t >= beat("season.end", BossState.P2_SEASON.duration)) setBossState(BossState.P2_SCREAM);
     }
 
     /**
@@ -2630,7 +2693,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             bolt(level, position().add(Math.cos(a) * r, 0, Math.sin(a) * r));
         }
         if (t > 15 && t < 60 && t % 8 == 0) Fx.shock(level, position(), (float) (2 + (t - 15) / 4.0), 0xFFE07A);
-        if (t >= BossState.P2_SCREAM.duration) {
+        if (t >= beat("scream.end", BossState.P2_SCREAM.duration)) {
             enterArena(level);
             setBossState(BossState.P2_ARRIVE);
         }
@@ -2848,22 +2911,23 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (t == 2) crowdReact(level, CrowdMood.ROAR, 90);
         if (t == 40) title(level, "title.papon.coliseum", 34);
-        if (t == 46) {
+        int musica = beat("arrive.musica", 74);
+        if (t == beat("arrive.listos", 46)) {
             say("listos", 40);
             crowdReact(level, CrowdMood.ROAR, 40);
         }
-        if (t > 36 && t < 70) turnToward(c.add(Math.sin(t * 0.09) * 20, 0, Math.cos(t * 0.09) * 20), 8F);
+        if (t > 36 && t < musica - 4) turnToward(c.add(Math.sin(t * 0.09) * 20, 0, Math.cos(t * 0.09) * 20), 8F);
         if (bandWoken) {
             if (t >= 60) finishCutscene(level);
             return;
         }
-        if (t >= 70) turnToward(standFront().add(0, 0, -6), 12F);
-        if (t == 74) {
+        if (t >= musica - 4) turnToward(standFront().add(0, 0, -6), 12F);
+        if (t == musica) {
             say("musica", 40);
             level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.NOTE_BLOCK_HAT.value(), SoundSource.HOSTILE, 2.0F, 1.6F);
         }
-        if (t == 86) crowdMood(level, CrowdMood.HUSH);
-        if (t >= BossState.P2_ARRIVE.duration) setBossState(BossState.P2_NOTICE);
+        if (t == beat("arrive.hush", 86)) crowdMood(level, CrowdMood.HUSH);
+        if (t >= beat("arrive.end", BossState.P2_ARRIVE.duration)) setBossState(BossState.P2_NOTICE);
     }
 
     private void title(ServerLevel level, String key, int stay) {
@@ -2882,14 +2946,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** "...¿Maestro?": the band is asleep. He holds the point, looks round at them, back at you, and fumes. */
     private void tickNotice(ServerLevel level) {
         int t = stateTicks;
-        if (t >= 18 && t < 30) turnToward(standFront().add(0, 0, -6), 10F);
-        if (t >= 30 && t < 42 && getTarget() != null) turnToward(getTarget().position(), 14F);
-        if (t == 34) say("maestro", 30);
-        if (t == 48) {
+        int fume = beat("notice.fume", 48);
+        if (t >= 18 && t < fume - 18) turnToward(standFront().add(0, 0, -6), 10F);
+        if (t >= fume - 18 && t < fume - 6 && getTarget() != null) turnToward(getTarget().position(), 14F);
+        if (t == beat("notice.maestro", 34)) say("maestro", 30);
+        if (t == fume) {
             Fx.smoke(level, position().add(0, getBbHeight() + 0.3, 0), 3, 0.3, 0.8F, 0xEDEDED);
             level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 1.5F, 0.6F);
         }
-        if (t >= BossState.P2_NOTICE.duration) setBossState(BossState.P2_MARCH);
+        if (t >= beat("notice.end", BossState.P2_NOTICE.duration)) setBossState(BossState.P2_MARCH);
     }
 
     /** Storms over to the band stand. */
@@ -2913,19 +2978,20 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickWake(ServerLevel level) {
         int t = stateTicks;
         face(standFront().add(0, 0, -6));
-        if (t == 17 || t == 32 || t == 42) {
+        int clang1 = beat("wake.clang1", 17);
+        if (t == clang1 || t == beat("wake.clang2", 32) || t == beat("wake.clang3", 42)) {
             Vec3 at = position().add(Vec3.directionFromRotation(0, getYRot()).scale(1.4)).add(0, 2.6, 0);
             level.playSound(null, at.x, at.y, at.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 2.0F, 1.3F);
             level.playSound(null, at.x, at.y, at.z, SoundEvents.BELL_BLOCK, SoundSource.HOSTILE, 2.0F, 0.8F);
             Fx.spark(level, at, 10, 0.4, 0.3F, 0xFFD27A);
             PaponNetwork.shake(level, at, 20, 0.25F, 8);
         }
-        if (t == 17) {
+        if (t == clang1) {
             for (MariachiEntity m : band(level)) m.wake(m.getRole().dozer() ? 0 : random.nextInt(34));
             crowdReact(level, CrowdMood.GASP, 16);
         }
-        if (t == 20) sayPlain("despierten", 50);
-        if (t >= BossState.P2_WAKE.duration) setBossState(BossState.P2_WAIT);
+        if (t == beat("wake.line", 20)) sayPlain("despierten", 50);
+        if (t >= beat("wake.end", BossState.P2_WAKE.duration)) setBossState(BossState.P2_WAIT);
     }
 
     /**
@@ -2937,11 +3003,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         LivingEntity target = getTarget();
         List<MariachiEntity> band = band(level);
-        if (t >= 16 && t < 40 && target != null) turnToward(target.position(), 12F);
+        if (t >= 16 && t < beat("wait.ay", 40) && target != null) turnToward(target.position(), 12F);
         else if (kickWho < 0) turnToward(standFront().add(0, 0, -6), 8F);
-        if (t == 22) say("momentito", 40);
+        if (t == beat("wait.momentito", 22)) say("momentito", 40);
         for (MariachiEntity m : band) {
-            if (m.dozing() && kickWho < 0 && t > 40) {
+            if (m.dozing() && kickWho < 0 && t > beat("wait.ay", 40)) {
                 kickWho = m.getId();
                 say("ay", 20);
             }
@@ -2982,17 +3048,17 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         Entity e = level.getEntity(kickWho);
         if (e != null) face(e.position());
-        if (t == 2) sayPlain("gordo", 30);
-        if (t == 12 && e instanceof MariachiEntity m) {
+        if (t == beat("kick.gordo", 2)) sayPlain("gordo", 30);
+        if (t == beat("kick.boot", 12) && e instanceof MariachiEntity m) {
             m.kick();
             level.playSound(null, m.getX(), m.getY(), m.getZ(), SoundEvents.ZOMBIE_ATTACK_WOODEN_DOOR, SoundSource.HOSTILE, 1.5F, 1.2F);
             Fx.dust(level, m.position(), 1.0, 4);
             crowdReact(level, CrowdMood.ROAR, 25);
         }
-        if (t >= BossState.P2_KICK.duration) {
+        if (t >= beat("kick.end", BossState.P2_KICK.duration)) {
             kickWho = -1;
             setBossState(BossState.P2_WAIT);
-            stateTicks = 41;
+            stateTicks = beat("wait.ay", 40) + 1;
         }
     }
 
@@ -3058,6 +3124,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
      */
     private void tickApology(ServerLevel level) {
         int t = stateTicks;
+        int aura = beat("apology.aura", 110);
         LivingEntity target = getTarget();
         if (target != null) {
             double d = horizontalDist(target.position());
@@ -3066,19 +3133,33 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             } else {
                 getNavigation().stop();
             }
-            if (t < 110) turnToward(target.position(), 8F);
+            if (t < aura) turnToward(target.position(), 8F);
             else turnToward(target.position().add(Vec3.directionFromRotation(0, getYRot() + 90).scale(6)), 2.5F);
         }
-        if (t == 30) sayPlain("apology", 100);
-        if (t == 110) {
+        if (t == beat("apology.line", 30)) sayPlain("apology", 100);
+        if (t == aura) {
             crowdReact(level, CrowdMood.SWOON, 90);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 2.0F, 0.7F);
         }
-        if (t > 110 && t % 6 == 0) {
+        if (t > aura && t % 6 == 0) {
             double a = t * 0.4;
             Fx.glint(level, position().add(Math.cos(a) * 1.4, 0.4 + (t % 30) / 30.0 * getBbHeight(), Math.sin(a) * 1.4), 0.5F, 0xFFE8A0);
         }
-        if (t >= BossState.P2_APOLOGY.duration) setBossState(BossState.P2_RESUME);
+        // the aura farm lasts until "Now... where... were we?" would end right on the singer's first word
+        if (t >= beat("apology.end", BossState.P2_APOLOGY.duration) || (t > aura && songSince(level) >= songFight() - beat("resume.total", 0)))
+            setBossState(BossState.P2_RESUME);
+    }
+
+    /** Ticks since the band's downbeat. */
+    private long songSince(ServerLevel level) {
+        long now = level.getGameTime() & 0x7FFFFFFF;
+        return (now - (songStart & 0x7FFFFFFFL)) & 0x7FFFFFFFL;
+    }
+
+    /** Ticks from the downbeat to the first sung word: the fight. */
+    private static int songFight() {
+        Song song = Song.get();
+        return song != null ? song.fightStartTicks() : 300;
     }
 
     /** "...Now. Where were we?": he squares up, and the moment the singer starts singing, the fight is on. */
@@ -3086,13 +3167,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         LivingEntity target = getTarget();
         if (target != null) turnToward(target.position(), 10F);
-        if (t == 2) sayPlain("resume", 50);
-        Song song = Song.get();
-        long now = level.getGameTime() & 0x7FFFFFFF;
-        long start = songStart & 0x7FFFFFFFL;
-        long since = (now - start) & 0x7FFFFFFFL;
-        int fight = song != null ? song.fightStartTicks() : 300;
-        if ((since >= fight && since < (1L << 30)) || t > 200) {
+        if (t == beat("resume.line", 2)) sayPlain("resume", 50);
+        long since = songSince(level);
+        if ((since >= songFight() && since < (1L << 30)) || t > 200) {
             crowdReact(level, CrowdMood.ROAR, 60);
             finishCutscene(level);
         }
@@ -4441,6 +4518,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (hurt && attacker instanceof Player && crowdBooCd <= 0 && amount > getMaxHealth() * 0.008F && level() instanceof ServerLevel level) {
             crowdBooCd = 70;
             crowdReact(level, CrowdMood.BOO, 45);
+            quip("hit" + random.nextInt(2), 0.2F);
         }
         if (hurt && !isPhaseTwo() && !phaseDue && getHealth() <= getMaxHealth() * PHASE_TWO_AT && getHealth() > 0) phaseDue = true;
         return hurt;
@@ -4581,7 +4659,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private PlayState animateForm(AnimationState<PaponBossEntity> event) {
         BossState s = getBossState();
         if (s == BossState.P2_SCREAM) return event.setAndContinue(F_SPROUT);
-        if (s == BossState.P2_APOLOGY && ticksInState() > 100) return event.setAndContinue(F_AURA);
+        if (s == BossState.P2_APOLOGY && ticksInState() > beat("apology.aura", 100)) return event.setAndContinue(F_AURA);
         if (!isRisen()) return PlayState.STOP;
         RawAnimation next = switch (s) {
             case VAN_GRAB, VAN_THROW, P2_METEOR -> F_LIFT;

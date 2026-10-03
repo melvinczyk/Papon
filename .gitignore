@@ -9,3 +9,4 @@ out/
 tools/.cache/
 tools/__pycache__/
 tools/src/song/
+tools/src/voice/

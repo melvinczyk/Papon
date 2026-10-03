@@ -425,25 +425,52 @@ def phase_two(m):
                        [m.box(o, sz, FRY, noise=0.05, extra=crinkle)], rotation=[0, 0, -angle * s]))
 
 
-def baked(im):
-    """The baked form's texture: the same sheet with his own potato skin (the 64 x 64 corner) toasted
-    golden, chives on top."""
+def baked(im, skin=()):
+    """The baked form's texture: the same sheet with his own potato skin (the 64 x 64 corner, and the
+    `skin` rects: his eyelids) toasted golden, chives on top."""
     import random
     rng = random.Random(5)
     out = im.copy()
     px = out.load()
-    for y in range(64):
-        for x in range(64):
-            r, g, b, a = px[x, y]
-            if a == 0 or (r < 90 and g < 90):                      # leave his eyes, mouth and brows alone
-                continue
-            if abs(r - g) < 30 and r > 200:                        # eye whites
-                continue
-            px[x, y] = (min(255, int(r * 1.0)), int(g * 0.88), int(b * 0.72), a)
+    cells = {(x, y) for y in range(64) for x in range(64)}
+    for x0, y0, x1, y1 in skin:
+        cells |= {(x, y) for y in range(int(y0), int(y1)) for x in range(int(x0), int(x1))}
+    for x, y in sorted(cells):
+        r, g, b, a = px[x, y]
+        if a == 0 or (r < 90 and g < 90):                      # leave his eyes, mouth and brows alone
+            continue
+        if abs(r - g) < 30 and r > 200:                        # eye whites
+            continue
+        px[x, y] = (min(255, int(r * 1.0)), int(g * 0.88), int(b * 0.72), a)
     for _ in range(26):                                           # chives on the top and shoulders
         x, y = rng.randrange(16, 32), rng.randrange(0, 16)
         px[x, y] = (70, 150, 58, 255)
     return out
+
+
+def face_rig(m):
+    """His face for phase two, when he talks (client/BossFace drives all of it; at rest it is the face he
+    always had): the painted mouth bar comes off and is rebuilt as the mariachi singer's lip rig
+    (gen_band.mouth_rig: `mouth` > `lip_up`, `lip_low`, `mouth_in`, `teeth`, `tongue`), plus
+      mouth_corner_r/_l  a pixel of lip at each end, lifted for a smile or a smirk, dropped for a scowl
+      lid_r / lid_l      eyelids hinged above each eye (y 21; the eye is the row y 19-20): scale Y 0.67
+                         covers the eye (a blink), 0.45 half shuts it (that smouldering look), one at
+                         a time for a wink. Pinned to 0 by every animation (gen_boss_anims.B.pins)
+    Returns the texture rects of the skin-coloured lids, which baked() toasts too."""
+    from gen_band import unpaint_mouth, mouth_rig, LIP
+    unpaint_mouth(m)
+    mouth_rig(m)
+    # the corners sit on the ends of the upper lip (same colour, a hair in front), so at rest they vanish
+    for side, x in (('r', -5), ('l', 4)):
+        m.add(bone('mouth_corner_' + side, [x + 0.5, 10.5, -8], 'mouth',
+                   [m.box([x, 10, -8.18], [1, 1, 1], LIP, noise=0.0)]))
+    skin = []
+    lid = lambda p, f: (skin.extend(f.values()),
+                        [p.put(x, int(f['front'][3]) - 1, (110, 76, 30)) for x in range(int(f['front'][0]), int(f['front'][2]))])
+    for side, x in (('r', -7), ('l', 2)):
+        # in front of the eye but behind the brow (-8.1), so a lowered lid never hides the brow
+        m.add(bone('lid_' + side, [x + 2.5, 21, -8], 'body', [m.box([x, 18, -8.06], [5, 3, 1], (0xd9, 0xaa, 0x51), extra=lid, noise=0.03)]))
+    return skin
 
 
 def rig_hands(m):
@@ -496,6 +523,7 @@ def papon_boss():
     m.glow = Painter(256, 256, 7)
     apron(m)
     bald_parts(m)
+    lids = face_rig(m)
     phase_two(m)
 
     # ---- the tequila (gen_props.tequila is the item): a squat añejo bottle, clear glass, gold
@@ -771,7 +799,7 @@ def papon_boss():
     rig_hands(m)
     out = m.save()
     base = os.path.join(ASSETS, 'textures/entity/')
-    baked(Image.open(base + 'papon_boss.png').convert('RGBA')).save(base + 'papon_boss_baked.png')
+    baked(Image.open(base + 'papon_boss.png').convert('RGBA'), lids).save(base + 'papon_boss_baked.png')
     m.glow.im.save(base + 'papon_boss_baked_glowmask.png')
     return out + [base + 'papon_boss_baked.png', base + 'papon_boss_baked_glowmask.png']
 

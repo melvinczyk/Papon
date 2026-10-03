@@ -104,9 +104,9 @@ public final class SongPlayer {
             Song.Segment intro = song.intro();
             double late = (now - first) / 20.0;
             if (late < -intro.pre() - 0.05) return;                       // still counting in
-            if (late > intro.length() * Song.INTRO_PASSES) {
+            if (late > intro.length() * Song.introPasses()) {
                 // joined (or came back) mid-song: straight in with a segment that suits the fight
-                introPasses = Song.INTRO_PASSES;
+                introPasses = Song.introPasses();
                 Song.Segment s = choose(song, intro, boss);
                 begin(mc, s, now + s.pre() * 20);
             } else {
@@ -132,7 +132,7 @@ public final class SongPlayer {
 
     /** The next segment after {@code cur} for how the fight is going. */
     private static Song.Segment choose(Song song, Song.Segment cur, @Nullable PaponBossEntity boss) {
-        if (cur.id().equals("intro") && introPasses < Song.INTRO_PASSES) return cur;
+        if (cur.id().equals("intro") && introPasses < Song.introPasses()) return cur;
         int n = song.segments.size();
         Song.Segment natural = null;
         for (int k = 1; k <= n; k++) {

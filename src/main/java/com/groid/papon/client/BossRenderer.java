@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
-import software.bernie.geckolib.model.DefaultedEntityGeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import com.groid.papon.boss.BossState;
 
@@ -31,7 +30,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     private static final ResourceLocation AURA = PaponMod.id("textures/entity/papon_aura.png");
 
     public BossRenderer(EntityRendererProvider.Context ctx) {
-        super(ctx, new DefaultedEntityGeoModel<>(PaponMod.id("papon_boss")));
+        super(ctx, new BossModel());
         withScale(SCALE);
         this.shadowRadius = 0.9F;
         addRenderLayer(new software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer<>(this));
