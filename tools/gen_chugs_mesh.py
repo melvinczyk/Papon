@@ -582,10 +582,57 @@ def eyeballs(pos, nrm, B):
     return col
 
 
+# He is clean-shaven, but the photo has a mustache and goatee: inside SHAVE the photo is repainted
+# with the skin around it (a harmonic fill from the edge in), except the open mouth (KEEP).
+# Photo pixels, (cx, cy, rx, ry) ellipses.
+SHAVE = [(683, 352, 62, 22), (683, 448, 86, 54), (628, 400, 30, 52), (738, 400, 30, 52)]
+KEEP = (682, 388, 42, 27)
+
+
+def soft_blur(a, r):
+    """Near-Gaussian blur of a float image: three box passes of radius r/2 along each axis."""
+    k = max(1, int(r // 2))
+    for axis in (0, 1):
+        for _ in range(3):
+            pad = np.pad(a, [(k + 1, k) if i == axis else (0, 0) for i in range(a.ndim)], mode='edge')
+            c = np.cumsum(pad, axis=axis)
+            hi = np.take(c, range(2 * k + 1, c.shape[axis]), axis=axis)
+            lo = np.take(c, range(0, c.shape[axis] - 2 * k - 1), axis=axis)
+            a = (hi - lo) / (2 * k + 1)
+    return a
+
+
+def ellipse_mask(shape, cx, cy, rx, ry, soft=0.25):
+    yy, xx = np.mgrid[0:shape[0], 0:shape[1]]
+    return 1 - smoothstep(1 - soft, 1.0, ((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2)
+
+
+def shave(photo):
+    x0, y0, x1, y1 = 540, 280, 830, 540           # work on the lower face only
+    crop = photo[y0:y1, x0:x1].copy()
+    zone = np.zeros(crop.shape[:2])
+    for cx, cy, rx, ry in SHAVE:
+        zone = np.maximum(zone, ellipse_mask(zone.shape, cx - x0, cy - y0, rx, ry))
+    zone *= 1 - ellipse_mask(zone.shape, KEEP[0] - x0, KEEP[1] - y0, KEEP[2], KEEP[3], 0.35)
+    unknown = zone > 0.02
+    fill = crop.copy()
+    fill[unknown] = crop[~unknown].mean(0)
+    for _ in range(1500):                          # Jacobi: each unknown pixel -> mean of its neighbours
+        avg = (np.roll(fill, 1, 0) + np.roll(fill, -1, 0) + np.roll(fill, 1, 1) + np.roll(fill, -1, 1)) / 4
+        fill[unknown] = avg[unknown]
+    # keep a trace of the skin's fine texture so the patch doesn't look airbrushed
+    detail = crop - np.stack([soft_blur(crop[..., c], 6) for c in range(3)], 2)
+    fill = fill + np.clip(detail, -6, 6) * 0.5
+    out = photo.copy()
+    out[y0:y1, x0:x1] = crop + (fill - crop) * zone[..., None]
+    return out
+
+
 def paint(B, faces):
     # sharpened: the face is ~250 texels across in the atlas and mip-mapping softens it further
     photo = Image.open(fetch('photo.jpg', PHOTO_URL)).convert('RGB')
-    photo = np.asarray(photo.filter(ImageFilter.UnsharpMask(radius=4, percent=90, threshold=2)), float)
+    photo = np.asarray(photo.filter(ImageFilter.UnsharpMask(radius=3, percent=50, threshold=3)), float)
+    photo = shave(photo)
     tris, tri_uv = [], []
     eye_flag = np.zeros((len(B['V']), 1))
     eye_flag[B['eye_verts']] = 1
@@ -622,16 +669,19 @@ def paint(B, faces):
     # tame the photo's specular highlights: bright, desaturated pixels go grey once balanced, so pull
     # them down and back to his skin hue; then balance the photo's warm light to his tone
     lum = face.mean(1, keepdims=True)
-    knee = np.percentile(lum[core], 75)
+    knee = np.percentile(lum[core], 55)
     tint = np.median(face[core], axis=0)
     hi = smoothstep(knee * 0.95, knee * 1.4, lum)
-    lum2 = np.where(lum > knee, knee + (lum - knee) * 0.25, lum)
+    lum2 = np.where(lum > knee, knee + (lum - knee) * 0.1, lum)
     face = face * (lum2 / np.maximum(lum, 1e-6))
     face = face + (tint * lum2 / tint.mean() - face) * (0.85 * hi)
     face *= SKIN / tint
-    # expand contrast about his skin tone so the goatee, mustache, brows and eyes stay dark and crisp
+    # a little contrast about his skin tone keeps the brows, eyes and nostrils crisp
     ratio = face.mean(1, keepdims=True) / SKIN.mean()
-    face *= np.clip(ratio, 0.05, 4) ** 0.45
+    face *= np.clip(ratio, 0.05, 4) ** 0.2
+    # even out the photo's colour (its warm light leaves orange blotches): keep its light and shade,
+    # take most of the hue from his skin tone
+    face = face + (face.mean(1, keepdims=True) * (SKIN / SKIN.mean()) - face) * 0.6
     skin = SKIN
 
     # --- skin everywhere else: his tone, pores, occlusion, the shine on his head
@@ -641,7 +691,7 @@ def paint(B, faces):
     occl = (0.45 + 0.55 * ao)[:, None]
     base = skin * (1 + 0.10 * n_mid + 0.07 * n_fine)[:, None] * occl
     shine = head * smoothstep(9.0, 9.7, y) * smoothstep(0.35, 0.9, nrm[:, 1])
-    base = base + (skin * 1.9 - base) * (0.45 * shine)[:, None]
+    base = base + (skin * 1.5 - base) * (0.18 * shine)[:, None]   # a soft sheen, not a gloss
     face = face * (0.85 + 0.15 * ao)[:, None]
     col = base + (face - base) * wf[:, None]
     col[eye] = eyeballs(pos[eye], nrm[eye], B)
