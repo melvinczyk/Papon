@@ -12,6 +12,19 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * The crowd of El Coliseo Papa: one invisible entity at the middle of the sand that stands for
@@ -21,10 +34,20 @@ import net.minecraft.world.phys.AABB;
  *
  * The boss sets a standing mood ({@link #setMood}) and fires short reactions over it
  * ({@link #react}: a roar when he lands one on you, boos when you land one on him).
+ *
+ * They are on his side, and they let you know it: get near the stands and the fans closest to you
+ * throw potatoes at you ({@link #pelt}): a wind-up the renderer plays on that fan (synced as
+ * {@link #throwSeat}), the potato away a few ticks later, every few seconds per challenger.
  */
 public class ColiseumCrowdEntity extends Entity {
     private static final EntityDataAccessor<Integer> DATA_MOOD = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_SEED = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
+    /** The latest throw: (a counter << 16) | the thrower's seat index (seats(seed) order); -1 none yet. */
+    private static final EntityDataAccessor<Integer> DATA_THROW = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
+    /** Ticks from the fan's wind-up starting to the potato leaving his hand (the renderer's throw pose matches). */
+    public static final int WINDUP = 6;
+    /** How close to the stands (blocks in from the edge of the sand) a challenger has to be to get pelted. */
+    private static final double NEAR = 7.0;
 
     private CrowdMood base = CrowdMood.CHEER;
     private int reactTicks;
@@ -32,6 +55,14 @@ public class ColiseumCrowdEntity extends Entity {
     private int moodTicks;
     private int lastMood = -1;
     private int prevMood;
+    /** Server: seats, potatoes on their way out of hands, and when each challenger is due another. */
+    @Nullable private List<Coliseum.Seat> seats;
+    private final List<long[]> windups = new ArrayList<>();
+    private final Map<UUID, Long> nextAt = new HashMap<>();
+    private int throwCount;
+    /** Client: when each seat last started a throw (client tick), for the arm. */
+    private final Map<Integer, Integer> throwsSeen = new HashMap<>();
+    private int lastThrow = -1;
 
     public ColiseumCrowdEntity(EntityType<?> type, Level level) {
         super(type, level);
@@ -43,6 +74,71 @@ public class ColiseumCrowdEntity extends Entity {
     protected void defineSynchedData() {
         entityData.define(DATA_MOOD, 0);
         entityData.define(DATA_SEED, 0);
+        entityData.define(DATA_THROW, -1);
+    }
+
+    /** Client: ticks since the fan in seat {@code i} started a throw, or -1 if he is not throwing. */
+    public int throwTicks(int i) {
+        Integer at = throwsSeen.get(i);
+        if (at == null) return -1;
+        int d = tickCount - at;
+        return d > WINDUP + 10 ? -1 : d;
+    }
+
+    /**
+     * Every tick of the fight: anyone on the sand within {@link #NEAR} blocks of the stands, and not
+     * pelted in the last few seconds, gets a potato from a fan in the nearest rows (a seat within
+     * reach, chosen at random); it flies in an arc at where they will be, a little off at times.
+     */
+    public void pelt(ServerLevel level, @Nullable Coliseum arena) {
+        if (arena == null || !arena.built()) return;
+        if (seats == null) seats = Coliseum.seats(seed());
+        long now = level.getGameTime();
+        for (java.util.Iterator<long[]> it = windups.iterator(); it.hasNext(); ) {
+            long[] w = it.next();
+            if (now < w[0]) continue;
+            it.remove();
+            Entity e = level.getEntity((int) w[2]);
+            if (e instanceof ServerPlayer p && p.isAlive()) launch(level, seats.get((int) w[1]), p);
+        }
+        if (now % 5 != 0) return;
+        Vec3 c = position();
+        for (ServerPlayer p : level.players()) {
+            if (p.isSpectator() || p.isCreative() || !p.isAlive() || !arena.inArena(p.position())) continue;
+            double edge = Coliseum.offset(p.getX() - c.x, p.getZ() - c.z);
+            if (edge < -NEAR) continue;
+            Long due = nextAt.get(p.getUUID());
+            if (due != null && now < due) continue;
+            // a fan near him: one of the closest dozen seats (the front rows), any of them
+            int best = -1;
+            List<int[]> near = new ArrayList<>();
+            for (int i = 0; i < seats.size(); i++) {
+                Coliseum.Seat s = seats.get(i);
+                double dx = c.x + s.x() - p.getX(), dz = c.z + s.z() - p.getZ();
+                double d2 = dx * dx + dz * dz;
+                if (d2 < 16 * 16) near.add(new int[]{i, (int) d2});
+            }
+            if (near.isEmpty()) continue;
+            near.sort(java.util.Comparator.comparingInt(a -> a[1]));
+            best = near.get(random.nextInt(Math.min(12, near.size())))[0];
+            windups.add(new long[]{now + WINDUP, best, p.getId()});
+            throwCount = (throwCount + 1) & 0x7FFF;
+            entityData.set(DATA_THROW, (throwCount << 16) | best);
+            nextAt.put(p.getUUID(), now + 50 + random.nextInt(50));
+        }
+    }
+
+    private void launch(ServerLevel level, Coliseum.Seat s, ServerPlayer p) {
+        Vec3 from = position().add(s.x(), s.y() + 1.5, s.z());
+        Vec3 lead = p.position().add(p.getDeltaMovement().multiply(1, 0, 1).scale(10)).add(0, p.getBbHeight() * 0.7, 0);
+        if (random.nextInt(4) == 0) lead = lead.add((random.nextDouble() - 0.5) * 2.4, 0, (random.nextDouble() - 0.5) * 2.4);
+        Vec3 d = lead.subtract(from);
+        double flat = Math.sqrt(d.x * d.x + d.z * d.z);
+        double ticks = Mth.clamp(flat / 0.85, 12, 32);
+        double g = 0.04;
+        Vec3 v = new Vec3(d.x / ticks, d.y / ticks + 0.5 * g * ticks, d.z / ticks).scale(1.04);     // a hair extra for the air drag
+        level.addFreshEntity(new CrowdPotatoEntity(level, from, v));
+        level.playSound(null, from.x, from.y, from.z, SoundEvents.SNOWBALL_THROW, SoundSource.NEUTRAL, 0.9F, 0.7F + random.nextFloat() * 0.3F);
     }
 
     public void setSeed(int seed) {
@@ -85,6 +181,14 @@ public class ColiseumCrowdEntity extends Entity {
     @Override
     public void tick() {
         super.tick();
+        if (level().isClientSide) {
+            int th = entityData.get(DATA_THROW);
+            if (th != lastThrow) {
+                lastThrow = th;
+                if (th >= 0) throwsSeen.put(th & 0xFFFF, tickCount);
+                throwsSeen.values().removeIf(at -> tickCount - at > 40);
+            }
+        }
         int now = entityData.get(DATA_MOOD);
         if (now != lastMood) {
             prevMood = lastMood < 0 ? now : lastMood;

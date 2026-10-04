@@ -22,6 +22,7 @@ import java.util.function.Supplier;
  *   Shake  server -> client  a camera shake at a point (slams, roars, van crashes), Cataclysm style:
  *                            strength falls off with distance from the point
  *   Horn   client -> server  the driver of a van pressed the horn (jump key)
+ *   Solo   client -> server  the band's score has gone into a guitar solo (the boss stops to listen)
  *   QteStart server -> client  Chef Papon has you: the keys to press, a window each (client/QteClient)
  *   QteEnd   server -> client  it is over (broke free, or not)
  *   QteInput client -> server  key n pressed right, or wrong / too late
@@ -44,6 +45,26 @@ public final class PaponNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(4, QteInput.class, QteInput::encode, QteInput::decode, QteInput::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(5, Solo.class, (m, b) -> b.writeVarInt(m.bossId()), b -> new Solo(b.readVarInt()), Solo::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
+    }
+
+    /** From the client: the band has just gone into a guitar solo (the score is the client's). */
+    public static void solo(int bossId) {
+        CHANNEL.sendToServer(new Solo(bossId));
+    }
+
+    public record Solo(int bossId) {
+        void handle(Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer p = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (p != null && p.level().getEntity(bossId) instanceof com.groid.papon.boss.PaponBossEntity boss
+                        && boss.distanceToSqr(p) < 96 * 96) {
+                    boss.soloHeard();
+                }
+            });
+            ctx.get().setPacketHandled(true);
+        }
     }
 
     public static void qteStart(ServerPlayer p, int bossId, int kind, int[] keys, int window) {

@@ -178,6 +178,8 @@ def build():
                     if p.rng.random() < 0.35:
                         p.put(x, y, lettuce_lt if p.rng.random() < 0.6 else lettuce_dk, 0.05)
     m.add(bone('lettuce_held', [5.5, 6.5, 0.5], 'arm_l', [m.box([3.5, 2, -2], [4, 4, 4], lettuce, extra=leafy)]))
+    # where the body pillow goes when he brings it to the winner (client/GerbinRenderer draws the item here)
+    m.add(bone('pillow', [0, 11, -5], 'torso', []))
 
     # ---- the prep counter: everything sits on top of the block in front of him
     c = COUNTER

@@ -36,6 +36,10 @@ import software.bernie.geckolib.core.object.PlayState;
  * His stations come from the truck's line ({@link TacoTruck#gerbinChop}, {@link TacoTruck#gerbinSink}),
  * his props (board, lettuce, sink suds...) are in his own model, placed to line up with the
  * truck's blocks when he stands on his spot. He wears his name like a name tag, always.
+ *
+ * When Chef Papon is beaten, Gerbin comes out from behind the counter with a present for each
+ * winner ({@link #reward}): a body pillow, hugged to his chest all the way over, held out at arm's
+ * length with his eyes on the floor. Then back to the dishes.
  */
 public class GerbinEntity extends TacoNpc {
     private static final String ANIM = "animation.gerbin.";
@@ -46,6 +50,11 @@ public class GerbinEntity extends TacoNpc {
     private static final RawAnimation LOOK = RawAnimation.begin().thenPlayAndHold(ANIM + "look");
     private static final RawAnimation SHOCKED = RawAnimation.begin().thenPlay(ANIM + "shocked").thenLoop(ANIM + "cower");
     private static final RawAnimation COWER = RawAnimation.begin().thenLoop(ANIM + "cower");
+    private static final RawAnimation CARRY = RawAnimation.begin().thenLoop(ANIM + "carry");
+    private static final RawAnimation GIVE = RawAnimation.begin().thenPlayAndHold(ANIM + "give");
+    /** How far he will go to find a truck's winners, and how long he tries to reach one. */
+    private static final double REWARD_RADIUS = 160;
+    private static final int DELIVER_TIMEOUT = 900;
 
     /** Snap onto a station from this close. */
     private static final double ARRIVE = 0.35;
@@ -57,6 +66,9 @@ public class GerbinEntity extends TacoNpc {
     private boolean chopNext = true;
     private int calmTicks;
     private boolean troubleSeen;
+    /** Winners still waiting for their pillow, in order. */
+    private final java.util.ArrayDeque<java.util.UUID> owed = new java.util.ArrayDeque<>();
+    private double lastDeliverDist = Double.MAX_VALUE;
 
     public GerbinEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -82,7 +94,116 @@ public class GerbinEntity extends TacoNpc {
 
     private void setGerbinState(GerbinState s) {
         setStateId(s.ordinal());
-        if (s != GerbinState.TO_CHOP && s != GerbinState.TO_SINK) getNavigation().stop();
+        if (s != GerbinState.TO_CHOP && s != GerbinState.TO_SINK && s != GerbinState.DELIVER) getNavigation().stop();
+    }
+
+    /** Carrying the pillow (the renderer draws it in his arms). */
+    public boolean carryingPillow() {
+        GerbinState s = getGerbinState();
+        return s == GerbinState.DELIVER || s == GerbinState.GIVE && stateTicks < 30;
+    }
+
+    /**
+     * Chef Papon has fallen: the nearest Gerbin (within {@value #REWARD_RADIUS} blocks of where it
+     * happened) brings every one of the fighters a body pillow. With no Gerbin about, it turns up
+     * in their inventory with a note.
+     */
+    public static void reward(ServerLevel level, Vec3 near, java.util.List<net.minecraft.server.level.ServerPlayer> fighters) {
+        if (fighters.isEmpty()) return;
+        GerbinEntity g = level.getEntitiesOfClass(GerbinEntity.class, new net.minecraft.world.phys.AABB(near, near).inflate(REWARD_RADIUS),
+                GerbinEntity::isAlive).stream().min(java.util.Comparator.comparingDouble(e -> e.distanceToSqr(near))).orElse(null);
+        for (var p : fighters) {
+            if (g != null) {
+                if (!g.owed.contains(p.getUUID())) g.owed.add(p.getUUID());
+            } else {
+                hand(p);
+                p.displayClientMessage(Component.translatable("message.papon.pillow_note").withStyle(ChatFormatting.LIGHT_PURPLE), false);
+            }
+        }
+        if (g != null && !g.getGerbinState().equals(GerbinState.DELIVER) && g.getGerbinState() != GerbinState.GIVE) {
+            g.setGerbinState(GerbinState.DELIVER);
+        }
+    }
+
+    private static void hand(Player p) {
+        ItemStack pillow = new ItemStack(com.groid.papon.registry.ModItems.BODY_PILLOW.get());
+        if (!p.getInventory().add(pillow)) p.drop(pillow, false);
+    }
+
+    @Nullable
+    private Player owedPlayer(ServerLevel level) {
+        while (!owed.isEmpty()) {
+            Player p = level.getPlayerByUUID(owed.peek());
+            if (p != null && p.isAlive() && !p.isSpectator() && p.distanceToSqr(this) < REWARD_RADIUS * REWARD_RADIUS * 4) return p;
+            owed.poll();
+        }
+        return null;
+    }
+
+    /** Off to the next winner with a pillow under his arms. */
+    private void deliver(ServerLevel level) {
+        Player p = owedPlayer(level);
+        if (p == null) {
+            backToWork();
+            return;
+        }
+        if (distanceToSqr(p) < 2.2 * 2.2) {
+            getNavigation().stop();
+            setGerbinState(GerbinState.GIVE);
+            return;
+        }
+        if (stateTicks > DELIVER_TIMEOUT) {
+            // could not get there: the present turns up anyway
+            hand(p);
+            p.displayClientMessage(Component.translatable("message.papon.pillow_note").withStyle(ChatFormatting.LIGHT_PURPLE), false);
+            owed.poll();
+            setGerbinState(GerbinState.DELIVER);
+            return;
+        }
+        if (stateTicks == 1) Speech.say(this, ChatFormatting.DARK_GRAY, "speech.papon.gerbin.coming", false, false, 40);
+        if (getNavigation().isDone() || stateTicks % 20 == 0) getNavigation().moveTo(p, 0.9);
+        if (stateTicks % 60 == 0) {
+            // stuck behind the counter (or anywhere): he slips out and is just there, behind them
+            double d = distanceTo(p);
+            if (d > lastDeliverDist - 0.5) {
+                Vec3 back = p.position().subtract(p.getLookAngle().multiply(2.5, 0, 2.5));
+                net.minecraft.core.BlockPos at = level.getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                        net.minecraft.core.BlockPos.containing(back));
+                getNavigation().stop();
+                moveTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, getYRot(), 0);
+                level.sendParticles(ParticleTypes.POOF, getX(), getY() + 0.6, getZ(), 8, 0.3, 0.4, 0.3, 0.02);
+            }
+            lastDeliverDist = distanceTo(p);
+        }
+    }
+
+    private void give(ServerLevel level) {
+        Player p = owedPlayer(level);
+        getNavigation().stop();
+        if (p != null) {
+            double dx = p.getX() - getX(), dz = p.getZ() - getZ();
+            float yaw = (float) (Math.atan2(dz, dx) * 180 / Math.PI) - 90F;
+            setYRot(yaw);
+            yBodyRot = yaw;
+            yHeadRot = yaw;
+        }
+        if (stateTicks == 6) Speech.say(this, ChatFormatting.DARK_GRAY, "speech.papon.gerbin.pillow", false, false, 60);
+        if (stateTicks == 30 && p != null) {
+            hand(p);
+            owed.poll();
+            level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ITEM_PICKUP, net.minecraft.sounds.SoundSource.NEUTRAL, 0.8F, 0.8F);
+            level.sendParticles(ParticleTypes.HEART, getX(), getY() + getBbHeight() + 0.3, getZ(), 3, 0.3, 0.2, 0.3, 0.02);
+            p.displayClientMessage(Component.translatable("message.papon.pillow_given").withStyle(ChatFormatting.LIGHT_PURPLE), false);
+        }
+        if (stateTicks >= GerbinState.GIVE.duration) {
+            if (!owed.isEmpty()) setGerbinState(GerbinState.DELIVER);
+            else backToWork();
+        }
+    }
+
+    private void backToWork() {
+        if (line != null) setGerbinState(chopNext ? GerbinState.TO_CHOP : GerbinState.TO_SINK);
+        else setGerbinState(GerbinState.IDLE);
     }
 
     /** Clocks in at a truck. */
@@ -97,6 +218,15 @@ public class GerbinEntity extends TacoNpc {
     @Override
     protected void serverStep(ServerLevel level) {
         GerbinState state = getGerbinState();
+        if (state == GerbinState.DELIVER) {
+            if (stateTicks <= 1) lastDeliverDist = Double.MAX_VALUE;
+            deliver(level);
+            return;
+        }
+        if (state == GerbinState.GIVE) {
+            give(level);
+            return;
+        }
         boolean trouble = trouble(level);
         if (trouble && !state.scared()) {
             setGerbinState(GerbinState.SHOCKED);
@@ -133,6 +263,7 @@ public class GerbinEntity extends TacoNpc {
                 calmTicks = trouble ? 0 : calmTicks + 1;
                 if (calmTicks > 200) setGerbinState(chopNext ? GerbinState.TO_CHOP : GerbinState.TO_SINK);
             }
+            case DELIVER, GIVE -> {}
         }
     }
 
@@ -217,6 +348,8 @@ public class GerbinEntity extends TacoNpc {
             case LOOK -> LOOK;
             case SHOCKED -> SHOCKED;
             case COWER -> SHOCKED.equals(current) ? SHOCKED : COWER;
+            case DELIVER -> CARRY;
+            case GIVE -> GIVE;
         };
         return event.setAndContinue(next);
     }
@@ -229,6 +362,9 @@ public class GerbinEntity extends TacoNpc {
         tag.putString("GerbinState", getGerbinState().name());
         if (line != null) tag.put("Line", line.save());
         tag.putBoolean("ChopNext", chopNext);
+        net.minecraft.nbt.ListTag ow = new net.minecraft.nbt.ListTag();
+        for (java.util.UUID u : owed) ow.add(net.minecraft.nbt.NbtUtils.createUUID(u));
+        tag.put("Owed", ow);
     }
 
     @Override
@@ -243,5 +379,7 @@ public class GerbinEntity extends TacoNpc {
         stateTicks = keep;
         line = tag.contains("Line") ? TacoLine.load(tag.getCompound("Line")) : null;
         chopNext = tag.getBoolean("ChopNext");
+        owed.clear();
+        for (net.minecraft.nbt.Tag u : tag.getList("Owed", net.minecraft.nbt.Tag.TAG_INT_ARRAY)) owed.add(net.minecraft.nbt.NbtUtils.loadUUID(u));
     }
 }

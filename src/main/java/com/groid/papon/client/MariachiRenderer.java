@@ -20,14 +20,14 @@ import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 /**
  * The band: each member at his own build (BandRole: wider, taller), holding only his own
  * instrument (the rig has all of them; the rest are hidden per entity, every frame, because the
- * baked model is shared). The singer alone has the microphone and the aviators, and while he
+ * baked model is shared): the singer's requinto, the coro's maraca and hand mic. The singer alone has the microphone and the aviators, and while he
  * sings a golden aura runs over him (the boss's energy swirl), with light bursting out of him at
  * the climax. Speech bubbles for the count and the grumbling.
  */
 public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
     private static final float SCALE = 1.12F;
     private static final ResourceLocation AURA = PaponMod.id("textures/entity/papon_aura.png");
-    private static final String[] INSTRUMENTS = {"guitar", "vihuela", "guitarron", "trumpet", "violin"};
+    private static final String[] INSTRUMENTS = {"guitar", "vihuela", "guitarron", "trumpet", "violin", "requinto", "maraca", "hand_mic"};
 
     public MariachiRenderer(EntityRendererProvider.Context ctx) {
         super(ctx, new MariachiModel());
@@ -75,7 +75,7 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
         this.scaleWidth = SCALE * role.width;
         this.scaleHeight = SCALE * role.height;
         for (String inst : INSTRUMENTS) {
-            boolean mine = inst.equals(role.instrument);
+            boolean mine = inst.equals(role.instrument) || role.coro() && inst.equals("hand_mic");
             model.getBone(inst).ifPresent(bone -> bone.setHidden(!mine));
             model.getBone(inst + "_floor").ifPresent(bone -> bone.setHidden(!mine));
         }

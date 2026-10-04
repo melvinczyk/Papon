@@ -382,18 +382,24 @@ public final class Cinematic {
      *   P2_ARRIVE    from high over the stands, craning down into the bowl as he drops into it; low
      *                on him with the crowd behind; over his shoulder as he points at the band stand
      *   P2_NOTICE    the band, fast asleep; then his face
-     *   P2_MARCH     tracking alongside as he storms over
-     *   P2_WAKE      from behind the band (the sleepers in the foreground) up at him and his comal
+     *   P2_MARCH     tracking alongside as he strides over
+     *   P2_WAKE      over his shoulder as the spatula goes up; side on for the whack and the singer going up
+     *                in the air; the band jolting awake from out front; his satisfied face
      *   P2_WAIT      him tapping his foot; a slow pan along the band getting dressed; again
      *   P2_KICK      on the guitarron and the boot
      *   P2_COUNT     close on the singer counting in, pushing in
      *   P2_SHOWTIME  the guitar: in on his hands, tilting up to his face, the shades, the aura
      *   P2_APOLOGY   the two of you as he comes over; on him apologising; the aura: a slow low orbit
-     *   P2_RESUME    close: "Where were we?", and a whip back out as the singing starts
+     *   P2_RESUME    close: "Where were we?"
+     *   P2_HYPE      over his shoulder to the roaring stands as he cups his ear; round him as he turns to
+     *                the other side; craning up through the raise-the-roof with the bowl behind him; from
+     *                behind you as he points you out; the FOV punch as the place erupts and the singing starts
+     *   P2_SOLO      (mid-fight) the singer's guitar solo: in on his hands, up to his face in the aura, then
+     *                from behind him out over the sand at the boss air-guitaring along
      */
     @Nullable
     private static Shot coliseumShot(PaponBossEntity b, BossState s, int t, Vec3 f, Vec3 right) {
-        if (!b.inColiseum() || !(s == BossState.P2_ARRIVE || s.coliseum())) return null;
+        if (!b.inColiseum() || !(s == BossState.P2_ARRIVE || s.coliseum() || s == BossState.P2_SOLO)) return null;
         Minecraft mc = Minecraft.getInstance();
         // he is risen (1.75x) by now: his face is high on him
         Vec3 body = b.position().add(0, b.getBbHeight() * 0.55, 0);
@@ -434,8 +440,21 @@ public final class Cinematic {
                 return new Shot(body.add(right.scale(6.5)).add(f.scale(1.5)).add(0, 0.8, 0), body, 58, 0, t == 0);
             }
             case P2_WAKE -> {
+                Vec3 head = singer != null ? singer.position().add(0, singer.getBbHeight() * 0.9, 0) : stage.add(0, 2, 0);
+                if (t < 12) return new Shot(b.position().subtract(f.scale(5.6)).add(right.scale(3.6)).add(0, b.getBbHeight() + 1.4, 0), head, 56, 0, t == 0);
+                if (t < 34) {
+                    // side on: the whack, and the singer going up in the air
+                    Vec3 mid = b.position().lerp(singer != null ? singer.position() : stage, 0.5);
+                    Vec3 side = new Vec3(-f.z, 0, f.x);
+                    double push = (t - 12) / 22.0;
+                    return new Shot(mid.add(side.scale(7.2 - push * 1.2)).add(0, 1.9, 0), mid.add(0, 2.3 + push * 0.4, 0), 54,
+                            t >= 14 && t < 18 ? (float) Math.sin(t * 2.5) * 3F : 0, t == 12);
+                }
+                // the band jolting awake: from out front and off to the side, high, clear of him
+                if (t < 58) return new Shot(stage.add(stageFacing.scale(7.0)).add(stageSide.scale(right.dot(stageSide) > 0 ? -7.5 : 7.5)).add(0, 4.2, 0),
+                        stage.add(0, 1.2, 0), 60, 0, t == 34);
                 int cut = VoiceLines.beat("wake.end", 54) - 10;           // on him through the bellow, then a bleary mariachi
-                if (t < cut) return new Shot(stage.subtract(stageFacing.scale(2.5)).add(stageSide.scale(3.5)).add(0, 6.0, 0), face.add(0, 0.4, 0), 62, 0, t == 0);
+                if (t < cut) return new Shot(stage.subtract(stageFacing.scale(2.5)).add(stageSide.scale(3.5)).add(0, 6.0, 0), face.add(0, 0.4, 0), 62, 0, t == 58);
                 com.groid.papon.boss.MariachiEntity m = band.isEmpty() ? null : band.get(Math.floorMod(b.getId(), band.size()));
                 Vec3 at = m != null ? m.position().add(0, 1.2, 0) : stage;
                 return new Shot(at.add(stageFacing.scale(3.4)).add(stageSide.scale(1.2)), at, 46, 0, t == cut);
@@ -458,13 +477,16 @@ public final class Cinematic {
             }
             case P2_SHOWTIME -> {
                 if (singer == null) return null;
-                Vec3 guitar = singer.position().add(stageFacing.scale(0.9)).add(stageSide.scale(-0.2)).add(0, 0.6, 0);
+                // the requinto: low on his right, under the microphone
+                Vec3 guitar = singer.position().add(stageFacing.scale(0.85)).add(stageSide.scale(-0.4)).add(0, 0.3, 0);
                 Vec3 sf = singer.position().add(0, singer.getBbHeight() * 0.7, 0);
+                // from the side away from the boss (he stands off to one side of the stand)
+                double away = b.position().subtract(singer.position()).dot(stageSide) > 0 ? -1 : 1;
                 double k = t < 34 ? 0 : Math.min(1, (t - 34) / 30.0);
                 k = k * k * (3 - 2 * k);
                 Vec3 look = guitar.lerp(sf, k);
-                Vec3 eye = guitar.add(stageFacing.scale(2.9 - Math.min(1, t / 30.0) * 0.7)).add(stageSide.scale(1.3)).add(0, 0.5, 0)
-                        .lerp(sf.add(stageFacing.scale(3.0)).add(stageSide.scale(1.0)).add(0, -0.4, 0), k);
+                Vec3 eye = guitar.add(stageFacing.scale(2.4 - Math.min(1, t / 30.0) * 0.6)).add(stageSide.scale(1.3 * away)).add(0, 0.5, 0)
+                        .lerp(sf.add(stageFacing.scale(3.0)).add(stageSide.scale(1.0 * away)).add(0, -0.4, 0), k);
                 return new Shot(eye, look, 46, 0, t == 0);
             }
             case P2_APOLOGY -> {
@@ -488,10 +510,64 @@ public final class Cinematic {
                 double k = Math.min(1, (t - whip) / 6.0);
                 return new Shot(face.add(f.scale(4.2 + k * 6)).add(0, k * 1.5, 0), body, 42 + (float) k * 22, 0, false);
             }
+            case P2_HYPE -> {
+                int left = singer != null && singer.songStart() != 0 ? ticksToSinging(mc, singer) : BossState.P2_HYPE_LENGTH - t;
+                int tt = Math.max(0, BossState.P2_HYPE_LENGTH - left);
+                if (tt < 44) {
+                    // over his shoulder, low, out to the stands he is playing to
+                    Vec3 eye = b.position().subtract(f.scale(6.2)).add(right.scale(3.4)).add(0, b.getBbHeight() * 0.7, 0);
+                    return new Shot(eye, b.position().add(f.scale(18)).add(0, 7, 0), 64, 0, t == 0);
+                }
+                if (tt < 80) {
+                    double orbit = Math.toRadians(-60 + (tt - 44) * 3.0);
+                    Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
+                    return new Shot(b.position().add(dir.scale(7.0)).add(0, 0.9, 0), face, 56, 0, tt == 44);
+                }
+                if (tt < 120) {
+                    double k = (tt - 80) / 40.0;
+                    double orbit = Math.toRadians(30 + (tt - 80) * 1.6);
+                    Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
+                    return new Shot(b.position().add(dir.scale(8.5 + k * 3)).add(0, 0.6 + k * 6.5, 0), body.add(0, 0.6, 0), 64 + (float) k * 6, 0, tt == 80);
+                }
+                if (tt < 150) {
+                    // in front of him as he turns to you and points you out, pushing in
+                    double push = (tt - 120) / 30.0;
+                    Vec3 eye = face.add(f.scale(5.5 - push * 1.5)).add(right.scale(1.6)).add(0, -0.6, 0);
+                    return new Shot(eye, face, 50 - (float) push * 8, 0, tt == 120);
+                }
+                double k = Math.min(1, (tt - 150) / 4.0);
+                return new Shot(face.add(f.scale(5.0 + k * 3)).add(0, -1.6, 0), face.add(0, 0.6, 0), tt < 153 ? 96 : 70,
+                        (float) Math.sin(tt * 1.9) * 4F, tt == 150);
+            }
+            case P2_SOLO -> {
+                if (singer == null) return null;
+                Vec3 sf = singer.position().add(0, singer.getBbHeight() * 0.7, 0);
+                Vec3 hands = singer.position().add(stageFacing.scale(0.8)).add(stageSide.scale(-0.25)).add(0, 0.35, 0);
+                if (t < 26) {
+                    double push = t / 26.0;
+                    return new Shot(hands.add(stageFacing.scale(3.0 - push * 0.8)).add(stageSide.scale(-1.5)).add(0, 0.5, 0), hands, 46, 0, t == 0);
+                }
+                if (t < 44) {
+                    double k = (t - 26) / 18.0;
+                    k = k * k * (3 - 2 * k);
+                    return new Shot(sf.add(stageFacing.scale(3.9)).add(stageSide.scale(-1.3)).add(0, -0.3 + k * 0.3, 0), hands.lerp(sf, k), 50, 0, t == 26);
+                }
+                Vec3 eye = singer.position().subtract(stageFacing.scale(1.6)).add(stageSide.scale(1.2)).add(0, singer.getBbHeight() + 0.6, 0);
+                return new Shot(eye, b.position().add(0, b.getBbHeight() * 0.5, 0), 62, 0, t == 44);
+            }
             default -> {
                 return null;
             }
         }
+    }
+
+    /** Client ticks to the singer's first word, from the band's synced downbeat. */
+    private static int ticksToSinging(Minecraft mc, com.groid.papon.boss.MariachiEntity singer) {
+        com.groid.papon.boss.Song song = com.groid.papon.boss.Song.get();
+        long now = mc.level.getGameTime() & 0x7FFFFFFF;
+        long since = (now - (singer.songStart() & 0x7FFFFFFFL)) & 0x7FFFFFFFL;
+        if (since >= (1L << 30)) since = 0;
+        return (int) ((song != null ? song.fightStartTicks() : 300) - since);
     }
 
     // ------------------------------------------------------------------ the camera

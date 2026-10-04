@@ -26,9 +26,11 @@ import software.bernie.geckolib.core.object.PlayState;
  * Taco Truck's cast (nothing hurts, pushes or moves them; only the coliseum's teardown removes
  * them). He never leaves his place on the stage.
  *
- * The band sleeps until the boss bangs his comal ({@link #wake}); then each, at his own pace, gets
- * up, puts his jacket and sombrero on (the singer his aviators too), picks his instrument up and
- * waits (the guitarron sits straight back down and sleeps until his chair is kicked, {@link #kick}).
+ * The band sleeps until the boss comes over and brings his spatula down on the singer's head
+ * ({@link #whack}): the singer goes up in the air out of his chair and, back on his feet, dresses
+ * under protest; the bang wakes the rest ({@link #wake}), and each, at his own pace, gets up, puts
+ * his jacket and sombrero on (the singer his aviators too), picks his instrument up and waits (the
+ * guitarron sits straight back down and sleeps until his chair is kicked, {@link #kick}).
  * The singer counts them in ({@link #count}) and they all play: the song itself is the client's
  * (SongPlayer), started from {@link #songStart()}, the server tick of its first downbeat.
  */
@@ -98,6 +100,13 @@ public class MariachiEntity extends TacoNpc {
         if (getRole().dozer() && !kicked) say("sleepy", 40);
     }
 
+    /** The singer, asleep in the front row: the boss's spatula on his head. Up he goes. */
+    public void whack() {
+        if (!getBandState().asleep()) return;
+        woken = true;
+        setBandState(BandState.WHACKED);
+    }
+
     /** His chair kicked out from under him: up he gets, for good this time. */
     public void kick() {
         kicked = true;
@@ -149,6 +158,18 @@ public class MariachiEntity extends TacoNpc {
         switch (s) {
             case STARTLE -> {
                 if (t >= s.duration + delay) setBandState(BandState.GETUP);
+            }
+            case WHACKED -> {
+                if (t == 4) say("ouch", 26);
+                if (t == 32) say("ya_voy", 40);
+                if (t >= s.duration) setBandState(BandState.JACKET_SLOW);
+            }
+            case JACKET_SLOW -> {
+                if (t == 40) say("sigh", 34);
+                if (t >= s.duration) setBandState(BandState.HAT_SLOW);
+            }
+            case HAT_SLOW -> {
+                if (t >= s.duration) setBandState(BandState.SHADES);
             }
             case GETUP -> {
                 if (t == 22 && random.nextInt(3) == 0) say("yawn", 30);
@@ -211,7 +232,8 @@ public class MariachiEntity extends TacoNpc {
     }
 
     private static final RawAnimation STARTLE = once("startle"), GETUP = once("getup"), RESLEEP = once("resleep"),
-            JACKET = once("jacket"), HAT = once("hat"), SHADES = once("shades"), COUNT = once("count"), BOW = once("bow");
+            JACKET = once("jacket"), HAT = once("hat"), SHADES = once("shades"), COUNT = once("count"), BOW = once("bow"),
+            WHACKED = once("whacked"), JACKET_SLOW = once("jacket_slow"), HAT_SLOW = once("hat_slow");
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -234,6 +256,9 @@ public class MariachiEntity extends TacoNpc {
             case COUNT -> COUNT;
             case PLAY -> loop("play_" + (role.singer() ? "singer" : kind));
             case BOW -> BOW;
+            case WHACKED -> WHACKED;
+            case JACKET_SLOW -> JACKET_SLOW;
+            case HAT_SLOW -> HAT_SLOW;
         };
         return event.setAndContinue(next);
     }

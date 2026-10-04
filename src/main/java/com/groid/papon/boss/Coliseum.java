@@ -434,14 +434,14 @@ public final class Coliseum {
         }
     }
 
-    /** The band stand: a half-moon stage against the north wall, gold-edged, a riser at the back for the trumpets. */
+    /** The band stand: a half-moon stage against the north wall, gold-edged, a riser at the back for the trumpets and the coro. */
     private void stage(Plan p) {
         for (int x = -10; x <= 10; x++) {
             for (int z = -B; z <= -B + 8; z++) {
                 double e = Math.pow(x / 10.0, 2) + Math.pow((z + B) / 7.5, 2);
                 if (e > 1 || offset(x, z) >= 0) continue;
                 p.put(x, 0, z, e > 0.8 ? ModBlocks.ARENA_GOLD::get : ModBlocks.ARENA_STONE::get);
-                if (Math.abs(x) <= 5 && z <= -B + 2) p.put(x, 1, z, ModBlocks.ARENA_STONE::get);
+                if (Math.abs(x) <= 7 && z <= -B + 2) p.put(x, 1, z, ModBlocks.ARENA_STONE::get);
             }
         }
     }
@@ -452,15 +452,18 @@ public final class Coliseum {
     public Vec3 bandSpot(int i) {
         double[][] spots = {
                 {0, 1, 5.6},      // the singer, front and centre, at his microphone
-                {-2.2, 2, 1.3},   // trumpets on the riser
-                {0, 2, 1.0},
-                {2.2, 2, 1.3},
+                {-5.6, 2, 1.4},   // trumpets on the riser, stage right
+                {-3.4, 2, 1.0},
+                {-1.2, 2, 1.0},
                 {-6.6, 1, 3.4},   // violins
                 {-5.0, 1, 4.6},
                 {-3.3, 1, 3.8},
                 {3.4, 1, 3.8},    // guitar
                 {5.0, 1, 4.6},    // vihuela
                 {6.8, 1, 3.3},    // guitarron
+                {1.2, 2, 1.0},    // the coro on the riser, stage left
+                {3.4, 2, 1.0},
+                {5.6, 2, 1.4},
         };
         double[] s = spots[Mth.clamp(i, 0, spots.length - 1)];
         return Vec3.atBottomCenterOf(center).add(s[0], s[1], -B + s[2]);

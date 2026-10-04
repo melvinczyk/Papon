@@ -7,6 +7,7 @@ package com.groid.papon.boss;
  * <pre>
  * SLEEP --(the boss's clang)--> STARTLE --> GETUP --> JACKET --> HAT [--> SHADES] --> GRAB --> READY
  *                                             \--> RESLEEP --> SLEEP (the dozer, until he is kicked)
+ * SLEEP --(the boss's spatula: the singer)--> WHACKED --> JACKET_SLOW --> HAT_SLOW --> SHADES --> GRAB --> READY
  * READY --(the singer)--> COUNT --> PLAY (everyone, the song) --> BOW (the fight is over)
  * </pre>
  */
@@ -22,7 +23,12 @@ public enum BandState {
     READY(0),
     COUNT(80),
     PLAY(0),
-    BOW(50);
+    BOW(50),
+    /** The singer, hit on the head and up into the air out of his chair. */
+    WHACKED(50),
+    /** ...and dressing under protest. */
+    JACKET_SLOW(90),
+    HAT_SLOW(50);
 
     public final int duration;
 

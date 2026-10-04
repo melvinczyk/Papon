@@ -21,7 +21,8 @@ import java.util.List;
  * and the guitar's strums.
  *
  * Times are seconds in the original recording. The server only needs the intro: the fight starts
- * when the singer starts to sing, after {@link #introPasses} passes of the guitar intro.
+ * when the singer starts to sing, after {@link #introPasses} passes of the guitar intro (the close-up, his apology and
+ * aura farm, "where were we?", and him working the stands up).
  */
 public final class Song {
     /** Passes of the guitar intro before he sings: at least two, more if his apology and aura farm need the room (VoiceLines). */
@@ -43,6 +44,16 @@ public final class Song {
     private final float[] voice;
     private final float[] pitch;
     private final float[] strum;
+    /** The backing vocals (0..1), where the trumpets play (0/1), the melody line (MIDI, 0 = none). */
+    private final float[] harmony;
+    private final float[] horn;
+    private final float[] lead;
+    private final float[] fiddle;
+    /** The melody line's note starts (seconds). */
+    private final double[] notes;
+    /** The violins' bowing: stroke times and the bow position at each (0 frog .. 1 tip). */
+    private final double[] bowT;
+    private final float[] bowP;
 
     @Nullable private static Song instance;
     private static boolean tried;
@@ -69,9 +80,25 @@ public final class Song {
         voice = floats(j.getAsJsonArray("voice"));
         pitch = floats(j.getAsJsonArray("pitch"));
         strum = floats(j.getAsJsonArray("strum"));
+        harmony = floats(j.getAsJsonArray("harmony"));
+        horn = floats(j.getAsJsonArray("horn"));
+        lead = floats(j.getAsJsonArray("lead"));
+        fiddle = floats(j.getAsJsonArray("fiddle"));
+        JsonArray n = j.has("notes") ? j.getAsJsonArray("notes") : new JsonArray();
+        notes = new double[n.size()];
+        for (int k = 0; k < notes.length; k++) notes[k] = n.get(k).getAsDouble();
+        JsonArray bw = j.has("bow") ? j.getAsJsonArray("bow") : new JsonArray();
+        bowT = new double[bw.size()];
+        bowP = new float[bw.size()];
+        for (int k = 0; k < bowT.length; k++) {
+            JsonArray c = bw.get(k).getAsJsonArray();
+            bowT[k] = c.get(0).getAsDouble();
+            bowP[k] = c.get(1).getAsFloat();
+        }
     }
 
-    private static float[] floats(JsonArray a) {
+    private static float[] floats(@Nullable JsonArray a) {
+        if (a == null) return new float[0];
         float[] out = new float[a.size()];
         for (int k = 0; k < out.length; k++) out[k] = a.get(k).getAsFloat();
         return out;
@@ -160,6 +187,72 @@ public final class Song {
     /** The guitars' attack at {@code t}, 0..1 (spikes on the strums). */
     public float strumAt(double t) {
         return sample(strum, t);
+    }
+
+    /** The backing vocals at {@code t}: 0 (the singer alone) .. 1 (the coro sings with him). */
+    public float harmonyAt(double t) {
+        return sample(harmony, t);
+    }
+
+    /** Whether the trumpets play at {@code t} (0..1, the edges eased by the caller). */
+    public float hornAt(double t) {
+        return sample(horn, t);
+    }
+
+    /** Whether the violins play at {@code t} (0..1, eased in and out already). */
+    public float fiddleAt(double t) {
+        return fiddle.length == 0 ? 1 : sample(fiddle, t);
+    }
+
+    /** The melody line's note at {@code t} (MIDI number; 0 when there is none to hear). */
+    public int leadAt(double t) {
+        int i = (int) Math.floor(t * rate);
+        return i < 0 || i >= lead.length ? 0 : (int) lead[i];
+    }
+
+    /** Index of the melody note sounding at {@code t} (-1 before the first). */
+    public int noteIndex(double t) {
+        return floorIndex(notes, t);
+    }
+
+    /** When note {@code i} started. */
+    public double noteTime(int i) {
+        return i < 0 || i >= notes.length ? Double.NEGATIVE_INFINITY : notes[i];
+    }
+
+    /**
+     * Where on the bow the violins are at {@code t} (0 frog .. 1 tip): straight from one stroke's
+     * key to the next, at an even speed through the middle of the stroke and a quick turn at each
+     * end, as a bow arm moves.
+     */
+    public float bowAt(double t) {
+        int k = floorIndex(bowT, t);
+        if (k < 0) return bowP.length == 0 ? 0.5F : bowP[0];
+        if (k >= bowT.length - 1) return bowP[bowT.length - 1];
+        double u = (t - bowT[k]) / Math.max(1e-3, bowT[k + 1] - bowT[k]);
+        // linear in the middle, eased over the first and last 12% (the bow change)
+        double e = 0.12;
+        double w = u < e ? u * u / (2 * e * (1 - e)) : u > 1 - e ? 1 - (1 - u) * (1 - u) / (2 * e * (1 - e))
+                : (u - e / 2) / (1 - e);
+        return (float) (bowP[k] + (bowP[k + 1] - bowP[k]) * w);
+    }
+
+    /** Which way the bow is moving at {@code t}: +1 down-bow (towards the tip), -1 up-bow. */
+    public int bowDirection(double t) {
+        int k = floorIndex(bowT, t);
+        if (k < 0 || k >= bowT.length - 1) return 1;
+        return bowP[k + 1] >= bowP[k] ? 1 : -1;
+    }
+
+    private static int floorIndex(double[] a, double t) {
+        if (a.length == 0 || t < a[0]) return -1;
+        int lo = 0, hi = a.length - 1;
+        while (lo < hi) {
+            int mid = (lo + hi + 1) >>> 1;
+            if (a[mid] <= t) lo = mid;
+            else hi = mid - 1;
+        }
+        return lo;
     }
 
     private float sample(float[] a, double t) {
