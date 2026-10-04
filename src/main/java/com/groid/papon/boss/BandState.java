@@ -38,7 +38,9 @@ public enum BandState {
     /** Watching the boss play in the spotlight, swaying, hands clasped. */
     AWED(0),
     /** The singer: the requinto thrown back at him, juggled twice and caught. */
-    CATCH(30);
+    CATCH(30),
+    /** The guitar is back, the boss has his back to them: they look at each other, nobody dares start. */
+    NERVOUS(0);
 
     public final int duration;
 
@@ -57,6 +59,6 @@ public enum BandState {
 
     /** Up, dressed and holding his instrument. */
     public boolean ready() {
-        return this == READY || this == COUNT || this == PLAY || this == BOW || this == SCARED || this == AWED || this == CATCH;
+        return this == READY || this == COUNT || this == PLAY || this == BOW || this == SCARED || this == AWED || this == CATCH || this == NERVOUS;
     }
 }

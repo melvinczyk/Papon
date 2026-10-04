@@ -22,7 +22,7 @@ Lengths of one-shots = BandState durations in Java:
   (the singer: "uno" 0.2, "dos" 1.15, "uno, dos, tres" 2.1 / 2.55 / 3.05, the downbeat at 4.0),
   bow 2.5, whacked 2.5 (the singer, hit on the head: up in the air 0-0.9), jacket_slow 4.5,
   hat_slow 2.5, robbed 2.0, catch 1.5; loops: sleep_a/b/c 3.0, ready_* 2.0, play_* 1.88 (a bar of the song),
-  scared 1.0, awed 3.48 (two bars of Para Siempre)
+  scared 1.0, awed 3.48 (two bars of Para Siempre), nervous_a / nervous_b 2.4
 """
 import json
 import os
@@ -633,11 +633,34 @@ def catch():
     return a
 
 
+def nervous(name, sgn):
+    """2.4 s loop. The requinto is back and the boss has his back to them: nobody knows who goes first. Each
+    looks at the man beside him, then the other side, back again (sgn: which way first), a gulp, a shrug of
+    the instrument, brows up; no one plays."""
+    a = state(M(name, 2.4, True), True, True)
+    look = [(0, [0, 0, 0]), (0.25, [0, 38 * sgn, 0], 'easeOutQuad'), (0.85, [0, 38 * sgn, 0]), (1.1, [0, -34 * sgn, 0], 'easeOutQuad'),
+            (1.7, [0, -34 * sgn, 0]), (2.0, [0, 0, 0], 'easeInOutSine'), (2.4, [0, 0, 0])]
+    a.rot('root', look, 'lin')
+    a.rot('torso', [(0, [4, 0, 0]), (1.0, [6, 0, 3 * sgn]), (2.0, [4, 0, -3 * sgn]), (2.4, [4, 0, 0])])
+    a.rot('arm_r', [(0, [-40, -20, 8]), (2.0, [-40, -20, 8]), (2.15, [-52, -20, 18], 'easeOutQuad'), (2.4, [-40, -20, 8])], 'lin')
+    a.rot('arm_l', [(0, [-40, 20, -8]), (2.0, [-40, 20, -8]), (2.15, [-52, 20, -18], 'easeOutQuad'), (2.4, [-40, 20, -8])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.15)])
+    stretch(a, 'arm_l', [(0, 1.15)])
+    a.pos('root', [(0, [0, 0, 0]), (2.0, [0, 0, 0]), (2.15, [0, 0.6, 0], 'easeOutQuad'), (2.4, [0, 0, 0])], 'lin')
+    for b, s_ in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(b, [(0, [0, 1.0, 0])], 'lin')
+        a.rot(b, [(0, [0, 0, -12 * s_])], 'lin')
+    mouth(a, [(0, 0.2), (1.5, 0.2), (1.6, 0.8), (1.75, 0.1), (2.4, 0.2)])
+    a.sound(1.6, 'gulp')
+    return a
+
+
 ALL = [sleep_a, sleep_b, sleep_c, startle, getup, resleep, jacket, hat, shades,
        lambda: grab('guitar'), lambda: grab('violin'), lambda: grab('trumpet'), lambda: grab('coro'),
        lambda: ready('guitar'), lambda: ready('violin'), lambda: ready('trumpet'), lambda: ready('coro'),
        count, lambda: play('guitar'), lambda: play('singer'), lambda: play('violin'), lambda: play('trumpet'),
-       lambda: play('coro'), bow, whacked, jacket_slow, hat_slow, scared, robbed, awed, catch]
+       lambda: play('coro'), bow, whacked, jacket_slow, hat_slow, scared, robbed, awed, catch,
+       lambda: nervous('nervous_a', 1), lambda: nervous('nervous_b', -1)]
 
 
 def main():

@@ -3980,8 +3980,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         entityData.set(DATA_NIGHT, Math.max(0.85F, 1F - t / 120F * 0.15F));
         ColiseumCrowdEntity crowd = crowd(level);
         if (crowd != null) {
-            if (t == 60) crowd.setMood(CrowdMood.LIGHTERS);
-            crowd.setLighters(Mth.clamp((t - 60) / 200F, 0F, 1F));
+            if (t == 2) crowd.setMood(CrowdMood.LIGHTERS);
+            crowd.setLighters(Mth.clamp((t - 30) / 170F, 0F, 1F));
         }
         if (t >= beat("serenade.end", BossState.P3_SERENADE.duration)) setBossState(BossState.P3_VERDICT);
     }
@@ -4029,6 +4029,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             singer.catchGuitar();
             level.playSound(null, singer.getX(), singer.getY() + 1, singer.getZ(), SoundEvents.NOTE_BLOCK_GUITAR.value(), SoundSource.NEUTRAL, 1.0F, 1.2F);
             crowdReact(level, CrowdMood.CHEER, 10);
+        }
+        if (t == beat("toss.glance", 40)) {
+            // the requinto is back... and nobody moves. The stands go quiet, waiting with them.
+            for (MariachiEntity m : band(level)) m.nervous();
+            crowdReact(level, CrowdMood.HUSH, go - beat("toss.glance", 40));
         }
         if (t == go) {
             sayPlain("go", 50);

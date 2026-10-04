@@ -2536,8 +2536,9 @@ def b_p3_verdict():
 
 def b_p3_toss():
     """BossState.P3_TOSS (beats toss.*). The requinto swung up and flung back over his shoulder without a look
-    (toss.throw), arms folded, chin up, not watching it go; then he whirls round on the band (the entity turns him)
-    with both arms flung out at them: "What are you WAITING for?! GO!!!", and a finger thrust at the singer."""
+    (toss.throw), arms folded, chin up, not watching it go. Then nothing happens: the band look at each other
+    (toss.glance on); his foot starts tapping, his head tips over, a long breath out... and he whirls round on
+    them (the entity turns him) with both arms flung out: "What are you WAITING for?! GO!!!", a finger at the singer."""
     thr, go, end = beat('toss.throw', 6), beat('toss.go', 30), beat('toss.end', 80)
     a = B('p3_toss', end, 'hold')
     # the neck grabbed off his belly (0.05) and the whole thing swung up and back over his shoulder
@@ -2552,11 +2553,19 @@ def b_p3_toss():
     a.rot('arm_l', [(0, gp('mid')[:3]), (0.2, [-6, 0, -18], 'easeInOutSine'), (round(thr + 0.3, 2), [-6, 0, -18]), (round(thr + 0.6, 2), CROSS_L, 'easeInOutSine'), (round(go - 0.15, 2), CROSS_L),
                     (go, [-70, 0, -74], 'easeOutBack'), (end, [-60, 0, -60])], 'lin')
     stretch(a, 'arm_l', [(0, 1), (round(thr + 0.6, 2), 1.25), (round(go - 0.15, 2), 1.25), (go, 1.5), (end, 1.3)])
-    a.rot('torso', [(0, [0, 0, 0]), (thr, [-10, 0, 0], 'easeOutQuad'), (round(thr + 0.6, 2), [-8, 0, 0]), (round(go - 0.15, 2), [-8, 0, 0]),
+    gl = beat('toss.glance', 40)
+    # the wait: arms folded, back to them; a foot starts tapping, the head tips over to one side, he lets out a breath
+    taps = [k for i in range(int((go - gl - 0.8) / 0.5)) for k in ((round(gl + 0.4 + 0.5 * i, 2), [-14, 0, 0]), (round(gl + 0.6 + 0.5 * i, 2), [0, 0, 0], 'easeInQuad'))]
+    a.rot('leg_r', [(0, [0, 0, 0]), (round(gl + 0.3, 2), [0, 0, 0])] + taps + [(round(go - 0.2, 2), [0, 0, 0]), (end, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (round(go - 1.2, 2), [1, 1, 1]), (round(go - 0.9, 2), [1.04, 1.05, 1.04], 'easeInOutSine'),
+                     (round(go - 0.5, 2), [0.98, 0.97, 0.98], 'easeInOutSine'), (round(go - 0.1, 2), [1, 1, 1]), (go, [1.08, 1.06, 1.08], 'easeOutBack'),
+                     (end, [1.03, 1.02, 1.03])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (thr, [-10, 0, 0], 'easeOutQuad'), (round(thr + 0.6, 2), [-8, 0, 0]), (round(gl + 1.2, 2), [-8, 0, 0]),
+                    (round(gl + 2.0, 2), [-4, 0, 9], 'easeInOutSine'), (round(go - 0.9, 2), [-4, 0, 9]), (round(go - 0.5, 2), [6, 0, 4], 'easeInOutSine'),
+                    (round(go - 0.15, 2), [-8, 0, 0]),
                     (go, [16, 0, 0], 'easeOutBack'), (round(go + 0.8, 2), [12, 0, 0]), (end, [8, 0, 0])], 'lin')
-    a.scale('body', [(0, [1, 1, 1]), (round(go - 0.1, 2), [1, 1, 1]), (go, [1.08, 1.06, 1.08], 'easeOutBack'), (end, [1.03, 1.02, 1.03])], 'lin')
     angry(a, round(go - 0.05, 2))
-    a.sound(thr, 'whoosh').sound(round(go - 0.1, 2), 'swing')
+    a.sound(thr, 'whoosh').sound(round(go - 0.7, 2), 'sigh').sound(round(go - 0.1, 2), 'swing')
     return a
 
 

@@ -187,8 +187,17 @@ public class MariachiEntity extends TacoNpc {
         setBandState(BandState.CATCH);
     }
 
+    /** Nobody dares start: they look at each other (the singer once he has the requinto in his hands). */
+    public void nervous() {
+        if (getBandState() == BandState.CATCH) nervousDue = true;
+        else setBandState(BandState.NERVOUS);
+    }
+
+    private boolean nervousDue;
+
     /** "What are you waiting for?!": instruments up. */
     public void ready() {
+        nervousDue = false;
         if (getBandState() != BandState.CATCH) setBandState(BandState.READY);
     }
 
@@ -228,7 +237,8 @@ public class MariachiEntity extends TacoNpc {
             }
             case CATCH -> {
                 if (t == 20) say("got_it", 26);
-                if (t >= s.duration) setBandState(BandState.READY);
+                if (t >= s.duration) setBandState(nervousDue ? BandState.NERVOUS : BandState.READY);
+                if (t >= s.duration) nervousDue = false;
             }
             case STARTLE -> {
                 if (t >= s.duration + delay) setBandState(BandState.GETUP);
@@ -338,6 +348,7 @@ public class MariachiEntity extends TacoNpc {
             case ROBBED -> ROBBED;
             case AWED -> AWED;
             case CATCH -> CATCH;
+            case NERVOUS -> loop(role.ordinal() % 2 == 0 ? "nervous_a" : "nervous_b");
         };
         return event.setAndContinue(next);
     }

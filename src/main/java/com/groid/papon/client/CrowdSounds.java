@@ -53,6 +53,7 @@ public final class CrowdSounds {
         CrowdMood mood = crowd.mood();
         bed.want = near * LOUDNESS * switch (mood) {
             case HUSH, MOURN -> 0.18F;
+            case LIGHTERS -> 0.05F;                 // his serenade: you could hear a pin drop
             case ROAR, GASP -> 0.75F;
             case CHANT, CLAP, WAVE -> 0.5F;
             default -> 0.55F;

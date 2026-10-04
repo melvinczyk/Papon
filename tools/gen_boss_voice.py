@@ -492,10 +492,12 @@ def beats(lengths):
     # the guitar down from his chin, the chord dying: "THIS... is more my style. Learn, muchachos."
     b['verdict.line'] = 10
     b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
-    # over his shoulder without looking (6), the singer juggles it and has it (26); he whirls round: "...GO!!!"
+    # over his shoulder without looking (6), the singer juggles it and has it (26); then nothing: the band look at
+    # each other, scared, nobody moves (toss.glance on), and only then does he whirl round on them: "...GO!!!"
     b['toss.throw'] = 6
     b['toss.catch'] = 26
-    b['toss.go'] = 30
+    b['toss.glance'] = 40
+    b['toss.go'] = 104
     b['toss.end'] = b['toss.go'] + L('go') + 2
     # the singer's pickup, a cappella, then the band crashes in; once the fire is back: "Now... let's DANCE."
     b['dance.drop'] = int(round(pickup * 20))

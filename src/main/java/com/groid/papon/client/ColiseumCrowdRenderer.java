@@ -308,12 +308,15 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                     p.armLX = -20;
                     p.brow = 0.5F;
                 } else {
+                    // in awe: hands clasped up under the chin, mouth open, brows up
                     seated(p);
-                    p.armRX = -28;
-                    p.armRY = -12;
-                    p.armLX = -28;
-                    p.armLY = 12;
+                    p.armRX = -120;
+                    p.armRY = -48;
+                    p.armLX = -120;
+                    p.armLY = 48;
                     p.torsoZ = 3 * sway;
+                    p.brow = 0.9F;
+                    p.mouth = 1.2F;
                 }
             }
         }
