@@ -982,6 +982,97 @@
       }
     ]
   },
+  "voice.boss2.vendor_order0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_order0"
+      }
+    ]
+  },
+  "voice.boss2.vendor_order1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_order1"
+      }
+    ]
+  },
+  "voice.boss2.vendor_order2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_order2"
+      }
+    ]
+  },
+  "voice.boss2.vendor_serve0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_serve0"
+      }
+    ]
+  },
+  "voice.boss2.vendor_serve1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_serve1"
+      }
+    ]
+  },
+  "voice.boss2.vendor_serve2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_serve2"
+      }
+    ]
+  },
+  "voice.boss2.vendor_inspect": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_inspect"
+      }
+    ]
+  },
+  "voice.boss2.vendor_suspicious": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_suspicious"
+      }
+    ]
+  },
+  "voice.boss2.vendor_fraud": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_fraud"
+      }
+    ]
+  },
+  "voice.boss2.vendor_exposed": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_exposed"
+      }
+    ]
+  },
+  "voice.boss2.vendor_unmask": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_unmask"
+      }
+    ]
+  },
+  "voice.boss2.vendor_realize": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_realize"
+      }
+    ]
+  },
+  "voice.boss2.vendor_rage": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/vendor_rage"
+      }
+    ]
+  },
   "voice.boss2.charm0": {
     "sounds": [
       {

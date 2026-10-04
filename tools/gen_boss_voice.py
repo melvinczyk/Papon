@@ -135,6 +135,20 @@ LINES = {
     'qte_broken': ("OW!!! My BACK!!!", 'pained'),
     'gravity':    ("EVERYTHING revolves around the POTATO!!!", 'shout'),
     'echoes':     ("The THREE CHEFS!!!", 'shout'),
+    # ---- the Taco Truck: Papon the Taquero (him in disguise), said as speech.papon.boss2.vendor_*
+    'vendor_order0':     ("Coming RIGHT up!", 'warm'),
+    'vendor_order1':     ("It's coming out RIGHT now!", 'warm'),
+    'vendor_order2':     ("But of COURSE, amigo!", 'warm'),
+    'vendor_serve0':     ("ENJOY your meal!", 'warm'),
+    'vendor_serve1':     ("Here you go, amigo!", 'warm'),
+    'vendor_serve2':     ("Enjoy it, my friend!", 'warm'),
+    'vendor_inspect':    ("A coupon? Let me see, let me SEE...", 'warm'),
+    'vendor_suspicious': ("Hmm... this does NOT look right.", 'sly'),
+    'vendor_fraud':      ("A FAKE coupon?! FRAUD!!! NOBODY steals MY tacos!", 'angry'),
+    'vendor_exposed':    ("Heh. Heh heh. Heh.", 'sly'),
+    'vendor_unmask':     ("You want the TRUTH? HERE is the truth!", 'angry'),
+    'vendor_realize':    ("Wait. No... DON'T LOOK!", 'surprised'),
+    'vendor_rage':       ("WHAT ARE YOU LOOKING AT?!", 'shout'),
     # ---- new: his charm in the coliseum (phase-two taunts and reactions)
     'charm0':     ("Come, amigo. DANCE with me.", 'sly'),
     'charm1':     ("Listen to them. They LOVE me.", 'smug'),
@@ -148,7 +162,7 @@ LINES = {
     'landed1':    ("And the crowd goes WILD!!!", 'shout'),
 }
 
-NO_CHECK = {'charm5'}          # Whisper cannot judge a scream or a lone word
+NO_CHECK = {'charm5', 'vendor_exposed'}          # Whisper cannot judge a scream or a lone word
 
 
 def norm(s):
