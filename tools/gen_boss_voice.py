@@ -78,6 +78,7 @@ DIRECTION = {
     'surprised': ('animated', 'Speak %s, in shocked disbelief, with dramatic pauses.' % STAR),
     'drunk': ('animated', 'Speak %s, drunk and slurring, wobbly and indignant.' % STAR),
     'cold': ('animated', 'Speak %s: cold, quiet and deadly serious, low and slow, with a long dramatic pause at the ellipsis.' % STAR),
+    'evil': ('animated', 'Speak %s: low, slow and dangerous, savouring every word like a villain who has just remembered his power, with long dramatic pauses at the ellipses, stretching the long vowels.' % STAR),
     'contempt': ('animated', 'Speak %s: seething with quiet contempt, offended to the core, slow, with dramatic pauses at the ellipses.' % STAR),
 }
 
@@ -169,6 +170,7 @@ LINES = {
     'mystyle':    ("THIS... is more my style. Learn, muchachos.", 'smug'),
     'go':         ("What are you WAITING for?! GO!!!", 'shout'),
     'dance':      ("Now... let's DANCE.", 'cold'),
+    'felt':       ("Hmmm... I haven't felt this way... in a LOOOOONG time.", 'evil'),
 }
 
 NO_CHECK = {'charm5', 'vendor_exposed'}          # Whisper cannot judge a scream or a lone word
@@ -292,8 +294,14 @@ def heard_energy(heard):
     return heard.count('!'), caps, stretch
 
 
+# takes chosen by ear over the automatic pick: line -> take index
+PICKED = {'felt': 2}          # "Mmm... I haven't felt this way in a loo-oong time." (the stretched "long")
+
+
 def pick(line, info):
     """The most expressive take that says the line (Whisper), sounds like him and is not cut off."""
+    if line in PICKED and PICKED[line] < len(info['takes']):
+        return PICKED[line], (0,)
     text, mood = LINES[line]
     loud = '!' in text
     cands = []
@@ -489,20 +497,39 @@ def beats(lengths):
     pickup = next(s['length'] for s in ps['segments'] if s['id'] == 'pickup')
     b['serenade.start'] = 4
     b['serenade.end'] = b['serenade.start'] + int(math.ceil(seren * 20)) + 12
+    # he ascends on the last word of his line (15.6 s into the song), and plays the guitar run after it transformed
+    b['serenade.transform'] = b['serenade.start'] + int(round(15.6 * 20))
     # the guitar down from his chin, the chord dying: "THIS... is more my style. Learn, muchachos."
     b['verdict.line'] = 10
     b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
-    # over his shoulder without looking (6), the singer juggles it and has it (26); then nothing: the band look at
-    # each other, scared, nobody moves (toss.glance on), and only then does he whirl round on them: "...GO!!!"
+    # over his shoulder without looking (toss.throw), the singer juggles it and has it (toss.catch); then nothing:
+    # the band look at each other, scared, nobody moves (toss.glance on)
     b['toss.throw'] = 20
     b['toss.catch'] = 42
     b['toss.glance'] = 58
-    b['toss.go'] = 122
-    b['toss.end'] = b['toss.go'] + L('go') + 2
-    # the singer's pickup, a cappella, then the band crashes in; once the fire is back: "Now... let's DANCE."
+    b['toss.end'] = b['toss.glance'] + 40
+    # he turns to you, slowly, the power going through him: "Hmmm... I haven't felt this way... in a LOOOOONG
+    # time." and an evil smile, held
+    b['felt.line'] = 14
+    b['felt.smile'] = b['felt.line'] + L('felt') + 2
+    b['felt.end'] = b['felt.smile'] + 40
+    # his car: hoisted over his head (to 24), crushed in his hands into a ball (30-70), held up glowing (70-90), and
+    # reformed (90: the flash) into a black Skyline that grows in his hands and is slammed down on its wheels
+    # (110); it revs (128); stood by it: "Now... let's DANCE."
+    b['crush.lifted'] = 24
+    b['crush.squeeze'] = 30
+    b['crush.ball'] = 70
+    b['crush.reform'] = 90
+    b['crush.down'] = 110
+    b['crush.rev'] = 128
+    b['crush.line'] = 146
+    b['crush.end'] = b['crush.line'] + L('dance') + 16
+    # he whirls round on the band: "What are you WAITING for?! GO!!!"
+    b['go.line'] = 8
+    b['go.end'] = b['go.line'] + L('go') + 4
+    # the singer's pickup, a cappella, then the band crashes in and the fire comes back
     b['dance.drop'] = int(round(pickup * 20))
-    b['dance.line'] = b['dance.drop'] + 56
-    b['dance.end'] = b['dance.line'] + L('dance') + 24
+    b['dance.end'] = b['dance.drop'] + 60
     return b
 
 

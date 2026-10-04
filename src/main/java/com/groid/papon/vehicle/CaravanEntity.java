@@ -77,6 +77,12 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     private static final EntityDataAccessor<Boolean> DATA_DOOR =
             SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.BOOLEAN);
     /** Ghost mode: Papon drives it drunk, half alive and half dead, and it goes through anything. */
+    /** Ascended Papon's car: the van crushed and reformed into a black Skyline (the model and its sounds swap). */
+    private static final EntityDataAccessor<Boolean> DATA_SKYLINE =
+            SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Drawn at this size (1 as built; down to a ball as he crushes it, back up as it reforms). */
+    private static final EntityDataAccessor<Float> DATA_SQUASH =
+            SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Boolean> DATA_GHOST =
             SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.BOOLEAN);
 
@@ -172,6 +178,24 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         entityData.define(DATA_ENGINE, false);
         entityData.define(DATA_DOOR, false);
         entityData.define(DATA_GHOST, false);
+        entityData.define(DATA_SKYLINE, false);
+        entityData.define(DATA_SQUASH, 1F);
+    }
+
+    public boolean isSkyline() {
+        return entityData.get(DATA_SKYLINE);
+    }
+
+    public void setSkyline(boolean skyline) {
+        entityData.set(DATA_SKYLINE, skyline);
+    }
+
+    public float squash() {
+        return entityData.get(DATA_SQUASH);
+    }
+
+    public void setSquash(float k) {
+        entityData.set(DATA_SQUASH, k);
     }
 
     public boolean isGhost() {
@@ -860,12 +884,14 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        tag.putBoolean("Skyline", isSkyline());
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         lastYaw = getYRot();
+        setSkyline(tag.getBoolean("Skyline"));
     }
 
     // ------------------------------------------------------------------ animation

@@ -1248,5 +1248,12 @@
         "name": "papon:voice/boss2/dance"
       }
     ]
+  },
+  "voice.boss2.felt": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/felt"
+      }
+    ]
   }
 }

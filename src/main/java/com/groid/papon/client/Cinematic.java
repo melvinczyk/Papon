@@ -124,7 +124,12 @@ public final class Cinematic {
         return k * k * (3 - 2 * k);
     }
 
-    private record Shot(Vec3 eye, Vec3 lookAt, float fov, float roll, boolean cut) {}
+    /** A camera position for a tick; {@code free}: placed in the open on purpose (a wide shot of the stands), not to be moved off walls. */
+    private record Shot(Vec3 eye, Vec3 lookAt, float fov, float roll, boolean cut, boolean free) {
+        Shot(Vec3 eye, Vec3 lookAt, float fov, float roll, boolean cut) {
+            this(eye, lookAt, fov, roll, cut, false);
+        }
+    }
 
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
@@ -187,6 +192,7 @@ public final class Cinematic {
      * camera does not hop between angles.
      */
     private static Shot unblock(Minecraft mc, Shot s, PaponBossEntity subject) {
+        if (s.free()) return s;
         int state = subject.getBossState().ordinal();
         if (unblockState != state || s.cut()) {
             // a new shot: look again from its own angle
@@ -722,9 +728,10 @@ public final class Cinematic {
                 if (t < 85) return new Shot(hands.add(f.scale(4.0)).add(right.scale(2.2)).add(0, -0.3, 0), hands.lerp(face, 0.3), 40, 0, t == 50);
                 if (t < 118) {
                     // the stands, from down on the sand: the first lighters coming on, faces in awe
+                    // over the middle of the sand, so the camera is always in the open, looking up at the stands
                     Vec3 side = right.scale(b.position().subtract(center).dot(right) > 0 ? -1 : 1);
-                    Vec3 eye = b.position().add(side.scale(5)).add(0, 1.0, 0);
-                    return new Shot(eye, center.add(side.scale(com.groid.papon.boss.Coliseum.A + 6)).add(0, 7, 0), 66, 0, t == 85);
+                    Vec3 eye = center.add(side.scale(-4)).add(0, 3.0, 0);
+                    return new Shot(eye, center.add(side.scale(com.groid.papon.boss.Coliseum.A + 6)).add(0, 8, 0), 66, 0, t == 85, true);
                 }
                 if (t < 150) {
                     // the band, watching him play: the singer's face, the coro behind
@@ -734,7 +741,7 @@ public final class Cinematic {
                     // over his shoulder, out over the sand to the bowl of lighters
                     double k = (t - 150) / 35.0;
                     Vec3 eye = b.position().subtract(f.scale(3.6)).add(right.scale(1.4)).add(0, h * 0.9 + k * 1.5, 0);
-                    return new Shot(eye, b.position().add(f.scale(30)).add(0, 9, 0), 70, 0, t == 150);
+                    return new Shot(eye, b.position().add(f.scale(30)).add(0, 9, 0), 70, 0, t == 150, true);
                 }
                 if (t < sing) {
                     // his face in profile, three-quarters, as his head comes up for the first line
@@ -742,12 +749,27 @@ public final class Cinematic {
                     Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
                     return new Shot(face.add(dir.scale(4.2)).add(0, -0.4, 0), face, 42, 0, t == 185);
                 }
-                if (t < 330) {
-                    double k = (t - sing) / (double) Math.max(1, 330 - sing);
+                int up = VoiceLines.beat("serenade.transform", 316);
+                if (t < up - 18) {
+                    double k = (t - sing) / (double) Math.max(1, up - 18 - sing);
                     return new Shot(face.add(f.scale(5.2 - 1.6 * k)).add(right.scale(0.6 - 0.4 * k)).add(0, -0.35, 0), face, 46 - (float) k * 8, 0, t == sing);
                 }
-                // the last chord: from below, up into his face, the hand flung to the sky
-                return new Shot(face.add(f.scale(4.2)).add(right.scale(-0.8)).add(0, -1.4, 0), face.add(0, 0.5, 0), 54, 0, t == 330);
+                if (t < up) {
+                    // the power building in him: right in on his face, shaking
+                    return new Shot(face.add(f.scale(3.0)).add(0, -0.2, 0), face, 30, (float) Math.sin(t * 2.1) * (t - up + 18) * 0.15F, t == up - 18);
+                }
+                if (t < up + 10) flashTarget = 1F - (t - up) / 10F;
+                if (t < up + 44) {
+                    // Ascended Papon: wide and low in front of him as the wings unfurl
+                    double k = Math.min(1, (t - up) / 44.0);
+                    return new Shot(b.position().add(f.scale(10.5 - 2 * k)).add(0, 0.8, 0), body.add(0, h * 0.2, 0), 70 - (float) k * 6, 0, t == up);
+                }
+                if (t < 330 + 30) {
+                    // the band, in awe of him
+                    return new Shot(stage.add(stageFacing.scale(6.5)).add(stageSide.scale(2.5)).add(0, 1.8, 0), stage.add(0, 1.2, 0), 56, 0, t == up + 44);
+                }
+                // the last chord: from below, up into his face, the hand flung to the sky, the wings open behind him
+                return new Shot(face.add(f.scale(5.4)).add(right.scale(-0.8)).add(0, -1.6, 0), face.add(0, 0.6, 0), 60, 0, t == 360);
             }
             case P3_VERDICT -> {
                 int end = VoiceLines.beat("verdict.end", 80);
@@ -756,9 +778,8 @@ public final class Cinematic {
                 return new Shot(face.add(f.scale(4.8 + 5 * k)).add(0, k * 2, 0), body, 46 + (float) k * 20, 0, false);
             }
             case P3_TOSS -> {
-                int thr = VoiceLines.beat("toss.throw", 6), cat = VoiceLines.beat("toss.catch", 26), gl = VoiceLines.beat("toss.glance", 40),
-                        go = VoiceLines.beat("toss.go", 104);
-                if (t < thr + 2) return new Shot(face.add(f.scale(4.6)).add(right.scale(-1.4)).add(0, -0.3, 0), face, 48, 0, t == 0);
+                int thr = VoiceLines.beat("toss.throw", 20), cat = VoiceLines.beat("toss.catch", 42), gl = VoiceLines.beat("toss.glance", 58);
+                if (t < thr + 2) return new Shot(face.add(f.scale(4.8)).add(right.scale(-1.4)).add(0, -0.3, 0), face, 50, 0, t == 0);
                 if (t < cat + 2) {
                     // the requinto spinning through the beam, end over end, all the way to the singer's hands
                     com.groid.papon.boss.BossProp g = mc.level.getEntitiesOfClass(com.groid.papon.boss.BossProp.class, b.getBoundingBox().inflate(40),
@@ -769,39 +790,73 @@ public final class Cinematic {
                     return new Shot(at.add(side.scale(5.0)).add(dir.scale(-1.5)).add(0, 0.6, 0), at, 54, 0, t == thr + 2);
                 }
                 if (t < gl + 4) return new Shot(singerFace.add(stageFacing.scale(3.4)).add(stageSide.scale(0.9)), singerFace.add(0, -0.4, 0), 44, 0, t == cat + 2);
-                int half = gl + 4 + (go - gl - 4) * 11 / 20;
-                if (t < half) {
-                    // the band, looking at each other: who goes first?
-                    return new Shot(stage.add(stageFacing.scale(6.5)).add(0, 1.8, 0), stage.add(0, 1.1, 0), 54, 0, t == gl + 4);
+                // the band, looking at each other: who goes first?
+                return new Shot(stage.add(stageFacing.scale(6.5)).add(0, 1.8, 0), stage.add(0, 1.1, 0), 54, 0, t == gl + 4);
+            }
+            case P3_FELT -> {
+                int ln = VoiceLines.beat("felt.line", 14), sm = VoiceLines.beat("felt.smile", 100);
+                if (t < ln) {
+                    // all of him: Ascended Papon, the wings open, in his light
+                    return new Shot(body.add(f.scale(8.5)).add(right.scale(1.5)).add(0, -0.6, 0), body.add(0, h * 0.15, 0), 60, 0, t == 0);
                 }
-                if (t < go) {
-                    // his face, back to them, waiting... the eyes narrowing, closer and closer
-                    double k = (t - half) / (double) Math.max(1, go - half);
-                    return new Shot(face.add(f.scale(4.4 - 1.4 * k)).add(right.scale(0.4)).add(0, -0.3, 0), face, 40 - (float) k * 8, 0, t == half);
+                if (t < sm) {
+                    double k = (t - ln) / (double) Math.max(1, sm - ln);
+                    return new Shot(face.add(f.scale(6.0 - 2.6 * k)).add(right.scale(0.5)).add(0, -0.4, 0), face, 44 - (float) k * 8, 0, t == ln);
                 }
-                // he whirls round on them: "What are you WAITING for?! GO!!!", into the lens
-                double k = Math.min(1, (t - go) / 6.0);
-                return new Shot(face.add(f.scale(3.6 + k)).add(0, -0.3, 0), face, 46 + (float) k * 8, t < go + 8 ? (float) Math.sin(t * 2.2) * 3F : 0, t == go);
+                // the smile: right in on it
+                return new Shot(face.add(f.scale(3.0)).add(0, -0.25, 0), face.add(0, -0.1, 0), 30, 0, t == sm);
+            }
+            case P3_TO_CAR -> {
+                return new Shot(face.add(f.scale(5.5)).add(right.scale(2.0)).add(0, -0.5, 0), face, 50, 0, t == 0);
+            }
+            case P3_CRUSH -> {
+                com.groid.papon.vehicle.CaravanEntity car = mc.level.getEntitiesOfClass(com.groid.papon.vehicle.CaravanEntity.class,
+                        b.getBoundingBox().inflate(24), c -> true).stream().min(Comparator.comparingDouble(c -> c.distanceToSqr(b))).orElse(null);
+                int lifted = VoiceLines.beat("crush.lifted", 24), ball = VoiceLines.beat("crush.ball", 70), ref = VoiceLines.beat("crush.reform", 90),
+                        down = VoiceLines.beat("crush.down", 110), ln = VoiceLines.beat("crush.line", 146);
+                Vec3 over = b.position().add(0, h + 0.6, 0);
+                if (t < lifted + 6) return new Shot(b.position().add(f.scale(9)).add(right.scale(2)).add(0, 0.5, 0), over.add(0, -1, 0), 66, 0, t == 0);
+                if (t < ball) {
+                    // crushing it: in close under it, his hands, the metal folding
+                    return new Shot(face.add(f.scale(5.5)).add(right.scale(2.5)).add(0, -0.8, 0), over, 50,
+                            (float) Math.sin(t * 1.9) * 2F, t == lifted + 6);
+                }
+                if (t < ref) {
+                    // the ball, glowing in his fist
+                    Vec3 fist = b.position().add(f.scale(0.6)).add(0, h + 0.2, 0);
+                    return new Shot(fist.add(f.scale(3.6)).add(right.scale(1.2)).add(0, -0.4, 0), fist, 40, 0, t == ball);
+                }
+                if (t < ref + 6) flashTarget = 1F - (t - ref) / 6F;
+                if (t < down + 4) return new Shot(b.position().add(f.scale(11)).add(right.scale(-3)).add(0, 1.5, 0), b.position().add(f.scale(3)).add(0, h * 0.5, 0), 64, 0, t == ref);
+                if (t < ln - 4 && car != null) {
+                    // the Skyline: low along its flank, the purple glow under it, him behind
+                    Vec3 side = car.left();
+                    Vec3 cp = car.position().add(0, 0.6, 0);
+                    return new Shot(cp.add(side.scale(6.5)).add(car.forward().scale(3.5)).add(0, -0.1, 0), cp.add(car.forward().scale(-1)), 54, 0, t == down + 4, true);
+                }
+                // "Now... let's DANCE.": his face, close
+                double k = Math.min(1, (t - (ln - 4)) / 40.0);
+                return new Shot(face.add(f.scale(5.2 - 1.2 * k)).add(right.scale(0.4)).add(0, -0.3, 0), face, 44 - (float) k * 6, 0, t == ln - 4);
+            }
+            case P3_GO -> {
+                int ln = VoiceLines.beat("go.line", 8);
+                double k = Math.min(1, t / 6.0);
+                return new Shot(face.add(f.scale(4.0 + k)).add(0, -0.3, 0), face, 48 + (float) k * 6, t < ln + 10 ? (float) Math.sin(t * 2.2) * 3F : 0, t == 0);
             }
             case P3_DANCE -> {
                 if (!b.inColiseum() || singer == null) {
                     return new Shot(face.add(f.scale(4.6)).add(0, -0.2, 0), face, 42, 0, t == 0);
                 }
-                int drop = VoiceLines.beat("dance.drop", 42), line = VoiceLines.beat("dance.line", 76);
+                int drop = VoiceLines.beat("dance.drop", 42);
                 if (t < drop) return new Shot(singerFace.add(stageFacing.scale(3.6 - t * 0.015)).add(stageSide.scale(-0.7)), singerFace, 44, 0, t == 0);
                 if (t < drop + 36) {
                     // the band crashes in and the fire comes back round the whole bowl: high, behind the band, out over it
                     double k = Math.min(1, (t - drop) / 36.0);
                     Vec3 eye = stage.subtract(stageFacing.scale(4 + 2 * k)).add(0, 9 + 3 * k, 0);
-                    return new Shot(eye, center.add(0, 2, 0), 76, t < drop + 6 ? (float) Math.sin(t * 2.6) * 4F : 0, t == drop);
+                    return new Shot(eye, center.add(0, 2, 0), 76, t < drop + 6 ? (float) Math.sin(t * 2.6) * 4F : 0, t == drop, true);
                 }
-                if (t < line - 6) {
-                    // it goes through him: his face, low, the crimson fire behind
-                    return new Shot(face.add(f.scale(4.8)).add(right.scale(-1.0)).add(0, -1.0, 0), face, 52, 0, t == drop + 36);
-                }
-                // "Now... let's DANCE.": close, and closer
-                double k = Math.min(1, (t - (line - 6)) / 50.0);
-                return new Shot(face.add(f.scale(5.0 - 1.0 * k)).add(right.scale(0.4)).add(0, -0.3, 0), face, 44 - (float) k * 6, 0, t == line - 6);
+                // it goes through him: his face, low, the crimson fire behind
+                return new Shot(face.add(f.scale(5.4)).add(right.scale(-1.0)).add(0, -1.0, 0), face, 50, 0, t == drop + 36);
             }
             default -> {
                 return null;

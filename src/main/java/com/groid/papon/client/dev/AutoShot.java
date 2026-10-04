@@ -801,13 +801,17 @@ public final class AutoShot {
                     : t == com.groid.papon.boss.VoiceLines.beat("snatch.grab", 22) + 50 ? "t13_band_cowers" : null;
             case P3_RETURN -> t == 30 ? "t14_lights_out" : t == 90 ? "t15_lights_out2" : null;
             case P3_BLACKOUT -> t == 22 ? "t16_black" : t == 34 ? "t17_spotlight" : t == 48 ? "t18_spot_on_him" : null;
-            case P3_SERENADE -> t == 40 ? "t19_orbit" : t == 120 ? "t20_fingers" : t == 200 ? "t21_lighters" : t == 240 ? "t22_sings"
-                    : t == 300 ? "t23_sings_close" : t == 372 ? "t24_last_chord" : null;
+            case P3_SERENADE -> t == 40 ? "t19_orbit" : t == 100 ? "t20_stands" : t == 130 ? "t20b_band_watching" : t == 200 ? "t21_lighters"
+                    : t == 260 ? "t22_sings" : t == 306 ? "t22b_power_builds" : t == 318 ? "t23_ascension_flash" : t == 336 ? "t23b_wings_unfurl"
+                    : t == 352 ? "t23c_wings_open" : t == 366 ? "t23d_band_awe" : t == 376 ? "t24_last_chord" : null;
             case P3_VERDICT -> t == 30 ? "t25_more_my_style" : t == 70 ? "t26_learn" : null;
-            case P3_TOSS -> t == 12 ? "t27_toss" : t == 30 ? "t28_flight" : t == 46 ? "t29_catch" : t == 76 ? "t29b_band_glances"
-                    : t == com.groid.papon.boss.VoiceLines.beat("toss.go", 104) - 8 ? "t29c_he_waits" : t == com.groid.papon.boss.VoiceLines.beat("toss.go", 104) + 8 ? "t30_go" : null;
-            case P3_DANCE -> t == 20 ? "t31_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 20 ? "t32_fire_back"
-                    : t == com.groid.papon.boss.VoiceLines.beat("dance.line", 76) + 26 ? "t33_lets_dance" : null;
+            case P3_TOSS -> t == 14 ? "t27_toss" : t == 30 ? "t28_flight" : t == 46 ? "t29_catch" : t == 80 ? "t29b_band_glances" : null;
+            case P3_FELT -> t == 8 ? "t30_ascended" : t == 50 ? "t30b_felt" : t == 110 ? "t30c_evil_smile" : null;
+            case P3_TO_CAR -> t == 20 ? "t31_to_car" : null;
+            case P3_CRUSH -> t == 16 ? "t32_lift" : t == 50 ? "t32b_crush" : t == 80 ? "t32c_ball" : t == 96 ? "t32d_reform" : t == 116 ? "t32e_skyline"
+                    : t == 135 ? "t32f_underglow" : t == 170 ? "t32g_lets_dance" : null;
+            case P3_GO -> t == 14 ? "t33_go" : null;
+            case P3_DANCE -> t == 20 ? "t34_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 20 ? "t35_fire_back" : t == 90 ? "t36_stance" : null;
             default -> null;
         };
         if (n != null) once(mc, n);
@@ -817,19 +821,19 @@ public final class AutoShot {
             if (j == 2) PaponBossEntity.devFrozen = true;
             if (j == 4) run("gamemode spectator");
             if (j == 6) tpLook(b.position().add(4, 2, 8), b.position().add(0, 2, 0));
-            if (j == 20) shot(mc, "t34_night_fight");
+            if (j == 20) shot(mc, "t37_night_fight");
             if (j == 22) tpLook(b.position().add(0, 18, 26), b.position());
-            if (j == 40) shot(mc, "t35_night_bowl");
+            if (j == 40) shot(mc, "t38_night_bowl");
             if (j == 42) PaponMod.LOG.info("[autoshot] night fps {}", mc.getFps());
             if (j == 44) {
                 PaponBossEntity.devFrozen = false;
                 run("gamemode survival");
                 run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~7");
             }
-            if (j == 140) shot(mc, "t36_fighting_at_night");
-            if (j == 240) shot(mc, "t37_fighting_at_night2");
+            if (j == 140) shot(mc, "t39_fighting_at_night");
+            if (j == 240) shot(mc, "t40_fighting_at_night2");
             if (j == 260) run("kill @e[type=papon:papon_boss]");
-            if (j == 330) shot(mc, "t38_his_fall");
+            if (j == 330) shot(mc, "t41_his_fall");
             if (j == 420) mc.stop();
         }
         if (k > 60 * 20 * 4) mc.stop();

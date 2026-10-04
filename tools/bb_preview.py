@@ -35,7 +35,9 @@ ANIM_FILES = {
     'reviewbrah': 'customer',
     'gerbin': 'gerbin',
     'papon_boss': 'papon_boss',
+    'papon_ascended': 'papon_boss',
     'caravan': 'caravan',
+    'skyline': 'caravan',
     'mariachi': 'mariachi',
     'arena_fan': None,
 }
@@ -127,8 +129,13 @@ def reach_of(name):
 
 def sheet(out, names):
     tiles = []
+    hide = [h for h in os.environ.get('BB_HIDE', '').split(',') if h]
     for name in names:
         open_model(name)
+        if hide:
+            # BB_HIDE=bone,bone: take these groups out of the shot (props a model only shows in its animations)
+            ev('for (const n of %s) { const g = Group.all.find(x => x.name === n); if (g) g.visibility = false; } Canvas.updateVisibility(); true'
+               % json.dumps(hide))
         vid = ensure_view()
         mid = height_of(name) / 2
         dist = max(1.0, height_of(name) / 34, reach_of(name) / 20)

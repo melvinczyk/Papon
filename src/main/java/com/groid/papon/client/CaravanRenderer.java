@@ -47,6 +47,50 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
                 : super.getRenderColor(entity, partialTick, light);
     }
 
+    /** Crushed into a ball and reformed (Ascended Papon): drawn at its squash, a little flatter than wide as it crumples. */
+    @Override
+    public void preRender(PoseStack pose, CaravanEntity van, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,
+                          boolean reRender, float partialTick, int light, int overlay, float r, float g, float b, float a) {
+        float k = van.squash();
+        this.scaleWidth = k;
+        this.scaleHeight = k < 1 ? k * (0.8F + 0.2F * k) : 1F;
+        super.preRender(pose, van, model, buffers, buffer, reRender, partialTick, light, overlay, r, g, b, a);
+    }
+
+    @Override
+    public void render(CaravanEntity van, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        super.render(van, yaw, partialTick, pose, buffers, light);
+        if (van.isSkyline() && van.squash() > 0.95F) underglow(van, partialTick, pose, buffers);
+    }
+
+    /** The Skyline's purple underglow: a pool of light on the ground under it, brightest under the middle, breathing. */
+    private static void underglow(CaravanEntity van, float partial, PoseStack pose, MultiBufferSource buffers) {
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        pose.pushPose();
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-Mth.rotLerp(partial, van.yBodyRotO, van.yBodyRot)));
+        org.joml.Matrix4f m = pose.last().pose();
+        float pulse = 0.85F + 0.15F * Mth.sin((van.tickCount + partial) * 0.2F);
+        float hw = (float) CaravanEntity.HALF_WIDTH + 0.6F, hl = (float) CaravanEntity.HALF_LENGTH + 0.4F;
+        int n = 10;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                float x0 = -hw + 2 * hw * i / n, x1 = -hw + 2 * hw * (i + 1) / n;
+                float z0 = -hl + 2 * hl * j / n, z1 = -hl + 2 * hl * (j + 1) / n;
+                quadGlow(vc, m, x0, z0, x1, z1, hw, hl, pulse);
+            }
+        }
+        pose.popPose();
+    }
+
+    private static void quadGlow(VertexConsumer vc, org.joml.Matrix4f m, float x0, float z0, float x1, float z1, float hw, float hl, float pulse) {
+        float[][] c = {{x0, z0}, {x0, z1}, {x1, z1}, {x1, z0}};
+        for (float[] p : c) {
+            float d = (float) Math.min(1, Math.hypot(p[0] / hw, p[1] / hl));
+            int a = (int) (150 * pulse * (1 - d * d));
+            vc.vertex(m, p[0], 0.06F, p[1]).color(170, 70, 255, Math.max(0, a)).endVertex();
+        }
+    }
+
     @Override
     protected float getDeathMaxRotation(CaravanEntity entity) {
         return 0;
@@ -56,10 +100,13 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         private static final ResourceLocation GEO = PaponMod.id("geo/entity/caravan.geo.json");
         private static final ResourceLocation TEX = PaponMod.id("textures/entity/caravan.png");
         private static final ResourceLocation ANIM = PaponMod.id("animations/entity/caravan.animation.json");
+        // Ascended Papon's Skyline (tools/gen_skyline.py): the same rig, so everything below drives it too
+        private static final ResourceLocation SKY_GEO = PaponMod.id("geo/entity/skyline.geo.json");
+        private static final ResourceLocation SKY_TEX = PaponMod.id("textures/entity/skyline.png");
         private static final String[] WHEELS = {"wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"};
 
-        @Override public ResourceLocation getModelResource(CaravanEntity van) { return GEO; }
-        @Override public ResourceLocation getTextureResource(CaravanEntity van) { return TEX; }
+        @Override public ResourceLocation getModelResource(CaravanEntity van) { return van.isSkyline() ? SKY_GEO : GEO; }
+        @Override public ResourceLocation getTextureResource(CaravanEntity van) { return van.isSkyline() ? SKY_TEX : TEX; }
         @Override public ResourceLocation getAnimationResource(CaravanEntity van) { return ANIM; }
 
         @Override

@@ -25,8 +25,16 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     /** Where on the neck his chord shapes sit, bar by bar (0 low .. 1 high). */
     private static final float[] SHAPES = {0.15F, 0.55F, 0.3F, 0.8F, 0.15F, 0.4F, 0.65F, 0.25F};
 
+    private static final net.minecraft.resources.ResourceLocation ASCENDED_GEO = PaponMod.id("geo/entity/papon_ascended.geo.json");
+
     public BossModel() {
         super(PaponMod.id("papon_boss"));
+    }
+
+    /** Ascended Papon (tools/gen_ascended.py): the same bones, his better potato, white eyes, eagle wings. */
+    @Override
+    public net.minecraft.resources.ResourceLocation getModelResource(PaponBossEntity boss) {
+        return boss.isAscended() ? ASCENDED_GEO : super.getModelResource(boss);
     }
 
     @Override

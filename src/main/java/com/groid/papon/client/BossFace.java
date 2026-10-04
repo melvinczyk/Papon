@@ -84,6 +84,8 @@ public final class BossFace {
         MOODS.put("croon", new Look(0.55F, 0.55F, 0.25F, 0.25F, 1.0F, 1.0F, -10, 1.25F, 1, 3, 0).eyes(0.9F, 0, -0.4F));
         // ...and cold fury: still, narrow, the mouth a flat line
         MOODS.put("cold", new Look(0.3F, 0.3F, -0.3F, -0.3F, -0.2F, -0.2F, 10, 0.8F, 1, 0, 0).eyes(0.6F, 0, 0));
+        // the evil smile (Ascended Papon): a wide grin, the corners right up, brows down hard in a V, eyes narrowed
+        MOODS.put("evil", new Look(0.45F, 0.45F, 1.4F, 1.4F, -0.7F, -0.7F, 12, 0.7F, 1.12F, 0, 0).eyes(0.65F, 0, 0.2F));
         MOODS.put("contempt", new Look(0.35F, 0.15F, -0.2F, 0.4F, -0.4F, 0.6F, 6, 0.9F, 1, -2, 0).eyes(0.7F, 0.4F, 0));
     }
 
@@ -321,7 +323,10 @@ public final class BossFace {
             case P3_SERENADE -> MOODS.get("croon");
             case P3_VERDICT -> MOODS.get("smug");
             case P3_TOSS -> MOODS.get("sly");
-            case P3_DANCE -> MOODS.get("cold");
+            case P3_DANCE, P3_GO -> MOODS.get("cold");
+            case P3_FELT -> t >= VoiceLines.beat("felt.smile", 100) - 6 ? MOODS.get("evil") : MOODS.get("smoulder");
+            case P3_TO_CAR -> MOODS.get("cold");
+            case P3_CRUSH -> t >= VoiceLines.beat("crush.down", 110) ? MOODS.get("evil") : MOODS.get("angry");
             default -> MOODS.get("angry");                // fighting
         };
     }
