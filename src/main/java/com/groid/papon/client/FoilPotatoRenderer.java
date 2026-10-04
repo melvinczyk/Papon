@@ -14,6 +14,12 @@ public class FoilPotatoRenderer extends GeoEntityRenderer<FoilPotatoEntity> {
         this.shadowRadius = 0.4F;
     }
 
+    /** Out of phase three's cutscene shots (they circle right through the close-ups). */
+    @Override
+    public boolean shouldRender(FoilPotatoEntity entity, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
+        return !Cinematic.inPhaseThree() && super.shouldRender(entity, frustum, x, y, z);
+    }
+
     @Override
     public boolean shouldShowName(FoilPotatoEntity entity) {
         return entity.hasCustomName() && super.shouldShowName(entity);

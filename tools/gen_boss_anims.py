@@ -2279,18 +2279,21 @@ def guitar_poses():
     band_ik.RIG = None
     R = band_ik.rig()
     piv = R.pivot('p3_guitar')
-    xs, _ = band_ik.reach('r', 'hand_r', R.pivot('hand_r'), R.to_world('p3_guitar', piv + np.array([0, 0.5, -3.8]), {}),
+    k = GUITAR_SCALE
+    xs, _ = band_ik.reach('r', 'hand_r', R.pivot('hand_r'), R.to_world('p3_guitar', piv + k * np.array([0, 0.5, -3.8]), {}),
                           np.array([-50, -40, 0, 2.0]))
     out = {'strum': [round(float(v), 1) for v in xs]}
     x0 = np.array([-60, 30, 0, 2.0])
     for name, y in (('low', 5.0), ('mid', 7.5), ('high', 10.5)):
-        x, _ = band_ik.reach('l', 'hand_l', R.pivot('hand_l'), R.to_world('p3_guitar', piv + np.array([0, y, -3.0]), {}), x0)
+        x, _ = band_ik.reach('l', 'hand_l', R.pivot('hand_l'), R.to_world('p3_guitar', piv + k * np.array([0, y, -3.0]), {}), x0)
         out[name] = [round(float(v), 1) for v in x]
         x0 = x
     return out
 
 
 GUITAR = None
+GUITAR_SCALE = 1.5
+SHOWN_G = [GUITAR_SCALE] * 3     # the requinto as he holds it (both bones), bigger than on the singer
 
 
 def gp(name):
@@ -2304,13 +2307,6 @@ def guitar_arms(a, t0, t1, ease='easeInOutSine'):
     """Both hands onto the requinto by t0 and held there to t1 (the strum, the fret hand mid-neck)."""
     st, md = gp('strum'), gp('mid')
     return st, md
-
-
-CARRY_R = [-12, 0, 16]          # the requinto hanging from his right fist by the neck, at his side
-
-
-def p3_carry_shown(a, t0=0, t1=None):
-    a.scale('p3_guitar_carry', [(t0, SHOWN)] + ([(t1, SHOWN)] if t1 else []), 'lin')
 
 
 def b_p3_knockback():
@@ -2404,41 +2400,48 @@ def b_p3_stalk():
 def b_p3_snatch():
     """BossState.P3_SNATCH (beats snatch.*). He looms (drawn up tall, leaning back), a hand out, palm up, with a
     flick of the fingers: "Give me THAT."; on the word (snatch.grab) the hand shoots out to the requinto on the
-    singer's belly and rips it away up into the air; he turns it over in front of his face, looks it up and
-    down; lets it drop to hang from his fist by the neck."""
+    singer's belly and rips it away, up over his head by the neck like a trophy; then he swings it down onto
+    his own belly, the left hand on the neck (it stays slung there until he plays it)."""
     g, grab, end = beat('snatch.gimme', 6), beat('snatch.grab', 22), beat('snatch.end', 56)
+    sw = round(grab + 0.95, 2)              # swung down onto his belly
     a = angry(B('p3_snatch', end, 'hold'))
-    a.scale('p3_guitar_carry', [(0, HIDDEN), (round(grab - 0.01, 2), HIDDEN), (grab, SHOWN), (end, SHOWN)], 'lin')
+    md = gp('mid')
+    a.scale('p3_guitar_carry', [(0, HIDDEN), (round(grab - 0.01, 2), HIDDEN), (grab, SHOWN_G), (round(sw - 0.01, 2), SHOWN_G), (sw, HIDDEN), (end, HIDDEN)], 'lin')
+    a.scale('p3_guitar', [(0, HIDDEN), (round(sw - 0.01, 2), HIDDEN), (sw, SHOWN_G), (end, SHOWN_G)], 'lin')
     a.scale('body', [(0, [1, 1, 1]), (0.3, [0.97, 1.08, 0.97], 'easeOutQuad'), (round(grab - 0.15, 2), [0.97, 1.08, 0.97]),
                      (grab, [1.04, 0.98, 1.04], 'easeOutQuad'), (round(grab + 0.4, 2), [1, 1.02, 1]), (end, [1, 1, 1])], 'lin')
     a.rot('torso', [(0, [6, 0, 0]), (0.3, [-8, 0, 0], 'easeOutQuad'), (round(grab - 0.15, 2), [-8, 0, 0]), (grab, [18, 0, 0], 'easeOutQuad'),
-                    (round(grab + 0.3, 2), [-10, -16, 0], 'easeOutBack'), (round(grab + 1.0, 2), [-4, 6, 0]), (end, [4, 0, 0])], 'lin')
+                    (round(grab + 0.3, 2), [-12, -12, 0], 'easeOutBack'), (round(sw - 0.1, 2), [-10, -6, 0]), (sw, [6, 0, 0], 'easeInQuad'),
+                    (end, [0, 0, 0])], 'lin')
     a.rot('arm_r', [(0, [-6, 0, 18]), (round(g + 0.1, 2), [-6, 0, 18]), (round(g + 0.35, 2), [-80, -14, 0], 'easeInOutSine'),
                     (round(g + 0.55, 2), [-96, -14, 0], 'easeOutQuad'), (round(g + 0.7, 2), [-80, -14, 0]),
                     (round(grab - 0.15, 2), [-80, -14, 0]), (grab, [-58, -24, 0], 'easeInQuad'),
-                    (round(grab + 0.25, 2), [-150, -10, 24], 'easeOutBack'), (round(grab + 0.7, 2), [-104, -34, 0], 'easeInOutSine'),
-                    (round(grab + 1.1, 2), [-104, -40, 4]), (round(grab + 1.5, 2), CARRY_R, 'easeInOutSine'), (end, CARRY_R)], 'lin')
+                    (round(grab + 0.25, 2), [-168, -6, 24], 'easeOutBack'), (round(sw - 0.15, 2), [-160, -6, 28]),
+                    (sw, [-40, -10, 18], 'easeInQuad'), (round(sw + 0.4, 2), [-14, 0, 20], 'easeOutQuad'), (end, [-14, 0, 20])], 'lin')
     stretch(a, 'arm_r', [(0, 1), (round(g + 0.1, 2), 1), (round(g + 0.35, 2), 1.4), (round(grab - 0.15, 2), 1.4), (grab, 2.1),
-                         (round(grab + 0.25, 2), 1.3), (round(grab + 0.7, 2), 1.25), (round(grab + 1.1, 2), 1.25), (round(grab + 1.5, 2), 1)])
-    a.rot('arm_l', [(0, [-6, 0, -18]), (round(grab + 0.2, 2), [-6, 0, -18]), (round(grab + 0.6, 2), [-90, 30, -10], 'easeInOutSine'),
-                    (round(grab + 1.1, 2), [-90, 36, -10]), (round(grab + 1.5, 2), [-6, 0, -18], 'easeInOutSine'), (end, [-6, 0, -18])], 'lin')
-    stretch(a, 'arm_l', [(0, 1), (round(grab + 0.2, 2), 1), (round(grab + 0.6, 2), 1.5), (round(grab + 1.1, 2), 1.5), (round(grab + 1.5, 2), 1)])
-    a.rot('p3_guitar_carry', [(0, [0, 0, 0]), (round(grab + 0.7, 2), [0, 0, 0]), (round(grab + 0.9, 2), [0, 90, 0], 'easeInOutSine'),
-                              (round(grab + 1.1, 2), [0, 180, 0], 'easeInOutSine'), (round(grab + 1.5, 2), [0, 180, 0]), (end, [0, 180, 0])], 'lin')
-    a.sound(round(g + 0.55, 2), 'flick').sound(grab, 'rip').sound(round(grab + 0.05, 2), 'strum').sound(round(grab + 0.9, 2), 'hmm')
+                         (round(grab + 0.25, 2), 1.3), (round(sw - 0.15, 2), 1.3), (sw, 1.2), (round(sw + 0.4, 2), 1)])
+    a.rot('arm_l', [(0, [-6, 0, -18]), (round(sw - 0.1, 2), [-6, 0, -18]), (round(sw + 0.3, 2), md[:3], 'easeInOutSine'), (end, md[:3])], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (round(sw - 0.1, 2), 1), (round(sw + 0.3, 2), md[3]), (end, md[3])])
+    a.sound(round(g + 0.55, 2), 'flick').sound(grab, 'rip').sound(round(grab + 0.05, 2), 'strum').sound(sw, 'cloth').sound(round(sw + 0.1, 2), 'strum')
     return a
 
 
+def guitar_slung(a, t0=0):
+    """The requinto slung on his belly, the left hand on its neck (from t0)."""
+    md = gp('mid')
+    a.scale('p3_guitar', [(t0, SHOWN_G)], 'lin')
+    a.rot('arm_l', [(t0, md[:3])], 'lin')
+    stretch(a, 'arm_l', [(t0, md[3])])
+
+
 def b_p3_carry():
-    """1.2 s loop. Back to the middle of the sand with the requinto hanging from his fist: an unhurried walk, his
-    chin up, the guitar swinging a little against his leg."""
+    """1.2 s loop. Back to the middle of the sand with the requinto slung on his belly, the left hand on its
+    neck: an unhurried walk, chin up, the free arm swinging."""
     a = B('p3_carry', 1.2, True)
-    p3_carry_shown(a)
+    guitar_slung(a)
     a.rot('leg_r', [(0, [22, 0, 4]), (0.6, [-20, 0, 4], 'easeInOutSine'), (1.2, [22, 0, 4], 'easeInOutSine')])
     a.rot('leg_l', [(0, [-20, 0, -4]), (0.6, [22, 0, -4], 'easeInOutSine'), (1.2, [-20, 0, -4], 'easeInOutSine')])
-    a.rot('arm_r', [(0, [-14, 0, 16]), (0.6, [-6, 0, 18]), (1.2, [-14, 0, 16])])
-    a.rot('p3_guitar_carry', [(0, [6, 180, 0]), (0.6, [-6, 180, 0]), (1.2, [6, 180, 0])])
-    a.rot('arm_l', [(0, [14, 0, -18]), (0.6, [-14, 0, -18]), (1.2, [14, 0, -18])])
+    a.rot('arm_r', [(0, [-24, 0, 20]), (0.6, [10, 0, 22]), (1.2, [-24, 0, 20])])
     a.rot('torso', [(0, [-4, 3, 0]), (0.6, [-4, -3, 0]), (1.2, [-4, 3, 0])])
     a.pos('root', [(0, [0, 0, 0]), (0.3, [0, 0.6, 0]), (0.6, [0, 0, 0]), (0.9, [0, 0.6, 0]), (1.2, [0, 0, 0])])
     for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
@@ -2448,31 +2451,26 @@ def b_p3_carry():
 
 
 def b_p3_carry_hold():
-    """2.0 s loop: standing, the requinto hanging from his fist."""
+    """2.0 s loop: standing, the requinto slung on his belly."""
     a = B('p3_carry_hold', 2.0, True)
-    p3_carry_shown(a)
-    a.rot('arm_r', [(0, CARRY_R)], 'lin')
-    a.rot('p3_guitar_carry', [(0, [0, 180, 0])], 'lin')
+    guitar_slung(a)
+    a.rot('arm_r', [(0, [-14, 0, 20])], 'lin')
     a.rot('torso', [(0, [-2, 0, 0]), (1.0, [-3, 0, 0]), (2.0, [-2, 0, 0])])
     return a
 
 
 def b_p3_blackout():
-    """2.5 s (BossState.P3_BLACKOUT). Head bowed in the dark, the requinto hanging from his fist (0-1.5); the
-    spotlight slams on (1.5) and he does not move; then, slowly, the guitar comes round on its strap into his
-    hands (1.7-2.3) and his fingers find the strings, head still down."""
-    st, md = gp('strum'), gp('mid')
+    """2.5 s (BossState.P3_BLACKOUT). Head bowed in the dark, the requinto on his belly (0-1.5); the spotlight
+    slams on (1.5) and he does not move; then, slowly, his right hand comes up onto the strings (1.7-2.3) and
+    his fingers find the chord, head still down."""
+    st = gp('strum')
     a = B('p3_blackout', 2.5, 'hold')
-    a.scale('p3_guitar_carry', [(0, SHOWN), (1.99, SHOWN), (2.0, HIDDEN), (2.5, HIDDEN)], 'lin')
-    a.scale('p3_guitar', [(0, HIDDEN), (1.99, HIDDEN), (2.0, SHOWN), (2.5, SHOWN)], 'lin')
-    a.rot('p3_guitar_carry', [(0, [0, 180, 0]), (1.7, [0, 180, 0]), (2.0, [-60, 120, 40], 'easeInOutSine')], 'lin')
+    guitar_slung(a)
     a.rot('torso', [(0, [0, 0, 0]), (0.6, [16, 0, 0], 'easeInOutSine'), (2.5, [16, 0, 0])], 'lin')
-    a.rot('arm_r', [(0, CARRY_R), (1.7, CARRY_R), (2.0, [-70, -40, 0], 'easeInOutSine'), (2.4, st[:3], 'easeInOutSine'), (2.5, st[:3])], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (1.7, 1), (2.0, 1.4), (2.4, st[3]), (2.5, st[3])])
-    a.rot('arm_l', [(0, [-6, 0, -18]), (1.9, [-6, 0, -18]), (2.4, md[:3], 'easeInOutSine'), (2.5, md[:3])], 'lin')
-    stretch(a, 'arm_l', [(0, 1), (1.9, 1), (2.4, md[3]), (2.5, md[3])])
+    a.rot('arm_r', [(0, [-14, 0, 20]), (1.7, [-14, 0, 20]), (2.3, st[:3], 'easeInOutSine'), (2.5, st[:3])], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (1.7, 1), (2.3, st[3]), (2.5, st[3])])
     a.scale('body', [(0, [1, 1, 1]), (0.6, [1.02, 0.98, 1.02]), (2.5, [1.02, 0.98, 1.02])])
-    a.sound(2.0, 'cloth').sound(2.35, 'strum')
+    a.sound(2.35, 'strum')
     return a
 
 
@@ -2487,7 +2485,7 @@ def b_p3_serenade():
     v0, v1, last = round(off + 11.0, 2), round(off + 15.6, 2), round(off + 18.45, 2)
     st, md = gp('strum'), gp('mid')
     a = B('p3_serenade', end, 'hold')
-    a.scale('p3_guitar', [(0, SHOWN), (end, SHOWN)], 'lin')
+    a.scale('p3_guitar', [(0, SHOWN_G), (end, SHOWN_G)], 'lin')
     a.rot('arm_r', [(0, st[:3]), (round(last - 0.1, 2), st[:3]), (round(last + 0.15, 2), [-168, -6, 42], 'easeOutBack'), (end, [-170, -6, 44])], 'lin')
     stretch(a, 'arm_r', [(0, st[3]), (round(last - 0.1, 2), st[3]), (round(last + 0.15, 2), 1.5), (end, 1.5)])
     a.rot('arm_l', [(0, md[:3]), (end, md[:3])], 'lin')
@@ -2514,28 +2512,25 @@ def b_p3_serenade():
 
 
 def b_p3_verdict():
-    """BossState.P3_VERDICT (beats verdict.*). The strumming hand comes down off the sky, the requinto lifted off his
-    belly by the neck (0.5); "THIS...": the other hand flat on his chest, his chin up; "...is more my style.";
+    """BossState.P3_VERDICT (beats verdict.*). The strumming hand comes down off the sky onto the strings (the
+    guitar stays slung); "THIS...": that hand flat on his chest, his chin up; "...is more my style.";
     "Learn, muchachos.": a finger raised and wagged over his shoulder at the band behind him."""
     ln, end = beat('verdict.line', 10), beat('verdict.end', 80)
     say = max(1.5, end - ln - 0.5)
     q = lambda f: round(ln + say * f, 2)
     a = B('p3_verdict', end, 'hold')
-    a.scale('p3_guitar', [(0, SHOWN), (0.49, SHOWN), (0.5, HIDDEN), (end, HIDDEN)], 'lin')
-    a.scale('p3_guitar_carry', [(0, HIDDEN), (0.49, HIDDEN), (0.5, SHOWN), (end, SHOWN)], 'lin')
-    a.rot('p3_guitar_carry', [(0, [0, 180, 0]), (end, [0, 180, 0])], 'lin')
-    a.rot('arm_r', [(0, [-170, -6, 44]), (0.35, [-60, -30, 10], 'easeInOutSine'), (0.5, [-40, -10, 14]), (0.8, CARRY_R, 'easeInOutSine'), (end, CARRY_R)], 'lin')
-    stretch(a, 'arm_r', [(0, 1.5), (0.35, 1.3), (0.8, 1), (end, 1)])
-    a.rot('arm_l', [(0, gp('mid')[:3]), (0.4, [-20, 0, -18], 'easeInOutSine'), (q(0.05), [-20, 0, -18]), (q(0.15), [-84, 62, 0], 'easeInOutSine'),
-                    (q(0.5), [-84, 62, 0]), (q(0.62), [-150, -30, -30], 'easeInOutSine')]
-          + [(q(0.62 + 0.06 * i), [-150, -30 + (12 if i % 2 else -12), -30]) for i in range(1, 6)]
-          + [(q(1.0), [-150, -30, -30]), (end, [-150, -30, -30])], 'lin')
-    stretch(a, 'arm_l', [(0, gp('mid')[3]), (0.4, 1), (q(0.05), 1), (q(0.15), 1.3), (q(0.5), 1.3), (q(0.62), 1.4), (end, 1.4)])
+    guitar_slung(a)
+    st = gp('strum')
+    a.rot('arm_r', [(0, [-170, -6, 44]), (0.45, st[:3], 'easeInOutSine'), (q(0.05), st[:3]), (q(0.15), [-84, -62, 0], 'easeInOutSine'),
+                    (q(0.5), [-84, -62, 0]), (q(0.62), [-150, 30, 30], 'easeInOutSine')]
+          + [(q(0.62 + 0.06 * i), [-150, 30 + (12 if i % 2 else -12), 30]) for i in range(1, 6)]
+          + [(q(1.0), [-150, 30, 30]), (end, [-150, 30, 30])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.5), (0.45, st[3]), (q(0.05), st[3]), (q(0.15), 1.3), (q(0.5), 1.3), (q(0.62), 1.4), (end, 1.4)])
     a.rot('torso', [(0, [-20, 0, 0]), (0.5, [-4, 0, 0], 'easeInOutSine'), (q(0.15), [-10, 0, 0]), (q(0.5), [-6, 0, 0]),
-                    (q(0.62), [-4, 14, 0], 'easeInOutSine'), (end, [-4, 14, 0])], 'lin')
+                    (q(0.62), [-4, -14, 0], 'easeInOutSine'), (end, [-4, -14, 0])], 'lin')
     for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
         a.pos(brow, [(0, [0, 0.4, 0]), (q(0.5), [0, 0.4, 0]), (q(0.62), [0, 0.9 if sgn > 0 else -0.2, 0]), (end, [0, 0.9 if sgn > 0 else -0.2, 0])], 'lin')
-    a.sound(0.5, 'lift').sound(q(0.15), 'pat')
+    a.sound(q(0.15), 'pat')
     return a
 
 
@@ -2545,14 +2540,16 @@ def b_p3_toss():
     with both arms flung out at them: "What are you WAITING for?! GO!!!", and a finger thrust at the singer."""
     thr, go, end = beat('toss.throw', 6), beat('toss.go', 30), beat('toss.end', 80)
     a = B('p3_toss', end, 'hold')
-    a.scale('p3_guitar_carry', [(0, SHOWN), (round(thr - 0.01, 2), SHOWN), (thr, HIDDEN), (end, HIDDEN)], 'lin')
-    a.rot('p3_guitar_carry', [(0, [0, 180, 0]), (round(thr - 0.15, 2), [0, 180, 0]), (thr, [-90, 180, 0])], 'lin')
-    a.rot('arm_r', [(0, CARRY_R), (round(thr - 0.15, 2), [-30, 0, 20], 'easeInQuad'), (thr, [-190, 0, 24], 'easeOutQuad'),
+    # the neck grabbed off his belly (0.05) and the whole thing swung up and back over his shoulder
+    a.scale('p3_guitar', [(0, SHOWN_G), (0.04, SHOWN_G), (0.05, HIDDEN), (end, HIDDEN)], 'lin')
+    a.scale('p3_guitar_carry', [(0, HIDDEN), (0.04, HIDDEN), (0.05, SHOWN_G), (round(thr - 0.01, 2), SHOWN_G), (thr, HIDDEN), (end, HIDDEN)], 'lin')
+    a.rot('arm_r', [(0, gp('strum')[:3]), (0.05, [-60, -20, 10]), (thr, [-190, 0, 24], 'easeOutQuad'),
                     (round(thr + 0.25, 2), [-160, 0, 30]), (round(thr + 0.6, 2), CROSS_R, 'easeInOutSine'), (round(go - 0.15, 2), CROSS_R),
                     (go, [-70, 0, 74], 'easeOutBack'), (round(go + 0.6, 2), [-70, 0, 74]), (round(go + 1.0, 2), [-96, -10, 8], 'easeOutBack'),
                     (end, [-96, -10, 8])], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (thr, 1.3), (round(thr + 0.6, 2), 1.25), (round(go - 0.15, 2), 1.25), (go, 1.5), (round(go + 1.0, 2), 1.9), (end, 1.9)])
-    a.rot('arm_l', [(0, [-6, 0, -18]), (round(thr + 0.3, 2), [-6, 0, -18]), (round(thr + 0.6, 2), CROSS_L, 'easeInOutSine'), (round(go - 0.15, 2), CROSS_L),
+    stretch(a, 'arm_r', [(0, gp('strum')[3]), (0.05, 1.3), (thr, 1.3), (round(thr + 0.6, 2), 1.25), (round(go - 0.15, 2), 1.25), (go, 1.5),
+                         (round(go + 1.0, 2), 1.9), (end, 1.9)])
+    a.rot('arm_l', [(0, gp('mid')[:3]), (0.2, [-6, 0, -18], 'easeInOutSine'), (round(thr + 0.3, 2), [-6, 0, -18]), (round(thr + 0.6, 2), CROSS_L, 'easeInOutSine'), (round(go - 0.15, 2), CROSS_L),
                     (go, [-70, 0, -74], 'easeOutBack'), (end, [-60, 0, -60])], 'lin')
     stretch(a, 'arm_l', [(0, 1), (round(thr + 0.6, 2), 1.25), (round(go - 0.15, 2), 1.25), (go, 1.5), (end, 1.3)])
     a.rot('torso', [(0, [0, 0, 0]), (thr, [-10, 0, 0], 'easeOutQuad'), (round(thr + 0.6, 2), [-8, 0, 0]), (round(go - 0.15, 2), [-8, 0, 0]),

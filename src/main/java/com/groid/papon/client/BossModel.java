@@ -19,9 +19,9 @@ import software.bernie.geckolib.model.DefaultedEntityGeoModel;
  */
 public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     // arm rotation (animation convention, degrees) and stretch, from gen_boss_anims.guitar_poses()
-    private static final float[] STRUM = {-52.6F, -16.3F, -12.0F, 2.4F};
-    private static final float[] FRET_LOW = {-49.2F, 29.7F, 22.3F, 2.5F};
-    private static final float[] FRET_HIGH = {-56.8F, 16.3F, 10.2F, 2.1F};
+    private static final float[] STRUM = {-80.6F, -27.1F, -4.0F, 2.5F};
+    private static final float[] FRET_LOW = {-90.3F, 23.7F, -0.1F, 2.2F};
+    private static final float[] FRET_HIGH = {-101.8F, -7.0F, 1.4F, 2.2F};
     /** Where on the neck his chord shapes sit, bar by bar (0 low .. 1 high). */
     private static final float[] SHAPES = {0.15F, 0.55F, 0.3F, 0.8F, 0.15F, 0.4F, 0.65F, 0.25F};
 
@@ -69,7 +69,13 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
         arm.setRotX(Mth.lerp(k, arm.getRotX(), rest.getRotX() - x * Mth.DEG_TO_RAD));
         arm.setRotY(Mth.lerp(k, arm.getRotY(), rest.getRotY() - y * Mth.DEG_TO_RAD));
         arm.setRotZ(Mth.lerp(k, arm.getRotZ(), rest.getRotZ() + z * Mth.DEG_TO_RAD));
-        if (mesh != null) mesh.setScaleY(Mth.lerp(k, mesh.getScaleY(), stretch));
+        if (mesh != null) {
+            // a stretched arm thins out, like the band's (BandPoses.girth): his fists stay readable on the strings
+            float girth = Mth.lerp(k, 1F, BandPoses.girth(stretch));
+            mesh.setScaleX(girth);
+            mesh.setScaleZ(girth);
+            mesh.setScaleY(Mth.lerp(k, mesh.getScaleY(), stretch));
+        }
         if (hand != null) hand.setPosY(Mth.lerp(k, hand.getPosY(), -(stretch - 1) * 6.5F));
     }
 }

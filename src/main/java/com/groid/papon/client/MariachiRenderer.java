@@ -89,6 +89,10 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
 
     @Override
     public void render(MariachiEntity m, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        // phase three's dark: the spill of the boss's spotlight (and the stage lamps) keeps the band in view
+        float night = NightLight.night(partialTick);
+        if (night > 0.3F) light = net.minecraft.client.renderer.LightTexture.pack(Math.max(11, net.minecraft.client.renderer.LightTexture.block(light)),
+                net.minecraft.client.renderer.LightTexture.sky(light));
         super.render(m, yaw, partialTick, pose, buffers, light);
         if (m.getRole().singer() && m.getBandState() == BandState.PLAY) {
             Song.Segment seg = SongPlayer.segment();

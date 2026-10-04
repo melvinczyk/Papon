@@ -3717,11 +3717,20 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         away = away.lengthSqr() < 1e-4 ? Vec3.directionFromRotation(0, getYRot()).scale(-1) : away.normalize();
         double floor = inColiseum() && arena != null ? arena.floorY() : groundBelow(level, position());
         Vec3 end = position().add(away.scale(9.5));
-        if (inColiseum() && arena != null) end = arena.clamp(end, 5, 0, 0);
+        if (inColiseum() && arena != null) {
+            // flung toward the podium wall: swing the line round toward the middle until the flight fits on the sand
+            for (int i = 1; i <= 12 && horizontalDist(arena.clamp(end, 5, 0, 0)) < 7.5; i++) {
+                double turn = Math.toRadians(15 * ((i + 1) / 2)) * (i % 2 == 0 ? -1 : 1);
+                Vec3 a2 = new Vec3(away.x * Math.cos(turn) - away.z * Math.sin(turn), 0, away.x * Math.sin(turn) + away.z * Math.cos(turn));
+                end = position().add(a2.scale(9.5));
+                if (horizontalDist(arena.clamp(end, 5, 0, 0)) >= 7.5) away = a2;
+            }
+            end = arena.clamp(end, 5, 0, 0);
+        }
         p3End = new Vec3(end.x, floor, end.z);
         p3Land = p3Start.lerp(p3End, 0.55);
         p3Land = new Vec3(p3Land.x, floor, p3Land.z);
-        p3Yaw = (float) (Mth.atan2(from.z - getZ(), from.x - getX()) * Mth.RAD_TO_DEG) - 90F;
+        p3Yaw = (float) (Mth.atan2(-away.z, -away.x) * Mth.RAD_TO_DEG) - 90F;      // facing back the way he flies from
         for (MariachiEntity m : band(level)) m.stop();
         crowdReact(level, CrowdMood.GASP, 40);
         level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 2.0F, 0.5F);

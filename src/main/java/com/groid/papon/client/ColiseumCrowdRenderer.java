@@ -375,7 +375,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 .stream().findFirst().orElse(null);
         if (boss != null) look = boss.getPosition(partial).add(0, 1.5, 0);
         if (mood == CrowdMood.HUSH) look = at.add(0, 1, -Coliseum.B + 3);
-        lightersNow = mood == CrowdMood.LIGHTERS || prev == CrowdMood.LIGHTERS ? crowd.lighters() : 0F;
+        lightersNow = crowd.lighters();         // up through a roar too (their fists are up anyway)
         flames.clear();
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutout(TEX));
         // a few seats' light a frame
@@ -414,7 +414,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             ps.scale(size, size, size);
             float[] skin = SKINS[(int) (rnd(seed, 8) * SKINS.length) % SKINS.length];
             int lt = lights[i] < 0 ? light : lights[i];
-            wantFlame = mood == CrowdMood.LIGHTERS && lighter(seed);
+            wantFlame = lightersNow > 0 && lighter(seed);
             flameAt = null;
             for (GeoBone b : model.topLevelBones()) drawBone(ps, b, vc, lt, skin, near);
             if (wantFlame && flameAt != null) flames.add(flameAt);
@@ -431,8 +431,9 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         for (int i = 0; i < flames.size(); i++) {
             Vector3f c = flames.get(i);
             float flick = 0.85F + 0.15F * Mth.sin(t * 1.7F + i * 2.3F) + 0.06F * Mth.sin(t * 4.1F + i);
-            quad(vc, c.x(), c.y() + 0.07F * flick, c.z(), 0.11F * flick, 0.16F * flick, 1F, 0.55F, 0.15F, 0.35F);
-            quad(vc, c.x(), c.y() + 0.05F * flick, c.z(), 0.035F, 0.08F * flick, 1F, 0.95F, 0.7F, 0.9F);
+            // a warm halo (big enough to read as a point of light from across the bowl) round a hot core
+            quad(vc, c.x(), c.y() + 0.12F * flick, c.z(), 0.32F * flick, 0.42F * flick, 1F, 0.5F, 0.12F, 0.28F);
+            quad(vc, c.x(), c.y() + 0.08F * flick, c.z(), 0.07F, 0.17F * flick, 1F, 0.92F, 0.62F, 0.95F);
         }
     }
 
