@@ -477,7 +477,7 @@ public final class Cinematic {
      */
     @Nullable
     private static Shot coliseumShot(PaponBossEntity b, BossState s, int t, Vec3 f, Vec3 right) {
-        if (!b.inColiseum() || !(s == BossState.P2_ARRIVE || s.coliseum() || s == BossState.P2_SOLO)) return null;
+        if (!b.inColiseum() || !(s == BossState.P2_ARRIVE || s.coliseum() || s == BossState.P2_SOLO || s == BossState.P2_CUTAWAY)) return null;
         Minecraft mc = Minecraft.getInstance();
         // he is risen (1.75x) by now: his face is high on him
         Vec3 body = b.position().add(0, b.getBbHeight() * 0.55, 0);
@@ -616,6 +616,9 @@ public final class Cinematic {
                 double k = Math.min(1, (tt - 150) / 4.0);
                 return new Shot(face.add(f.scale(5.0 + k * 3)).add(0, -1.6, 0), face.add(0, 0.6, 0), tt < 153 ? 96 : 70,
                         (float) Math.sin(tt * 1.9) * 4F, tt == 150);
+            }
+            case P2_CUTAWAY -> {
+                return cutawayShot(b, b.cutaway(), t, band, stageFacing, stageSide);
             }
             case P2_SOLO -> {
                 if (singer == null) return null;
@@ -777,9 +780,21 @@ public final class Cinematic {
                     Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
                     return new Shot(face.add(dir.scale(4.2)).add(0, -0.4, 0), face, 42, 0, t == 185);
                 }
+                // his mouth is low on him (the potato's face is all of him): the singing is framed on mouth and eyes together,
+                // from a touch above, so the requinto on his hip stays under it
+                Vec3 mouth = b.position().add(0, h * (b.isAscended() ? 0.42 : 0.5), 0);
+                Vec3 sung = mouth.lerp(face, 0.4);
+                int tight = sing + 64;
+                if (t < tight) {
+                    double k = (t - sing) / (double) Math.max(1, tight - sing);
+                    return new Shot(sung.add(f.scale(4.8 - 1.0 * k)).add(right.scale(0.7 - 0.3 * k)).add(0, 0.45, 0), sung, 46 - (float) k * 4, 0, t == sing);
+                }
                 if (t < 330) {
-                    double k = (t - sing) / (double) Math.max(1, 330 - sing);
-                    return new Shot(face.add(f.scale(5.2 - 1.6 * k)).add(right.scale(0.6 - 0.4 * k)).add(0, -0.35, 0), face, 46 - (float) k * 8, 0, t == sing);
+                    // in close on his lips, three-quarters, drifting round as he holds the long notes
+                    double k = (t - tight) / (double) Math.max(1, 330 - tight);
+                    double orbit = Math.toRadians(-28 + 40 * k);
+                    Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
+                    return new Shot(mouth.add(dir.scale(2.9)).add(0, 0.5, 0), mouth.add(0, 0.15, 0), 44, 0, t == tight);
                 }
                 if (t < 358) {
                     // the band, in awe of him
@@ -830,8 +845,15 @@ public final class Cinematic {
                     return new Shot(b.position().add(f.scale(10.5 - 2 * k)).add(0, 0.6, 0), body.add(0, h * 0.2, 0), 70 - (float) k * 6,
                             t >= roar && t < roar + 20 ? (float) Math.sin(t * 2.2) * 3F : 0, t == burst + 14);
                 }
-                // the band and the stands, in awe
-                return new Shot(stage.add(stageFacing.scale(6.5)).add(stageSide.scale(-2.5)).add(0, 1.8, 0), stage.add(0, 1.2, 0), 58, 0, t == roar + 40);
+                int god = VoiceLines.beat("ascend.god", 162);
+                if (t < god - 2) {
+                    // the band and the stands, in awe
+                    return new Shot(stage.add(stageFacing.scale(6.5)).add(stageSide.scale(-2.5)).add(0, 1.8, 0), stage.add(0, 1.2, 0), 58, 0, t == roar + 40);
+                }
+                // "No more games, amigo. Behold... the POTATO GOD.": from the sand at his feet, up into his face, pushing in
+                double k = Math.min(1, (t - god + 2) / 70.0);
+                return new Shot(b.position().add(f.scale(5.2 - 1.2 * k)).add(right.scale(0.8 - 0.5 * k)).add(0, 0.3 + 0.4 * k, 0), face.add(0, 0.2, 0),
+                        52 - (float) k * 10, 0, t == god - 2);
             }
             case P3_FELT -> {
                 int ln = VoiceLines.beat("felt.line", 14), sm = VoiceLines.beat("felt.smile", 100);
@@ -868,17 +890,14 @@ public final class Cinematic {
                     return new Shot(fist.add(f.scale(3.6)).add(right.scale(1.2)).add(0, -0.4, 0), fist, 40, 0, t == ball);
                 }
                 if (t < ref + 6) flashTarget = 1F - (t - ref) / 6F;
-                if (t < down + 4) return new Shot(b.position().add(f.scale(11)).add(right.scale(-3)).add(0, 1.5, 0), b.position().add(f.scale(3)).add(0, h * 0.5, 0), 64, 0, t == ref);
-                if (t < ln - 4 && car != null) {
-                    // the Skyline: low along its flank, the purple glow under it, him behind
-                    Vec3 side = car.left();
-                    Vec3 cp = car.position().add(0, 0.6, 0);
-                    // the side of the car toward the middle of the sand (there is room there)
-                    if (cp.add(side.scale(6.5)).distanceTo(center) > cp.add(side.scale(-6.5)).distanceTo(center)) side = side.scale(-1);
-                    return new Shot(cp.add(side.scale(6.5)).add(car.forward().scale(3.5)).add(0, -0.1, 0), cp.add(car.forward().scale(-1)), 54, 0, t == down + 4);
-                }
-                // by his new car: his face, the evil smile
-                return new Shot(face.add(f.scale(5.2)).add(right.scale(0.6)).add(0, -0.4, 0), face, 46, 0, t == ln - 4);
+                // down it comes, and the slam: wide, the dust going up round it
+                return new Shot(b.position().add(f.scale(11)).add(right.scale(-3)).add(0, 1.5, 0), b.position().add(f.scale(3)).add(0, h * 0.5, 0), 64,
+                        t >= down && t < down + 5 ? (float) Math.sin(t * 2.5) * 3F : 0, t == ref);
+            }
+            case P3_SHOWCAR -> {
+                com.groid.papon.vehicle.CaravanEntity car = mc.level.getEntitiesOfClass(com.groid.papon.vehicle.CaravanEntity.class,
+                        b.getBoundingBox().inflate(24), c -> true).stream().min(Comparator.comparingDouble(c -> c.distanceToSqr(b))).orElse(null);
+                return car == null ? new Shot(face.add(f.scale(5)).add(0, -0.3, 0), face, 48, 0, t == 0) : showcarShot(b, car, t, face, h);
             }
             case P3_GO -> {
                 int ln = VoiceLines.beat("go.line", 8);
@@ -910,6 +929,176 @@ public final class Cinematic {
                 return null;
             }
         }
+    }
+
+    /**
+     * The cut to the band mid-fight (P2_CUTAWAY, 1.8 s, two quick shots):
+     *   TRUMPETS   low in front of the three of them as the horns come up; then along the row, the bells flaring
+     *   VIOLINS    in tight on a bow arm flying over the strings; then gliding along the three fiddles
+     *   GUITARRON  from the floor up the big guitarron to Gordo; then his face, deep in it
+     *   STRINGS    the vihuela's strumming hand; then the guitarist's face
+     *   CORO       the three of them lifting their mics; then in on the middle one singing
+     *   STANDS     from the sand up at the fans going wild, flags waving; then from the top rows down over their heads
+     */
+    @Nullable
+    private static Shot cutawayShot(PaponBossEntity b, PaponBossEntity.Cutaway c, int t, java.util.List<com.groid.papon.boss.MariachiEntity> band,
+                                    Vec3 sf, Vec3 ss) {
+        boolean second = t >= 18;
+        int tt = second ? t - 18 : t;
+        double k = tt / 18.0;
+        boolean cut = t == 0 || t == 18;
+        if (c == PaponBossEntity.Cutaway.STANDS) {
+            // the long side of the bowl nearest him: up at the stands from the sand, then down over the fans from the top rows
+            com.groid.papon.boss.ColiseumCrowdEntity crowd = Minecraft.getInstance().level.getEntitiesOfClass(
+                    com.groid.papon.boss.ColiseumCrowdEntity.class, b.getBoundingBox().inflate(80), e -> true).stream().findFirst().orElse(null);
+            Vec3 ctr = crowd != null ? crowd.position() : b.position();
+            Vec3 out = new Vec3(b.getX() >= ctr.x ? 1 : -1, 0, 0);
+            Vec3 along = new Vec3(0, 0, 1);
+            int a = com.groid.papon.boss.Coliseum.A;
+            if (!second) {
+                Vec3 eye = ctr.add(out.scale(a - 7)).add(along.scale(-6 + 5 * k)).add(0, 1.2, 0);
+                return new Shot(eye, ctr.add(out.scale(a + 9)).add(along.scale(2 + 4 * k)).add(0, 9, 0), 72, 0, cut, true);
+            }
+            Vec3 eye = ctr.add(out.scale(a + 15)).add(along.scale(4 - 6 * k)).add(0, 17, 0);
+            return new Shot(eye, b.position().add(0, b.getBbHeight() * 0.5, 0), 70, 0, cut, true);
+        }
+        com.groid.papon.boss.MariachiEntity m1 = member(band, c, 0), m2 = member(band, c, 1), m3 = member(band, c, 2);
+        if (m1 == null) return null;
+        Vec3 f1 = Vec3.directionFromRotation(0, m1.getYRot());
+        Vec3 s1 = new Vec3(-f1.z, 0, f1.x);
+        Vec3 face1 = m1.position().add(0, m1.getBbHeight() * 0.72, 0);
+        Vec3 belly1 = m1.position().add(f1.scale(0.7)).add(0, m1.getBbHeight() * 0.38, 0);
+        switch (c) {
+            case TRUMPETS -> {
+                Vec3 mid = m3 != null ? m1.position().lerp(m3.position(), 0.5) : m1.position();
+                if (!second) {
+                    // low, in front, looking up at the horns as they come up
+                    Vec3 at = mid.add(0, m1.getBbHeight() * 0.85, 0);
+                    return new Shot(mid.add(sf.scale(3.6 - 0.8 * k)).add(0, 0.3, 0), at, 58 - (float) k * 6, 0, cut);
+                }
+                // along the row from the end, the bells in a line
+                Vec3 end = m3 != null ? m3.position() : m1.position();
+                Vec3 dir = end.subtract(m1.position()).multiply(1, 0, 1);
+                dir = dir.lengthSqr() < 1e-3 ? ss : dir.normalize();
+                Vec3 eye = m1.position().subtract(dir.scale(2.6)).add(sf.scale(1.4 + 0.4 * k)).add(0, m1.getBbHeight() * 0.9, 0);
+                return new Shot(eye, end.add(0, m1.getBbHeight() * 0.8, 0), 50, 0, cut);
+            }
+            case VIOLINS -> {
+                if (!second) {
+                    // the bow arm, close, sliding past
+                    return new Shot(belly1.add(sf.scale(1.9)).add(s1.scale(-1.4 + 1.0 * k)).add(0, 0.5, 0), belly1.add(0, 0.2, 0), 44, 0, cut);
+                }
+                Vec3 end = m3 != null ? m3.position() : m1.position().add(ss.scale(3));
+                Vec3 at = m1.position().lerp(end, k).add(0, m1.getBbHeight() * 0.6, 0);
+                return new Shot(at.add(sf.scale(3.2)).add(0, 0.4, 0), at, 52, 0, cut);
+            }
+            case GUITARRON -> {
+                if (!second) {
+                    // from the floor, up the big guitarron to him
+                    return new Shot(m1.position().add(f1.scale(2.4)).add(s1.scale(0.9)).add(0, 0.25, 0), belly1.lerp(face1, 0.3 * k), 60, 0, cut);
+                }
+                return new Shot(face1.add(f1.scale(2.6 - 0.5 * k)).add(s1.scale(-0.6)).add(0, -0.1, 0), face1, 44, 0, cut);
+            }
+            case STRINGS -> {
+                if (!second) return new Shot(belly1.add(f1.scale(1.8)).add(s1.scale(1.2)).add(0, 0.4, 0), belly1, 44, 0, cut);
+                com.groid.papon.boss.MariachiEntity g = m2 != null ? m2 : m1;
+                Vec3 gf = Vec3.directionFromRotation(0, g.getYRot());
+                Vec3 face = g.position().add(0, g.getBbHeight() * 0.72, 0);
+                return new Shot(face.add(gf.scale(2.8 - 0.4 * k)).add(new Vec3(-gf.z, 0, gf.x).scale(0.7)), face, 46, 0, cut);
+            }
+            case CORO -> {
+                Vec3 mid = m2 != null ? m2.position() : m1.position();
+                if (!second) {
+                    Vec3 at = mid.add(0, m1.getBbHeight() * 0.7, 0);
+                    return new Shot(at.add(sf.scale(4.4 - 0.6 * k)).add(0, -0.2, 0), at, 56, 0, cut);
+                }
+                com.groid.papon.boss.MariachiEntity g = m2 != null ? m2 : m1;
+                Vec3 face = g.position().add(0, g.getBbHeight() * 0.72, 0);
+                return new Shot(face.add(sf.scale(2.6 - 0.3 * k)).add(ss.scale(0.6)), face, 42, 0, cut);
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+
+    /** The {@code i}th member of the band playing what a cutaway is about (stage order). */
+    @Nullable
+    private static com.groid.papon.boss.MariachiEntity member(java.util.List<com.groid.papon.boss.MariachiEntity> band, PaponBossEntity.Cutaway c, int i) {
+        java.util.List<com.groid.papon.boss.MariachiEntity> l = band.stream().filter(m -> switch (c) {
+            case TRUMPETS -> m.getRole().instrument.equals("trumpet");
+            case VIOLINS -> m.getRole().instrument.equals("violin");
+            case GUITARRON -> m.getRole() == com.groid.papon.boss.BandRole.GUITARRON;
+            case STRINGS -> m.getRole() == com.groid.papon.boss.BandRole.VIHUELA || m.getRole() == com.groid.papon.boss.BandRole.GUITAR;
+            case CORO -> m.getRole().coro();
+            default -> false;
+        }).sorted(Comparator.comparingInt(m -> m.getRole().ordinal())).toList();
+        return i < l.size() ? l.get(i) : null;
+    }
+
+    /**
+     * The Skyline shown off (P3_SHOWCAR), a quick-cut montage on its rev (beats showcar.*):
+     *   dark          low and wide off its nose in the dust of the slam, the car still dark
+     *   lamps         in tight on a headlamp as it blinks on with the engine
+     *   glow          on the sand by the side skirt, looking down the flank as the underglow stutters on front to back
+     *   rev           the rear three-quarters, low at the twin pipes: blip, pop, blip, pop
+     *   +16           a whip round the nose, high enough for the flaming eagle on the hood
+     *   +30           straight down over the roof, turning, the purple pool all round it
+     *   +44           racing along the flank at wheel height as it screams to the limiter
+     *   bov           high behind the GT wing, the overrun crackling fire out of the pipes
+     *   line - 4      the hero shot: low off the far corner, the car and him by it, "...and in with the NEW."
+     * Every shot is placed on purpose (free: never pushed off the car's own box).
+     */
+    private static Shot showcarShot(PaponBossEntity b, com.groid.papon.vehicle.CaravanEntity car, int t, Vec3 face, float h) {
+        int lamps = VoiceLines.beat("showcar.lamps", 16), glow = VoiceLines.beat("showcar.glow", 34), rev = VoiceLines.beat("showcar.rev", 56),
+                bov = VoiceLines.beat("showcar.bov", 110), line = VoiceLines.beat("showcar.line", 128);
+        double hl = com.groid.papon.vehicle.CaravanEntity.HALF_LENGTH, hw = com.groid.papon.vehicle.CaravanEntity.HALF_WIDTH;
+        Vec3 cp = car.position();
+        if (t < lamps) {
+            double k = t / (double) lamps;
+            return new Shot(car.local(3.4, 0.5, hl + 5.5 - 0.6 * k), car.local(0, 0.55, 0), 60, 0, t == 0, true);
+        }
+        if (t < glow - 2) {
+            double k = (t - lamps) / (double) (glow - 2 - lamps);
+            return new Shot(car.local(hw + 0.7 - 0.2 * k, 0.95, hl + 1.9 - 0.4 * k), car.local(0.75, 0.78, hl + 0.05), 38, 0, t == lamps, true);
+        }
+        if (t < rev - 2) {
+            double k = (t - glow + 2) / (double) (rev - glow);
+            return new Shot(car.local(hw + 1.25, 0.14, hl + 0.9 - 0.8 * k), car.local(hw * 0.5, 0.06, -hl), 62, 0, t == glow - 2, true);
+        }
+        int r = t - rev;
+        if (r < 16) {
+            float kick = r >= 8 && r < 11 || r >= 20 ? 4F : 0;
+            return new Shot(car.local(-1.7, 0.4, -hl - 2.3 + r * 0.03), car.local(0, 0.36, -hl - 0.1), 50 + kick, 0, r == -2, true);
+        }
+        if (r < 30) {
+            double k = (r - 16) / 14.0;
+            k = k * k * (3 - 2 * k);
+            double a = Math.toRadians(-55 + 125 * k);
+            Vec3 at = car.local(Math.sin(a) * 4.8, 1.9, hl * 0.4 + Math.cos(a) * 4.8);
+            return new Shot(at, car.local(0, 0.7, hl * 0.45), 56, (float) (Math.sin(k * Math.PI) * -6), r == 16, true);
+        }
+        if (r < 44) {
+            double a = Math.toRadians((r - 30) * 7.0);
+            Vec3 off = car.forward().scale(Math.cos(a) * 0.35).add(car.left().scale(Math.sin(a) * 0.35));
+            return new Shot(cp.add(0, 8.5, 0).add(off), cp.add(0, 0.5, 0), 62, 0, r == 30, true);
+        }
+        if (t < bov) {
+            double k = (r - 44) / (double) Math.max(1, bov - rev - 44);
+            double z = hl + 0.6 - (2 * hl + 1.2) * k;
+            return new Shot(car.local(-(hw + 1.05), 0.32, z), car.local(-hw, 0.36, z - 1.4), 46, (float) Math.sin(t * 2.1) * 1.5F, r == 44, true);
+        }
+        if (t < line - 4) {
+            double k = (t - bov) / (double) Math.max(1, line - 4 - bov);
+            return new Shot(car.local(0.4, 2.8 + 0.3 * k, -hl - 2.7 - 0.5 * k), car.local(0, 0.9, -0.5), 58, 0, t == bov, true);
+        }
+        // the hero shot: off the car's far corner from him, low, the car big in front and him by it
+        Vec3 away = cp.subtract(b.position()).multiply(1, 0, 1);
+        away = away.lengthSqr() < 1e-3 ? car.forward() : away.normalize();
+        Vec3 across = new Vec3(-away.z, 0, away.x);
+        double k = Math.min(1, (t - line + 4) / 60.0);
+        Vec3 look = b.position().add(0, h * 0.5, 0).lerp(cp.add(0, 0.6, 0), 0.4);
+        return new Shot(cp.add(away.scale(5.6 - 0.8 * k)).add(across.scale(3.2)).add(0, 0.5, 0), look, 60 - (float) k * 6, 0, t == line - 4, true);
     }
 
     /** Client ticks to the singer's first word, from the band's synced downbeat. */

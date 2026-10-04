@@ -338,7 +338,10 @@ public final class AutoShot {
         if (!com.groid.papon.client.Cinematic.isActive() && colMark < 0) lookAt(mc, b);
         String n = switch (s) {
             case P2_SCREAM -> t == 60 ? "c00_scream_white" : null;
-            case P2_ARRIVE -> t == 12 ? "c01_crane_high" : t == 30 ? "c02_crane_down" : t == 52 ? "c03_landed_crowd" : t == 88 ? "c04_musica" : null;
+            case P2_ARRIVE -> t == 12 ? "c01_crane_high" : t == 30 ? "c02_crane_down" : t == 52 ? "c03_welcome"
+                    : t == com.groid.papon.boss.VoiceLines.beat("arrive.roar1", 89) + 8 ? "c03b_roar_back" : t == com.groid.papon.boss.VoiceLines.beat("arrive.listos", 105) + 10 ? "c03c_listos"
+                    : t == com.groid.papon.boss.VoiceLines.beat("arrive.roar2", 135) + 10 ? "c03d_roar_louder"
+                    : t == com.groid.papon.boss.VoiceLines.beat("arrive.musica", 161) + 10 ? "c04_musica" : null;
             case P2_NOTICE -> t == 12 ? "c05_band_asleep" : t == 40 ? "c06_maestro" : null;
             case P2_MARCH -> t == 20 ? "c07_march" : t == 45 ? "c07b_march" : null;
             case P2_WAKE -> t == 8 ? "c08_windup" : t == 15 ? "c08b_whack" : t == 20 ? "c09_singer_up" : t == 27 ? "c09b_singer_top" : t == 42 ? "c10_band_wakes" : t == 62 ? "c10b_satisfied" : null;
@@ -351,6 +354,8 @@ public final class AutoShot {
             case P2_HYPE -> t == 14 ? "c26_hype_ear" : t == 30 ? "c26b_hype_roar" : t == 60 ? "c27_hype_turn" : t == 72 ? "c27b_mas_fuerte" : t == 92 ? "c28_raise_roof"
                     : t == 112 ? "c28b_raise_roof" : t == 132 ? "c29_tu" : t == 151 ? "c29b_erupt" : null;
             case P2_SOLO -> t == 10 ? "s1_solo_hands" : t == 36 ? "s2_solo_face" : t == 52 ? "s3_solo_reverse" : null;
+            case P2_CUTAWAY -> t == 9 ? "s4_" + b.cutaway().name().toLowerCase(java.util.Locale.ROOT) + "_a"
+                    : t == 28 ? "s4_" + b.cutaway().name().toLowerCase(java.util.Locale.ROOT) + "_b" : null;
             default -> null;
         };
         if (n != null) once(mc, n);
@@ -422,10 +427,14 @@ public final class AutoShot {
             if (k == 562) shot(mc, "p3_pelted");
             if (k == 566) tpLook(b.position().add(0, 1, 8), b.position().add(0, 2, 0));
             if (k == 600) run("papon bossstate P2_SOLO");
-            if (k == 700) shot(mc, "c43_fight");
-            if (k == 720) run("kill @e[type=papon:papon_boss]");
-            if (k == 780) once(mc, "c48_his_fall");
-            if (k == 860) once(mc, "c49_back_down");
+            // the cuts to the band, one of each
+            for (int i = 0; i < PaponBossEntity.Cutaway.values().length; i++) {
+                if (k == 680 + 50 * i) run("papon cutaway " + PaponBossEntity.Cutaway.values()[i].name());
+            }
+            if (k == 1000) shot(mc, "c43_fight");
+            if (k == 1020) run("kill @e[type=papon:papon_boss]");
+            if (k == 1080) once(mc, "c48_his_fall");
+            if (k == 1160) once(mc, "c49_back_down");
         }
     }
 
@@ -896,17 +905,22 @@ public final class AutoShot {
             case P3_RETURN -> t == 30 ? "t14_lights_out" : t == 90 ? "t15_lights_out2" : null;
             case P3_BLACKOUT -> t == 22 ? "t16_black" : t == 34 ? "t17_spotlight" : t == 48 ? "t18_spot_on_him" : null;
             case P3_SERENADE -> t == 40 ? "t19_orbit" : t == 100 ? "t20_stands" : t == 130 ? "t20b_band_watching" : t == 200 ? "t21_lighters"
-                    : t == 260 ? "t22_sings" : t == 306 ? "t22b_power_builds" : t == 318 ? "t23_ascension_flash" : t == 336 ? "t23b_wings_unfurl"
-                    : t == 352 ? "t23c_wings_open" : t == 366 ? "t23d_band_awe" : t == 376 ? "t24_last_chord" : null;
+                    : t == 236 ? "t22_sings" : t == 252 ? "t22a_sings" : t == 270 ? "t22b_sings_close" : t == 290 ? "t22c_sings_close"
+                    : t == 310 ? "t22d_sings_close" : t == 326 ? "t22e_sings_close" : t == 366 ? "t23d_band_awe" : t == 376 ? "t24_last_chord" : null;
             case P3_VERDICT -> t == 30 ? "t25_more_my_style" : t == 70 ? "t26_learn" : null;
             case P3_TOSS -> t == 14 ? "t27_toss" : t == 30 ? "t28_flight" : t == 46 ? "t29_catch" : t == 80 ? "t29b_band_glances" : null;
             case P3_FELT -> t == 8 ? "t30_ascended" : t == 50 ? "t30b_felt" : t == 110 ? "t30c_evil_smile" : null;
             case P3_TO_CAR -> t == 20 ? "t31_to_car" : null;
-            case P3_CRUSH -> t == 14 ? "t32_lift" : t == 30 ? "t32b_crush" : t == 46 ? "t32c_ball" : t == 54 ? "t32d_reform" : t == 70 ? "t32e_skyline"
-                    : t == 82 ? "t32f_underglow" : null;
+            case P3_CRUSH -> t == 10 ? "t32_out_with_the_old" : t == 40 ? "t32b_crush" : t == 58 ? "t32c_ball" : t == 66 ? "t32d_reform"
+                    : t == 82 ? "t32e_slam" : null;
+            case P3_SHOWCAR -> t == 6 ? "t32g_dark" : t == 20 ? "t32h_lamps" : t == 26 ? "t32i_lamps_on" : t == 38 ? "t32j_glow_on" : t == 46 ? "t32k_glow"
+                    : t == 64 ? "t32l_pop" : t == 78 ? "t32m_whip" : t == 92 ? "t32n_roof" : t == 104 ? "t32o_flank" : t == 118 ? "t32p_wing"
+                    : t == 138 ? "t32q_in_with_the_new" : t == 168 ? "t32r_hero" : null;
             case P3_ASCEND -> t == 30 ? "t18b_groan" : t == com.groid.papon.boss.VoiceLines.beat("ascend.burst", 100) + 3 ? "t18c_wings_tear"
                     : t == com.groid.papon.boss.VoiceLines.beat("ascend.roar", 108) + 12 ? "t18d_roar"
-                    : t == com.groid.papon.boss.VoiceLines.beat("ascend.end", 150) - 8 ? "t18e_band_awe" : null;
+                    : t == com.groid.papon.boss.VoiceLines.beat("ascend.god", 162) - 8 ? "t18e_band_awe"
+                    : t == com.groid.papon.boss.VoiceLines.beat("ascend.god", 162) + 20 ? "t18f_no_more_games"
+                    : t == com.groid.papon.boss.VoiceLines.beat("ascend.god", 162) + 60 ? "t18g_potato_god" : null;
             case P3_GO -> t == 14 ? "t33_go" : null;
             case P3_DANCE -> t == 20 ? "t34_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 20 ? "t35_fire_back" : t == 90 ? "t36_stance" : null;
             default -> null;

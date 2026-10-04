@@ -19,9 +19,9 @@ import software.bernie.geckolib.model.DefaultedEntityGeoModel;
  */
 public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     // arm rotation (animation convention, degrees) and stretch, from gen_boss_anims.guitar_poses()
-    private static final float[] STRUM = {-80.6F, -27.1F, -4.0F, 2.5F};
-    private static final float[] FRET_LOW = {-90.3F, 23.7F, -0.1F, 2.2F};
-    private static final float[] FRET_HIGH = {-101.8F, -7.0F, 1.4F, 2.2F};
+    private static final float[] STRUM = {-68.6F, -11.7F, -4.5F, 2.6F};
+    private static final float[] FRET_LOW = {-68.6F, 21.2F, 7.7F, 2.4F};
+    private static final float[] FRET_HIGH = {-71.0F, 6.8F, 2.3F, 2.3F};
     /** Where on the neck his chord shapes sit, bar by bar (0 low .. 1 high). */
     private static final float[] SHAPES = {0.15F, 0.55F, 0.3F, 0.8F, 0.15F, 0.4F, 0.65F, 0.25F};
 

@@ -85,6 +85,12 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Boolean> DATA_GHOST =
             SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.BOOLEAN);
+    /**
+     * The Skyline's underglow: off (-1), or the game time it was switched on (& 0x7FFFFFFF), so every client plays the
+     * same flicker on (client/CaravanRenderer.underglow); 0: on since long ago.
+     */
+    private static final EntityDataAccessor<Integer> DATA_GLOW =
+            SynchedEntityData.defineId(CaravanEntity.class, EntityDataSerializers.INT);
 
     /** Half the van's length and width in blocks (the model is 89 x 34 px). */
     public static final double HALF_LENGTH = 2.78;
@@ -182,7 +188,29 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         entityData.define(DATA_GHOST, false);
         entityData.define(DATA_SKYLINE, false);
         entityData.define(DATA_SQUASH, 1F);
+        entityData.define(DATA_GLOW, 0);
     }
+
+    /** The underglow off (the Skyline as it is made: dark until he shows it off) or switched on now. */
+    public void setUnderglow(boolean on) {
+        entityData.set(DATA_GLOW, on ? (int) (level().getGameTime() & 0x7FFFFFFF) : -1);
+    }
+
+    /** Client: ticks since the underglow came on (big for long ago), or -1 while it is off. */
+    public float underglowAge(float partial) {
+        int at = entityData.get(DATA_GLOW);
+        if (at < 0) return -1;
+        if (at == 0) return 1e6F;
+        long d = ((level().getGameTime() & 0x7FFFFFFF) - at) & 0x7FFFFFFFL;
+        return d > (1L << 30) ? 0 : d + partial;
+    }
+
+    /** The engine running with nobody at the wheel for a while (him showing the Skyline off). */
+    public void idleFor(int ticks) {
+        idleTicks = Math.max(idleTicks, ticks);
+    }
+
+    private int idleTicks;
 
     /** The nitro ram (phase three): each hit takes {@code share} of the victim's maximum health; 0 puts it back to normal. */
     public void setRamShare(float share) {
@@ -411,13 +439,19 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     /** Revs the engine and spins the back wheels where it stands (the boss's wind-up). */
     public void burnout(int ticks) {
         burnout = ticks;
-        level().playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_REV.get(), SoundSource.HOSTILE, 2.5F, 1.0F);
+        level().playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_REV : ModSounds.CARAVAN_REV).get(), SoundSource.HOSTILE, 2.5F, 1.0F);
     }
 
     public void honk() {
         if (hornCooldown > 0) return;
         hornCooldown = 12;
-        level().playSound(null, getX(), getY() + 1, getZ(), ModSounds.CARAVAN_HORN.get(), SoundSource.NEUTRAL, 3.0F, 1.0F);
+        level().playSound(null, getX(), getY() + 1, getZ(), ModSounds.CARAVAN_HORN.get(), SoundSource.NEUTRAL, 3.0F, isSkyline() ? 1.25F : 1.0F);
+        // honking at the man whose van it is: he has something to say about that
+        if (getControllingPassenger() instanceof Player p) {
+            for (com.groid.papon.boss.PaponBossEntity b : level().getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class, getBoundingBox().inflate(40))) {
+                b.heardHonk(p);
+            }
+        }
     }
 
     @Override
@@ -608,7 +642,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         }
         ServerLevel level = (ServerLevel) level();
         LivingEntity driver = getControllingPassenger();
-        entityData.set(DATA_ENGINE, driver != null || bricked);
+        if (idleTicks > 0) idleTicks--;
+        entityData.set(DATA_ENGINE, driver != null || bricked || idleTicks > 0);
         if (doorTicks > 0 && --doorTicks == 0) entityData.set(DATA_DOOR, false);
         if (hornCooldown > 0) hornCooldown--;
         if (screechCooldown > 0) screechCooldown--;
@@ -759,7 +794,11 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         if (driver == null || driver instanceof PaponBossEntity) speed *= 0.85;
     }
 
+    /** Client: ticks the engine has been running (0 while it is off): the lamps flicker on with it. */
+    public int engineTicks;
+
     private void clientVisuals() {
+        engineTicks = isEngineOn() ? engineTicks + 1 : 0;
         wheelSpinO = wheelSpin;
         Vec3 d = new Vec3(getX() - xo, 0, getZ() - zo);
         double along = d.dot(forward());
@@ -813,7 +852,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         super.addPassenger(passenger);
         openDoor();
         if (!level().isClientSide && getPassengers().size() == 1) {
-            level().playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_START.get(), SoundSource.NEUTRAL, 2.0F, 1.0F);
+            level().playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_START : ModSounds.CARAVAN_START).get(), SoundSource.NEUTRAL, 2.0F, 1.0F);
         }
     }
 
@@ -893,6 +932,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("Skyline", isSkyline());
+        tag.putBoolean("Underglow", entityData.get(DATA_GLOW) >= 0);
     }
 
     @Override
@@ -900,6 +940,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         super.readAdditionalSaveData(tag);
         lastYaw = getYRot();
         setSkyline(tag.getBoolean("Skyline"));
+        entityData.set(DATA_GLOW, !tag.contains("Underglow") || tag.getBoolean("Underglow") ? 0 : -1);
     }
 
     // ------------------------------------------------------------------ animation

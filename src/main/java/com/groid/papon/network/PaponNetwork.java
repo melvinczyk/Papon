@@ -22,7 +22,8 @@ import java.util.function.Supplier;
  *   Shake  server -> client  a camera shake at a point (slams, roars, van crashes), Cataclysm style:
  *                            strength falls off with distance from the point
  *   Horn   client -> server  the driver of a van pressed the horn (jump key)
- *   Solo   client -> server  the band's score has gone into a guitar solo (the boss stops to listen)
+ *   Solo   client -> server  the band's score has gone into a guitar solo (the boss stops to listen), or another
+ *                            moment worth a cut to the band (the trumpets coming in, the violins' run...)
  *   QteStart server -> client  Chef Papon has you: the keys to press, a window each (client/QteClient)
  *   QteEnd   server -> client  it is over (broke free, or not)
  *   QteInput client -> server  key n pressed right, or wrong / too late
@@ -47,7 +48,10 @@ public final class PaponNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(4, QteInput.class, QteInput::encode, QteInput::decode, QteInput::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
-        CHANNEL.registerMessage(5, Solo.class, (m, b) -> b.writeVarInt(m.bossId()), b -> new Solo(b.readVarInt()), Solo::handle,
+        CHANNEL.registerMessage(5, Solo.class, (m, b) -> {
+            b.writeVarInt(m.bossId());
+            b.writeVarInt(m.kind());
+        }, b -> new Solo(b.readVarInt(), b.readVarInt()), Solo::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(6, Fade.class, Fade::encode, Fade::decode, Fade::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(7, OrderTaco.class, (m, b) -> {
@@ -98,16 +102,23 @@ public final class PaponNetwork {
 
     /** From the client: the band has just gone into a guitar solo (the score is the client's). */
     public static void solo(int bossId) {
-        CHANNEL.sendToServer(new Solo(bossId));
+        CHANNEL.sendToServer(new Solo(bossId, 0));
     }
 
-    public record Solo(int bossId) {
+    /** From the client: a moment in the band's music worth a cut to them (PaponBossEntity.Cutaway: the trumpets coming in...). */
+    public static void cutaway(int bossId, int kind) {
+        CHANNEL.sendToServer(new Solo(bossId, kind));
+    }
+
+    /** {@code kind} 0: the guitar solo; otherwise a PaponBossEntity.Cutaway. */
+    public record Solo(int bossId, int kind) {
         void handle(Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer p = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
                 if (p != null && p.level().getEntity(bossId) instanceof com.groid.papon.boss.PaponBossEntity boss
                         && boss.distanceToSqr(p) < 96 * 96) {
-                    boss.soloHeard();
+                    if (kind == 0) boss.soloHeard();
+                    else boss.cutawayHeard(kind);
                 }
             });
             ctx.get().setPacketHandled(true);
