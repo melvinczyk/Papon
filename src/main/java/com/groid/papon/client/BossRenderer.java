@@ -92,7 +92,50 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
 
     @Override
     public boolean shouldRender(PaponBossEntity boss, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
-        return !Cinematic.isPovOf(boss) && super.shouldRender(boss, frustum, x, y, z);
+        return (!Cinematic.isPovOf(boss) || handInView(boss)) && super.shouldRender(boss, frustum, x, y, z);
+    }
+
+    /** Through his own eyes (P2_KNEEL) the only part of him drawn is his left arm, held up in front of them, bleeding. */
+    private static boolean handInView(PaponBossEntity boss) {
+        int t = boss.ticksInState();
+        return Cinematic.isPovOf(boss) && boss.getBossState() == BossState.P2_KNEEL && t >= 56 && t <= 106;
+    }
+
+    /** Where his bleeding hand was drawn last (world), per boss: the point-of-view camera looks at it (Cinematic). */
+    private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> HANDS = new java.util.HashMap<>();
+
+    @org.jetbrains.annotations.Nullable
+    public static net.minecraft.world.phys.Vec3 handPos(PaponBossEntity boss) {
+        return HANDS.get(boss.getId());
+    }
+
+    @Override
+    public void renderFinal(PoseStack pose, PaponBossEntity entity, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,
+                            float partialTick, int light, int overlay, float r, float g, float b, float a) {
+        super.renderFinal(pose, entity, model, buffers, buffer, partialTick, light, overlay, r, g, b, a);
+        if (!handInView(entity)) {
+            HANDS.remove(entity.getId());
+            return;
+        }
+        model.getBone("hand_blood").ifPresent(bone -> {
+            var w = bone.getWorldPosition();
+            HANDS.put(entity.getId(), new net.minecraft.world.phys.Vec3(w.x, w.y, w.z));
+        });
+    }
+
+    private static final java.util.Set<String> POV_ARM = java.util.Set.of("arm_l", "arm_l_mesh", "hand_l", "hand_blood", "hand_blood_drop");
+    private static boolean povHidden;
+
+    private static void hideForPov(BakedGeoModel model, boolean pov) {
+        if (!pov && !povHidden) return;
+        povHidden = pov;
+        for (software.bernie.geckolib.cache.object.GeoBone bone : model.topLevelBones()) hideForPov(bone, pov);
+    }
+
+    private static void hideForPov(software.bernie.geckolib.cache.object.GeoBone bone, boolean pov) {
+        bone.setHidden(pov && !POV_ARM.contains(bone.getName()));
+        bone.setChildrenHidden(false);                  // setHidden hides the children too: the arm hangs off hidden bones
+        for (software.bernie.geckolib.cache.object.GeoBone child : bone.getChildBones()) hideForPov(child, pov);
     }
 
     @Override
@@ -106,6 +149,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         float s = entity.isPassenger() ? DRIVING_SCALE : entity.isRisen() ? RISEN_SCALE : SCALE;
         this.scaleWidth = s;
         this.scaleHeight = s;
+        if (!reRender) hideForPov(model, handInView(entity));
+        model.getBone("hand_blood").ifPresent(bone -> bone.setTrackingMatrices(true));
         super.preRender(pose, entity, model, buffers, buffer, reRender, partialTick, light, overlay, r, g, b, a);
     }
 

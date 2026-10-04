@@ -1,5 +1,6 @@
 package com.groid.papon.item;
 
+import com.groid.papon.entity.BodyPillowEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -7,20 +8,32 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * The trophy for beating Chef Papon, handed over by Gerbin the dishwasher himself (see
- * GerbinEntity#reward): a body pillow, Makima on the front, "Woof" on the back. Use it to give it
- * a hug (hearts, a soft thump, a line of what Gerbin would say).
+ * GerbinEntity#reward): a body pillow, Makima on the front, "Woof" on the back.
+ *
+ *   hold use           hug it: arms wrapped round it, cheek on it, swaying (client/PillowClient); hearts
+ *                      and a purr now and then, and a line of what Gerbin would say
+ *   hold use, sneaking lick it (the tongue out, the head bobbing into it): slurps, drips
+ *   use on a bed       lay it down on one side of the bed (entity/BodyPillowEntity): sleep there and you
+ *                      sleep on your side, facing her
  */
 public class BodyPillowItem extends Item {
     public BodyPillowItem(Properties properties) {
@@ -28,23 +41,81 @@ public class BodyPillowItem extends Item {
     }
 
     @Override
+    public InteractionResult onItemUseFirst(ItemStack stack, UseOnContext ctx) {
+        // before the bed gets the click (it would put you to bed instead)
+        Level level = ctx.getLevel();
+        if (!(level.getBlockState(ctx.getClickedPos()).getBlock() instanceof BedBlock) || ctx.getPlayer() == null || ctx.getPlayer().isCrouching()) {
+            return InteractionResult.PASS;
+        }
+        if (level.isClientSide) return InteractionResult.SUCCESS;
+        BodyPillowEntity pillow = BodyPillowEntity.place(level, ctx.getClickedPos());
+        if (pillow == null) {
+            ctx.getPlayer().displayClientMessage(Component.translatable("message.papon.body_pillow.bed_taken").withStyle(ChatFormatting.LIGHT_PURPLE), true);
+            return InteractionResult.FAIL;
+        }
+        level.playSound(null, pillow.getX(), pillow.getY(), pillow.getZ(), SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 1.0F, 0.8F);
+        ctx.getPlayer().displayClientMessage(Component.translatable("message.papon.body_pillow.bed").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.ITALIC), true);
+        if (!ctx.getPlayer().getAbilities().instabuild) ctx.getItemInHand().shrink(1);
+        return InteractionResult.CONSUME;
+    }
+
+    @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-        if (level instanceof ServerLevel server) {
-            server.sendParticles(ParticleTypes.HEART, player.getX(), player.getEyeY() - 0.2, player.getZ(), 4, 0.35, 0.25, 0.35, 0.02);
-            server.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 1.0F, 0.7F);
-            server.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.CAT_PURR, SoundSource.PLAYERS, 0.6F, 1.1F);
+        player.startUsingItem(hand);
+        return InteractionResultHolder.consume(player.getItemInHand(hand));
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack) {
+        return 72000;
+    }
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        return UseAnim.NONE;
+    }
+
+    @Override
+    public void onUseTick(Level level, LivingEntity user, ItemStack stack, int remaining) {
+        if (!(level instanceof ServerLevel server) || !(user instanceof Player player)) return;
+        int held = getUseDuration(stack) - remaining;
+        double x = player.getX(), y = player.getEyeY() - 0.3, z = player.getZ();
+        if (player.isCrouching()) {
+            // a lick every half a second or so
+            if (held % 11 == 5) {
+                server.playSound(null, x, y, z, SoundEvents.HONEY_DRINK, SoundSource.PLAYERS, 0.7F, 1.3F + level.random.nextFloat() * 0.3F);
+                server.playSound(null, x, y, z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.PLAYERS, 0.5F, 1.4F);
+                var look = player.getLookAngle();
+                server.sendParticles(ParticleTypes.DRIPPING_WATER, x + look.x * 0.45, y + 0.15, z + look.z * 0.45, 2, 0.12, 0.1, 0.12, 0);
+            }
+            if (held % 60 == 30) {
+                player.displayClientMessage(Component.translatable("message.papon.body_pillow.lick." + level.random.nextInt(4))
+                        .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.ITALIC), true);
+            }
+            return;
+        }
+        if (held % 24 == 8) {
+            server.sendParticles(ParticleTypes.HEART, x, y + 0.4, z, 2, 0.35, 0.2, 0.35, 0.02);
+        }
+        if (held % 48 == 8) {
+            server.playSound(null, x, y, z, SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 0.8F, 0.7F);
+            server.playSound(null, x, y, z, SoundEvents.CAT_PURR, SoundSource.PLAYERS, 0.5F, 1.1F);
+        }
+        if (held % 80 == 20) {
             player.displayClientMessage(Component.translatable("message.papon.body_pillow." + level.random.nextInt(4))
                     .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.ITALIC), true);
         }
-        player.getCooldowns().addCooldown(this, 30);
-        player.swing(hand);
-        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
+    }
+
+    @Override
+    public void initializeClient(Consumer<IClientItemExtensions> consumer) {
+        consumer.accept(com.groid.papon.client.PillowClient.EXTENSIONS);
     }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("item.papon.body_pillow.tooltip.0").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.ITALIC));
         tooltip.add(Component.translatable("item.papon.body_pillow.tooltip.1").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("item.papon.body_pillow.tooltip.2").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

@@ -50,6 +50,11 @@ public enum BandRole {
         return this == GUITARRON;
     }
 
+    /** Who switches the stage's floodlights on at nightfall (and off at dawn). */
+    public boolean lamplighter() {
+        return this == CORO_3;
+    }
+
     public boolean coro() {
         return kind.equals("coro");
     }

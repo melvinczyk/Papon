@@ -31,6 +31,7 @@ public final class ClientEvents {
         SongPlayer.tick();
         BossMusic.tick();
         CrowdSounds.tick();
+        PotatoSky.tick();
     }
 
     /** The crowd renderer culls its fans against the level's own frustum. */
@@ -147,6 +148,12 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onRenderLiving(net.minecraftforge.client.event.RenderLivingEvent.Pre<?, ?> event) {
         if (Cinematic.hidden(event.getEntity())) event.setCanceled(true);
+    }
+
+    /** The same for GeckoLib-drawn entities (the van, the Taco Truck crowd, Gerbin): they do not fire the event above. */
+    @SubscribeEvent
+    public static void onRenderGeo(software.bernie.geckolib.event.GeoRenderEvent.Entity.Pre event) {
+        if (event.getEntity() != null && Cinematic.hidden(event.getEntity())) event.setCanceled(true);
     }
 
     /** No on-fire (or in-wall, underwater) overlay over a cutscene shot: the camera is not in your eyes. */

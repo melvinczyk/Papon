@@ -60,6 +60,8 @@ public class BossProp extends Entity {
         PRODUCE,
         /** El Machacador: the giant masher, its plate (with the holes: boss/Masher) at this height; radius = height over the sand. */
         MASHER,
+        /** ¡Estampida!: a giant potato at the edge of the sand; waits its warning, then rolls straight across. */
+        ROLLER,
         /** Phase three: the singer's requinto, thrown back to him over the boss's shoulder, end over end on an arc. */
         GUITAR
     }
@@ -189,12 +191,17 @@ public class BossProp extends Entity {
         if (boss == null || --life <= 0) {
             if (k == Kind.METEOR && boss != null) boss.propLand(this, aim);
             if (k == Kind.TOT || k == Kind.TOT_SMALL) burst(level, boss);
+            if (k == Kind.ROLLER) {
+                Fx.chunks(level, position().add(0, 1.4, 0), 24, 0.6F, Fx.POTATO, 0.8);
+                level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_BLOCK_BREAK, SoundSource.HOSTILE, 2.0F, 0.5F);
+            }
             discard();
             return;
         }
         switch (k) {
             case CLEAVER -> tickCleaver(level, boss);
             case FRY, CLEAVER_DART -> tickFry(level, boss);
+            case ROLLER -> tickRoller(level, boss);
             case TOT, TOT_SMALL -> tickTot(level, boss);
             case PRODUCE -> tickProduce(level, boss);
             case METEOR -> move();
@@ -224,6 +231,12 @@ public class BossProp extends Entity {
         switch (k) {
             case FRY, CLEAVER_DART -> {
                 if (delay() <= 0) move();
+            }
+            case ROLLER -> {
+                if (delay() <= 0) {
+                    move();
+                    if (tickCount % 2 == 0) level().addParticle(net.minecraft.core.particles.ParticleTypes.POOF, getX(), getY() + 0.2, getZ(), 0, 0.05, 0);
+                }
             }
             case TOT, TOT_SMALL, PRODUCE -> move();
             case GUITAR -> {
@@ -302,6 +315,22 @@ public class BossProp extends Entity {
         }
         move();
         touch(level, boss, 0.6);
+    }
+
+    // ---- the roller: waits its warning at the edge of the sand, then rolls straight across, flattening whoever it meets
+    private void tickRoller(ServerLevel level, PaponBossEntity boss) {
+        int d = delay();
+        if (d > 0) {
+            entityData.set(DATA_DELAY, d - 1);
+            if (d == 1) {
+                setDeltaMovement(aim);
+                level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 2.0F, 0.6F);
+            }
+            return;
+        }
+        move();
+        if (tickCount % 6 == 0) level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 1.4F, 0.5F);
+        touch(level, boss, 1.4);
     }
 
     // ---- the tot: lobbed, bursts where it lands

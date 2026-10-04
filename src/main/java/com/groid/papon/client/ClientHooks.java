@@ -16,4 +16,9 @@ public final class ClientHooks {
     public static void caravanTick(CaravanEntity van) {
         CaravanSounds.tick(van);
     }
+
+    /** The reformed chef's free menu. */
+    public static void openTacoMenu(int vendorId) {
+        net.minecraft.client.Minecraft.getInstance().setScreen(new TacoMenuScreen(vendorId));
+    }
 }

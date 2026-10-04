@@ -122,6 +122,15 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 pose.mulPose(Axis.YP.rotationDegrees(age * 17F));
                 pose.scale(1.1F, 1.1F, 1.1F);
             }
+            case ROLLER -> {
+                // ¡Estampida!: a potato as tall as two of you, rolling along its lane (rocking while it waits)
+                stack = new ItemStack(ModItems.FX_GIANT_SPUD.get());
+                pose.translate(0, 1.6, 0);
+                pose.mulPose(Axis.YP.rotationDegrees(-p.getYRot()));
+                if (p.delay() > 0) pose.mulPose(Axis.XP.rotationDegrees(Mth.sin(age * 1.3F) * 6F));
+                else pose.mulPose(Axis.XP.rotationDegrees(age * 21F));
+                pose.scale(3.4F, 3.4F, 3.4F);
+            }
             case GIANT_SPUD -> {
                 // El Gran Meteoro: swells in over 2 s to nearly the width of his coliseum, blazing, rays pouring off it
                 stack = new ItemStack(ModItems.FX_GIANT_SPUD.get());

@@ -60,6 +60,14 @@ public final class ModBlocks {
     public static final RegistryObject<Block> ARENA_FRYING_OIL = REGISTRY.register("arena_frying_oil",
             () -> new com.groid.papon.block.FryingOilBlock(props(MapColor.GOLD).sound(SoundType.HONEY_BLOCK).lightLevel(s -> 11).noOcclusion().dynamicShape()));
 
+    /** A stretch of wall with La Bandera Papa hung on it (block/ArenaFlagBlock; the cloth is drawn by client/ArenaFlagRenderer). */
+    public static final RegistryObject<Block> ARENA_FLAG = REGISTRY.register("arena_flag",
+            () -> new com.groid.papon.block.ArenaFlagBlock(stoneProps(MapColor.SAND)));
+    /** The band stand's floodlights, switched on at nightfall by one of the coro (block/StageLampBlock). */
+    public static final RegistryObject<Block> STAGE_LAMP = REGISTRY.register("stage_lamp",
+            () -> new com.groid.papon.block.StageLampBlock(props(MapColor.COLOR_BLACK).sound(SoundType.LANTERN).noOcclusion()
+                    .lightLevel(s -> s.getValue(com.groid.papon.block.StageLampBlock.LIT) ? 15 : 0)));
+
     private static RegistryObject<Block> stone(String name, MapColor color) {
         return REGISTRY.register(name, () -> new Block(stoneProps(color)));
     }

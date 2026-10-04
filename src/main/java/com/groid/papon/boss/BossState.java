@@ -156,6 +156,10 @@ public enum BossState {
     /** Working the stands up, timed to end on the first sung word (P2_HYPE_LENGTH long when on time). */
     P2_HYPE(0),
     P2_SOLO(60),
+    /** ¡La Ola! (phase two, coliseum): he gets the stands doing the wave and three waves of salsa sweep the sand: jump them. */
+    ARENA_OLA(36),
+    /** ¡Estampida!: a whistle to the stands and giant potatoes roll across the sand in lanes, three volleys: find the gaps. */
+    ARENA_STAMPEDE(36),
     // ---- phase three, "Para Siempre" (half health; see the diagram). Durations of the voiced beats are fallbacks:
     // VoiceLines.beat times them to his lines.
     /** Knocked out of the air: flung back, down on his back on the sand, a skid, and up again (2.5 s). */

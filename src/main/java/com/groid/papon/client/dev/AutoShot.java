@@ -53,6 +53,10 @@ public final class AutoShot {
     private static final boolean ARENA = MODE.equals("arena");
     /** -Pautoshot=phase3: phase two into the coliseum and the song, then half health: phase three's cutscene beat by beat, and the night fight. */
     private static final boolean PHASE3 = MODE.equals("phase3");
+    /** -Pautoshot=nights: into the coliseum, then the flags, the crowd up close, the potato sun, nightfall (the lamplighter), the potato moon. */
+    private static final boolean NIGHTS = MODE.equals("nights");
+    /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
+    private static final boolean ENDING = MODE.equals("ending");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -82,7 +86,11 @@ public final class AutoShot {
             fight(mc);
             return;
         }
-        if (COLISEUM || VOICE || ARENA || PHASE3) {
+        if (ENDING) {
+            ending(mc);
+            return;
+        }
+        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3) {
             coliseum(mc);
             if (VOICE) voice(mc);
             return;
@@ -345,6 +353,10 @@ public final class AutoShot {
             arenaTour(mc, b, tick - colMark);
             return;
         }
+        if (colMark > 0 && NIGHTS) {
+            nightsTour(mc, b, tick - colMark);
+            return;
+        }
         if (colMark > 0 && PHASE3) {
             phaseThreeTour(mc, b, tick - colMark);
             return;
@@ -492,6 +504,7 @@ public final class AutoShot {
         if (k == 240) run("papon bossstate ARENA_FRYER");
         if (s == BossState.ARENA_FRYER && t == 20) shot(mc, "a06_fryer_warn");
         if (k == 300) shot(mc, "a07_fryer_oil");
+        if (k == 380) shot(mc, "a07c_fryer_still_oil");
         if (k == 304) {
             tpLook(c.add(3, 3, 6), c.add(0, 0, -6));
             shot(mc, "a07b_fryer_low");
@@ -499,8 +512,10 @@ public final class AutoShot {
         if (k == 420) run("papon bossstate P2_MASHER");
         if (s == BossState.P2_MASHER) {
             if (t == 40) shot(mc, "a08_masher_looms");
-            if (t == 75) shot(mc, "a09_masher_holes");
-            if (t == 88) shot(mc, "a10_masher_slam");
+            if (t == 50) shot(mc, "a09_masher_slam1");
+            if (t == 70) shot(mc, "a09b_masher_moved_holes");
+            if (t == 82) shot(mc, "a10_masher_slam2");
+            if (t == 112) shot(mc, "a10b_masher_slam3");
         }
         if (k == 556) {
             run("gamemode survival");
@@ -520,12 +535,251 @@ public final class AutoShot {
         }
         if (s == BossState.SALSA_BURST && t == 12) shot(mc, "a14_salsa_burst");
         if (k == 700) {
+            // on the sand (a creative player does not count as anyone in it: the coliseum would come down)
             mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            run("gamemode survival", "effect give @s minecraft:resistance 600 4 true");
+            tpLook(c.add(4, 0, 17), c.add(0, 0, -4));
+        }
+        if (k == 760 || k == 790 || k == 820 || k == 920 || k == 950) tpLook(c.add(4, 0, 17), c.add(0, 0, -4));
+        if (k == 706) run("papon bossstate ARENA_OLA");
+        if (s == BossState.ARENA_OLA && t == 30) shot(mc, "a15_ola_cast");
+        if (k == 750) shot(mc, "a16_ola_warn");
+        if (k == 770) shot(mc, "a17_ola_wave1");
+        if (k == 820) shot(mc, "a18_ola_wave2");
+        if (k == 900) run("papon bossstate ARENA_STAMPEDE");
+        if (s == BossState.ARENA_STAMPEDE && t == 20) shot(mc, "a19_stampede_cast");
+        if (k == 930) shot(mc, "a20_stampede_warn");
+        if (k == 950) shot(mc, "a21_stampede_roll");
+        if (k == 985) shot(mc, "a22_stampede_volley2");
+        if (k == 1040) run("kill @e[type=papon:papon_boss]");
+        if (k == 1100) PaponMod.LOG.info("[arena] portals after his fall: {}", mc.level.getEntitiesOfClass(com.groid.papon.boss.ArenaPortalEntity.class,
+                mc.player.getBoundingBox().inflate(512)).size());
+        if (k == 1120) mc.stop();
+    }
+
+    private static int lampSeen;
+    @Nullable private static com.groid.papon.boss.BandState lampLast;
+
+    /** The coliseum's new looks: the flags, the crowd up close, the potato sun, nightfall and the lamplighter, the moon. */
+    private static void nightsTour(Minecraft mc, PaponBossEntity b, int k) {
+        Vec3 c = b.position();
+        if (k == 2) {
+            PaponBossEntity.devFrozen = true;
+            run("gamemode creative");          // a spectator is nobody to him: the coliseum would come down
+        }
+        if (k == 6) {
+            mc.player.getAbilities().flying = true;
+            mc.player.onUpdateAbilities();
+        }
+        if (k == 10) tpLook(c.add(4, 2.5, 6), c.add(-6, 3.5, 21));
+        if (k == 22) shot(mc, "n01_podium_flags");
+        if (k == 24) tpLook(c.add(0, 3.5, -7), c.add(0, 3, -20));
+        if (k == 36) shot(mc, "n02_backdrop_band");
+        if (k == 40) tpLook(c.add(6, 6.5, 14), c.add(8, 10, 26));
+        if (k == 52) shot(mc, "n03_crowd_flags");
+        if (k == 60) shot(mc, "n04_crowd_flags");
+        if (k == 68) shot(mc, "n05_crowd_flags");
+        if (k == 72) tpLook(c.add(0, 7, -6), c.add(-22, 10, 18));
+        if (k == 84) shot(mc, "n06_crowd_wide");
+        if (k == 90) run("time set 6000");
+        if (k == 92) tpLook(c.add(0, 2, 0), c.add(0.5, 60, 2));
+        if (k == 104) shot(mc, "n07_potato_sun");
+        if (k == 108) {
+            run("time set 13600");
+            tpLook(c.add(1, 4, -9), c.add(7, 2.5, -19));
+        }
+        var lamplighter = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(80),
+                m -> m.getRole().lamplighter()).stream().findFirst().orElse(null);
+        if (lamplighter != null && k > 108) {
+            var st = lamplighter.getBandState();
+            lampSeen = st == lampLast ? lampSeen + 1 : 0;
+            lampLast = st;
+            if (st == com.groid.papon.boss.BandState.LAMP_GO && lampSeen == 8) once(mc, "n08_lamp_walk");
+            if (st == com.groid.papon.boss.BandState.LAMP_SWITCH && lampSeen == 14) once(mc, "n09_lamp_reach");
+            if (st == com.groid.papon.boss.BandState.LAMP_SWITCH && lampSeen == 24) once(mc, "n10_lamp_on");
+            if (st == com.groid.papon.boss.BandState.LAMP_BACK && lampSeen == 10) once(mc, "n11_lamp_back");
+        }
+        if (k == 300) tpLook(c.add(0, 3, 4), c.add(0, 2.5, -19));
+        if (k == 312) shot(mc, "n12_stage_lit");
+        if (k == 316) {
+            run("time set 18000");
+            tpLook(c.add(0, 2, 0), c.add(0.5, 60, 2));
+        }
+        if (k == 330) shot(mc, "n13_potato_moon");
+        if (k == 334) {
+            run("time set 14000");
+            tpLook(c.add(0, 40, 62), c.add(0, 2, -6));
+        }
+        if (k == 350) shot(mc, "n14_night_bowl");
+        if (k == 352) PaponMod.LOG.info("[autoshot] lamps: {}", lampLast);
+        if (k == 360) mc.stop();
+    }
+
+    private static int endMark = -1, endSeen;
+    @Nullable private static Object endLast;
+    private static boolean bossKilled;
+
+    /** A truck and its boss, beaten: Gerbin's present, the welcome back, the bald chef's menu; then the pillow. */
+    private static void ending(Minecraft mc) {
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "papon escort true", "tp @s 4000 200 4000", "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]",
+                    "kill @e[type=papon:taco_vendor]", "kill @e[type=papon:body_pillow]");
+            case 100 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves rotated 0 0 run papon tacoline");
+            case 160 -> frontOfWindow(mc, 5.5, 0);
+            case 200 -> run("papon reveal");
+            default -> {}
+        }
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b != null && !bossKilled && b.getBossState().fighting() && b.ticksInState() > 10) {
+            bossKilled = true;
             run("kill @e[type=papon:papon_boss]");
         }
-        if (k == 760) PaponMod.LOG.info("[arena] portals after his fall: {}", mc.level.getEntitiesOfClass(com.groid.papon.boss.ArenaPortalEntity.class,
-                mc.player.getBoundingBox().inflate(512)).size());
-        if (k == 780) mc.stop();
+        if (b != null && b.getBossState() == BossState.DEATH) lookAt(mc, b);
+        if (!bossKilled || b != null) return;
+        if (endMark < 0) endMark = tick;
+        int k = tick - endMark;
+        GerbinEntity g = nearest(mc, GerbinEntity.class);
+        TacoVendorEntity v = mc.level.getEntitiesOfClass(TacoVendorEntity.class, mc.player.getBoundingBox().inflate(200), TacoVendorEntity::isFriendly)
+                .stream().findFirst().orElse(null);
+        if (k == 2) PaponMod.LOG.info("[autoshot] reformed chef: {}", v != null);
+        if (g != null && k < 400 && !taken.contains("e02_given")) {
+            lookAt(mc, g);
+            var gs = g.getGerbinState();
+            endSeen = gs == endLast ? endSeen + 1 : 0;
+            endLast = gs;
+            if (gs == com.groid.papon.entity.npc.GerbinState.DELIVER && endSeen == 20) once(mc, "e01_gerbin_brings");
+            if (gs == com.groid.papon.entity.npc.GerbinState.GIVE && endSeen == 30) once(mc, "e02_given");
+        }
+        if (v != null && taken.contains("e02_given")) {
+            var vs = v.getVendorState();
+            if (vs == VendorState.GREETING && !taken.contains("e04_wave")) {
+                if (endLast != vs) {
+                    endLast = vs;
+                    endSeen = 0;
+                    endMark2 = k;
+                }
+                endSeen++;
+                if (endSeen == 2) PaponMod.LOG.info("[autoshot] welcomed back at {} (vendor at {})", mc.player.blockPosition(), v.blockPosition());
+                if (endSeen == 18) once(mc, "e04_wave");
+            }
+            // brought back: the moment they land at the window, the screen still coming up out of black
+            if (arrived < 0 && mc.player.distanceToSqr(v) < 8 * 8) arrived = k;
+            if (arrived > 0 && k == arrived + 20) once(mc, "e03_fade_in");
+        }
+        if (endMark2 > 0) {
+            int j = k - endMark2;
+            if (j % 20 == 0 && j <= 360) PaponMod.LOG.info("[autoshot] j {} screen {}", j, mc.screen);
+            if (j == 70) frontOfWindow(mc, 3.2, 0);
+            if (j == 84) shot(mc, "e05_bald_chef");
+            if (j == 90 && v != null) com.groid.papon.client.ClientHooks.openTacoMenu(v.getId());
+            if (j == 104) shot(mc, "e06_menu");
+            if (j == 108 && v != null) {
+                com.groid.papon.network.PaponNetwork.orderTaco(v.getId(), 3);
+                mc.setScreen(null);
+            }
+            if (j == 150) shot(mc, "e07_cooking");
+            if (j == 200) PaponMod.LOG.info("[autoshot] tacos de papa held: {}", mc.player.getInventory().countItem(com.groid.papon.registry.ModItems.TACO_PAPA.get()));
+            if (j == 204) {
+                run("item replace entity @s weapon.mainhand with papon:body_pillow", "tp @s ~ ~ ~ 0 0");
+                mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+            }
+            if (j == 214) shot(mc, "e08_pillow_carried");
+            if (j == 216) mc.options.keyUse.setDown(true);
+            if (j == 250) shot(mc, "e09_hug");
+            if (j == 262) shot(mc, "e10_hug");
+            if (j == 266) mc.options.keyShift.setDown(true);
+            if (j == 296) shot(mc, "e11_lick");
+            if (j == 301) shot(mc, "e12_lick");
+            if (j == 306) {
+                mc.options.keyShift.setDown(false);
+                mc.options.keyUse.setDown(false);
+            }
+            if (j == 310) mc.options.setCameraType(CameraType.FIRST_PERSON);
+            if (j == 312) mc.options.keyUse.setDown(true);
+            if (j == 340) shot(mc, "e13_hug_first_person");
+            if (j == 342) mc.options.keyUse.setDown(false);
+            if (j == 344) run("time set 14000");
+            if (j == 346) bedAndPillow(mc);
+            if (j == 356) bedCamera(mc, 0);
+            if (j == 372) shot(mc, "e14_pillow_on_bed");
+            if (j == 376) sleepBeside(mc);
+            if (j == 396) bedCamera(mc, 0);
+            if (j == 410) shot(mc, "e15_asleep_beside");
+            if (j == 412) bedCamera(mc, 1);
+            if (j == 424) shot(mc, "e16_asleep_beside_feet");
+            if (j == 426) bedCamera(mc, 2);
+            if (j == 438) shot(mc, "e17_asleep_beside_side");
+            if (j == 440) mc.setCameraEntity(mc.player);
+            if (j == 450) mc.stop();
+        }
+        if (k > 2400) mc.stop();
+    }
+
+    private static int endMark2 = -1, arrived = -1;
+
+    /** A bed beside the player, a pillow laid on it (as if used on it). */
+    private static void bedAndPillow(Minecraft mc) {
+        IntegratedServer srv = mc.getSingleplayerServer();
+        var id = mc.player.getUUID();
+        srv.execute(() -> {
+            ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+            if (sp == null) return;
+            var level = sp.serverLevel();
+            net.minecraft.core.BlockPos foot = sp.blockPosition().offset(3, 0, 0);
+            net.minecraft.core.BlockPos head = foot.north();
+            var bed = net.minecraft.world.level.block.Blocks.RED_BED.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.BedBlock.FACING, net.minecraft.core.Direction.NORTH);
+            level.setBlock(foot, bed.setValue(net.minecraft.world.level.block.BedBlock.PART, net.minecraft.world.level.block.state.properties.BedPart.FOOT), 3);
+            level.setBlock(head, bed.setValue(net.minecraft.world.level.block.BedBlock.PART, net.minecraft.world.level.block.state.properties.BedPart.HEAD), 3);
+            var pillow = com.groid.papon.entity.BodyPillowEntity.place(level, foot);
+            PaponMod.LOG.info("[autoshot] pillow on the bed: {}", pillow != null);
+            sp.teleportTo(level, foot.getX() + 0.5, foot.getY(), foot.getZ() + 2.5, 180, 20);
+        });
+    }
+
+    @Nullable private static net.minecraft.world.entity.decoration.ArmorStand bedCam;
+
+    /** A client-only camera over the bed: 0 above and to the side, 1 from the foot end, 2 from the side, low. */
+    private static void bedCamera(Minecraft mc, int view) {
+        var pillow = nearest(mc, com.groid.papon.entity.BodyPillowEntity.class);
+        if (pillow == null) return;
+        if (bedCam == null) {
+            bedCam = new net.minecraft.world.entity.decoration.ArmorStand(mc.level, 0, 0, 0);
+            bedCam.setInvisible(true);
+        }
+        Vec3 c = pillow.position();
+        Vec3 at = switch (view) {
+            case 1 -> c.add(0, 1.4, 3.2);
+            case 2 -> c.add(-3.0, 1.0, -0.2);
+            default -> c.add(2.2, 2.6, 1.6);
+        };
+        Vec3 d = c.add(0, 0.2, 0).subtract(at.add(0, bedCam.getEyeHeight(), 0));
+        float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
+        bedCam.moveTo(at.x, at.y, at.z, yaw, pitch);
+        bedCam.xo = at.x;
+        bedCam.yo = at.y;
+        bedCam.zo = at.z;
+        bedCam.yRotO = yaw;
+        bedCam.xRotO = pitch;
+        bedCam.setYHeadRot(yaw);
+        bedCam.yHeadRotO = yaw;
+        mc.setCameraEntity(bedCam);
+        mc.options.setCameraType(CameraType.FIRST_PERSON);
+    }
+
+    private static void sleepBeside(Minecraft mc) {
+        IntegratedServer srv = mc.getSingleplayerServer();
+        var id = mc.player.getUUID();
+        srv.execute(() -> {
+            ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+            if (sp == null) return;
+            var head = sp.blockPosition().offset(0, 0, -3);
+            sp.startSleeping(head);
+            PaponMod.LOG.info("[autoshot] asleep: {} at {}", sp.isSleeping(), head);
+        });
     }
 
     /** Phase three: knocked down at half health, the cutscene shot by shot (through the cinematic camera), then the night fight. */
