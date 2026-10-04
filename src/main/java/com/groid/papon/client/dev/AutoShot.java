@@ -887,9 +887,12 @@ public final class AutoShot {
         if (k == 60) run("papon bossstate P3_KNOCKBACK");
         if (k > 60 && !com.groid.papon.client.Cinematic.isActive() && !s.phaseThree()) lookAt(mc, b);
         String n = switch (s) {
-            case P3_KNOCKBACK -> t == 8 ? "t01_flung" : t == 15 ? "t02_impact" : t == 26 ? "t03_down" : t == 44 ? "t04_rising" : null;
-            case P3_GLARE -> t == 10 ? "t05_wipe" : t == 36 ? "t06_eyes" : t == 66 ? "t07_singer_sweats" : t == 102 ? "t08_not_my_style"
-                    : t == com.groid.papon.boss.VoiceLines.beat("glare.realplay", 100) + 30 ? "t09_really_play" : null;
+            case P3_KNOCKBACK -> t == 8 ? "t01_flung" : t == 15 ? "t02_impact" : t == 30 ? "t03_down" : t == vb("knock.fall", 54) - 2 ? "t03b_arm_gives"
+                    : t == vb("knock.knee", 76) + 4 ? "t03c_knee" : t == vb("knock.hurt", 84) + 20 ? "t03d_hurt" : t == vb("knock.up", 130) + 12 ? "t04_rising" : null;
+            case P3_GLARE -> t == 12 ? "t05_pov_blur" : t == vb("glare.noise", 34) + 16 ? "t06_pov_noise" : t == vb("glare.focus", 84) + 18 ? "t07_pov_zoom_band"
+                    : t == vb("glare.scare", 114) + 14 ? "t07b_band_scared" : t == vb("glare.face", 148) + 6 ? "t08_angry_face"
+                    : t == vb("glare.notstyle", 158) + 40 ? "t08b_who_am_i" : t == vb("glare.realplay", 230) + 30 ? "t09_really_play" : null;
+            case P3_POWER -> t == 8 ? "t18f_power_stagger" : t == vb("power.line", 22) + 12 ? "t18g_so_much_power" : t == vb("power.grin", 60) + 8 ? "t18h_grin" : null;
             case P3_STALK -> t == 20 ? "t10_stalk" : t == 60 ? "t10b_stalk" : null;
             case P3_SNATCH -> t == 10 ? "t11_looming" : t == com.groid.papon.boss.VoiceLines.beat("snatch.grab", 22) + 3 ? "t12_rip"
                     : t == com.groid.papon.boss.VoiceLines.beat("snatch.grab", 22) + 50 ? "t13_band_cowers" : null;
@@ -899,16 +902,19 @@ public final class AutoShot {
                     : t == 260 ? "t22_sings" : t == 306 ? "t22b_power_builds" : t == 318 ? "t23_ascension_flash" : t == 336 ? "t23b_wings_unfurl"
                     : t == 352 ? "t23c_wings_open" : t == 366 ? "t23d_band_awe" : t == 376 ? "t24_last_chord" : null;
             case P3_VERDICT -> t == 30 ? "t25_more_my_style" : t == 70 ? "t26_learn" : null;
-            case P3_TOSS -> t == 14 ? "t27_toss" : t == 30 ? "t28_flight" : t == 46 ? "t29_catch" : t == 80 ? "t29b_band_glances" : null;
+            case P3_TOSS -> t == 14 ? "t27_toss" : t == 30 ? "t28_flight" : t == 46 ? "t29_catch" : t == vb("toss.talk1", 66) + 6 ? "t29b_band_whisper"
+                    : t == vb("toss.talk2", 88) + 8 ? "t29c_band_whisper2" : null;
             case P3_FELT -> t == 8 ? "t30_ascended" : t == 50 ? "t30b_felt" : t == 110 ? "t30c_evil_smile" : null;
             case P3_TO_CAR -> t == 20 ? "t31_to_car" : null;
-            case P3_CRUSH -> t == 14 ? "t32_lift" : t == 30 ? "t32b_crush" : t == 46 ? "t32c_ball" : t == 54 ? "t32d_reform" : t == 70 ? "t32e_skyline"
-                    : t == 82 ? "t32f_underglow" : null;
+            case P3_CRUSH -> t == vb("crush.upgrade", 6) + 24 ? "t31b_upgrade" : t == vb("crush.lifted", 14) ? "t32_lift"
+                    : t == vb("crush.squeeze", 18) + 12 ? "t32b_crush" : t == vb("crush.ball", 42) + 4 ? "t32c_ball" : t == vb("crush.reform", 52) + 2 ? "t32d_reform"
+                    : t == vb("crush.down", 66) + 4 ? "t32e_skyline" : t == vb("crush.rev", 76) + 6 ? "t32f_underglow" : null;
             case P3_ASCEND -> t == 30 ? "t18b_groan" : t == com.groid.papon.boss.VoiceLines.beat("ascend.burst", 100) + 3 ? "t18c_wings_tear"
                     : t == com.groid.papon.boss.VoiceLines.beat("ascend.roar", 108) + 12 ? "t18d_roar"
-                    : t == com.groid.papon.boss.VoiceLines.beat("ascend.end", 150) - 8 ? "t18e_band_awe" : null;
+                    : t == vb("ascend.cut", 30) + 8 ? "t18b2_band_clutching" : t == vb("ascend.crowd", 150) + 12 ? "t18d2_stands_up"
+                    : t == vb("ascend.band", 180) + 12 ? "t18e_band_backs_off" : null;
             case P3_GO -> t == 14 ? "t33_go" : null;
-            case P3_DANCE -> t == 20 ? "t34_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 20 ? "t35_fire_back" : t == 90 ? "t36_stance" : null;
+            case P3_DANCE -> t == 20 ? "t34_pickup" : t == vb("dance.drop", 42) + 12 ? "t35_fire_back" : t == vb("dance.line", 76) + 14 ? "t36_lets_dance" : null;
             default -> null;
         };
         if (n != null) once(mc, n);
@@ -934,10 +940,14 @@ public final class AutoShot {
 
     private static int p3Mark = -1;
 
+    private static int vb(String key, int def) {
+        return com.groid.papon.boss.VoiceLines.beat(key, def);
+    }
+
     /** Ascended Papon's moves, one after another (an invulnerable armor stand is the target, the camera a spectator), then the QTEs on you. */
-    private static final String[] SHOW = {"P3_COMBO", "P3_FLASH", "P3_COMET", "P3_LASER", "P3_SOLAR", "P3_MARIACHI", "P3_PINATA",
-            "P3_BRAZIERS", "P3_NITRO", "P3_NOVA", "QTE_GRAB", "P3_DUEL_FETCH"};
-    private static final int[] SHOW_LEN = {70, 110, 170, 120, 180, 170, 150, 120, 320, 250, 150, 520};
+    private static final String[] SHOW = {"P3_COMBO", "P3_FLASH", "P3_COMET", "P3_LASER", "P3_SOLAR", "P3_MARIACHI", "P3_PINATA_SWING",
+            "P3_SOMBRERO", "P3_VOLCAN", "P3_CALAVERAS", "ARENA_OLA", "P3_BRAZIERS", "P3_NITRO", "P3_NOVA", "QTE_GRAB", "P3_DUEL_FETCH"};
+    private static final int[] SHOW_LEN = {70, 110, 170, 120, 180, 170, 230, 240, 190, 200, 200, 120, 320, 250, 150, 520};
 
     private static void ascendedShowcase(Minecraft mc, PaponBossEntity b, int j) {
         if (j == 0) run("gamemode survival", "effect give @s resistance 100000 4 true");

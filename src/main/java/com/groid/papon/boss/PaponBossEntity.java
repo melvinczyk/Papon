@@ -1590,10 +1590,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case SWIPE, UPPERCUT, LEAP, CHARGE_WINDUP, BREATH, THROW, BLINK, GATLING, DASH_COMBO, GRAB, PUNT_RUN, P2_BARRAGE, P2_METEOR,
                  P2_DIVE, VAN_GRAB, CLEAVER_TOSS, BURRITO_TOSS, DRUNK_SWIG, HAYMAKER, COMAL_SLAM, QTE_GRAB, P2_FRY_VOLLEY, P2_MASH, P2_TOT,
                  P2_SNARE, P2_GRAVITY, BRICK, VAN_HOP, P3_COMBO, P3_FLASH, P3_COMET, P3_LASER, P3_SOLAR, P3_MARIACHI, P3_DUEL_FETCH,
-                 P3_PINATA, P3_BRAZIERS, P3_NOVA, P3_NITRO -> true;
+                 P3_PINATA, P3_BRAZIERS, P3_NOVA, P3_NITRO, P3_SOMBRERO, P3_VOLCAN, P3_CALAVERAS, P3_PINATA_SWING -> true;
             default -> false;
         };
-        if (s.ordinal() >= BossState.P3_COMBO.ordinal() && !ascendedFight()) {
+        if (s.ordinal() >= BossState.P3_COMBO.ordinal() && s != BossState.WINDED && !ascendedFight()) {
             // an Ascended move asked for before phase three: straight into his form (dev and testing)
             entityData.set(DATA_PHASE2, true);
             entityData.set(DATA_PHASE3, true);

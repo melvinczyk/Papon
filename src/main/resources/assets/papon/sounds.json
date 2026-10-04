@@ -1570,5 +1570,33 @@
         "name": "papon:voice/boss2/duel_bad"
       }
     ]
+  },
+  "voice.boss2.p3_sombrero": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_sombrero"
+      }
+    ]
+  },
+  "voice.boss2.p3_volcan": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_volcan"
+      }
+    ]
+  },
+  "voice.boss2.p3_calaveras": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_calaveras"
+      }
+    ]
+  },
+  "voice.boss2.p3_swing": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_swing"
+      }
+    ]
   }
 }

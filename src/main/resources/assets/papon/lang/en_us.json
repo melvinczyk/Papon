@@ -538,5 +538,11 @@
   "speech.papon.band.p3_mama": "¡¡MAMÁ!!",
   "speech.papon.band.p3_sorry": "¡Perdón, señor! ¡PERDÓN!",
   "speech.papon.band.p3_dios": "¡Dios mío...!",
-  "speech.papon.band.p3_stop": "¡Para, para! ...he is LOOKING at us."
+  "speech.papon.band.p3_stop": "¡Para, para! ...he is LOOKING at us.",
+  "speech.papon.boss2.p3_sombrero": "Hats OFF to the champion... ME!!!",
+  "speech.papon.boss2.p3_volcan": "The EARTH itself dances for me!!!",
+  "speech.papon.boss2.p3_calaveras": "My ancestors would like to MEET you, amigo.",
+  "speech.papon.boss2.p3_swing": "Swing... swing... and BREAK!!!",
+  "item.papon.fx_sombrero": "Sombrero Asesino",
+  "item.papon.fx_calavera": "Calavera"
 }

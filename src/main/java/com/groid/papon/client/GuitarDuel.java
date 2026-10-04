@@ -205,6 +205,7 @@ final class GuitarDuel {
         }
         hit[best] = true;
         hits++;
+        QtePlayerPose.strum();
         combo++;
         this.best = Math.max(this.best, combo);
         boolean perfect = bestD <= PERFECT;

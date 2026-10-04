@@ -30,6 +30,7 @@ public final class ClientEvents {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.isPaused()) return;
+        CullingCompat.tick();
         ScreenShake.tick();
         Cinematic.tick();
         SongPlayer.tick();
