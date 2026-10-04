@@ -530,10 +530,9 @@ public final class Cinematic {
                     return new Shot(b.position().add(dir.scale(8.5 + k * 3)).add(0, 0.6 + k * 6.5, 0), body.add(0, 0.6, 0), 64 + (float) k * 6, 0, tt == 80);
                 }
                 if (tt < 150) {
-                    Vec3 toHim = b.position().subtract(mc.player.position()).multiply(1, 0, 1).normalize();
-                    Vec3 side = new Vec3(-toHim.z, 0, toHim.x);
+                    // in front of him as he turns to you and points you out, pushing in
                     double push = (tt - 120) / 30.0;
-                    Vec3 eye = mc.player.position().subtract(toHim.scale(2.6 - push)).add(side.scale(1.1)).add(0, 2.0, 0);
+                    Vec3 eye = face.add(f.scale(5.5 - push * 1.5)).add(right.scale(1.6)).add(0, -0.6, 0);
                     return new Shot(eye, face, 50 - (float) push * 8, 0, tt == 120);
                 }
                 double k = Math.min(1, (tt - 150) / 4.0);
@@ -546,12 +545,12 @@ public final class Cinematic {
                 Vec3 hands = singer.position().add(stageFacing.scale(0.8)).add(stageSide.scale(-0.25)).add(0, 0.35, 0);
                 if (t < 26) {
                     double push = t / 26.0;
-                    return new Shot(hands.add(stageFacing.scale(2.6 - push * 0.8)).add(stageSide.scale(1.4)).add(0, 0.4, 0), hands, 44, 0, t == 0);
+                    return new Shot(hands.add(stageFacing.scale(3.0 - push * 0.8)).add(stageSide.scale(-1.5)).add(0, 0.5, 0), hands, 46, 0, t == 0);
                 }
                 if (t < 44) {
                     double k = (t - 26) / 18.0;
                     k = k * k * (3 - 2 * k);
-                    return new Shot(sf.add(stageFacing.scale(2.8)).add(stageSide.scale(-1.0)).add(0, -0.5 + k * 0.3, 0), hands.lerp(sf, k), 46, 0, t == 26);
+                    return new Shot(sf.add(stageFacing.scale(3.9)).add(stageSide.scale(-1.3)).add(0, -0.3 + k * 0.3, 0), hands.lerp(sf, k), 50, 0, t == 26);
                 }
                 Vec3 eye = singer.position().subtract(stageFacing.scale(1.6)).add(stageSide.scale(1.2)).add(0, singer.getBbHeight() + 0.6, 0);
                 return new Shot(eye, b.position().add(0, b.getBbHeight() * 0.5, 0), 62, 0, t == 44);

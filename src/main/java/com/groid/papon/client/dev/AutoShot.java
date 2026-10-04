@@ -308,7 +308,10 @@ public final class AutoShot {
             default -> {}
         }
         PaponBossEntity b = nearest(mc, PaponBossEntity.class);
-        if (b == null) return;
+        if (b == null) {
+            if (colMark > 0 && tick - colMark > 760) gerbinShots(mc, tick - colMark);
+            return;
+        }
         BossState s = b.getBossState();
         int t = b.ticksInState();
         if (s.ordinal() != lastState) {
@@ -398,24 +401,6 @@ public final class AutoShot {
             if (k == 720) run("kill @e[type=papon:papon_boss]");
             if (k == 780) once(mc, "c48_his_fall");
             if (k == 860) once(mc, "c49_back_down");
-            if (k > 870) {
-                // Gerbin comes over with the pillow
-                var g = nearest(mc, com.groid.papon.entity.npc.GerbinEntity.class);
-                if (g != null) {
-                    lookAt(mc, g);
-                    var gs = g.getGerbinState();
-                    if (gs == com.groid.papon.entity.npc.GerbinState.DELIVER && g.ticksInState() == 30) once(mc, "g1_gerbin_carry");
-                    if (gs == com.groid.papon.entity.npc.GerbinState.GIVE && g.ticksInState() == 16) once(mc, "g2_gerbin_give");
-                    if (gs == com.groid.papon.entity.npc.GerbinState.GIVE && g.ticksInState() == 40) once(mc, "g3_gerbin_given");
-                }
-                if (taken.contains("g3_gerbin_given") && doneAt < 0) doneAt = k;
-                if (doneAt > 0 && k == doneAt + 20) {
-                    PaponMod.LOG.info("[autoshot] pillows held: {}", mc.player.getInventory().countItem(com.groid.papon.registry.ModItems.BODY_PILLOW.get()));
-                    run("item replace entity @s weapon.mainhand with papon:body_pillow", "effect give @s papon:splattered 5 0");
-                }
-                if (doneAt > 0 && k == doneAt + 40) once(mc, "g4_pillow_in_hand");
-                if (doneAt > 0 && k == doneAt + 50 || k > 2400) mc.stop();
-            }
         }
     }
 
@@ -424,6 +409,32 @@ public final class AutoShot {
      * with the harmonies about 8.6 s into the first verse), the trumpets (their part from 11.5 s),
      * the violins; each from in front of the member, at his eye level.
      */
+    /** After his fall (the boss is gone): Gerbin brings the pillow over. */
+    private static void gerbinShots(Minecraft mc, int k) {
+            // Gerbin comes over with the pillow
+            var g = nearest(mc, com.groid.papon.entity.npc.GerbinEntity.class);
+            if (g != null) {
+                lookAt(mc, g);
+                var gs = g.getGerbinState();
+                // (the client does not count an NPC's state ticks: count frames of each state here)
+                gerbinSeen = gs == gerbinLast ? gerbinSeen + 1 : 0;
+                gerbinLast = gs;
+                if (gs == com.groid.papon.entity.npc.GerbinState.DELIVER && gerbinSeen == 30) once(mc, "g1_gerbin_carry");
+                if (gs == com.groid.papon.entity.npc.GerbinState.GIVE && gerbinSeen == 16) once(mc, "g2_gerbin_give");
+                if (gs == com.groid.papon.entity.npc.GerbinState.GIVE && gerbinSeen == 40) once(mc, "g3_gerbin_given");
+            }
+            if (taken.contains("g3_gerbin_given") && doneAt < 0) doneAt = k;
+            if (doneAt > 0 && k == doneAt + 20) {
+                PaponMod.LOG.info("[autoshot] pillows held: {}", mc.player.getInventory().countItem(com.groid.papon.registry.ModItems.BODY_PILLOW.get()));
+                run("item replace entity @s weapon.mainhand with papon:body_pillow", "effect give @s papon:splattered 5 0");
+            }
+            if (doneAt > 0 && k == doneAt + 40) once(mc, "g4_pillow_in_hand");
+            if (doneAt > 0 && k == doneAt + 50 || k > 2400) mc.stop();
+    }
+
+    private static int gerbinSeen;
+    @Nullable private static com.groid.papon.entity.npc.GerbinState gerbinLast;
+
     private static void bandShots(Minecraft mc, PaponBossEntity b, int k) {
         java.util.List<com.groid.papon.boss.MariachiEntity> band = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class,
                 b.getBoundingBox().inflate(80), m -> true);
@@ -433,14 +444,14 @@ public final class AutoShot {
         com.groid.papon.boss.BandRole[] roles = {com.groid.papon.boss.BandRole.CORO_2, com.groid.papon.boss.BandRole.TRUMPET_2,
                 com.groid.papon.boss.BandRole.VIOLIN_2, com.groid.papon.boss.BandRole.CORO_1};
         int[] at = {176, 250, 330, 410};
-        double[] back = {3.2, 4.2, 4.6, 6.5};
+        double[] back = {4.8, 7.0, 6.2, 8.5};
         for (int i = 0; i < at.length; i++) {
             var m = who.apply(roles[i]);
             if (m == null) continue;
             Vec3 f = Vec3.directionFromRotation(0, m.getYRot());
             Vec3 side = new Vec3(-f.z, 0, f.x);
             Vec3 eye = m.position().add(0, m.getBbHeight() * 0.62, 0);
-            if (k == at[i]) tpLook(eye.add(f.scale(back[i])).add(side.scale(i == 2 ? -1.6 : 0.6)).add(0, -1.62, 0), eye);
+            if (k == at[i]) tpLook(eye.add(f.scale(back[i])).add(side.scale(i == 2 ? -2.4 : 0.8)).add(0, i == 1 ? 1.6 : -0.9, 0), eye);
             if (k == at[i] + 8 || k == at[i] + 20 || k == at[i] + 32) shot(mc, names[i] + "_" + (k - at[i]));
         }
     }

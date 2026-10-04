@@ -285,17 +285,20 @@ player and were not exercised headless.
   superhero landing t36, crowd ROAR, title "EL COLISEO PAPA" t40, "¿ESTÁN LISTOS?" t46, points at the stand
   "¡MÚSICA, MAESTRO!" t74, crowd HUSH t86) → P2_NOTICE 60t ("...¿Maestro?", fumes) → P2_MARCH (one steady
   walk steered by the move control every tick, no path stops, to `wakeSpot()` 2.6 blocks in front of the
-  sleeping singer) → P2_WAKE 70t (the whack, user's request 2026-10-03: big spatula up t0-11, down on the
-  singer's head t14 = `MariachiEntity.whack()`, the band jolts awake t17, "¡¡DESPIERTEN, FLOJOS!!" t24) →
+  sleeping singer) → P2_WAKE (the whack, user's request 2026-10-03, replacing the comal clangs: big spatula up
+  t0-11, down on the singer's head t14 = `MariachiEntity.whack()`, the band jolts awake t17; his recorded
+  "WAKE UP, you lazy bums!!!" at beat `wake.line`, the spatula jabbed on the stresses; ends at `wake.end`) →
   P2_WAIT (paces the stand front end to end, foot taps at each end, "Un momentito..."; walks over to the
   dozing guitarron) ⇄ P2_KICK 30t (boots his chair t12) → (all READY) P2_COUNT 80t (the singer counts in;
   `songStart` = the downbeat tick, synced to the band; crowd CLAP) → band PLAY, fireworks, crowd ROAR →
   P2_SHOWTIME 70t (the guitar close-up) → P2_APOLOGY 178t (walks over, "My apologies, amigo..." t30, aura farm
-  from t110) → P2_RESUME ("...Now. Where were we?"; hands over when `P2_HYPE_LENGTH` (160t) is left) →
-  P2_HYPE (working the stands: hand to his ear "¡NO LOS OIGO!", the other side "¡MÁS FUERTE!", raise-the-roof
-  on the beat with the bowl chanting, "¡TÚ!" at you, fists together, the eruption t150: fireworks, shake,
-  roar) → IDLE exactly at `songStart + Song.fightStartTicks()` (**three** passes of the guitar intro,
-  `Song.INTRO_PASSES` = the first sung word).
+  from `apology.aura`) → P2_RESUME ("Now... where... were we?"; hands over when `P2_HYPE_LENGTH` (160t) is
+  left) → P2_HYPE (working the stands, in his recorded voice: a hand to his ear, "Listen to them... They LOVE
+  me." (charm1), the other side, the other ear; raise-the-roof on the beat with the bowl chanting, "And the
+  crowd... goes WILD!!!" (landed1); a finger at you, fists together, "OLÉ!!!" (charm5) and the eruption t150:
+  fireworks, shake, roar) → IDLE exactly at `songStart + Song.fightStartTicks()` (the first sung word).
+  The hype is part of `gen_boss_voice.beats` (`HYPE`), which makes it **four** passes of the guitar intro
+  (`song.passes`); `python tools/gen_boss_voice.py --beats` redoes only the beats from the recorded lengths.
 - **The guitar solo** (P2_SOLO 60t): when a client's score enters `solo1`/`solo2` it sends `PaponNetwork.Solo`;
   the boss (`soloHeard`, 45 s cooldown, only from IDLE within 3 s) stops, air-guitars along (`p2_solo`) and
   the camera cuts to the singer: his hands, his face in the aura, then out over the sand from behind him.
@@ -345,7 +348,7 @@ player and were not exercised headless.
   ending), `notes` + `lead` (the melody line in the guitar stem, pYIN), `bow` ([time, position] strokes:
   his syllables while he sings, the line around him) and `fiddle`. The `.ogg` segments are only rewritten
   with `--audio`.
-- **The score** (`client/SongPlayer`, per client): starts from the synced downbeat, the intro three times, then
+- **The score** (`client/SongPlayer`, per client): starts from the synced downbeat, the intro `Song.introPasses()` times, then
   at each segment end the next in the song if it suits the fight, else the nearest that does: **high**
   under 35% health or in his worst (unstoppable, van, meteors, gravity, dive, QTEs), **low** while he is
   staggered/stumbling/broken/guarding, **mid** = the song runs on. His death: the song's ending. `songTime()`
@@ -371,9 +374,8 @@ player and were not exercised headless.
   `pillow` bone by `client/GerbinRenderer`. Art: our own fan-art Makima in `tools/gen_extras.py`
   (`textures/item/body_pillow.png`: front 48x128 at 0,0, back at 48,0) — the user asked for an image
   sourced online; we drew one instead (copyright); a picture can be painted over those regions.
-- **Voices:** his new lines (`speech.papon.boss.listos|musica|maestro|despierten|momentito|ay|gordo|apology|
-  resume|no_los_oigo|mas_fuerte|tu|solo`) need `tools/gen_voice.py` run **on the Mac** (Rocko); until then they
-  show in his bubble, silent.
+- **Voices:** in phase two he speaks with the cloned voice (see "Phase-two voice"); the hype and the solo use
+  lines already recorded (charm1, landed1, charm5), so they need no new takes.
   The band speaks in bubbles with babble, like the Taco Truck crowd.
 
 ### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
@@ -403,7 +405,7 @@ player and were not exercised headless.
   `resume.*`, `song.passes`) into `boss2.json`; `VoiceLines.beat` (server ticks, Cinematic shots, BossFace) and
   `gen_boss_anims.beat` (keyframes) read the same numbers, so after new takes run `gen_boss_voice.py` then
   `gen_boss_anims.py`. The `BossState` durations of those states are only fallbacks now. The apology + aura farm
-  need more than two passes of the guitar intro, so `Song.introPasses()` comes from `song.passes` (3).
+  need more than two passes of the guitar intro, so `Song.introPasses()` comes from `song.passes` (4 with the hype).
 - **Eyes** (`eye_r/l`, painted off the face, cubes now): `BossFace.eyes` moves them in their sockets toward the
   camera (verified: they follow it from either side), a mood's side-eye or downcast look, a dart every 2-4 s,
   wide (shout, surprise) or narrowed (sly, angry). **Shared bones** (body, brows) are added to through
