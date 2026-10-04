@@ -142,8 +142,10 @@ def jacket(m):
             for y in range(y0, y1, 2):
                 p.put((x0 + x1) // 2, y, SILVER)
         studs(p, f['front'], GOLD, 1)
-    m.add(bone('sleeve_r', [-8, 11, 0], 'arm_r_mesh', [m.box([-12, 4, -3], [4, 8, 6], BLACK, extra=sleeve, inflate=0.3)]))
-    m.add(bone('sleeve_l', [8, 11, 0], 'arm_l_mesh', [m.box([8, 4, -3], [4, 8, 6], BLACK, extra=sleeve, inflate=0.3)]))
+    # the upper arm only, on the arm itself (not its stretching mesh): on a long reach the potato arm
+    # comes out of the cuff instead of the whole sleeve turning into a long black beam
+    m.add(bone('sleeve_r', [-8, 11, 0], 'arm_r', [m.box([-12, 6.5, -3], [4, 5.5, 6], BLACK, extra=sleeve, inflate=0.3)]))
+    m.add(bone('sleeve_l', [8, 11, 0], 'arm_l', [m.box([8, 6.5, -3], [4, 5.5, 6], BLACK, extra=sleeve, inflate=0.3)]))
     # the same jacket, hung over the chair's back while he sleeps
     m.add(bone('jacket_chair', [0, 14, 9], 'chair', [
         m.box([-7, 9, 8.6], [14, 7, 1], BLACK, extra=jacket_paint),
@@ -251,37 +253,181 @@ def guitar_cubes(m, kind):
     return cubes
 
 
+def brass_paint(p, f):
+    for s in f.values():
+        x0, y0, x1, y1 = (int(n) for n in s)
+        for xx in range(x0, x1):
+            p.put(xx, y0, (255, 230, 140))
+
+
 def trumpet_cubes(m):
-    """Along -Z from the mouthpiece (the bone's pivot): leadpipe, valves on top, the bell flaring at the end."""
-    def brass(p, f):
-        for s in f.values():
-            x0, y0, x1, y1 = (int(n) for n in s)
-            for xx in range(x0, x1):
-                p.put(xx, y0, (255, 230, 140))
+    """Along -Z from the mouthpiece (the bone's pivot): leadpipe, the valve block on top, the bell
+    flaring at the end. The three valve caps are their own bones (trumpet_valves)."""
     return [
-        m.box([-0.5, -0.5, -9], [1, 1, 9], BRASS, extra=brass, noise=0.04),
+        m.box([-0.5, -0.5, -9], [1, 1, 9], BRASS, extra=brass_paint, noise=0.04),
         m.box([-0.5, -2.5, -8], [1, 2, 6], BRASS_DK, noise=0.04),           # the lower loop
-        m.box([-1, 0.5, -6], [2, 2, 3], BRASS, extra=brass, noise=0.04),     # valve casings
-        m.box([-0.6, 2.5, -5.8], [0.5, 0.8, 0.5], SILVER), m.box([-0.6, 2.5, -4.8], [0.5, 0.8, 0.5], SILVER),
-        m.box([-0.6, 2.5, -3.8], [0.5, 0.8, 0.5], SILVER),
-        m.box([-1.5, -1.5, -11], [3, 3, 2], BRASS, extra=brass, noise=0.04),
-        m.box([-2.5, -2.5, -13], [5, 5, 2], BRASS, extra=brass, noise=0.04),  # the bell
+        m.box([-1, 0.5, -6], [2, 2, 3], BRASS, extra=brass_paint, noise=0.04),     # valve casings
+        m.box([-1.5, -1.5, -11], [3, 3, 2], BRASS, extra=brass_paint, noise=0.04),
+        m.box([-2.5, -2.5, -13], [5, 5, 2], BRASS, extra=brass_paint, noise=0.04),  # the bell
     ]
+
+
+def trumpet_floor_cubes(m):
+    """The trumpet lying by the chair: one piece, valves and all."""
+    return trumpet_cubes(m) + [m.box([-0.6, 2.5, z], [0.5, 0.8, 0.5], SILVER) for z in (-5.8, -4.8, -3.8)]
+
+
+def trumpet_valves(m, parent, pivot):
+    """The valve caps, one bone each, pressed down (client/MariachiModel) for the fingering of each note."""
+    out = []
+    for i, z in enumerate((-5.8, -4.8, -3.8)):
+        cap = [m.box([-0.6, 2.5, z], [0.5, 0.8, 0.5], SILVER), m.box([-0.75, 3.3, z - 0.1], [0.8, 0.3, 0.7], (240, 236, 226))]
+        out.append(bone('valve_%d' % (i + 1), [pivot[0], pivot[1] + 2.9, pivot[2] + z + 0.25], parent, placed(cap, pivot)))
+    return out
+
+
+def requinto_cubes(m):
+    """The singer's requinto: a small Spanish guitar (a third smaller than the band's), so it sits
+    low across his belly, neck out to his left, well under his microphone. Built like guitar_cubes:
+    neck along +Y from the soundhole (the bone's pivot)."""
+    w, h, d = 6.5, 5, 2.5
+    def body(p, f):
+        p.fill(f['front'], SPRUCE, 0.05)
+        x0, y0, x1, y1 = (int(n) for n in f['front'])
+        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2 + 0.5
+        for yy in range(y0, y1):
+            for xx in range(x0, x1):
+                dd = ((xx + 0.5 - cx) ** 2 + (yy + 0.5 - cy) ** 2) ** 0.5
+                if dd < 1.1:
+                    p.put(xx, yy, (40, 24, 14))
+                elif dd < 2.0:
+                    p.put(xx, yy, GOLD)
+        p.fill((x0 + 1, y1 - 2, x1 - 1, y1 - 1), WOOD_DK, 0.02)       # the bridge
+        edge(p, f['front'], WOOD_DK)
+        for s in ('right', 'left', 'top', 'bottom', 'back'):
+            p.fill(f[s], WOOD_HI, 0.06)
+            edge(p, f[s], WOOD_DK, 'tb')
+    def neck(p, f):
+        for s in f.values():
+            p.fill(s, (60, 36, 20), 0.05)
+        x0, y0, x1, y1 = (int(n) for n in f['front'])
+        for yy in range(y0, y1, 2):
+            for xx in range(x0, x1):
+                p.put(xx, yy, SILVER)
+    def head(p, f):
+        for s in f.values():
+            p.fill(s, WOOD_DK, 0.06)
+        x0, y0, x1, y1 = (int(n) for n in f['front'])
+        for yy in range(y0, y1):
+            p.put(x0, yy, SILVER)
+            p.put(x1 - 1, yy, SILVER)
+    return [
+        m.box([-w / 2, -h / 2 - 0.5, -d], [w, h, d], SPRUCE, extra=body, noise=0.05),
+        m.box([-w / 2 + 1, h / 2 - 0.5, -d + 0.25], [w - 2, 2, d - 0.5], SPRUCE, extra=body, noise=0.05),   # the upper bout
+        m.box([-0.75, h / 2 + 1.5, -d / 2 - 0.5], [1.5, 8, 1], (60, 36, 20), extra=neck),
+        m.box([-1.25, h / 2 + 9.5, -d / 2 - 0.75], [2.5, 2.5, 1.25], WOOD_DK, extra=head),
+    ]
+
+
+def maraca_cubes(m, x):
+    return [
+        m.box([x + 0.5, 0, -1], [1, 4, 1], (120, 82, 40)),
+        m.box([x - 0.5, -3, -2], [3, 3, 3], (214, 60, 48), noise=0.08,
+              extra=lambda p, f: [p.put(int(r[0]) + 1, int(r[1]) + 1, (250, 214, 90)) for r in f.values()]),
+    ]
+
+
+def grille_paint(p, f):
+    for s in f.values():
+        x0, y0, x1, y1 = (int(n) for n in s)
+        for yy in range(y0, y1):
+            for xx in range(x0, x1):
+                p.put(xx, yy, (150, 150, 158) if (xx + yy) % 2 else (90, 90, 98))
+
+
+def black_metal(p, f):
+    for s in f.values():
+        p.fill(s, (34, 34, 38), 0.05)
+
+
+def hand_mic_cubes(m, x):
+    """A handheld microphone: the handle in his fist, the grille out past it along the arm."""
+    return [
+        m.box([x + 0.5, 0.5, -0.5], [1, 4, 1], (34, 34, 38), extra=black_metal),      # the handle, in his fist
+        m.box([x, -1.5, -1], [2, 2, 2], (130, 130, 138), extra=grille_paint),       # the grille, out past it
+    ]
+
+
+def cheeks(m):
+    """Trumpet cheeks: a pad each side of the mouth, flat (scale 0) until he blows; then they puff out
+    (client/MariachiModel, as loud as the note), with a flush of pink."""
+    def puff(p, f):
+        p.fill(f['front'], (0xd9, 0xaa, 0x51), 0.03)
+        x0, y0, x1, y1 = (int(n) for n in f['front'])
+        p.put(x0 + 1, y0 + 1, (226, 150, 110))
+        for s in ('right', 'left', 'top', 'bottom'):
+            p.fill(f[s], (0xc8, 0x97, 0x3a), 0.03)
+    for side, x in (('r', -8.0), ('l', 5.0)):
+        m.add(bone('cheek_' + side, [x + 1.5, 10, -8], 'body', [m.box([x, 8.5, -8.9], [3, 3, 1], (0xd9, 0xaa, 0x51), extra=puff)]))
+
+
+VARNISH = (150, 58, 26)
+VARNISH_DK = (104, 38, 18)
+EBONY = (26, 20, 18)
 
 
 def violin_cubes(m):
-    def body(p, f):
-        p.fill(f['top'], (128, 46, 26), 0.06)
+    """Top (strings) along +Y, scroll along -Z, the chin end at +Z: lower and upper bouts with a waist
+    between, f-holes, the fingerboard over the top, bridge, tailpiece, chinrest and the strings."""
+    def top(p, f):
+        p.fill(f['top'], VARNISH, 0.06)
         x0, y0, x1, y1 = (int(n) for n in f['top'])
-        p.put((x0 + x1) // 2 - 1, (y0 + y1) // 2, (30, 14, 8))
-        p.put((x0 + x1) // 2 + 1, (y0 + y1) // 2, (30, 14, 8))
-        for xx in range(x0, x1):
-            p.put(xx, (y0 + y1) // 2 + 2, (230, 220, 190))
+        cy = (y0 + y1) // 2
+        for yy in range(max(y0, cy - 1), min(y1, cy + 1)):
+            p.put(x0 + 1, yy, (30, 14, 8))       # f-holes
+            p.put(x1 - 2, yy, (30, 14, 8))
+        edge(p, f['top'], VARNISH_DK)
+        for k in ('front', 'back', 'right', 'left', 'bottom'):
+            p.fill(f[k], VARNISH_DK, 0.06)
+    def dark(p, f):
+        for r in f.values():
+            p.fill(r, EBONY, 0.03)
+    def string(p, f):
+        for r in f.values():
+            p.fill(r, (214, 216, 222), 0.02)
     return [
-        m.box([-2.5, -0.75, -4], [5, 1.5, 8], (128, 46, 26), extra=body, noise=0.06),
-        m.box([-0.5, -0.25, -10], [1, 1, 6], (30, 18, 12), noise=0.04),     # the neck
-        m.box([-0.75, -0.5, -11.5], [1.5, 1.5, 1.5], (88, 40, 20), noise=0.04),   # the scroll
+        m.box([-2.75, -0.75, 0.5], [5.5, 1.5, 3.5], VARNISH, extra=top, noise=0.06),     # lower bout
+        m.box([-2.0, -0.75, -1.0], [4, 1.5, 1.5], VARNISH, extra=top, noise=0.06),       # the waist
+        m.box([-2.5, -0.75, -4.0], [5, 1.5, 3], VARNISH, extra=top, noise=0.06),         # upper bout
+        m.box([-0.5, -0.25, -10], [1, 1, 6], (60, 34, 18), noise=0.04),                  # the neck
+        m.box([-0.75, -0.5, -11.5], [1.5, 1.5, 1.5], VARNISH_DK, noise=0.05),            # the scroll
+        m.box([-0.55, 0.75, -9.5], [1.1, 0.35, 8], EBONY, extra=dark),                   # fingerboard
+        m.box([-1.25, 0.75, 0.6], [2.5, 0.6, 0.3], (226, 200, 150), noise=0.03),         # the bridge
+        m.box([-0.6, 0.75, 1.3], [1.2, 0.3, 2.0], EBONY, extra=dark),                    # tailpiece
+        m.box([-1.6, 0.75, 3.1], [3.2, 0.45, 0.8], EBONY, extra=dark),                   # chinrest
+        m.box([-0.35, 1.12, -9.5], [0.7, 0.1, 11.0], (214, 216, 222), extra=string),     # the strings
     ]
+
+
+REQUINTO = [-5.0, 2.0, -8.6]      # the requinto's soundhole, on his right, low
+TRUMPET = [0, 10.5, -8.4]          # the trumpet's mouthpiece, at his lips
+MIC = [0, 5.4, -12.6]              # the singer's microphone grille
+# the violin: its chin end against the left corner of his face, the scroll out to his left and
+# forward, the top tilted towards his bow arm (band_ik.orient finds the rotation for those directions)
+VIOLIN_SCROLL = (0.6, 0.14, -0.79)
+VIOLIN_TOP = (-0.5, 0.86, 0.0)
+VIOLIN_CHIN = (7.6, 5.6, -8.6)
+
+
+def violin_place():
+    import numpy as np
+    from band_ik import orient
+    rot, sw, _ = orient(VIOLIN_SCROLL, VIOLIN_TOP)
+    pivot = [round(float(v), 3) for v in np.array(VIOLIN_CHIN) + sw * 4.0]
+    return pivot, rot
+
+
+VIOLIN, VIOLIN_ROT = violin_place()
 
 
 def placed(cubes, pivot):
@@ -307,10 +453,14 @@ def mariachi():
     sombrero(m, 'sombrero_floor', None, [13, 0, 2], at=(13, 0, 2))
     # the instruments, played: strapped to his front (guitars), at his lips (trumpet), on his shoulder (violin)
     m.add(held('guitar', [0, 0.5, -11.5], 'body', guitar_cubes(m, 'guitar'), rotation=[0, 0, 56]))
+    # the singer's: small, low and flat across him, clear of the microphone
+    m.add(held('requinto', REQUINTO, 'body', requinto_cubes(m), rotation=[0, 0, 80]))
     m.add(held('vihuela', [0, 2.5, -11], 'body', guitar_cubes(m, 'vihuela'), rotation=[0, 0, 50]))
     m.add(held('guitarron', [0, -1, -12], 'body', guitar_cubes(m, 'guitarron'), rotation=[0, 0, 44]))
-    m.add(held('trumpet', [0, 10.5, -8.4], 'body', trumpet_cubes(m)))
-    m.add(held('violin', [6, 13, -8], 'body', violin_cubes(m), rotation=[-6, 24, -30]))
+    m.add(held('trumpet', TRUMPET, 'body', trumpet_cubes(m)))
+    m.add(*trumpet_valves(m, 'trumpet', TRUMPET))
+    cheeks(m)
+    m.add(held('violin', VIOLIN, 'body', violin_cubes(m), rotation=VIOLIN_ROT))
     m.add(bone('bow', HAND_R, 'hand_r', [
         m.box([-10.25, 3.5, -16], [0.5, 0.5, 18], (90, 50, 26)),
         m.box([-10.5, 2.6, -15.5], [0.25, 1, 17], (236, 232, 220)),
@@ -319,25 +469,27 @@ def mariachi():
     m.add(held('guitar_floor', [10, 1.5, -4], None, guitar_cubes(m, 'guitar'), rotation=[-80, 10, 0]))
     m.add(held('vihuela_floor', [10, 1.8, -4], None, guitar_cubes(m, 'vihuela'), rotation=[-80, 10, 0]))
     m.add(held('guitarron_floor', [9, 7, 9], None, guitar_cubes(m, 'guitarron'), rotation=[-12, 0, 8]))
-    m.add(held('trumpet_floor', [10, 0.6, -2], None, trumpet_cubes(m), rotation=[0, -40, 90]))
+    m.add(held('trumpet_floor', [10, 0.6, -2], None, trumpet_floor_cubes(m), rotation=[0, -40, 90]))
     m.add(held('violin_floor', [10, 0.8, -3], None, violin_cubes(m), rotation=[0, -30, 0]))
-    # the singer: his microphone on a stand in front of him, and aviators
-    def black_metal(p, f):
-        for s in f.values():
-            p.fill(s, (34, 34, 38), 0.05)
-    def grille(p, f):
-        for s in f.values():
-            x0, y0, x1, y1 = (int(n) for n in s)
-            for yy in range(y0, y1):
-                for xx in range(x0, x1):
-                    p.put(xx, yy, (150, 150, 158) if (xx + yy) % 2 else (90, 90, 98))
-    m.add(bone('mic_stand', [0, 0, -16], None, [
-        m.box([-3, 0, -19], [6, 0.5, 6], (34, 34, 38), extra=black_metal),
-        m.box([-0.5, 0.5, -16.5], [1, 5, 1], (34, 34, 38), extra=black_metal),
-        m.box([-0.5, 5.5, -16.5], [1, 1, 3], (34, 34, 38), extra=black_metal),          # the clip, leaning in
-        m.box([-1, 5.5, -14], [2, 2, 3], (60, 60, 66), extra=black_metal),             # the handle
-        m.box([-1.5, 6, -12], [3, 3, 2], (130, 130, 138), extra=grille),               # the grille, just under his mouth
+    m.add(held('requinto_floor', [10, 1.2, -4], None, requinto_cubes(m), rotation=[-80, 10, 0]))
+    # the coro: a maraca in the right hand, a hand mic in the left (on the floor by the chair while they sleep)
+    m.add(bone('maraca', HAND_R, 'hand_r', maraca_cubes(m, -11)))
+    m.add(bone('hand_mic', HAND_L, 'hand_l', hand_mic_cubes(m, 9)))
+    m.add(held('maraca_floor', [10, 0.5, -2], None, maraca_cubes(m, -0.5), rotation=[0, 0, 90]))
+    m.add(held('hand_mic_floor', [11, 0.5, -5], None, hand_mic_cubes(m, -1), rotation=[0, 30, 90]))
+    # the singer: the stand in front of his left foot, the boom over to the middle, the microphone low
+    # and tilted up at his mouth: under his lip (the lip sync stays in view), over the requinto's neck
+    m.add(bone('mic_stand', [3, 0, -17.5], None, [
+        m.box([0.5, 0, -20], [5, 0.5, 5], (34, 34, 38), extra=black_metal),
+        m.box([2.5, 0.5, -18], [1, 3.5, 1], (34, 34, 38), extra=black_metal),
     ]))
+    m.add(bone('mic_boom', [3, 4, -17.5], 'mic_stand', [
+        m.box([2.5, 3.5, -18], [1, 1, 5], (34, 34, 38), extra=black_metal),
+    ], rotation=[-30, -24, 0]))
+    m.add(held('mic_head', MIC, 'mic_stand', [
+        m.box([-0.6, -2.4, -0.6], [1.2, 2.6, 1.2], (60, 60, 66), extra=black_metal),         # the handle
+        m.box([-1.25, 0.2, -1.25], [2.5, 2.5, 2.5], (130, 130, 138), extra=grille_paint),   # the grille, at his mouth
+    ], rotation=[-38, 0, 0]))
     def lens(p, f):
         p.fill(f['front'], (22, 30, 44), 0.05)
         x0, y0, x1, y1 = (int(n) for n in f['front'])

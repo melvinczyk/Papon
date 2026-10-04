@@ -393,6 +393,7 @@ def rhubarb(wav_path, text):
 
 
 SHOWTIME = 70            # BossState.P2_SHOWTIME: the guitar close-up before he turns to you
+HYPE = 160               # BossState.P2_HYPE_LENGTH: after "where were we?" he works the stands up until the first sung word
 
 
 def beats(lengths):
@@ -436,17 +437,18 @@ def beats(lengths):
     b['kick.gordo'] = 2
     b['kick.boot'] = max(12, b['kick.gordo'] + L('gordo') - 4)
     b['kick.end'] = b['kick.boot'] + 18
-    # the apology as he comes over, then the aura farm until "Now... where... were we?" ends on the first sung word
+    # the apology as he comes over, the aura farm, "Now... where... were we?", and the hype (HYPE ticks)
+    # ending on the first sung word
     b['apology.line'] = 12
     b['apology.aura'] = b['apology.line'] + L('apology') + 14
     b['resume.line'] = 2
     b['resume.total'] = b['resume.line'] + L('resume') + 8
     song = json.load(open(os.path.join(ASSETS, 'song/cancion.json')))
     intro = next(s['length'] for s in song['segments'] if s['id'] == 'intro')
-    need = SHOWTIME + b['apology.aura'] + 60 + b['resume.total']        # at least 3 s of aura farm
+    need = SHOWTIME + b['apology.aura'] + 60 + b['resume.total'] + HYPE        # at least 3 s of aura farm
     b['song.passes'] = max(2, math.ceil(need / (intro * 20)))
     fight = int(round(intro * b['song.passes'] * 20))
-    b['apology.end'] = fight - SHOWTIME - b['resume.total']
+    b['apology.end'] = fight - SHOWTIME - b['resume.total'] - HYPE
     b['apology.wink'] = b['apology.aura'] + min(40, (b['apology.end'] - b['apology.aura']) // 2)
     return b
 
@@ -523,5 +525,18 @@ def main():
     build(meta)
 
 
+def rebeat():
+    """Only the cutscene's beats again, from the lines already in voice/boss2.json (no recording)."""
+    path = os.path.join(ASSETS, 'voice/boss2.json')
+    data = json.load(open(path))
+    data['beats'] = beats({k: v['len'] for k, v in data['lines'].items()})
+    with open(path, 'w', newline='\n') as f:
+        json.dump(data, f, separators=(',', ':'))
+    print('beats:', json.dumps(data['beats']))
+
+
 if __name__ == '__main__':
-    main()
+    if '--beats' in sys.argv:
+        rebeat()
+    else:
+        main()

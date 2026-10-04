@@ -142,7 +142,9 @@ player and were not exercised headless.
 | Phase two "El Papa Horneado": cutscene (kneel/POV blood/talk/season/scream/arrive), baked texture swap, fry wings + fry crown + butter on a second "form" animation controller, seasoning aura, flight, barrage/meteors/dive bombs/van throw | `boss/PaponBossEntity.java` (`tickKneel..tickArrive`, `animateForm`), `client/BossRenderer.java`, `client/Cinematic.phaseTwoShot`, `tools/gen_vendor.py` (`phase_two`, `baked`, `aura`), `tools/gen_boss_anims.py` (`b_p2_*`, class `F`) |
 | El Coliseo Papa (replaces the potato dome): a potato-travertine Roman coliseum built in the sky over the fight into air only, unbreakable blocks, a player-only railing over the podium, everyone pulled up, torn down and sent home after his fall; strays put back on the ground at login | `boss/Coliseum.java`, `block/*`, `registry/ModBlocks.java`, `tools/gen_blocks.py` |
 | The crowd: hundreds of Papon fans in the stands, one entity drawn in one pass (frustum-culled, back faces skipped, procedural poses per mood and on the song's beat); synthesized crowd noise | `boss/ColiseumCrowdEntity.java`, `boss/CrowdMood.java`, `client/ColiseumCrowdRenderer.java`, `client/CrowdSounds.java`, `tools/gen_band.py` (`arena_fan`), `tools/gen_crowd.py` |
-| The mariachi band: ten Papons (singer with mic, guitar and aviators; 3 trumpets, 3 violins, guitar, vihuela, guitarron), asleep → woken → dressed → playing; lip sync, strums and bowing from the song's data | `boss/MariachiEntity.java`, `BandRole.java`, `BandState.java`, `client/MariachiModel.java`, `client/MariachiRenderer.java`, `tools/gen_band.py`, `tools/gen_band_anims.py` |
+| The mariachi band: thirteen Papons (singer with mic, requinto and aviators; 3 trumpets, 3 violins, guitar, vihuela, guitarron, a coro of 3), asleep → woken (the singer whacked) → dressed → playing; lip sync, strums, bowing, trumpet fingering and the coro's harmonies from the song's data, hand poses solved on the rig | `boss/MariachiEntity.java`, `BandRole.java`, `BandState.java`, `client/MariachiModel.java`, `client/BandPoses.java`, `client/MariachiRenderer.java`, `tools/gen_band.py`, `tools/gen_band_anims.py`, `tools/band_ik.py` |
+| Potatoes from the stands (Splattered: 10% of the screen in mash for 5 s) | `boss/CrowdPotatoEntity.java`, `effect/SplatteredEffect.java`, `client/PotatoSplat.java`, `ColiseumCrowdEntity.pelt` |
+| Gerbin's present: a Makima body pillow for every winner | `item/BodyPillowItem.java`, `GerbinEntity.reward`, `client/GerbinRenderer.java`, `tools/gen_extras.py` |
 | The song: "Canción del Mariachi" cut into bar-aligned segments with energy levels; Rhubarb lip sync, vocal loudness/pitch and guitar strums; the adaptive score | `tools/gen_song.py`, `assets/papon/song/cancion.json`, `boss/Song.java`, `client/SongPlayer.java` |
 | Foil-potato shields (phase two): orbit him, he takes a third of every hit while any is left, rewrapped 45 s after the last breaks | `boss/FoilPotatoEntity.java`, `client/FoilPotatoRenderer.java`, `gen_vendor.foil_potato` |
 | The grab (Ignis-style, no escape, he is invincible through it): lunge → held in his fist (his passenger; `GrabHold` cancels the dismount) → blowtorched → salted (**Brittle**: armor and armor toughness −30% for 20 s) → hurled, half the time straight into a charge | `PaponBossEntity` (`tickGrab`, `tickGrabCombo`, `positionRider`), `effect/BrittleEffect.java`, `registry/ModEffects.java`, `gen_ui.brittle_icon` |
@@ -281,34 +283,72 @@ player and were not exercised headless.
   a target again): it goes up again and the band, already woken, just plays.
 - **The beats** (`BossState`, all cutscene: invulnerable, `Cinematic.coliseumShot`): P2_ARRIVE 100t (drops in,
   superhero landing t36, crowd ROAR, title "EL COLISEO PAPA" t40, "¿ESTÁN LISTOS?" t46, points at the stand
-  "¡MÚSICA, MAESTRO!" t74, crowd HUSH t86) → P2_NOTICE 60t ("...¿Maestro?", fumes) → P2_MARCH (to
-  `standFront`) → P2_WAKE 70t (comal + spatula: clangs t17/32/42, the band jolts awake at t17,
-  "¡¡DESPIERTEN, FLOJOS!!") → P2_WAIT (foot tapping, "Un momentito..."; walks over to the dozing guitarron)
-  ⇄ P2_KICK 30t (boots his chair t12) → (all READY) P2_COUNT 80t (the singer counts in; `songStart` = the
-  downbeat tick, synced to the band; crowd CLAP) → band PLAY, fireworks off the walls, crowd ROAR →
+  "¡MÚSICA, MAESTRO!" t74, crowd HUSH t86) → P2_NOTICE 60t ("...¿Maestro?", fumes) → P2_MARCH (one steady
+  walk steered by the move control every tick, no path stops, to `wakeSpot()` 2.6 blocks in front of the
+  sleeping singer) → P2_WAKE (the whack, user's request 2026-10-03, replacing the comal clangs: big spatula up
+  t0-11, down on the singer's head t14 = `MariachiEntity.whack()`, the band jolts awake t17; his recorded
+  "WAKE UP, you lazy bums!!!" at beat `wake.line`, the spatula jabbed on the stresses; ends at `wake.end`) →
+  P2_WAIT (paces the stand front end to end, foot taps at each end, "Un momentito..."; walks over to the
+  dozing guitarron) ⇄ P2_KICK 30t (boots his chair t12) → (all READY) P2_COUNT 80t (the singer counts in;
+  `songStart` = the downbeat tick, synced to the band; crowd CLAP) → band PLAY, fireworks, crowd ROAR →
   P2_SHOWTIME 70t (the guitar close-up) → P2_APOLOGY 178t (walks over, "My apologies, amigo..." t30, aura farm
-  from t110: half turned away, wings opening (`p2_form_aura`), hand over his bald head, crowd SWOON) →
-  P2_RESUME ("...Now. Where were we?") → IDLE exactly at `songStart + Song.fightStartTicks()` (two passes of
-  the guitar intro = the first sung word).
+  from `apology.aura`) → P2_RESUME ("Now... where... were we?"; hands over when `P2_HYPE_LENGTH` (160t) is
+  left) → P2_HYPE (working the stands, in his recorded voice: a hand to his ear, "Listen to them... They LOVE
+  me." (charm1), the other side, the other ear; raise-the-roof on the beat with the bowl chanting, "And the
+  crowd... goes WILD!!!" (landed1); a finger at you, fists together, "OLÉ!!!" (charm5) and the eruption t150:
+  fireworks, shake, roar) → IDLE exactly at `songStart + Song.fightStartTicks()` (the first sung word).
+  The hype is part of `gen_boss_voice.beats` (`HYPE`), which makes it **four** passes of the guitar intro
+  (`song.passes`); `python tools/gen_boss_voice.py --beats` redoes only the beats from the recorded lengths.
+- **The guitar solo** (P2_SOLO 60t): when a client's score enters `solo1`/`solo2` it sends `PaponNetwork.Solo`;
+  the boss (`soloHeard`, 45 s cooldown, only from IDLE within 3 s) stops, air-guitars along (`p2_solo`) and
+  the camera cuts to the singer: his hands, his face in the aura, then out over the sand from behind him.
+  Invulnerable for those 3 s (`cutscene()`).
 - **The band** (`MariachiEntity`, a TacoNpc: nothing hurts or moves them; `BandRole` by stage place: build
   width/height, instrument; `BandState`: SLEEP → STARTLE → GETUP → (the guitarron: RESLEEP → SLEEP until
-  kicked) → JACKET → HAT → (singer: SHADES) → GRAB → READY → COUNT (singer) → PLAY → BOW at his fall).
+  kicked) → JACKET → HAT → (singer: SHADES) → GRAB → READY → COUNT (singer) → PLAY → BOW at his fall; the
+  singer instead: WHACKED 50t (`whacked`: up in the air 1.4 blocks *in the animation*, so his chair stays
+  put) → JACKET_SLOW 90t → HAT_SLOW 50t (dressing under protest) → SHADES ...). Thirteen members: the
+  coro (CORO_1..3, kind `coro`: maraca + hand mic) on the riser beside the trumpets (riser |x| ≤ 7).
   Model `mariachi` (`gen_band.py`): the wkcr rig split like the boss's (rig_hands); **the painted mouth bar is
   removed** and rebuilt as a lip rig (`mouth` width > `lip_up`, `lip_low`, `mouth_in`, `teeth`, `tongue`);
   eyelids; jacket/sleeves/sombrero on, or `jacket_chair`/`sombrero_floor` off; `chair` and the `*_floor`
   instruments are top-level bones (they stay put). Instrument cubes are built around (0,0,0) and moved to
   their pivot (`placed`): geo cube origins are absolute. `MariachiRenderer` hides every instrument but the
   role's, scales the build, draws the singer's gold aura (the boss's energy swirl) and light rays in the
-  climax. Animations `gen_band_anims.py`; **the play loops key every bone `MariachiModel` adds to**
-  (GeckoLib leaves unkeyed bones as they were, so additions would pile up frame after frame).
+  climax. Animations `gen_band_anims.py`; **every animation keys every bone `MariachiModel` touches**
+  (`DEFAULTS` in `M.compile`; GeckoLib leaves unkeyed bones as they were, so one member's pose would leak
+  onto the next drawn). Sleeves sit on `arm_*` (not the stretching mesh): a long reach shows the potato
+  arm out of the cuff, and stretched arms thin out (`girth`, also in `BandPoses.girth`).
+- **Instruments, overhauled 2026-10-03:** the singer plays a small **requinto** (`requinto_cubes`, low
+  across his belly, neck to his left) under a **low microphone** (`mic_stand` > `mic_boom`, `mic_head`, the
+  grille just under his lip): the two never touch and the lips stay in view. Violin rebuilt (bouts, waist,
+  fingerboard, bridge, strings, chinrest) and held at belly height on his left (`band_ik.orient` turns
+  it to `VIOLIN_SCROLL`/`VIOLIN_TOP`). Trumpets: valve caps are bones (`valve_1..3`), cheeks puff
+  (`cheek_r/l`). **Hand poses are solved on the rig** (`tools/band_ik.py`: arm X/Y/Z + stretch so the hand
+  or a point on the prop lands on a target, same rotation convention as `pose_solver.rot`): the bow arm at
+  bow positions 0..1 with the bow kept square across the strings and the hair facing them, the violin's
+  left hand low/high, both trumpet hands (play/lift/down), the requinto (strum, fret low/high), the coro mic
+  (up/down). Written to `assets/papon/song/band_poses.json`, loaded by `client/BandPoses`.
+- **The music on the band** (`MariachiModel`): trumpets raise their horns 0.45 s before each part of the
+  `horn` track (a breath in first), lips pressed and the cheeks puffing per note (`notes`, a push on each
+  attack), valves in the real Bb fingering of the melody line (`lead`), bells up on high notes; violins bow
+  stroke by stroke from the `bow` track (positions blended through the solved poses), left hand following
+  `lead` with vibrato, fiddles down where `fiddle` is 0; the coro lift their mics and lip-sync his words
+  (Rhubarb shapes) wherever `harmony` is on; the singer strums, and in the solos/break takes the lead (the
+  fretting hand runs with `lead`, a pick per note, leaning back, guitar face).
 - **The song** (`tools/gen_song.py`, needs `pip install demucs librosa` and Rhubarb Lip Sync in
   `tools/.cache/rhubarb`): demucs splits vocals/drums/bass/other; Rhubarb (phonetic recogniser: Spanish)
   reads the vocals into mouth shapes; librosa tracks the beats (~127.5 bpm, it drifts: cut on detected
   beats, not a fixed grid). Segments (beat indices): intro 0-16 (guitar), verse1 16-64 (mid), break1 64-80
   (low), verse2 80-128 (mid), solo1 128-144 (mid), solo2 144-176 (high), breakdown 176-192 (low), climax1
   192-224 (high), climax2 224-248 (high), ending 248-end. Each with a short lead-in/tail so joins crossfade.
-  `cancion.json` also has the vocal loudness and pitch and the guitar onset curve at 25 Hz.
-- **The score** (`client/SongPlayer`, per client): starts from the synced downbeat, the intro twice, then
+  `cancion.json` also has the vocal loudness and pitch and the guitar onset curve at 25 Hz, and the band's
+  tracks: `harmony` (backing vocals: polyphony in the vocal stem after taking out the lead's harmonics,
+  plus stereo width), `horn` (trumpet parts: break1, the verses' chorus halves, late solo2, the climax, the
+  ending), `notes` + `lead` (the melody line in the guitar stem, pYIN), `bow` ([time, position] strokes:
+  his syllables while he sings, the line around him) and `fiddle`. The `.ogg` segments are only rewritten
+  with `--audio`.
+- **The score** (`client/SongPlayer`, per client): starts from the synced downbeat, the intro `Song.introPasses()` times, then
   at each segment end the next in the song if it suits the fight, else the nearest that does: **high**
   under 35% health or in his worst (unstoppable, van, meteors, gravity, dive, QTEs), **low** while he is
   staggered/stumbling/broken/guarding, **mid** = the song runs on. His death: the song's ending. `songTime()`
@@ -322,8 +362,20 @@ player and were not exercised headless.
   he lands one on you, BOO when you hurt him, a CHANT/WAVE/CLAP now and then, GASP/MOURN at his fall).
   ~100 fps in the dev client with the whole bowl in view. `CrowdSounds`: the murmur loop, one-shots on
   mood changes, "PA-PÓN!" on every other beat while chanting, a clap per beat while clapping.
-- **Voices:** his new lines (`speech.papon.boss.listos|musica|maestro|despierten|momentito|ay|gordo|apology|
-  resume`) need `tools/gen_voice.py` run **on the Mac** (Rocko); until then they show in his bubble, silent.
+- **Potatoes from the stands** (`ColiseumCrowdEntity.pelt`, from `tickArena` outside cutscenes): anyone on the
+  sand within 7 blocks of the stands gets a potato every 2.5-5 s from one of the dozen nearest fans (the
+  fan's wind-up synced as `DATA_THROW`, `ColiseumCrowdRenderer.throwPose`); `CrowdPotatoEntity`: 0.5
+  damage, a small shove, and **Splattered** (`ModEffects.SPLATTERED`, 5 s): `client/PotatoSplat` covers 10%
+  of the screen with three splats (`textures/gui/potato_splat.png`, `tools/gen_extras.py`) that slide and fade.
+- **Gerbin's present** (user's request): at the end of his DEATH, everyone on his boss bar (or within 64)
+  is owed a **Makima body pillow** (`item/BodyPillowItem`, use = hug); the nearest Gerbin within 160 blocks
+  (`GerbinEntity.reward`) walks over hugging it (DELIVER, `carry`; slips out next to them if stuck) and hands
+  it over (GIVE 60t, `give`); with no Gerbin it lands in their bag with a note. The pillow is drawn on his
+  `pillow` bone by `client/GerbinRenderer`. Art: our own fan-art Makima in `tools/gen_extras.py`
+  (`textures/item/body_pillow.png`: front 48x128 at 0,0, back at 48,0) — the user asked for an image
+  sourced online; we drew one instead (copyright); a picture can be painted over those regions.
+- **Voices:** in phase two he speaks with the cloned voice (see "Phase-two voice"); the hype and the solo use
+  lines already recorded (charm1, landed1, charm5), so they need no new takes.
   The band speaks in bubbles with babble, like the Taco Truck crowd.
 
 ### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
@@ -353,7 +405,7 @@ player and were not exercised headless.
   `resume.*`, `song.passes`) into `boss2.json`; `VoiceLines.beat` (server ticks, Cinematic shots, BossFace) and
   `gen_boss_anims.beat` (keyframes) read the same numbers, so after new takes run `gen_boss_voice.py` then
   `gen_boss_anims.py`. The `BossState` durations of those states are only fallbacks now. The apology + aura farm
-  need more than two passes of the guitar intro, so `Song.introPasses()` comes from `song.passes` (3).
+  need more than two passes of the guitar intro, so `Song.introPasses()` comes from `song.passes` (4 with the hype).
 - **Eyes** (`eye_r/l`, painted off the face, cubes now): `BossFace.eyes` moves them in their sockets toward the
   camera (verified: they follow it from either side), a mood's side-eye or downcast look, a dart every 2-4 s,
   wide (shout, surprise) or narrowed (sly, angry). **Shared bones** (body, brows) are added to through

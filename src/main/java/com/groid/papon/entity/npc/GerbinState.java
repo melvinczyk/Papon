@@ -7,6 +7,8 @@ package com.groid.papon.entity.npc;
  * <pre>
  * TO_CHOP --> CHOP (3 loops) --> [LOOK] --> TO_SINK --> WASH (3 loops) --> [LOOK] --> TO_CHOP ...
  * any --> SHOCKED --> COWER       (the fraud, and while the boss is loose; back to work after)
+ * any --> DELIVER --> GIVE [--> DELIVER ...] --> back to work
+ *                                 (the boss beaten: he brings each winner a body pillow)
  * </pre>
  * Append new states at the end: the ordinal is synced and the name is saved.
  */
@@ -18,7 +20,9 @@ public enum GerbinState {
     WASH(300),
     LOOK(60),
     SHOCKED(40),
-    COWER(0);
+    COWER(0),
+    DELIVER(0),
+    GIVE(60);
 
     public final int duration;
 

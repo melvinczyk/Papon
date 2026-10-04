@@ -23,7 +23,8 @@ Lengths of one-shots are state durations in Java (GerbinState, BossState); keep 
           p2_kneel 4.0, p2_talk 3.5, p2_season 5.0 (shaker 0.6-3.3, golden at 4.0), p2_scream 3.5 (scream 0.75), p2_arrive 2.5 (no coliseum), fly (loop),
           the coliseum: p2_arrive_sky 5.0 (lands 1.8, snap 3.7), p2_notice 3.0, p2_march (loop), p2_wake 3.5
           (clangs 0.85 / 1.6 / 2.1), p2_wait (loop), p2_kick 1.5 (kick 0.6), p2_count 4.0, p2_groove (loop, a bar),
-          p2_apology 8.9 (aura from 5.5), p2_resume 3.0 (held),
+          p2_apology 8.9 (aura from 5.5), p2_resume 3.0 (held), p2_hype 8.0 (ends on the first sung word),
+          p2_solo 3.0,
           p2_barrage 2.0 (slam 1.85), p2_meteor 3.5, van_throw 2.6 (throw 1.8), p2_dive (loop),
           guard (AI-held, crossed cleavers), riposte 0.9 (shove 0.25, scissor 0.6), evade 0.5, cleaver_toss 1.5 (echoes 0.1 / 0.4 / 0.7), echo_throw 2.2 (throws 0.8 / 1.4),
           burrito_toss 1.8 (throw 1.0, lands 1.3), drunk_swig 0.7, drunk_flurry 3.0 (hits 0.5/0.85/1.2/1.55/1.9, hammer 2.5),
@@ -79,7 +80,7 @@ def stretch(a, arm, keys):
 # ===================================================================== Gerbin
 
 class G(Pinned):
-    pins = ['knife', 'tomato', 'brush', 'lettuce_held', 'chop_station', 'sink_station']
+    pins = ['knife', 'tomato', 'brush', 'lettuce_held', 'chop_station', 'sink_station', 'pillow']
 
 
 CHOP_UP = [-98, -14, 0]       # knife arm out over the board, tip lifted
@@ -233,7 +234,44 @@ def g_cower():
     return a
 
 
-GERBIN = [g_idle, g_walk, g_chop, g_wash, g_look, g_shocked, g_cower]
+def g_carry():
+    """0.8 s loop. Walking over with the body pillow hugged to his chest (the renderer puts it on the
+    `pillow` bone), arms wrapped round it, head down, a little shy."""
+    a = G('carry', 0.8, True)
+    a.scale('pillow', [(0, SHOWN)], 'lin')
+    a.rot('leg_r', [(0, [24, 0, 0]), (0.4, [-24, 0, 0]), (0.8, [24, 0, 0])])
+    a.rot('leg_l', [(0, [-24, 0, 0]), (0.4, [24, 0, 0]), (0.8, [-24, 0, 0])])
+    a.rot('arm_r', [(0, [-62, -38, 0])], 'lin')
+    a.rot('arm_l', [(0, [-62, 38, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.2, [0, 0.6, 0]), (0.4, [0, 0, 0]), (0.6, [0, 0.6, 0]), (0.8, [0, 0, 0])])
+    a.rot('root', [(0, [0, 0, -2]), (0.4, [0, 0, 2]), (0.8, [0, 0, -2])])
+    a.rot('head', [(0, [14, 0, 0])], 'lin')
+    a.rot('tail', [(0, [10, 16, 0]), (0.4, [10, -16, 0]), (0.8, [10, 16, 0])])
+    a.pos('pillow', [(0, [0, 0, 0]), (0.2, [0, 0.4, 0]), (0.4, [0, 0, 0]), (0.6, [0, 0.4, 0]), (0.8, [0, 0, 0])])
+    return a
+
+
+def g_give():
+    """3.0 s (GerbinState.GIVE). Holds the pillow out to you at arm's length with both hands, eyes on
+    the floor, ears down (0.2-0.8); you take it (1.5 s: it leaves his hands); he twiddles his thumbs, a
+    quick wave, and he is off."""
+    a = G('give', 3.0, 'hold')
+    for arm, s in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-62, -38 * s, 0]), (0.6, [-96, -12 * s, 0], 'easeInOutSine'), (1.5, [-96, -12 * s, 0]),
+                    (1.8, [-50, -30 * s, 0], 'easeInOutSine'), (2.0, [-56, -36 * s, 0]), (2.2, [-50, -30 * s, 0]),
+                    (2.4, [-56, -36 * s, 0]), (3.0, [-10, 0, 4 * s], 'easeInOutSine')], 'lin')
+    a.pos('pillow', [(0, [0, 0, 0]), (0.6, [0, 1.5, -4], 'easeInOutSine'), (1.45, [0, 1.5, -4]), (1.5, [0, 1.5, -9], 'easeOutQuad')], 'lin')
+    a.scale('pillow', [(0, SHOWN), (1.5 - EPS, SHOWN), (1.5, HIDDEN), (3.0, HIDDEN)], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.6, [16, 0, 0], 'easeInOutSine'), (1.5, [16, 0, 0]), (1.9, [0, 0, 0]), (3.0, [0, 0, 0])])
+    a.rot('head', [(0, [14, 0, 0]), (0.6, [30, -20, 0], 'easeInOutSine'), (1.5, [30, -20, 0]), (1.9, [6, 0, 0]), (3.0, [0, 0, 0])])
+    for ear, s in (('ear_r', 1), ('ear_l', -1)):
+        a.rot(ear, [(0, [0, 0, 0]), (0.5, [0, 0, 26 * s]), (1.9, [0, 0, 26 * s]), (2.2, [0, 0, 0])])
+    a.rot('tail', [(0, [0, 0, 0]), (0.6, [20, 30, 0]), (1.2, [20, -30, 0]), (1.9, [0, 0, 0]), (3.0, [0, 0, 0])])
+    a.sound(1.5, 'pick').sound(2.6, 'hey')
+    return a
+
+
+GERBIN = [g_idle, g_walk, g_chop, g_wash, g_look, g_shocked, g_cower, g_carry, g_give]
 
 
 # ===================================================================== the boss
@@ -1726,32 +1764,48 @@ def b_p2_march():
 
 
 def b_p2_wake():
-    """3.5 s (BossState.P2_WAKE, 70 t). Out come the comal (left) and his spatula (right); the comal
-    up over his head like a gong, and three clangs on it (0.85 / 1.6 / 2.1 s) with "¡¡DESPIERTEN,
-    FLOJOS!!" bellowed between them (1.0 s); then he lowers it all, glaring."""
-    hits = [beat('wake.clang1', 17), beat('wake.clang2', 32), beat('wake.clang3', 42)]
-    yell, end = beat('wake.line', 20), beat('wake.end', 70)
-    down = round(end - 0.9, 2)               # lowered as the bellow ends
+    """BossState.P2_WAKE, as long as his bellow needs (gen_boss_voice.beats 'wake.end'). He arrives in front
+    of the sleeping singer mid-stride and the big spatula is already going up behind his head (0-0.55 s,
+    leaning back on his heels); down it comes on the singer's head (0.7 s: BONK, the whole arm stretched
+    out over the stage edge) and bounces back off it, boing (0.85); he glares at the band jolting awake,
+    the spatula up (1.2 s on); then "WAKE UP, YOU LAZY BUMS!!" ('wake.line'), the spatula jabbed at them
+    on the stressed words, his other hand pointing; and the spatula onto his shoulder as the bellow ends."""
+    yell, end = beat('wake.line', 42), beat('wake.end', 70)
+    yell = max(yell, 1.3)
+    down = round(max(yell + 1.8, end - 0.9), 2)
     a = angry(B('p2_wake', end, 'hold'))
-    a.vis('comal', False, [(0.15, True), (round(end - 0.2, 2), False)])
-    a.vis('big_spatula', False, [(0.15, True), (round(end - 0.2, 2), False)])
-    a.rot('arm_l', [(0, [-20, 0, -24]), (0.6, [-172, 0, -14], 'easeOutBack'), (down, [-172, 0, -14]), (round(down + 0.6, 2), [-30, 0, -24], 'easeInOutSine'), (end, [-20, 0, -24])], 'lin')
-    stretch(a, 'arm_l', [(0, 1), (0.6, 1.5), (down, 1.5), (round(down + 0.6, 2), 1)])
-    a.rot('comal', [(0, [0, 0, 0]), (0.6, [-90, 0, 0], 'easeOutQuad'), (down, [-90, 0, 0]), (round(down + 0.6, 2), [0, 0, 0])], 'lin')
-    keys = [(0, [-20, 0, 24]), (0.6, [-110, -20, 30], 'easeInOutSine')]
-    for h in hits:
-        keys += [(round(h - 0.18, 2), [-120, -30, 40], 'easeOutQuad'), (h, [-176, -14, 18], 'easeInExpo'), (round(h + 0.15, 2), [-150, -20, 30], 'easeOutQuad')]
+    a.scale('big_spatula', [(0, SHOWN)], 'lin')
+    # the last step of the walk, into a planted stance
+    a.rot('leg_r', [(0, [-30, 0, 4]), (0.3, [0, 0, 6], 'easeOutQuad'), (0.6, [12, 0, 6]), (0.75, [-20, 0, 6], 'easeOutQuad'),
+                    (1.1, [0, 0, 6]), (end, [0, 0, 6])], 'lin')
+    a.rot('leg_l', [(0, [20, 0, -4]), (0.3, [0, 0, -6], 'easeOutQuad'), (0.6, [-14, 0, -6]), (0.75, [16, 0, -6]),
+                    (1.1, [0, 0, -6]), (end, [0, 0, -6])], 'lin')
+    keys = [(0, [-20, 0, 24]), (0.45, [-196, 10, 20], 'easeOutQuad'), (0.55, [-200, 8, 18]),
+            (0.7, [-70, 0, 6], 'easeInExpo'), (0.85, [-108, 0, 10], 'easeOutQuad'), (1.0, [-82, 0, 8], 'easeInQuad'),
+            (1.2, [-150, -10, 30], 'easeInOutSine'), (round(yell, 2), [-150, -10, 30])]
     # through the bellow: the spatula jabbed at the band on the stressed words
     keys += [(round(yell + 0.2, 2), [-100, -10, 20]), (round(yell + 0.5, 2), [-80, -10, 20]), (round(yell + 1.3, 2), [-100, -10, 20]),
-             (round(yell + 1.6, 2), [-80, -10, 20]), (down, [-110, -20, 30]), (round(down + 0.6, 2), [-20, 0, 24], 'easeInOutSine'), (end, [-20, 0, 24])]
+             (round(yell + 1.6, 2), [-80, -10, 20]), (down, [-110, -20, 30]), (round(down + 0.6, 2), [-176, -60, 10], 'easeInOutSine'),
+             (max(end, round(down + 0.6, 2)), [-176, -60, 10])]
     a.rot('arm_r', keys, 'lin')
-    stretch(a, 'arm_r', [(0, 1), (0.6, 1.4), (yell, 1.4), (round(yell + 0.2, 2), 1.6), (down, 1.4), (round(down + 0.6, 2), 1)])
-    a.rot('torso', [(0, [0, 0, 0]), (0.6, [-6, 0, 0]), (round(hits[0] - 0.1, 2), [-14, 0, 0]), (round(hits[2] + 0.1, 2), [-12, 0, 0]),
+    stretch(a, 'arm_r', [(0, 1), (0.45, 1.3), (0.55, 1.3), (0.7, 1.9, 'easeInExpo'), (0.85, 1.6), (1.0, 1.75), (1.2, 1.3),
+                         (round(yell, 2), 1.3), (round(yell + 0.2, 2), 1.6), (down, 1.4), (round(down + 0.6, 2), 1.1)])
+    a.rot('big_spatula', [(0, [0, 0, 0]), (0.55, [-20, 0, 0]), (0.7, [30, 0, 0], 'easeInExpo'), (0.85, [-10, 0, 0]), (1.0, [8, 0, 0]),
+                          (1.2, [0, 0, 0]), (end, [0, 0, 0])], 'lin')
+    a.rot('arm_l', [(0, [-20, 0, -24]), (0.45, [-40, 0, -40]), (0.7, [-10, 0, -50]), (round(yell - 0.15, 2), [-10, 0, -40]),
+                    (round(yell + 0.1, 2), [-100, 20, -8], 'easeOutBack'), (down, [-100, 20, -8]), (round(down + 0.5, 2), [-20, 0, -30], 'easeInOutSine'),
+                    (max(end, round(down + 0.5, 2)), [-20, 0, -30])], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (round(yell - 0.15, 2), 1), (round(yell + 0.1, 2), 1.7), (down, 1.7), (round(down + 0.5, 2), 1)])
+    a.rot('torso', [(0, [10, 0, 0]), (0.45, [-24, 10, 0], 'easeOutQuad'), (0.55, [-26, 10, 0]), (0.7, [42, -4, 0], 'easeInExpo'),
+                    (0.85, [30, -2, 0]), (1.2, [6, 0, 0], 'easeInOutSine'), (round(yell - 0.1, 2), [-4, 0, 0]),
                     (round(yell + 0.15, 2), [16, 0, 0], 'easeOutQuad'), (round(yell + 1.0, 2), [12, 0, 0]), (round(yell + 1.5, 2), [18, 0, 0]),
-                    (down, [10, 0, 0]), (end, [4, 0, 0])], 'lin')
-    a.scale('body', [(0, [1, 1, 1]), (round(yell - 0.1, 2), [1.04, 1.04, 1.04]), (round(yell + 0.15, 2), [1.08, 1.12, 1.08], 'easeOutQuad'),
-                     (down, [1.06, 1.08, 1.06]), (end, [1.02, 1.02, 1.02])], 'lin')
-    a.sound(0.15, 'clank')
+                    (down, [10, 0, 0]), (max(end, round(down + 0.3, 2)), [2, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.45, [0, 1.6, 0], 'easeOutQuad'), (0.7, [0, -2.0, 0], 'easeInExpo'), (0.9, [0, 0, 0]),
+                   (end, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.5, [0.92, 1.12, 0.92]), (0.7, [1.2, 0.84, 1.2], 'easeInExpo'), (0.9, [0.98, 1.03, 0.98]),
+                     (1.1, [1, 1, 1]), (round(yell - 0.1, 2), [1.04, 1.04, 1.04]), (round(yell + 0.15, 2), [1.08, 1.12, 1.08], 'easeOutQuad'),
+                     (down, [1.06, 1.08, 1.06]), (max(end, round(down + 0.3, 2)), [1.02, 1.02, 1.02])], 'lin')
+    a.sound(0.3, 'grunt').sound(0.62, 'swing')
     return a
 
 
@@ -1892,8 +1946,90 @@ def b_p2_resume():
     return a
 
 
+def roof_pumps(t0, up, down, n=4, step=0.5):
+    """Raise-the-roof: up on each beat, back down on the off-beat."""
+    out = []
+    for i in range(n):
+        out += [(round(t0 + step * i, 2), up, 'easeOutQuad'), (round(t0 + step / 2 + step * i, 2), down, 'easeInQuad')]
+    return out
+
+
+def b_p2_hype():
+    """8.0 s (BossState.P2_HYPE, ending on the first sung word). Working the stands: a hand cupped to
+    his ear at the near side (0.6-2.0, "NO LOS OIGO!" 0.9; they roar 1.6); a slow shake of the head,
+    no, not good enough (2.0-2.6), round to the other side (the entity turns him, 2.2-3.0), the other
+    ear (3.0-3.9, "MAS FUERTE!" 3.3; louder, 3.7); then raise the roof, both palms pumping at the
+    sky on every beat (4.0-6.0) with the whole bowl chanting; round to you (6.0-6.4) and a finger out:
+    "TU!" (6.4); fists together, BANG (6.9); and the roar, arms flung wide and head back (7.5-8.0),
+    down into his stance as the singer comes in."""
+    a = B('p2_hype', 8.0, 'hold')
+    a.rot('arm_r', [(0, [-20, 0, 20]), (0.6, [-150, -60, 30], 'easeInOutSine'), (2.0, [-150, -60, 30]), (2.3, [-20, 0, 24], 'easeInOutSine'),
+                    (3.75, [-20, 0, 24]), (4.0, [-160, 0, 34], 'easeInOutSine')]
+          + roof_pumps(4.0, [-178, 0, 34], [-150, 0, 40])
+          + [(6.0, [-90, 0, 20], 'easeInOutSine'), (6.4, [-96, -12, 4], 'easeOutBack'), (6.75, [-96, -12, 4]),
+             (6.9, [-80, -60, 0], 'easeInQuad'), (7.4, [-80, -60, 0]), (7.6, [-150, 0, 70], 'easeOutBack'), (7.85, [-150, 0, 70]),
+             (8.0, [-100, -20, 30], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.6, 1.45), (2.0, 1.45), (2.3, 1), (3.75, 1), (4.0, 1.3), (6.0, 1.3), (6.4, 1.9), (6.75, 1.9),
+                         (6.9, 1.3), (7.4, 1.3), (7.6, 1.5), (8.0, 1.2)])
+    a.rot('arm_l', [(0, [-20, 0, -20]), (2.9, [-20, 0, -20]), (3.2, [-150, 60, -30], 'easeInOutSine'), (3.75, [-150, 60, -30]),
+                    (4.0, [-160, 0, -34], 'easeInOutSine')]
+          + roof_pumps(4.0, [-178, 0, -34], [-150, 0, -40])
+          + [(6.0, [-30, 0, -24], 'easeInOutSine'), (6.75, [-30, 0, -24]), (6.9, [-80, 60, 0], 'easeInQuad'), (7.4, [-80, 60, 0]),
+             (7.6, [-150, 0, -70], 'easeOutBack'), (7.85, [-150, 0, -70]), (8.0, [-100, 20, -30], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (2.9, 1), (3.2, 1.45), (3.75, 1.45), (4.0, 1.3), (6.0, 1.3), (6.75, 1), (6.9, 1.3), (7.4, 1.3),
+                         (7.6, 1.5), (8.0, 1.2)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.6, [-4, 0, -10], 'easeInOutSine'), (2.0, [-4, 0, -12]), (2.15, [0, 14, 0]), (2.3, [0, -14, 0]),
+                    (2.45, [0, 12, 0]), (2.6, [0, 0, 0]), (3.2, [-4, 0, 10], 'easeInOutSine'), (3.75, [-4, 0, 12])]
+          + roof_pumps(4.0, [-8, 0, 0], [6, 0, 0])
+          + [(6.0, [0, 0, 0]), (6.4, [14, 0, 0], 'easeOutBack'), (6.75, [12, 0, 0]), (6.9, [24, 0, 0], 'easeInQuad'),
+             (7.4, [20, 0, 0]), (7.6, [-26, 0, 0], 'easeOutBack'), (7.85, [-28, 0, 0]), (8.0, [12, 0, 0], 'easeInOutSine')], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (3.75, [0, 0, 0])] + roof_pumps(4.0, [0, 1.4, 0], [0, 0, 0])
+          + [(6.0, [0, 0, 0]), (6.9, [0, -1.2, 0], 'easeInQuad'), (7.4, [0, -1.0, 0]), (7.6, [0, 1.0, 0], 'easeOutBack'),
+             (8.0, [0, -1.5, 0], 'easeInOutSine')], 'lin')
+    for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 6 * sgn]), (6.75, [0, 0, 6 * sgn]), (6.9, [-10, 0, 14 * sgn], 'easeInQuad'), (7.6, [-10, 0, 16 * sgn]),
+                    (8.0, [-10, 0, 12 * sgn])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (6.85, [1, 1, 1]), (6.95, [1.12, 0.92, 1.12], 'easeOutQuad'), (7.3, [1.04, 1.0, 1.04]),
+                     (7.6, [1.1, 1.08, 1.1], 'easeOutBack'), (8.0, [1.04, 1.02, 1.04])], 'lin')
+    for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 0.6, 0]), (6.2, [0, 0.6, 0]), (6.4, [0, -0.8, 0]), (8.0, [0, -0.8, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, -8 * sgn]), (6.2, [0, 0, -8 * sgn]), (6.4, [0, 0, 18 * sgn]), (8.0, [0, 0, 18 * sgn])], 'lin')
+    a.sound(0.9, 'hmm').sound(2.2, 'hmm').sound(6.4, 'grunt').sound(6.9, 'punch').sound(7.55, 'roar')
+    return a
+
+
+def b_p2_solo():
+    """3.0 s (BossState.P2_SOLO). The singer takes his solo and the boss cannot help himself: the left
+    hand up an air-guitar neck, the right hand picking, head banging on every beat, a windmill on
+    the big note (1.6 s), and a finger pointed at the stand: that's my band (2.5)."""
+    beat = 1.882 / 4
+    a = B('p2_solo', 3.0, 'hold')
+    a.rot('arm_l', [(0, [-20, 0, -20]), (0.3, [-70, 40, -30], 'easeInOutSine'), (1.4, [-74, 40, -30]), (2.3, [-74, 40, -30]),
+                    (2.5, [-100, 10, -10], 'easeOutBack'), (3.0, [-100, 10, -10])], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (0.3, 1.6), (2.3, 1.6), (2.5, 1.8), (3.0, 1.8)])
+    picks = [(0, [-20, 0, 20]), (0.3, [-50, -40, 10], 'easeInOutSine')]
+    t = 0.3
+    while t < 1.35:
+        picks += [(round(t + 0.06, 2), [-58, -40, 10]), (round(t + 0.12, 2), [-48, -40, 10])]
+        t += 0.12
+    picks += [(1.45, [-190, -10, 30], 'easeOutQuad'), (1.6, [-40, 0, 40], 'easeInQuad'), (1.75, [-20, 0, 30]), (2.3, [-30, 0, 24]),
+              (3.0, [-30, 0, 24])]
+    a.rot('arm_r', picks, 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.3, 1.3), (1.4, 1.3), (1.6, 1.6), (1.8, 1.2), (3.0, 1.1)])
+    bangs = [(0, [0, 0, 0])]
+    t = 0.0
+    while t + beat < 2.3:
+        bangs += [(round(t + beat * 0.5, 3), [-10, 0, 0]), (round(t + beat, 3), [16, 0, 0], 'easeInQuad')]
+        t += beat
+    bangs += [(2.5, [4, 0, 0]), (3.0, [0, 0, 0])]
+    a.rot('torso', bangs, 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (1.4, [0, 0, 0]), (1.6, [0, 0, -8]), (2.0, [0, 0, 4]), (2.4, [0, 0, 0]), (3.0, [0, 0, 0])])
+    a.sound(1.6, 'whoosh').sound(2.5, 'chuckle')
+    return a
+
+
 COLISEUM = [b_p2_arrive_sky, b_p2_notice, b_p2_march, b_p2_wake, b_p2_wait, b_p2_kick, b_p2_count, b_p2_groove,
-            b_p2_apology, b_p2_resume]
+            b_p2_apology, b_p2_resume, b_p2_hype, b_p2_solo]
 
 class F(Pinned):
     """The "form" controller (phase two, over the main animation): the fry wings, the crown, the

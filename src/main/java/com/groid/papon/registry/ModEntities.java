@@ -90,6 +90,13 @@ public final class ModEntities {
                     .clientTrackingRange(6)
                     .updateInterval(2)
                     .build("potato_shot"));
+    /** A potato thrown from the stands of his coliseum. */
+    public static final RegistryObject<EntityType<com.groid.papon.boss.CrowdPotatoEntity>> CROWD_POTATO = REGISTRY.register("crowd_potato",
+            () -> EntityType.Builder.<com.groid.papon.boss.CrowdPotatoEntity>of(com.groid.papon.boss.CrowdPotatoEntity::new, MobCategory.MISC)
+                    .sized(0.3F, 0.3F)
+                    .clientTrackingRange(6)
+                    .updateInterval(2)
+                    .build(PaponMod.id("crowd_potato").toString()));
     public static final RegistryObject<EntityType<MolotovEntity>> MOLOTOV = REGISTRY.register("molotov",
             () -> EntityType.Builder.<MolotovEntity>of(MolotovEntity::new, MobCategory.MISC)
                     .sized(0.3F, 0.3F)

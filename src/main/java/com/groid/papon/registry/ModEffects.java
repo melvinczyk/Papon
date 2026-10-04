@@ -27,5 +27,8 @@ public final class ModEffects {
     public static final RegistryObject<MobEffect> ROOTED = REGISTRY.register("rooted",
             () -> new com.groid.papon.effect.BoundEffect(0x8DB04A, "c41e9b27-3f6d-4a85-9e2c-7b1d5a3f8e60", false));
 
+    /** A potato from the stands in the face: a tenth of the screen in mash for five seconds. */
+    public static final RegistryObject<MobEffect> SPLATTERED = REGISTRY.register("splattered", com.groid.papon.effect.SplatteredEffect::new);
+
     private ModEffects() {}
 }
