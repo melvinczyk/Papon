@@ -28,9 +28,11 @@ import java.util.function.Supplier;
  *   QteInput client -> server  key n pressed right, or wrong / too late
  *   Fade     server -> client  the screen to black and back (brought back to the Taco Truck after the fight)
  *   OrderTaco client -> server a taco off the reformed chef's menu (client/TacoMenuScreen)
+ *   QteResult client -> server a QTE judged as a whole (the squeeze, the duel) is over
+ *   QteMeter  client -> server how a running squeeze or duel is going (0..1): he reacts to it, the held player's body too
  */
 public final class PaponNetwork {
-    private static final String VERSION = "3";
+    private static final String VERSION = "4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(PaponMod.id("main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
 
@@ -56,6 +58,27 @@ public final class PaponNetwork {
         }, b -> new OrderTaco(b.readVarInt(), b.readVarInt()), OrderTaco::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(8, QteResult.class, QteResult::encode, QteResult::decode, QteResult::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(9, QteMeter.class, (m, b) -> {
+            b.writeVarInt(m.bossId());
+            b.writeFloat(m.value());
+        }, b -> new QteMeter(b.readVarInt(), b.readFloat()), QteMeter::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+    }
+
+    /** From the client: how the squeeze (its meter) or the duel (its rock meter) is going right now, 0..1. */
+    public static void qteMeter(int bossId, float value) {
+        CHANNEL.sendToServer(new QteMeter(bossId, value));
+    }
+
+    public record QteMeter(int bossId, float value) {
+        void handle(Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer p = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (p != null && p.level().getEntity(bossId) instanceof com.groid.papon.boss.PaponBossEntity boss) {
+                    boss.qteMeter(p, net.minecraft.util.Mth.clamp(value, 0F, 1F));
+                }
+            });
+            ctx.get().setPacketHandled(true);
+        }
     }
 
     /** The screen fades to black over {@code in} ticks, stays black {@code hold}, and fades back over {@code out}. */

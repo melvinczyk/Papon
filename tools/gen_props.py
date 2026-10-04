@@ -541,6 +541,147 @@ def candy():
     return m.save()
 
 
+def sombrero():
+    """El Sombrero Asesino (phase three): a mariachi's sombrero spun like a saw blade, a wide black brim (an octagon: two
+    squares, one turned 45 degrees) edged in gold embroidery and turned up at the rim, a tall crown with a red band."""
+    m = Model('fx_sombrero', 256, 41)
+    black, black_hi, gold, gold_dk, red = (28, 22, 26), (52, 44, 50), (232, 186, 72), (176, 128, 40), (190, 30, 36)
+
+    def brim(f, r, m):
+        x0, y0, x1, y1 = r
+        m.fill(r, black, 0.05)
+        if f in ('up', 'down'):
+            # gold scrollwork in a ring near the edge, and a second fine line
+            cx, cy, R = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    d = ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) ** 0.5 / R
+                    a = math.atan2(y + 0.5 - cy, x + 0.5 - cx)
+                    if 0.78 < d < 0.86 and (math.sin(a * 16) > -0.2):
+                        m.put(x, y, gold)
+                    elif 0.9 < d < 0.94:
+                        m.put(x, y, gold_dk)
+                    elif d < 0.75 and m.rng.random() < 0.05:
+                        m.put(x, y, black_hi)
+        else:
+            for x in range(x0, x1):
+                if x % 3 == 0:
+                    m.put(x, y0, gold)
+
+    def crown(f, r, m):
+        m.fill(r, black, 0.05)
+        x0, y0, x1, y1 = r
+        if f not in ('up', 'down'):
+            for x in range(x0, x1):
+                for y in range(y0, y1):
+                    if (x + y) % 6 == 0:
+                        m.put(x, y, black_hi)
+
+    def band(f, r, m):
+        m.fill(r, red, 0.04)
+        x0, y0, x1, y1 = r
+        for x in range(x0, x1):
+            m.put(x, y0, gold)
+            m.put(x, y1 - 1, gold)
+            if x % 4 == 1:
+                m.put(x, (y0 + y1) // 2, gold)
+
+    for rot in (None, {'angle': 45, 'axis': 'y', 'origin': [8, 8, 8]}):
+        m.box([0.5, 6, 0.5], [15.5, 6.8, 15.5], brim, rot=rot)                      # the brim
+        m.box([4.5, 6.8, 4.5], [11.5, 11.5, 11.5], crown, rot=rot)                  # the crown
+        m.box([4.3, 6.8, 4.3], [11.7, 8, 11.7], band, rot=rot)                      # its band
+    m.box([5.5, 11.5, 5.5], [10.5, 12.6, 10.5], crown)                              # the crown's top
+    # the rim turned up all round
+    for frm, to in (([0.5, 6.8, 0.5], [15.5, 7.6, 1.3]), ([0.5, 6.8, 14.7], [15.5, 7.6, 15.5]),
+                    ([0.5, 6.8, 1.3], [1.3, 7.6, 14.7]), ([14.7, 6.8, 1.3], [15.5, 7.6, 14.7])):
+        m.box(frm, to, brim)
+    return m.save()
+
+
+def calavera():
+    """Las Calaveras (phase three): a sugar skull shaped like a potato, white icing, eye sockets ringed in pink and
+    turquoise, a heart for a nose, a stitched grin, marigolds on the brow and swirls on the cheeks."""
+    m = Model('fx_calavera', 128, 43)
+    icing, shade, dark = (246, 240, 230), (222, 212, 200), (34, 20, 44)
+    pink, teal, marigold, leaf, purple = (240, 74, 160), (50, 196, 210), (252, 168, 30), (70, 170, 70), (150, 70, 200)
+
+    def face(f, r, m):
+        x0, y0, x1, y1 = r
+        m.fill(r, icing, 0.03)
+        if f != 'north':
+            # swirls and dots round the sides and the back
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    if (x * 7 + y * 3) % 11 == 0:
+                        m.put(x, y, (pink, teal, marigold, purple)[(x + y) % 4])
+            return
+        w, h = x1 - x0, y1 - y0
+        def disc(cx, cy, rad, c):
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    if (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= rad * rad:
+                        m.put(x, y, c)
+        for i, cx in enumerate((x0 + w * 0.3, x0 + w * 0.7)):
+            cy = y0 + h * 0.42
+            disc(cx, cy, w * 0.17, (pink, teal)[i])
+            disc(cx, cy, w * 0.12, dark)
+            m.put(int(cx) - 1, int(cy) - 1, (255, 255, 255))                       # the glint in the dark
+        # a heart for a nose
+        nx, ny = int(x0 + w / 2), int(y0 + h * 0.62)
+        for dx, dy in ((-1, 0), (0, 0), (1, 0), (-1, -1), (1, -1), (0, 1)):
+            m.put(nx + dx, ny + dy, pink)
+        # the stitched grin
+        my = int(y0 + h * 0.8)
+        for x in range(x0 + w // 4, x1 - w // 4):
+            m.put(x, my, dark)
+            if x % 2 == 0:
+                m.put(x, my - 1, dark)
+                m.put(x, my + 1, dark)
+        # marigolds on the brow, leaves between
+        for i, fx in enumerate((x0 + w * 0.3, x0 + w * 0.5, x0 + w * 0.7)):
+            fy = y0 + h * 0.14
+            disc(fx, fy, 1.6, marigold)
+            m.put(int(fx), int(fy), (200, 60, 20))
+            if i < 2:
+                m.put(int(fx + w * 0.1), int(fy + 1), leaf)
+        # swirls on the cheeks
+        for cx in (x0 + 2, x1 - 3):
+            for k in range(5):
+                m.put(int(cx + math.cos(k) * 1.2), int(y0 + h * 0.62 + math.sin(k) * 1.2), purple)
+
+    def skull(f, r, m):
+        m.fill(r, shade if f == 'down' else icing, 0.04)
+    # a lumpy egg of a potato skull: the face on the north side
+    m.box([3, 3, 3.5], [13, 12, 12.5], face)
+    m.box([2.4, 5, 4.5], [13.6, 10.5, 11.5], skull)
+    m.box([4, 12, 4.5], [12, 13, 11.5], skull)
+    m.box([4.5, 1.6, 4.5], [11.5, 3, 11], skull)                                   # the jaw
+    return m.save()
+
+
+def salsa_wave():
+    """32 x 32, tiled along La Ola's wall of salsa: chunky red salsa, tomato, onion, chilli and coriander in it, a
+    pale froth along the crest (the top rows)."""
+    rng = random.Random(53)
+    im = Image.new('RGBA', (32, 32))
+    px = im.load()
+    for y in range(32):
+        for x in range(32):
+            ripple = 0.9 + 0.12 * math.sin(x * 0.7 + math.sin(y * 0.5) * 2.5) * math.cos(y * 0.45)
+            c = tone((178, 30, 20), ripple + rng.uniform(-0.06, 0.06))
+            if y < 4 + int(1.5 * math.sin(x * 0.6)):
+                c = tone((246, 150, 120), 0.95 + rng.uniform(-0.08, 0.08))       # froth on the crest
+            px[x, y] = c
+    for _ in range(70):
+        x, y = rng.randrange(32), rng.randrange(5, 32)
+        c = rng.choice([(226, 64, 44), (226, 64, 44), (244, 236, 214), (64, 150, 54), (250, 128, 30)])
+        for dx, dy in ((0, 0), (1, 0), (0, 1)) if rng.random() < 0.6 else ((0, 0),):
+            px[(x + dx) % 32, min(31, y + dy)] = c + (255,)
+    path = os.path.join(ASSETS, 'textures/entity/salsa_wave.png')
+    im.save(path)
+    return path
+
+
 def mash_wave():
     """32 x 32, tiled round the wave: mash, lumpy, gravy pooling along the top edge."""
     rng = random.Random(29)
@@ -561,5 +702,6 @@ def mash_wave():
 
 
 if __name__ == '__main__':
-    for fn in (tequila, spud, meteor, tot, guitar, giant_spud, fry, cleaver, burrito, sprouts, mash_wave, pinata, candy):
+    for fn in (tequila, spud, meteor, tot, guitar, giant_spud, fry, cleaver, burrito, sprouts, mash_wave, pinata, candy, sombrero,
+               calavera, salsa_wave):
         print(fn())

@@ -124,6 +124,14 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     public void renderFinal(PoseStack pose, PaponBossEntity entity, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,
                             float partialTick, int light, int overlay, float r, float g, float b, float a) {
         super.renderFinal(pose, entity, model, buffers, buffer, partialTick, light, overlay, r, g, b, a);
+        var er = model.getBone("eye_r");
+        var el = model.getBone("eye_l");
+        if (er.isPresent() && el.isPresent()) {
+            var wr = er.get().getWorldPosition();
+            var wl = el.get().getWorldPosition();
+            EYES.put(entity.getId(), new net.minecraft.world.phys.Vec3[]{new net.minecraft.world.phys.Vec3(wr.x, wr.y, wr.z),
+                    new net.minecraft.world.phys.Vec3(wl.x, wl.y, wl.z)});
+        }
         if (!handInView(entity)) {
             HANDS.remove(entity.getId());
             return;
@@ -162,6 +170,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         this.scaleHeight = s;
         if (!reRender) hideForPov(model, handInView(entity));
         model.getBone("hand_blood").ifPresent(bone -> bone.setTrackingMatrices(true));
+        model.getBone("eye_r").ifPresent(bone -> bone.setTrackingMatrices(true));
+        model.getBone("eye_l").ifPresent(bone -> bone.setTrackingMatrices(true));
         super.preRender(pose, entity, model, buffers, buffer, reRender, partialTick, light, overlay, r, g, b, a);
     }
 
@@ -182,6 +192,11 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     /** Ghost mode (half alive, half dead): see-through and a little green, like a spirit. */
     @Override
     public software.bernie.geckolib.core.object.Color getRenderColor(PaponBossEntity entity, float partialTick, int light) {
+        if (entity.isArmored()) {
+            // mid-move and untouchable: a golden shimmer running through him
+            float k = 0.5F + 0.5F * net.minecraft.util.Mth.sin((entity.tickCount + partialTick) * 0.9F);
+            return software.bernie.geckolib.core.object.Color.ofRGBA(1.0F, 0.86F + 0.1F * k, 0.45F + 0.2F * k, 1F);
+        }
         if (entity.getBossState().unstoppable() && !entity.isGhost()) {
             // unstoppable: a red heat pulsing through him
             float k = 0.5F + 0.5F * net.minecraft.util.Mth.sin((entity.tickCount + partialTick) * 0.6F);
@@ -247,45 +262,75 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
 
     // Ascended Papon's eyes: their bones' final matrices, caught as they are drawn, for the lightning round them
     private final org.joml.Matrix4f eyeR = new org.joml.Matrix4f(), eyeL = new org.joml.Matrix4f();
-    private boolean eyesSeen;
+    private boolean eyesSeen, eyeRSeen, eyeLSeen;
+
+    /** Where his eyes were drawn last (world), per boss, [right, left]: his eye beams start there (client/BeamRenderer). */
+    private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3[]> EYES = new java.util.HashMap<>();
+
+    @org.jetbrains.annotations.Nullable
+    public static net.minecraft.world.phys.Vec3 eyePos(PaponBossEntity boss, int side) {
+        net.minecraft.world.phys.Vec3[] e = EYES.get(boss.getId());
+        return e == null ? null : e[side >= 0 ? 0 : 1];
+    }
 
     @Override
     public void renderCubesOfBone(PoseStack pose, software.bernie.geckolib.cache.object.GeoBone bone, VertexConsumer buffer, int light,
                                   int overlay, float r, float g, float b, float a) {
         if (bone.getName().equals("eye_r")) {
             eyeR.set(pose.last().pose());
-            eyesSeen = true;
+            eyeRSeen = true;
         } else if (bone.getName().equals("eye_l")) {
             eyeL.set(pose.last().pose());
+            eyeLSeen = true;
         }
+        eyesSeen = eyeRSeen || eyeLSeen;
         super.renderCubesOfBone(pose, bone, buffer, light, overlay, r, g, b, a);
     }
 
     /**
-     * Lightning crackling off his white eyes (Ascended Papon): a few jagged arcs from each, re-struck every couple
-     * of ticks, white at the core in a violet glow. Drawn in the eye bones' own space, so they follow his face.
+     * Lightning crackling round both his white eyes (Ascended Papon): an aura of jagged arcs all the way round each eye
+     * (the user: it was only the left), re-struck every couple of ticks, white at the core in a violet glow, over a soft
+     * glow. Drawn in each eye bone's own space (its cube's middle: GeckoLib mirrors X, so the right eye is at +4.5), so they
+     * follow his face.
      */
     private void eyeLightning(PaponBossEntity boss, float partial, MultiBufferSource buffers) {
         if (!eyesSeen) return;
         VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
         int seed = boss.tickCount / 2;
         for (int e = 0; e < 2; e++) {
+            if (e == 0 ? !eyeRSeen : !eyeLSeen) continue;
             org.joml.Matrix4f m = e == 0 ? eyeR : eyeL;
-            float ex = (e == 0 ? 4.5F : -4.5F) / 16F, ey = 19.5F / 16F, ez = -8.3F / 16F;
+            float ex = (e == 0 ? 4.5F : -4.5F) / 16F, ey = 19.5F / 16F, ez = -8.35F / 16F;
+            // the glow under the arcs
+            for (int i = 0; i < 12; i++) {
+                double a0 = Math.PI * 2 * i / 12, a1 = Math.PI * 2 * (i + 1) / 12;
+                float r = 0.16F;
+                org.joml.Vector4f c = m.transform(new org.joml.Vector4f(ex, ey, ez, 1));
+                org.joml.Vector4f p0 = m.transform(new org.joml.Vector4f(ex + (float) Math.cos(a0) * r, ey + (float) Math.sin(a0) * r * 0.7F, ez, 1));
+                org.joml.Vector4f p1 = m.transform(new org.joml.Vector4f(ex + (float) Math.cos(a1) * r, ey + (float) Math.sin(a1) * r * 0.7F, ez, 1));
+                vc.vertex(c.x, c.y, c.z).color(220, 200, 255, 150).endVertex();
+                vc.vertex(p0.x, p0.y, p0.z).color(160, 120, 255, 0).endVertex();
+                vc.vertex(p1.x, p1.y, p1.z).color(160, 120, 255, 0).endVertex();
+                vc.vertex(c.x, c.y, c.z).color(220, 200, 255, 150).endVertex();
+            }
             net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(seed * 31L + e * 7L + boss.getId());
-            int arcs = 2 + r.nextInt(2);
+            int arcs = 5 + r.nextInt(3);
             for (int a = 0; a < arcs; a++) {
-                float x = ex, y = ey, z = ez;
-                float dx = (e == 0 ? 1 : -1) * (0.04F + r.nextFloat() * 0.05F), dy = (r.nextFloat() - 0.3F) * 0.06F;
-                for (int k = 0; k < 5; k++) {
-                    float nx = x + dx + (r.nextFloat() - 0.5F) * 0.03F, ny = y + dy + (r.nextFloat() - 0.5F) * 0.05F, nz = z - 0.01F;
-                    ribbon(vc, m, x, y, z, nx, ny, nz, 0.012F * (1 - k / 6F), 200, 170, 255, 210);
+                // all the way round the eye, each arc off in its own direction
+                double ang = Math.PI * 2 * (a + r.nextFloat() * 0.6F) / arcs;
+                float x = ex + (float) Math.cos(ang) * 0.06F, y = ey + (float) Math.sin(ang) * 0.04F, z = ez;
+                float dx = (float) Math.cos(ang) * (0.03F + r.nextFloat() * 0.03F), dy = (float) Math.sin(ang) * (0.025F + r.nextFloat() * 0.025F);
+                for (int k = 0; k < 4; k++) {
+                    float nx = x + dx + (r.nextFloat() - 0.5F) * 0.035F, ny = y + dy + (r.nextFloat() - 0.5F) * 0.035F, nz = z - 0.008F;
+                    ribbon(vc, m, x, y, z, nx, ny, nz, 0.012F * (1 - k / 5F), 200, 170, 255, 210);
                     ribbon(vc, m, x, y, z, nx, ny, nz, 0.005F, 255, 255, 255, 255);
-                    x = nx; y = ny; z = nz;
+                    x = nx;
+                    y = ny;
+                    z = nz;
                 }
             }
         }
-        eyesSeen = false;
+        eyesSeen = eyeRSeen = eyeLSeen = false;
     }
 
     private static void ribbon(VertexConsumer vc, org.joml.Matrix4f m, float x0, float y0, float z0, float x1, float y1, float z1, float w,

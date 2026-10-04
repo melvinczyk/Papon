@@ -86,6 +86,7 @@ DIRECTION = {
     'drunk': ('animated', 'Speak %s, drunk and slurring, wobbly and indignant.' % STAR),
     'cold': ('animated', 'Speak %s: cold, quiet and deadly serious, low and slow, with a long dramatic pause at the ellipsis.' % STAR),
     'evil': ('animated', 'Speak %s: low, slow and dangerous, savouring every word like a villain who has just remembered his power, with long dramatic pauses at the ellipses, stretching the long vowels.' % STAR),
+    'menace': ('animated', 'Speak %s: low, slow and dangerous, like a villain who has just remembered his power, with a dramatic pause at the ellipsis. Natural word lengths, no stretched vowels.' % STAR),
     'contempt': ('animated', 'Speak %s: seething with quiet contempt, offended to the core, slow, with dramatic pauses at the ellipses.' % STAR),
 }
 
@@ -171,13 +172,30 @@ LINES = {
     'landed0':    ("Gracias, gracias. You are TOO kind.", 'smug'),
     'landed1':    ("And the crowd goes WILD!!!", 'shout'),
     # phase three: half health, the band's song is not his style; he takes the guitar and shows them
-    'notstyle':   ("This... is NOT... my style.", 'contempt'),
+    'notstyle':   ("This is NOT my style... who do you think I AM?!", 'angry'),
     'realplay':   ("Let me show you how to REALLY play.", 'sly'),
     'gimme':      ("Give me THAT.", 'angry'),
     'mystyle':    ("THIS... is more my style. Learn, muchachos.", 'smug'),
     'go':         ("What are you WAITING for?! GO!!!", 'shout'),
     'dance':      ("Now... let's DANCE.", 'cold'),
-    'felt':       ("Hmmm... I haven't felt this way... in a LOOOOONG time.", 'evil'),
+    'felt':       ("Hmmm... I haven't felt this way in a LONG time.", 'menace'),
+    # (2026-10-04) the knockback: beaten, getting up; the noise of the band in his ears; the power after the ascension;
+    # the car before he crushes it
+    'p3_hurt':    ("Hhh... that one... HURT.", 'pained'),
+    'p3_noise':   ("What... is that... NOISE?", 'contempt'),
+    'p3_power':   ("Whoa, WHOA... so much POWER.", 'surprised'),
+    'upgrade':    ("It's about time I gave this thing an UPGRADE.", 'menace'),
+    # the QTEs: his charm while he has you (the squeeze reacts to how you mash)
+    'qte_strong': ("Ay! You are STRONGER than you look, amigo!", 'surprised'),
+    'qte_weak':   ("Shhh... just let it HAPPEN.", 'sly'),
+    'qte_crush':  ("Like an AVOCADO!!!", 'shout'),
+    'qte_slip':   ("You slippery little POTATO!", 'angry'),
+    'qte_quick':  ("Ooh, QUICK hands, amigo.", 'smug'),
+    'qte_slow':   ("Too SLOW, amigo!", 'smug'),
+    'tango_good': ("Ooh, you can DANCE, amigo!", 'smug'),
+    'tango_bad':  ("Two LEFT feet, amigo!", 'smug'),
+    'duel_good':  ("Not BAD, amigo... not bad at ALL!", 'surprised'),
+    'duel_bad':   ("Is that a GUITAR, or a BROOM?!", 'smug'),
     # the ascension: in pain, the wings tearing out of his back
     'groan1':     ("Nnngh... hhhAAAGH... AAAAAGH!", 'pained'),
     'groan2':     ("Hhhhh... HAAAAAAGH!!!", 'pained'),
@@ -211,6 +229,17 @@ LINES = {
     'p3_landed0':   ("Did you see that?! Did EVERYBODY see that?!", 'shout'),
     'p3_landed1':   ("Thank you, thank you. I am here all NIGHT.", 'smug'),
     'p3_low':       ("No, no, no... the show must go ON!", 'angry'),
+    # (2026-10-04) his new moves
+    'p3_sombrero':  ("Hats OFF to the champion... ME!!!", 'shout'),
+    'p3_volcan':    ("The EARTH itself dances for me!!!", 'shout'),
+    'p3_calaveras': ("My ancestors would like to MEET you, amigo.", 'sly'),
+    'p3_swing':     ("Swing... swing... and BREAK!!!", 'shout'),
+}
+
+# what the voice model is given to say, where the written line reads two ways ("lives": he said it like "alive")
+SPOKEN = {
+    'intro': "NOBODY sees my bald head and livs to TELL!!!",
+    'upgrade': "It's about time I gave this thing an upgrade.",     # in capitals it came out "upi-grad"
 }
 
 NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend'}          # Whisper cannot judge a scream or a lone word
@@ -244,7 +273,7 @@ def signature(line):
     """What a line's takes were made from: if any of it changes, the line is taken again."""
     text, mood = LINES[line]
     ref, direction = DIRECTION[mood]
-    return {'text': text, 'ref': ref, 'instruct': direction}
+    return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction}
 
 
 def have_ffmpeg():
@@ -365,8 +394,8 @@ def heard_energy(heard):
 
 
 # takes chosen by ear over the automatic pick: line -> take index
-PICKED = {'felt': 2,          # "Mmm... I haven't felt this way in a loo-oong time." (the stretched "long")
-          'p3_duel': 3}       # "A duel, amigo!" (Whisper heard the picked take as "A drill")
+PICKED = {'p3_duel': 3,
+          'intro': 3}         # "...and LIVES to tell": the short i (F1 about 400 Hz; the old take was "lyves", F1 about 750)       # "A duel, amigo!" (Whisper heard the picked take as "A drill")
 
 
 def pick(line, info):
@@ -580,13 +609,27 @@ def beats(lengths):
     fight = int(round(intro * b['song.passes'] * 20))
     b['apology.end'] = fight - SHOWTIME - b['resume.total'] - HYPE
     b['apology.wink'] = b['apology.aura'] + min(40, (b['apology.end'] - b['apology.aura']) // 2)
-    # phase three (half health). Up off the sand, the lip wiped, his eyes slide over to the band; a maraca drops in
-    # the silence. "This... is NOT... my style." A beat. "Let me show you how to REALLY play."
-    # (tightened 2026-10-04: the user found phase three's cutscene too long)
-    b['glare.maraca'] = 30
-    b['glare.notstyle'] = 44
-    b['glare.realplay'] = b['glare.notstyle'] + L('notstyle') + 12
-    b['glare.end'] = b['glare.realplay'] + L('realplay') + 8
+    # phase three (half health), reworked 2026-10-04 (the user: "make him look weaker, like he is taking a beating"). The
+    # knockback: flung (14), the crash and the skid (to 26), flat on his back, chest heaving; an arm pushes him up and gives
+    # way (knock.fall), he rolls onto his side and gets a knee under him (knock.knee): "Hhh... that one... HURT." and the
+    # lip wiped; up, swaying (knock.up)
+    b['knock.fall'] = 54
+    b['knock.knee'] = 76
+    b['knock.hurt'] = 84
+    b['knock.up'] = b['knock.hurt'] + L('p3_hurt') + 8
+    b['knock.end'] = b['knock.up'] + 24
+    # the glare, through his eyes: everything swimming, the band's song muffled in his ears ("What... is that... NOISE?"),
+    # the blur pulled into focus on the band stand as his eyes zoom in on them (glare.focus); they see him staring and stop
+    # dead, scared (glare.scare: the record grinds to a halt), a maraca rolls; then his face, furious: "This is NOT my
+    # style... who do you think I AM?!" A beat. "Let me show you how to REALLY play."
+    b['glare.noise'] = 34
+    b['glare.focus'] = b['glare.noise'] + L('p3_noise') + 6
+    b['glare.scare'] = b['glare.focus'] + 30
+    b['glare.maraca'] = b['glare.scare'] + 14
+    b['glare.face'] = b['glare.scare'] + 34
+    b['glare.notstyle'] = b['glare.face'] + 10
+    b['glare.realplay'] = b['glare.notstyle'] + L('notstyle') + 14
+    b['glare.end'] = b['glare.realplay'] + L('realplay') + 10
     # looming over the singer: "Give me THAT." and the guitar ripped out of his hands on the last word
     b['snatch.gimme'] = 6
     b['snatch.grab'] = max(18, b['snatch.gimme'] + L('gimme') - 6)
@@ -604,7 +647,17 @@ def beats(lengths):
     b['ascend.groan2'] = -1
     b['ascend.burst'] = b['ascend.groan1'] + L('groan1') - 8
     b['ascend.roar'] = b['ascend.burst'] + 6
-    b['ascend.end'] = b['ascend.roar'] + L('ascend') + 18
+    # (2026-10-04) cutaways while he groans (the band clutching each other) and after the roar (the stands on their feet,
+    # screaming; the band backing away from him)
+    b['ascend.cut'] = b['ascend.groan1'] + max(10, L('groan1') // 2 - 10)
+    b['ascend.crowd'] = b['ascend.roar'] + L('ascend') + 4
+    b['ascend.band'] = b['ascend.crowd'] + 34
+    b['ascend.end'] = b['ascend.band'] + 36
+    # the power goes through him and nearly puts him down: he staggers, catches himself, looks at his hands, "Whoa, WHOA...
+    # so much POWER.", and the grin; then the serenade
+    b['power.line'] = 22
+    b['power.grin'] = b['power.line'] + L('p3_power') + 4
+    b['power.end'] = b['power.grin'] + 26
     # the guitar down from his chin, the chord dying: "THIS... is more my style. Learn, muchachos."
     b['verdict.line'] = 10
     b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
@@ -613,7 +666,10 @@ def beats(lengths):
     b['toss.throw'] = 20
     b['toss.catch'] = 42
     b['toss.glance'] = 58
-    b['toss.end'] = b['toss.glance'] + 30
+    # (2026-10-04) the band, scared, whispering to each other in a tighter shot: "What do we do?!", "Play, PLAY!"
+    b['toss.talk1'] = b['toss.glance'] + 8
+    b['toss.talk2'] = b['toss.glance'] + 30
+    b['toss.end'] = b['toss.glance'] + 62
     # he turns to you, slowly, the power going through him: "Hmmm... I haven't felt this way... in a LOOOOONG
     # time." and an evil smile, held
     b['felt.line'] = 14
@@ -621,20 +677,22 @@ def beats(lengths):
     b['felt.end'] = b['felt.smile'] + 26
     # his car: hoisted over his head, crushed in his hands into a ball, reformed in a flash into a black Skyline
     # that grows in his hands and is slammed down on its wheels; it revs
-    b['crush.lifted'] = 14
-    b['crush.squeeze'] = 18
-    b['crush.ball'] = 42
-    b['crush.reform'] = 52
-    b['crush.down'] = 66
-    b['crush.rev'] = 76
-    b['crush.end'] = 96
+    # (2026-10-04) first, a hand on its roof: "It's about time I gave this thing an UPGRADE."
+    b['crush.upgrade'] = 6
+    b['crush.lifted'] = b['crush.upgrade'] + L('upgrade') + 14
+    b['crush.squeeze'] = b['crush.lifted'] + 4
+    b['crush.ball'] = b['crush.squeeze'] + 24
+    b['crush.reform'] = b['crush.ball'] + 10
+    b['crush.down'] = b['crush.reform'] + 14
+    b['crush.rev'] = b['crush.down'] + 10
+    b['crush.end'] = b['crush.rev'] + 20
     # he whirls round on the band: "What are you WAITING for?! GO!!!"
     b['go.line'] = 8
     b['go.end'] = b['go.line'] + L('go') + 4
     # the singer's pickup, a cappella, then the band crashes in and the fire comes back; and at the very end, very
     # quietly: "Now... let's DANCE."
     b['dance.drop'] = int(round(pickup * 20))
-    b['dance.line'] = b['dance.drop'] + 44
+    b['dance.line'] = b['dance.drop'] + 34
     b['dance.end'] = b['dance.line'] + L('dance') + 16
     return b
 

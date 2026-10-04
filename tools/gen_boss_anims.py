@@ -285,7 +285,8 @@ GERBIN = [g_idle, g_walk, g_chop, g_wash, g_look, g_shocked, g_cower, g_carry, g
 
 class B(Pinned):
     # the phase-two parts are pinned too: only the "form" controller (class F) shows them
-    pins = ['bottle', 'handle', 'big_spatula', 'molotov', 'lighter', 'keys', 'sweat', 'tears', 'potato_gun',
+    # the blush too: he only goes red while he drinks (chug, the handle, a swig), fading out after
+    pins = ['blush', 'bottle', 'handle', 'big_spatula', 'molotov', 'lighter', 'keys', 'sweat', 'tears', 'potato_gun',
             'blood', 'hand_blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker',
             'comal', 'cleaver_r', 'cleaver_l', 'tortilla', 'brick', 'tot', 'lid_r', 'lid_l', 'p3_guitar', 'p3_guitar_carry']
 
@@ -361,7 +362,7 @@ def b_chug():
     a.scale('body', [(0, [1, 1, 1]), (1.25, [1, 1, 1])]
             + [(round(1.25 + 0.3125 * i + 0.15, 3), [1.03 + 0.008 * i, 1.0, 1.03 + 0.008 * i]) for i in range(8)]
             + [(3.9, [1.08, 1.04, 1.08]), (4.85, [1.1, 0.95, 1.1], 'easeOutQuad'), (5.0, [1.04, 1.02, 1.04])], 'cat')
-    a.scale('blush', [(0, [1, 1, 1]), (1.25, [1, 1, 1]), (3.75, [1.1, 1.6, 1]), (5.0, [1.1, 1.6, 1])])
+    a.scale('blush', [(0, [0, 0, 0]), (1.25, [0, 0, 0]), (3.75, [1.1, 1.6, 1]), (5.0, [1.1, 1.6, 1])])
     a.pos('root', [(0, [0, 0, 0]), (4.4, [0, 0, 0]), (4.45, [0, -1, 0]), (4.6, [0, 0, 0]), (5.0, [0, 0, 0])])
     a.sound(0.35, 'cloth').sound(0.85, 'pop').sound(4.45, 'smash').sound(4.85, 'burp')
     return a
@@ -380,6 +381,7 @@ def b_roar():
             + [(round(0.45 + 0.08 * i, 2), [0.9, 1.2, 0.9] if i % 2 else [0.86, 1.25, 0.86]) for i in range(13)]
             + [(2.0, [1, 1, 1], 'easeInOutSine')], 'lin')
     a.rot('wisps', [(round(0.35 + 0.06 * i, 2), [0, 0, 30 if i % 2 else -30]) for i in range(20)])
+    a.scale('blush', [(0, [1.1, 1.6, 1]), (1.2, [0, 0, 0])], 'lin')          # the tequila flush fading
     a.sound(0.3, 'roar')
     return a
 
@@ -714,7 +716,7 @@ def b_drink_handle():
     a.scale('body', [(0, [1, 1, 1]), (0.5, [1, 1, 1])]
             + [(round(0.5 + 0.267 * i + 0.13, 3), [1.04 + 0.01 * i, 1.0, 1.04 + 0.01 * i]) for i in range(6)]
             + [(2.2, [1.12, 1.0, 1.12]), (2.5, [1.04, 1.02, 1.04])], 'cat')
-    a.scale('blush', [(0, [1.1, 1.6, 1]), (2.1, [1.1, 2.4, 1]), (2.5, [1.1, 2.0, 1])])
+    a.scale('blush', [(0, [0, 0, 0]), (0.5, [0, 0, 0]), (2.1, [1.1, 2.4, 1]), (2.5, [1.1, 2.0, 1])])
     a.sound(0.15, 'cloth').sound(2.3, 'whoosh')
     return a
 
@@ -724,6 +726,7 @@ def b_enter_car():
     a = angry(B('enter_car', 0.8, 'hold'))
     seated(a)
     a.pos('root', [(0, [0, 3, 2]), (0.4, [0, -1, 0], 'easeInQuad'), (0.8, [0, 0, 0], 'easeOutBack')], 'lin')
+    a.scale('blush', [(0, [1.1, 2.0, 1]), (0.8, [0, 0, 0])], 'lin')
     a.sound(0.4, 'thud')
     return a
 
@@ -766,7 +769,6 @@ def b_exit_stumble():
     for brow, s in (('brow_r', 1), ('brow_l', -1)):
         a.pos(brow, [(0, [0, 1.2, 0]), (1.0, [0, -0.6, 0]), (2.0, [0, 1.0, 0]), (4.0, [0, -0.8, 0])])
         a.rot(brow, [(0, [0, 0, -10 * s]), (2.0, [0, 0, 14 * s]), (4.0, [0, 0, 18 * s])])
-    a.scale('blush', [(0, [1.1, 2.4, 1])], 'lin')
     a.sound(0.2, 'thud').sound(1.0, 'hiccup').sound(1.6, 'grunt').sound(2.4, 'hiccup').sound(3.0, 'pat')
     return a
 
@@ -788,7 +790,6 @@ def b_phase():
     a.scale('body', [(0, [1, 1, 1]), (1.0, [1, 1, 1]), (1.2, [0.88, 1.24, 0.88], 'easeOutExpo')]
             + [(round(1.3 + 0.08 * i, 2), [0.9, 1.2, 0.9] if i % 2 else [0.86, 1.25, 0.86]) for i in range(14)]
             + [(3.0, [1, 1, 1])], 'lin')
-    a.scale('blush', [(0, [1.1, 1.6, 1]), (1.2, [1.1, 2.6, 1]), (3.0, [1.1, 2.6, 1])])
     a.sound(0.45, 'slam').sound(0.75, 'slam').sound(1.2, 'roar')
     return a
 
@@ -1081,7 +1082,7 @@ def b_drunk_swig():
     a.rot('torso', [(0, [0, 0, 0]), (0.15, [-30, 0, 0], 'easeOutQuad'), (0.45, [-34, 0, 0]), (0.6, [20, 0, 0], 'easeOutBack'),
                     (0.7, [14, 0, 0])], 'lin')
     a.scale('body', [(0, [1, 1, 1]), (0.45, [1.06, 1.02, 1.06]), (0.6, [1.18, 0.9, 1.18], 'easeOutExpo'), (0.7, [1.06, 1, 1.06])], 'lin')
-    a.scale('blush', [(0, [1.1, 1.6, 1]), (0.6, [1.2, 2.6, 1])], 'lin')
+    a.scale('blush', [(0, [0, 0, 0]), (0.6, [1.2, 2.6, 1])], 'lin')
     a.sound(0.15, 'glug').sound(0.35, 'glug').sound(0.55, 'smash').sound(0.62, 'roar_small')
     return a
 
@@ -1122,7 +1123,7 @@ def b_drunk_flurry():
     a.rot('root', [(0, [0, 0, -6]), (0.7, [0, 0, 8]), (1.4, [0, 0, -8]), (2.0, [0, 0, 6]), (2.2, [0, 0, 0]),
                    (2.5, [0, 360, 0], 'easeInQuad'), (2.5 + EPS, [0, 0, 0], 'lin'), (3.0, [0, 0, 0])], 'lin')
     a.scale('body', [(0, [1.06, 1, 1.06]), (2.2, [0.94, 1.1, 0.94]), (2.5, [1.25, 0.8, 1.25], 'easeInExpo'), (3.0, [1, 1, 1])], 'lin')
-    a.scale('blush', [(0, [1.2, 2.6, 1])], 'lin')
+    a.scale('blush', [(0, [1.2, 2.6, 1]), (0.6, [0, 0, 0])], 'lin')
     a.sound(2.45, 'swing').sound(2.5, 'slam')
     return a
 
@@ -1151,7 +1152,7 @@ def b_haymaker():
     for brow, s in (('brow_r', 1), ('brow_l', -1)):
         a.pos(brow, [(0, [0, 1.0, 0]), (1.45, [0, 1.0, 0]), (1.5, [0, -1.0, 0], 'easeOutExpo')])
         a.rot(brow, [(0, [0, 0, -10 * s]), (1.45, [0, 0, -10 * s]), (1.5, [0, 0, 24 * s], 'easeOutExpo')])
-    a.scale('blush', [(0, [1.2, 2.6, 1])], 'lin')
+    a.scale('blush', [(0, [1.2, 2.6, 1]), (0.6, [0, 0, 0])], 'lin')
     a.sound(0.4, 'hiccup').sound(1.0, 'hiccup').sound(1.5, 'ding').sound(1.7, 'roar_small').sound(1.78, 'swing').sound(2.3, 'thud')
     return a
 

@@ -22,7 +22,8 @@ import org.lwjgl.glfw.GLFW;
  * it (a second), the keys still to come as dots. Press the right one in time and the next comes up;
  * the wrong one, or too late, and it is over. While it runs a blank {@link QteScreen} is up, so the keys
  * go to it and never to a keybind (no map on J, no inventory, no mod hotkeys), and the camera is on
- * him in slow motion (Cinematic).
+ * him in slow motion (Cinematic). The screen stays up a moment after it ends (still mashing, still strumming: none of
+ * it reaches a keybind) and the keys are let go of when it closes; presses in its first half second are not counted.
  */
 @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID, value = Dist.CLIENT)
 public final class QteClient {
@@ -43,6 +44,7 @@ public final class QteClient {
     private static int endTicks;
     private static boolean endWon;
     private static int beat;
+    private static int meterTicks;
     /** The squeeze (kind 5): the meter (0..1, draining), presses in a row on the current pair, ticks left. */
     private static float meter;
     private static int spamCount, spamLeft;
@@ -70,7 +72,7 @@ public final class QteClient {
         spamCount = 0;
         spamLeft = window;
         duel = k == 6 && ks.length >= 3 ? new GuitarDuel(boss, ks[0], ks[1], ks[2]) : null;
-        if (k == 6) grace = 0;
+        if (k == 6) grace = PaponBossEntity.QTE_GRACE;
         Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                 SoundEvents.NOTE_BLOCK_BELL.get(), 0.6F));
     }
@@ -80,10 +82,13 @@ public final class QteClient {
         return active && duel != null && boss.getId() == bossId;
     }
 
-    /** The squeeze's pair of keys right now: the meter moves you through the three pairs. */
+    /** The squeeze's keys: always the same pair, K and L, in turn (the meter no longer moves you to new keys). */
     private static int spamPair() {
-        return meter < 0.45F ? 0 : meter < 0.75F ? 1 : 2;
+        return 0;
     }
+
+    /** Ticks after a QTE ends that its screen stays up, swallowing the keys still being mashed. */
+    private static final int AFTER_LOCK = 12;
 
     public static void end(boolean won) {
         duel = null;
@@ -130,7 +135,11 @@ public final class QteClient {
         if (endTicks > 0) endTicks--;
         Minecraft mc = Minecraft.getInstance();
         if (!active) {
-            if (mc.screen instanceof QteScreen) mc.setScreen(null);
+            // the result stays up; the keys stay swallowed a moment longer, then are let go of
+            if (mc.screen instanceof QteScreen && endTicks <= 40 - AFTER_LOCK) {
+                mc.setScreen(null);
+                net.minecraft.client.KeyMapping.releaseAll();
+            }
             return;
         }
         if (mc.level == null || mc.player == null || !(mc.level.getEntity(bossId) instanceof PaponBossEntity boss)
@@ -140,8 +149,10 @@ public final class QteClient {
         }
         if (mc.screen == null) mc.setScreen(new QteScreen());
         if (duel != null) {
+            if (grace > 0) grace--;
             duel.tick();
             if (duel.over() && !locked) locked = true;
+            if (++meterTicks % 5 == 0 && !locked) PaponNetwork.qteMeter(bossId, duel.meter());
             return;
         }
         // slow motion: a slow heartbeat under it all
@@ -158,6 +169,7 @@ public final class QteClient {
             // the squeeze: the meter drains; full, you are out; time up, he crushes you
             meter -= SPAM_DRAIN;
             if (meter < 0) meter = 0;
+            if (++meterTicks % 4 == 0) PaponNetwork.qteMeter(bossId, meter);
             if (--spamLeft <= 0) {
                 PaponNetwork.qteResult(bossId, 5, false, Math.round(meter * 100));
                 locked = true;
@@ -190,6 +202,7 @@ public final class QteClient {
             return;
         }
         if (kind == 5) {
+            if (key != keys[0] && key != keys[Math.min(1, keys.length - 1)]) return;      // only K and L count (nothing else costs you)
             if (locked) return;
             int pair = spamPair();
             int want = keys[pair * 2 + spamCount % 2];
@@ -206,8 +219,6 @@ public final class QteClient {
                     PaponNetwork.qteResult(bossId, 5, true, 100);
                     locked = true;
                 }
-            } else if (key != keys[pair * 2 + (spamCount + 1) % 2]) {
-                meter = Math.max(0, meter - 0.08F);              // a key that is not in the pair at all
             }
             return;
         }
@@ -321,7 +332,7 @@ public final class QteClient {
         }
     }
 
-    /** The squeeze: the pair of keys (the one to press next jumping), the meter filling and draining, the time running out. */
+    /** The squeeze: K and L (the one to press next jumping), the meter filling and draining, the time running out. */
     private static void spamHud(GuiGraphics g, net.minecraft.client.gui.Font font, int cx, int cy, float pt) {
         Minecraft mc = Minecraft.getInstance();
         int pair = spamPair();
@@ -346,8 +357,6 @@ public final class QteClient {
         int fill = (int) (bw * Mth.clamp(meter, 0, 1));
         int col = meter > 0.75F ? 0xFF55FF55 : meter > 0.45F ? 0xFFFFD27A : 0xFFFF7A3A;
         g.fill(cx - bw / 2, by, cx - bw / 2 + fill, by + 10, col);
-        g.fill(cx - bw / 2 + (int) (bw * 0.45F), by, cx - bw / 2 + (int) (bw * 0.45F) + 1, by + 10, 0x80FFFFFF);
-        g.fill(cx - bw / 2 + (int) (bw * 0.75F), by, cx - bw / 2 + (int) (bw * 0.75F) + 1, by + 10, 0x80FFFFFF);
         // the time
         float left = Mth.clamp(spamLeft / (float) Math.max(1, window), 0, 1);
         g.fill(cx - bw / 2, by + 16, cx - bw / 2 + (int) (bw * left), by + 19, left > 0.3F ? 0xFFFFD27A : 0xFFFF3A2A);

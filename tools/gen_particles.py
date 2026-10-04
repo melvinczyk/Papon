@@ -33,6 +33,10 @@ DNL = ('Dungeon Now Loading-forge-1.20.1-2.2.jar', 'dungeonnowloading')
 TF = ('twilightforest-1.20.1-4.3.2508-universal.jar', 'twilightforest')
 VZ = ('vzling-0.98.7-1.20.1-forge.jar', 'vzling')
 SKAR = ('skarrier_mobs-1.0.8-forge-1.20.1.jar', 'skarrier_mobs')
+# vanilla Minecraft itself (the user's call, 2026-10-04: the smooth, vector-looking smoke, dust, sweeps, hits and rings
+# read as stock art; Minecraft's own pixel particles replace them). $PAPON_MC_JAR overrides where the client jar is.
+MC_JAR = os.environ.get('PAPON_MC_JAR', os.path.expanduser('~/Documents/curseforge/minecraft/Install/versions/1.20.1/1.20.1.jar'))
+MC = (MC_JAR, 'minecraft')
 
 # type -> (jar, its particle json): every frame of that particle, as it is
 ANIMATED = {
@@ -40,25 +44,27 @@ ANIMATED = {
     'flame': (LM, 'big_orange_flame'),       # a tall flame standing on the ground (12)
     'blast': (AC, 'tephra_flame'),           # a fireball blooming into dark smoke (11)
     'burst': (CATA, 'trap_flame'),           # a small burst of fire (8)
-    'smoke': (BFB, 'fancy_smoke'),           # a curling puff (16), white: tinted
-    'dust': (BFB, 'dust_cloud'),             # a soft dust cloud (12), white: tinted
-    'slash': (LM, 'knight_sweep'),           # a sword sweep (8), white: tinted, laid flat at the swing's yaw
-    'hit': (EEEA, 'hit_cut'),                # an impact cut (6), white: tinted
-    'shock': (BFB, 'yeti_death_shockwave'),  # a ring blown outward (6), white: laid flat
+    'smoke': (MC, 'campfire_cosy_smoke'),    # vanilla's campfire smoke (12), whitened: tinted
+    'dust': (MC, 'poof'),                    # vanilla's poof (8, big to small), whitened: tinted
+    'slash': (MC, 'sweep_attack'),           # vanilla's sweep (8), white: tinted, laid flat at the swing's yaw
+    'hit': (MC, 'explosion'),                # vanilla's explosion puff (16), whitened: tinted
+    'shock': (MC, 'sonic_boom', 8),          # the warden's sonic boom from its disc on (8), whitened: laid flat
     'flash': (CATA, 'flare_explode'),        # a gold flare bursting into embers (7)
     'torch': (DNL, 'large_soul_flame'),      # a blue flame (8): the blowtorch
 }
+# animated ones whitened (brightest pixel white) so the particle's colour tints them
+WHITEN = {'smoke', 'dust', 'hit', 'shock'}
 # type -> [(jar, particle, frame, white)]: static variants, indexed
 STATIC = {
     # flat on the ground (index = Fx.DECAL_*)
     'decal': [
-        (CATA, 'circle', 0, True),                    # RING: a warning ring
-        (BFB, 'ring', 2, True),                       # RING_SOFT: a lasting zone's edge
+        (MC, 'sonic_boom', 10, True),                 # RING: a warning ring (vanilla)
+        (MC, 'sonic_boom', 12, True),                 # RING_SOFT: a lasting zone's edge (vanilla)
         (LM, 'soul_sigil', 0, True),                  # SIGIL: something is being summoned
         (DNL, 'redstone_hazard_indicator', 0, True),  # CROSS: a marked spot
         (VZ, 'scorch', 0, False),                     # SCORCH: a black burn
-        (BFB, 'ring', 0, True),                       # GLOW: a solid disc, drawn faint
-        (EEEA, 'big_ring', 0, True),                  # HALO
+        (MC, 'flash', 0, True),                       # GLOW: a soft disc, drawn faint (vanilla's firework flash)
+        (MC, 'sonic_boom', 11, True),                 # HALO (vanilla)
         (SKAR, 'blood_splat', 0, True),               # SPLAT: mash, salsa, blood
     ],
     'spark': [(TF, 'snow_warning', i, True) for i in range(4)],  # pixel stars; 3 is the glint
@@ -67,7 +73,7 @@ STATIC = {
 
 
 def from_jar(jar, ns, name):
-    with zipfile.ZipFile(os.path.join(MODS, jar)) as z:
+    with zipfile.ZipFile(jar if os.path.isabs(jar) else os.path.join(MODS, jar)) as z:
         tex = json.loads(z.read('assets/%s/particles/%s.json' % (ns, name)))['textures']
         out = []
         for t in tex:
@@ -111,8 +117,10 @@ def main():
     for f in os.listdir(tex_dir):
         if f.startswith('fx_'):
             os.remove(os.path.join(tex_dir, f))
-    for kind, ((jar, ns), name) in ANIMATED.items():
-        write(kind, [save(im, '%s_%d' % (kind, i)) for i, im in enumerate(from_jar(jar, ns, name))])
+    for kind, src in ANIMATED.items():
+        (jar, ns), name = src[:2]
+        frames = from_jar(jar, ns, name)[src[2] if len(src) > 2 else 0:]
+        write(kind, [save(whiten(square(im)) if kind in WHITEN else im, '%s_%d' % (kind, i)) for i, im in enumerate(frames)])
     for kind, srcs in STATIC.items():
         out = []
         for i, ((jar, ns), name, frame, white) in enumerate(srcs):

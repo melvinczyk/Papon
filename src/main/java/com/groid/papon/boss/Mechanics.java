@@ -60,14 +60,10 @@ public final class Mechanics {
             level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.FIRECHARGE_USE, SoundSource.HOSTILE, 1.5F, 0.6F);
             if (e instanceof ServerPlayer sp) {
                 PaponNetwork.shake(sp, 0.8F, 16);
-                sp.displayClientMessage(Component.translatable("status.papon.picante").withStyle(ChatFormatting.RED, ChatFormatting.BOLD), true);
             }
             return;
         }
         e.addEffect(new MobEffectInstance(ModEffects.HABANERO.get(), 120, now - 1, false, true, true));
-        if (e instanceof ServerPlayer sp && now >= HEAT_MAX - 1) {
-            sp.displayClientMessage(Component.translatable("status.papon.heat", now, HEAT_MAX).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), true);
-        }
     }
 
     public static void poison(LivingEntity e, int ticks) {

@@ -33,6 +33,11 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
     public void render(BeamEntity e, float yaw, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
         Vec3 base = e.getPosition(partial);
         Vec3 from = e.prevFrom.lerp(e.drawFrom, partial).subtract(base);
+        if (e.anchor() >= 0 && e.level().getEntity(e.anchor()) instanceof com.groid.papon.boss.PaponBossEntity boss) {
+            // out of his eye as it is drawn this frame (the server only knows roughly where his eyes are)
+            Vec3 eye = BossRenderer.eyePos(boss, e.side());
+            if (eye != null) from = eye.subtract(base);
+        }
         Vec3 to = e.prevTo.lerp(e.drawTo, partial).subtract(base);
         if (from.distanceToSqr(to) < 1e-4) return;
         Vec3 cam = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().subtract(base);
