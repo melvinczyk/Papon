@@ -563,11 +563,49 @@ def hat_slow():
     return a
 
 
+# ===================================================================== the lamplighter
+
+def lamp_walk():
+    """0.8 s loop (the third of the coro, off to the floodlight and back): a brisk little walk, the
+    maraca and the hand mic kept up, a bob on every step."""
+    a = state(M('lamp_walk', 0.8, True), True, True)
+    a.rot('leg_r', [(0, [-28, 0, 0]), (0.4, [28, 0, 0]), (0.8, [-28, 0, 0])])
+    a.rot('leg_l', [(0, [28, 0, 0]), (0.4, [-28, 0, 0]), (0.8, [28, 0, 0])])
+    a.pos('root', [(0, [0, 0, 0]), (0.2, [0, 0.8, 0]), (0.4, [0, 0, 0]), (0.6, [0, 0.8, 0]), (0.8, [0, 0, 0])])
+    a.rot('arm_r', [(0, [-24, -10, 10]), (0.4, [-40, -10, 10]), (0.8, [-24, -10, 10])])
+    a.rot('arm_l', [(0, CORO['down']['rot'])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.2)])
+    stretch(a, 'arm_r', [(0, 1.2)])
+    a.rot('torso', [(0, [4, 0, -3]), (0.4, [4, 0, 3]), (0.8, [4, 0, -3])])
+    a.sound(0.0, 'step').sound(0.4, 'step')
+    return a
+
+
+def lamp_switch():
+    """2.0 s. Up on his toes, the maraca hand up to the floodlight's chain, a tug (0.8 s: the light),
+    a pleased little shake of the maraca at it, and back down."""
+    a = state(M('lamp_switch', 2.0, 'hold'), True, True)
+    a.rot('arm_r', [(0, [-30, -10, 10]), (0.45, [-165, 0, 28], 'easeInOutSine'), (0.7, [-170, 0, 26]), (0.8, [-140, 0, 26], 'easeOutQuad'),
+                    (0.95, [-165, 0, 28]), (1.1, [-110, 0, 40], 'easeInOutSine'), (1.25, [-118, 0, 46]), (1.4, [-106, 0, 36]),
+                    (1.55, [-118, 0, 46]), (2.0, [-30, -10, 10], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1.2), (0.45, 1.55), (0.8, 1.45), (1.1, 1.2), (2.0, 1.2)])
+    a.rot('arm_l', [(0, CORO['down']['rot'])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.2)])
+    a.pos('root', [(0, [0, 0, 0]), (0.45, [0, 1.6, 0], 'easeOutQuad'), (0.8, [0, 1.4, 0]), (0.95, [0, 0, 0], 'easeInQuad'), (2.0, [0, 0, 0])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.45, [-10, 0, 6], 'easeInOutSine'), (0.8, [-6, 0, 6]), (1.1, [0, 0, 0]), (1.4, [0, 0, 4]),
+                    (2.0, [0, 0, 0])])
+    for b in ('brow_r', 'brow_l'):
+        a.pos(b, [(0, [0, 0, 0]), (0.8, [0, 0, 0]), (0.9, [0, 1.0, 0]), (1.6, [0, 0.8, 0]), (2.0, [0, 0, 0])])
+    mouth(a, [(0, 0), (0.85, 0), (1.0, 1.8, 'easeOutQuad'), (1.5, 1.4), (2.0, 0)])
+    a.sound(0.8, 'pick').sound(1.15, 'shake').sound(1.45, 'shake')
+    return a
+
+
 ALL = [sleep_a, sleep_b, sleep_c, startle, getup, resleep, jacket, hat, shades,
        lambda: grab('guitar'), lambda: grab('violin'), lambda: grab('trumpet'), lambda: grab('coro'),
        lambda: ready('guitar'), lambda: ready('violin'), lambda: ready('trumpet'), lambda: ready('coro'),
        count, lambda: play('guitar'), lambda: play('singer'), lambda: play('violin'), lambda: play('trumpet'),
-       lambda: play('coro'), bow, whacked, jacket_slow, hat_slow]
+       lambda: play('coro'), bow, whacked, jacket_slow, hat_slow, lamp_walk, lamp_switch]
 
 
 # the ones that start in a chair: written again sitting on the floor (everyone but Gordo)

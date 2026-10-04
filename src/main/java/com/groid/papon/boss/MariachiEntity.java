@@ -13,6 +13,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.level.Level;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -33,6 +34,10 @@ import software.bernie.geckolib.core.object.PlayState;
  * guitarron sits straight back down and sleeps until his chair is kicked, {@link #kick}).
  * The singer counts them in ({@link #count}) and they all play: the song itself is the client's
  * (SongPlayer), started from {@link #songStart()}, the server tick of its first downbeat.
+ *
+ * The third of the coro is the lamplighter: when night falls while they play (or day breaks), he
+ * steps down off the riser to the floodlight at the stage's back corner, gives its chain a tug, and
+ * both lights come on (or go off) as he walks back ({@link #tickLamp}).
  */
 public class MariachiEntity extends TacoNpc {
     private static final EntityDataAccessor<Integer> DATA_ROLE =
@@ -46,6 +51,13 @@ public class MariachiEntity extends TacoNpc {
     private int delay;
     private boolean kicked;
     private boolean woken;
+    /** The stage's floodlights (the lamplighter's; the first is the one he walks to). */
+    private final java.util.List<net.minecraft.core.BlockPos> lamps = new java.util.ArrayList<>();
+    /** Lamp: the spot in front of the floodlight he walks to, and how far along the way he is (0..1). */
+    @Nullable private Vec3 lampStand;
+    private double lampAlong;
+    private boolean lampOn;
+    private int lampCooldown;
 
     public MariachiEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -53,9 +65,10 @@ public class MariachiEntity extends TacoNpc {
     }
 
     /** A band member at his place, asleep sitting on the stage floor (Gordo, the guitarron: in his chair). */
-    public static MariachiEntity spawn(ServerLevel level, BandRole role, Vec3 at, float yaw) {
+    public static MariachiEntity spawn(ServerLevel level, BandRole role, Vec3 at, float yaw, java.util.List<net.minecraft.core.BlockPos> lamps) {
         MariachiEntity m = new MariachiEntity(com.groid.papon.registry.ModEntities.MARIACHI.get(), level);
         m.entityData.set(DATA_ROLE, role.ordinal());
+        if (role.lamplighter()) m.lamps.addAll(lamps);
         m.home = at;
         m.homeYaw = yaw;
         m.moveTo(at.x, at.y, at.z, yaw, 0);
@@ -129,11 +142,15 @@ public class MariachiEntity extends TacoNpc {
     /** Everyone plays (the song started at {@code songStartTick}). */
     public void play(int songStartTick) {
         entityData.set(DATA_SONG_START, songStartTick);
-        setBandState(BandState.PLAY);
+        if (!getBandState().lamp()) setBandState(BandState.PLAY);      // off at the lamp: back to it when he is home
     }
 
     public void bow() {
-        if (getBandState() == BandState.PLAY || getBandState().ready()) setBandState(BandState.BOW);
+        if (getBandState().lamp()) {
+            lampStand = null;
+            if (home != null) setPos(home.x, home.y, home.z);
+        }
+        if (getBandState() == BandState.PLAY || getBandState().ready() || getBandState().lamp()) setBandState(BandState.BOW);
     }
 
     private void say(String line, int ticks) {
@@ -144,6 +161,11 @@ public class MariachiEntity extends TacoNpc {
 
     @Override
     protected void serverStep(ServerLevel level) {
+        getNavigation().stop();
+        if (getBandState().lamp() && home != null && lampStand != null) {
+            tickLamp(level);
+            return;
+        }
         if (home != null) {
             setPos(home.x, Math.max(getY(), home.y - 0.5), home.z);
             setDeltaMovement(0, getDeltaMovement().y, 0);
@@ -151,8 +173,21 @@ public class MariachiEntity extends TacoNpc {
         setYRot(homeYaw);
         yBodyRot = homeYaw;
         setYHeadRot(homeYaw);
-        getNavigation().stop();
         BandState s = getBandState();
+        if (s.lamp()) setBandState(BandState.PLAY);                    // lost his way (a reload): back to playing
+        if (lampCooldown > 0) lampCooldown--;
+        if (s == BandState.PLAY && !lamps.isEmpty() && lampCooldown == 0 && home != null && tickCount % 20 == 0) {
+            boolean night = isNight(level);
+            if (night != lit(level)) {
+                lampOn = night;
+                Vec3 lamp = Vec3.atBottomCenterOf(lamps.get(0));
+                Vec3 away = new Vec3(home.x - lamp.x, 0, home.z - lamp.z).normalize();
+                lampStand = new Vec3(lamp.x + away.x * 1.0, lamp.y, lamp.z + away.z * 1.0);
+                lampAlong = 0;
+                setBandState(BandState.LAMP_GO);
+                return;
+            }
+        }
         int t = stateTicks;
         BandRole role = getRole();
         switch (s) {
@@ -198,6 +233,72 @@ public class MariachiEntity extends TacoNpc {
             }
             default -> {}
         }
+    }
+
+    /** From the stage's point of view: dark enough for the lights (dusk to dawn). */
+    private static boolean isNight(ServerLevel level) {
+        long t = level.getDayTime() % 24000L;
+        return t >= 12600 && t < 23200;
+    }
+
+    private boolean lit(ServerLevel level) {
+        net.minecraft.world.level.block.state.BlockState b = level.getBlockState(lamps.get(0));
+        return b.hasProperty(com.groid.papon.block.StageLampBlock.LIT) && b.getValue(com.groid.papon.block.StageLampBlock.LIT);
+    }
+
+    /**
+     * The walk to the floodlight and back: a straight line to the spot in front of it (stepping down
+     * off the riser on the way), the tug on its chain (both lights switch at SWITCH_TICK, the far one
+     * a moment later), then home again and on with the song.
+     */
+    private void tickLamp(ServerLevel level) {
+        BandState s = getBandState();
+        double len = Math.max(0.5, home.distanceTo(lampStand));
+        if (s == BandState.LAMP_GO || s == BandState.LAMP_BACK) {
+            lampAlong = Mth.clamp(lampAlong + (s == BandState.LAMP_GO ? 1 : -1) * 0.085 / len, 0, 1);
+            double k = lampAlong;
+            // level along the riser, then a step down to the stage floor near the end
+            double drop = Mth.clamp((k - 0.55) / 0.2, 0, 1);
+            double y = Mth.lerp(drop, home.y, lampStand.y);
+            setPos(Mth.lerp(k, home.x, lampStand.x), y, Mth.lerp(k, home.z, lampStand.z));
+            Vec3 dir = s == BandState.LAMP_GO ? lampStand.subtract(home) : home.subtract(lampStand);
+            face((float) (Mth.atan2(dir.z, dir.x) * Mth.RAD_TO_DEG) - 90F);
+            if (s == BandState.LAMP_GO && k >= 1) setBandState(BandState.LAMP_SWITCH);
+            if (s == BandState.LAMP_BACK && k <= 0) {
+                setPos(home.x, home.y, home.z);
+                face(homeYaw);
+                lampStand = null;
+                lampCooldown = 200;
+                setBandState(BandState.PLAY);
+            }
+        } else if (s == BandState.LAMP_SWITCH) {
+            setPos(lampStand.x, lampStand.y, lampStand.z);
+            Vec3 lamp = Vec3.atBottomCenterOf(lamps.get(0));
+            face((float) (Mth.atan2(lamp.z - lampStand.z, lamp.x - lampStand.x) * Mth.RAD_TO_DEG) - 90F);
+            if (stateTicks == SWITCH_TICK) switchLamp(level, 0);
+            if (stateTicks == SWITCH_TICK + 7 && lamps.size() > 1) switchLamp(level, 1);
+            if (stateTicks == SWITCH_TICK + 2) say(lampOn ? "lamp_on" : "lamp_off", 40);
+            if (stateTicks >= s.duration) setBandState(BandState.LAMP_BACK);
+        }
+        setDeltaMovement(Vec3.ZERO);
+    }
+
+    private static final int SWITCH_TICK = 16;
+
+    private void switchLamp(ServerLevel level, int i) {
+        net.minecraft.core.BlockPos p = lamps.get(i);
+        net.minecraft.world.level.block.state.BlockState b = level.getBlockState(p);
+        if (!b.hasProperty(com.groid.papon.block.StageLampBlock.LIT)) return;
+        level.setBlock(p, b.setValue(com.groid.papon.block.StageLampBlock.LIT, lampOn), net.minecraft.world.level.block.Block.UPDATE_ALL);
+        level.playSound(null, p, SoundEvents.LEVER_CLICK, net.minecraft.sounds.SoundSource.BLOCKS, 0.7F, lampOn ? 1.2F : 0.8F);
+        level.playSound(null, p, lampOn ? SoundEvents.BEACON_ACTIVATE : SoundEvents.BEACON_DEACTIVATE, net.minecraft.sounds.SoundSource.BLOCKS, 0.35F, 1.8F);
+        if (lampOn) level.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD, p.getX() + 0.5, p.getY() + 1.7, p.getZ() + 0.5, 6, 0.2, 0.1, 0.2, 0.02);
+    }
+
+    private void face(float yaw) {
+        setYRot(yaw);
+        yBodyRot = yaw;
+        setYHeadRot(yaw);
     }
 
     @Override
@@ -260,6 +361,8 @@ public class MariachiEntity extends TacoNpc {
             case COUNT -> COUNT;
             case PLAY -> loop("play_" + (role.singer() ? "singer" : kind));
             case BOW -> BOW;
+            case LAMP_GO, LAMP_BACK -> loop("lamp_walk");
+            case LAMP_SWITCH -> once("lamp_switch");
             case WHACKED -> once(chair("whacked"));
             case JACKET_SLOW -> once(chair("jacket_slow"));
             case HAT_SLOW -> HAT_SLOW;
@@ -283,6 +386,9 @@ public class MariachiEntity extends TacoNpc {
             tag.putDouble("HZ", home.z);
         }
         tag.putFloat("HYaw", homeYaw);
+        long[] l = new long[lamps.size()];
+        for (int i = 0; i < l.length; i++) l[i] = lamps.get(i).asLong();
+        tag.putLongArray("Lamps", l);
     }
 
     @Override
@@ -295,5 +401,7 @@ public class MariachiEntity extends TacoNpc {
         woken = tag.getBoolean("Woken");
         if (tag.contains("HX")) home = new Vec3(tag.getDouble("HX"), tag.getDouble("HY"), tag.getDouble("HZ"));
         homeYaw = tag.getFloat("HYaw");
+        lamps.clear();
+        for (long l : tag.getLongArray("Lamps")) lamps.add(net.minecraft.core.BlockPos.of(l));
     }
 }

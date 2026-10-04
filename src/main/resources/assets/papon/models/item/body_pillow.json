@@ -136,9 +136,9 @@
         2
       ],
       "scale": [
-        0.9,
-        0.9,
-        0.9
+        0,
+        0,
+        0
       ]
     },
     "thirdperson_lefthand": {
@@ -153,9 +153,9 @@
         2
       ],
       "scale": [
-        0.9,
-        0.9,
-        0.9
+        0,
+        0,
+        0
       ]
     },
     "firstperson_righthand": {

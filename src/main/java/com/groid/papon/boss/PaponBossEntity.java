@@ -215,6 +215,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     @Nullable private Vec3 home;
     /** Where the portal back into his coliseum opens (the truck window), and the way it faces; its entity. */
     @Nullable private Vec3 portalAt;
+    /** The Taco Truck he came out of (null for /papon boss): beaten, he goes back to work there, friendly. */
+    @Nullable private com.groid.papon.journey.TacoLine truck;
     private float portalYaw;
     @Nullable private java.util.UUID portalId;
     @Nullable private Vec3 leapFrom;
@@ -582,6 +584,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         home = to;
         vanId = van == null ? null : van.getUUID();
         setBossState(BossState.LEAP_OUT);
+    }
+
+    public void setTruck(com.groid.papon.journey.TacoLine line) {
+        truck = line;
     }
 
     /** /papon boss: no window to jump out of, straight to the bottle. */
@@ -2978,7 +2984,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         crowd.setMood(CrowdMood.CHEER);
         if (band(level).isEmpty()) {
             for (BandRole role : BandRole.values()) {
-                MariachiEntity.spawn(level, role, arena.bandSpot(role.ordinal()), arena.bandYaw(role.ordinal()));
+                MariachiEntity.spawn(level, role, arena.bandSpot(role.ordinal()), arena.bandYaw(role.ordinal()), arena.lamps());
             }
         }
         if (bandWoken) {
@@ -5319,6 +5325,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     if (!fighters.contains(p) && !p.isSpectator() && p.distanceToSqr(this) < 64 * 64) fighters.add(p);
                 }
                 leaveArena(level);
+                // back behind his counter, a changed Papon; then Gerbin's presents (and everyone back to the truck)
+                if (truck != null && portalAt != null) com.groid.papon.entity.npc.TacoVendorEntity.reform(level, portalAt, truck);
                 com.groid.papon.entity.npc.GerbinEntity.reward(level, home != null ? home : position(), fighters);
                 Fx.flash(level, position().add(0, 1, 0), 2.5F);
                 Fx.smoke(level, position().add(0, 1, 0), 6, 0.8, 1.4F, 0xEDE6DA);
@@ -5520,6 +5528,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         tag.putBoolean("BandWoken", bandWoken);
         tag.putInt("SongStart", songStart);
         if (home != null) tag.put("Home", NbtUtils.writeBlockPos(BlockPos.containing(home)));
+        if (truck != null) tag.put("Truck", truck.save());
         if (portalAt != null) {
             tag.putDouble("PortalX", portalAt.x);
             tag.putDouble("PortalY", portalAt.y);
@@ -5546,6 +5555,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             portalAt = new Vec3(tag.getDouble("PortalX"), tag.getDouble("PortalY"), tag.getDouble("PortalZ"));
             portalYaw = tag.getFloat("PortalYaw");
         }
+        if (tag.contains("Truck")) truck = com.groid.papon.journey.TacoLine.load(tag.getCompound("Truck"));
         vanId = tag.hasUUID("Van") ? tag.getUUID("Van") : null;
         entityData.set(DATA_STATE, BossState.IDLE.ordinal());
         setNoGravity(false);

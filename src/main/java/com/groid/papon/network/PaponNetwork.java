@@ -26,9 +26,11 @@ import java.util.function.Supplier;
  *   QteStart server -> client  Chef Papon has you: the keys to press, a window each (client/QteClient)
  *   QteEnd   server -> client  it is over (broke free, or not)
  *   QteInput client -> server  key n pressed right, or wrong / too late
+ *   Fade     server -> client  the screen to black and back (brought back to the Taco Truck after the fight)
+ *   OrderTaco client -> server a taco off the reformed chef's menu (client/TacoMenuScreen)
  */
 public final class PaponNetwork {
-    private static final String VERSION = "2";
+    private static final String VERSION = "3";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(PaponMod.id("main"),
             () -> VERSION, VERSION::equals, VERSION::equals);
 
@@ -47,6 +49,49 @@ public final class PaponNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(5, Solo.class, (m, b) -> b.writeVarInt(m.bossId()), b -> new Solo(b.readVarInt()), Solo::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(6, Fade.class, Fade::encode, Fade::decode, Fade::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(7, OrderTaco.class, (m, b) -> {
+            b.writeVarInt(m.vendorId());
+            b.writeVarInt(m.taco());
+        }, b -> new OrderTaco(b.readVarInt(), b.readVarInt()), OrderTaco::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+    }
+
+    /** The screen fades to black over {@code in} ticks, stays black {@code hold}, and fades back over {@code out}. */
+    public static void fade(ServerPlayer p, int in, int hold, int out) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), new Fade(in, hold, out));
+    }
+
+    public record Fade(int in, int hold, int out) {
+        void encode(FriendlyByteBuf b) {
+            b.writeVarInt(in);
+            b.writeVarInt(hold);
+            b.writeVarInt(out);
+        }
+
+        static Fade decode(FriendlyByteBuf b) {
+            return new Fade(b.readVarInt(), b.readVarInt(), b.readVarInt());
+        }
+
+        void handle(Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                    com.groid.papon.client.ScreenFade.start(in, hold, out)));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** From the client: taco {@code taco} off the menu of the friendly chef {@code vendorId}. */
+    public static void orderTaco(int vendorId, int taco) {
+        CHANNEL.sendToServer(new OrderTaco(vendorId, taco));
+    }
+
+    public record OrderTaco(int vendorId, int taco) {
+        void handle(Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer p = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (p != null && p.level().getEntity(vendorId) instanceof com.groid.papon.entity.npc.TacoVendorEntity v) v.order(p, taco);
+            });
+            ctx.get().setPacketHandled(true);
+        }
     }
 
     /** From the client: the band has just gone into a guitar solo (the score is the client's). */

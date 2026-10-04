@@ -72,6 +72,7 @@ public class PaponMod {
             event.accept(ModItems.JARRITO_YELLOW);
             event.accept(ModItems.JARRITO_GREEN);
             event.accept(ModItems.TEQUILA);
+            ModItems.TACOS.forEach(event::accept);
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.CHANCLA);
             event.accept(ModItems.CARAVAN_KEYS);

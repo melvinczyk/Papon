@@ -184,8 +184,12 @@ public final class Coliseum {
 
         /** A flag block (with its kind and the way its cloth faces) for the block entity once it is placed. */
         void flag(int x, int y, int z, int kind, double normal) {
-            out.add(new long[]{center.offset(x, y, z).asLong(), Block.getId(ModBlocks.ARENA_FLAG.get().defaultBlockState()),
-                    kind, Double.doubleToLongBits(normal)});
+            special(x, y, z, ModBlocks.ARENA_FLAG.get().defaultBlockState(), kind, normal);
+        }
+
+        /** A block whose block entity is told something once it is placed (a flag's kind and facing, a lamp's aim). */
+        void special(int x, int y, int z, BlockState s, int kind, double angle) {
+            out.add(new long[]{center.offset(x, y, z).asLong(), Block.getId(s), kind, Double.doubleToLongBits(angle)});
         }
 
         /** A candidate cell for flag {@code key}; the one with the lowest {@code score} gets it. */
@@ -463,6 +467,24 @@ public final class Coliseum {
                 if (Math.abs(x) <= 7 && z <= -B + 2) p.put(x, 1, z, ModBlocks.ARENA_STONE::get);
             }
         }
+        // the floodlights at its back corners, aimed in over the band at the singer (off until nightfall)
+        Vec3 singer = bandSpot(0).subtract(Vec3.atLowerCornerOf(center));
+        for (BlockPos l : LAMPS) {
+            double aim = Math.atan2(singer.z - (l.getZ() + 0.5), singer.x - (l.getX() + 0.5));
+            Direction facing = Direction.fromYRot(aim * Mth.RAD_TO_DEG - 90);
+            p.special(l.getX(), l.getY(), l.getZ(), ModBlocks.STAGE_LAMP.get().defaultBlockState()
+                    .setValue(com.groid.papon.block.StageLampBlock.FACING, facing), -1, aim);
+        }
+    }
+
+    /** The band stand's floodlights, relative to the centre: stage left first (the one the lamplighter switches). */
+    private static final BlockPos[] LAMPS = {new BlockPos(9, 1, -B + 2), new BlockPos(-9, 1, -B + 2)};
+
+    /** Where the floodlights stand (boss/MariachiEntity: the lamplighter goes to the first and switches both). */
+    public List<BlockPos> lamps() {
+        List<BlockPos> out = new ArrayList<>();
+        for (BlockPos l : LAMPS) out.add(center.offset(l));
+        return out;
     }
 
     // ------------------------------------------------------------------ the band and the crowd
@@ -560,6 +582,9 @@ public final class Coliseum {
             level.setBlock(p, Block.stateById((int) b[1]), Block.UPDATE_CLIENTS);
             if (b.length > 3 && level.getBlockEntity(p) instanceof ArenaFlagBlockEntity flag) {
                 flag.setup((int) b[2], (float) Double.longBitsToDouble(b[3]));
+            }
+            if (b.length > 3 && level.getBlockEntity(p) instanceof com.groid.papon.block.StageLampBlockEntity lamp) {
+                lamp.setAim((float) Double.longBitsToDouble(b[3]));
             }
             n++;
         }

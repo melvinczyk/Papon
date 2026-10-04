@@ -29,6 +29,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -53,6 +54,11 @@ import java.util.UUID;
  *
  * The queue is a list of entity UUIDs in line order (customers, then the Wandering Papon). It is
  * the authority on who stands where: every tick each member is told its slot.
+ *
+ * After the fight ({@link #reform}) he is back at his window, friendly: no toque, no fake mustache, his
+ * Norwood 7 out in the open (client/VendorRenderer). Whoever beat him is brought back to the truck once
+ * Gerbin has given them their pillow ({@link #welcomeBack}: the screen fades, they are at the window, he
+ * waves), and his menu (right-click him: client/TacoMenuScreen) is free, for good.
  */
 public class TacoVendorEntity extends TacoNpc {
     private static final String ANIM = "animation.papon_npc.";
@@ -68,6 +74,11 @@ public class TacoVendorEntity extends TacoNpc {
     private static final RawAnimation UNMASK = RawAnimation.begin().thenPlayAndHold(ANIM + "vendor_unmask");
     private static final RawAnimation REALIZE = RawAnimation.begin().thenPlayAndHold(ANIM + "vendor_realize");
     private static final RawAnimation RAGE = RawAnimation.begin().thenPlayAndHold(ANIM + "vendor_rage");
+    private static final RawAnimation WAVE = RawAnimation.begin().thenPlayAndHold(ANIM + "vendor_wave");
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Boolean> DATA_FRIENDLY =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(TacoVendorEntity.class, net.minecraft.network.syncher.EntityDataSerializers.BOOLEAN);
+    /** Ticks of cooking a free taco takes. */
+    private static final int FREE_COOK = 50;
 
     /** A queued entity not seen for this long (unloaded for good, or removed) leaves the line. */
     private static final int MISSING_LIMIT = 400;
@@ -80,6 +91,14 @@ public class TacoVendorEntity extends TacoNpc {
     private int served;
     private int total;
     private boolean serving;
+    /** Friendly: the orders off his menu (player, taco) still to make; the one on the grill. */
+    private final java.util.ArrayDeque<int[]> orderTacos = new java.util.ArrayDeque<>();
+    private final java.util.ArrayDeque<UUID> orderBy = new java.util.ArrayDeque<>();
+    @Nullable private UUID cookingFor;
+    private int cookingTaco;
+    /** Friendly: players being brought back to the window (ticks since), and those he has welcomed. */
+    private final Map<UUID, Integer> invites = new HashMap<>();
+    private final java.util.Set<UUID> greeted = new java.util.HashSet<>();
 
     public TacoVendorEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -89,6 +108,139 @@ public class TacoVendorEntity extends TacoNpc {
     @Override
     protected Speech.Voice voice() {
         return new Speech.Voice(SoundEvents.WANDERING_TRADER_AMBIENT, 0.9F, 0.55F, 4);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        entityData.define(DATA_FRIENDLY, false);
+    }
+
+    /** Beaten and back at work, all smiles: the free menu. */
+    public boolean isFriendly() {
+        return entityData.get(DATA_FRIENDLY);
+    }
+
+    /**
+     * Chef Papon, beaten (PaponBossEntity's fall): back behind his counter at {@code at}, the same truck,
+     * friendly from now on. Any other vendor at that window is sent home.
+     */
+    public static TacoVendorEntity reform(ServerLevel level, Vec3 at, TacoLine line) {
+        for (TacoVendorEntity old : level.getEntitiesOfClass(TacoVendorEntity.class, new net.minecraft.world.phys.AABB(at, at).inflate(3))) {
+            old.discard();
+        }
+        TacoVendorEntity v = com.groid.papon.registry.ModEntities.TACO_VENDOR.get().create(level);
+        if (v == null) return null;
+        float yaw = line.out().toYRot();
+        v.moveTo(at.x, at.y, at.z, yaw, 0);
+        v.setYHeadRot(yaw);
+        v.setYBodyRot(yaw);
+        v.line = line;
+        v.entityData.set(DATA_FRIENDLY, true);
+        v.setVendorState(VendorState.IDLE);
+        level.addFreshEntity(v);
+        TacoTruckScene.ensureGerbin(level, line);
+        PaponMod.LOG.info("[boss] Chef Papon is back at his window at {}, friendly", v.blockPosition());
+        return v;
+    }
+
+    /** After Gerbin's present: the friendly chef nearest {@code p} has them brought back to his window, {@code delay} ticks from now. */
+    public static void welcomeBack(ServerLevel level, ServerPlayer p, int delay) {
+        TacoVendorEntity v = level.getEntitiesOfClass(TacoVendorEntity.class, p.getBoundingBox().inflate(256), TacoVendorEntity::isFriendly)
+                .stream().min(java.util.Comparator.comparingDouble(e -> e.distanceToSqr(p))).orElse(null);
+        if (v != null) v.invites.putIfAbsent(p.getUUID(), -Math.max(0, delay));
+    }
+
+    /** From his menu (PaponNetwork.OrderTaco): {@code p} would like taco {@code taco}. On the house. */
+    public void order(ServerPlayer p, int taco) {
+        if (!isFriendly() || taco < 0 || taco >= com.groid.papon.registry.ModItems.TACOS.size() || p.distanceToSqr(this) > 10 * 10) return;
+        if (p.getUUID().equals(cookingFor) || orderBy.contains(p.getUUID()) || orderBy.size() >= 6) {
+            p.displayClientMessage(Component.translatable("message.papon.vendor.wait").withStyle(ChatFormatting.GOLD), true);
+            return;
+        }
+        orderBy.add(p.getUUID());
+        orderTacos.add(new int[]{taco});
+        Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.order" + random.nextInt(3), false, true, 40);
+    }
+
+    /** Friendly: the menu's orders, the welcomes. */
+    private void friendlyStep(ServerLevel level) {
+        tickInvites(level);
+        switch (getVendorState()) {
+            case IDLE -> {
+                if (stateTicks < 6) break;
+                if (!orderBy.isEmpty()) {
+                    cookingFor = orderBy.poll();
+                    cookingTaco = orderTacos.poll()[0];
+                    setVendorState(VendorState.COOKING);
+                }
+            }
+            case COOKING -> {
+                cookingEffects(level);
+                if (stateTicks >= FREE_COOK) setVendorState(VendorState.SERVING);
+            }
+            case SERVING -> {
+                if (stateTicks == 18) {
+                    Player p = cookingFor == null ? null : level.getPlayerByUUID(cookingFor);
+                    ItemStack taco = new ItemStack(com.groid.papon.registry.ModItems.TACOS.get(cookingTaco).get());
+                    if (p != null && p.distanceToSqr(this) < 16 * 16) {
+                        if (!p.getInventory().add(taco)) p.drop(taco, false);
+                        level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ITEM_PICKUP, SoundSource.NEUTRAL, 0.6F, 1.2F);
+                    } else {
+                        Vec3 c = line.counter();
+                        level.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(level, c.x, c.y + 0.4, c.z, taco));
+                    }
+                    Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.serve" + random.nextInt(3), false, true, 36);
+                }
+                if (stateTicks >= Customer.SERVE) {
+                    cookingFor = null;
+                    setVendorState(VendorState.IDLE);
+                }
+            }
+            case GREETING -> {
+                if (stateTicks == 6) Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.friend.greet", false, true, 60);
+                if (stateTicks == 34) Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.friend.free", false, true, 60);
+                if (stateTicks >= VendorState.GREETING.duration) setVendorState(VendorState.IDLE);
+            }
+            default -> setVendorState(VendorState.IDLE);
+        }
+        if (tickCount % 200 == 7) TacoTruckScene.ensureGerbin(level, line);
+        if (tickCount % 40 == 0) {
+            for (ServerPlayer p : level.players()) {
+                if (p.distanceToSqr(line.slot(0)) < 6 * 6) {
+                    p.displayClientMessage(Component.translatable("status.papon.line.free").withStyle(ChatFormatting.GOLD), true);
+                }
+            }
+        }
+    }
+
+    /**
+     * The ones he is bringing back: the screen fades out (PaponNetwork.Fade), they are put in front of
+     * his window facing him while it is dark, it fades back in, and he gives them a wave and a welcome.
+     */
+    private void tickInvites(ServerLevel level) {
+        for (var it = invites.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            int t = e.getValue() + 1;
+            e.setValue(t);
+            ServerPlayer p = level.getServer().getPlayerList().getPlayer(e.getKey());
+            if (t < 1) continue;
+            if (p == null || !p.isAlive() || p.level() != level) {
+                it.remove();
+                continue;
+            }
+            if (t == 1) PaponNetwork.fade(p, 14, 16, 24);
+            if (t == 15) {
+                Vec3 at = line.slot(0);
+                float yaw = line.out().getOpposite().toYRot();
+                if (p.isPassenger()) p.stopRiding();
+                p.teleportTo(level, at.x, at.y, at.z, yaw, 0);
+                p.setDeltaMovement(Vec3.ZERO);
+                p.fallDistance = 0;
+            }
+            if (t == 34 && greeted.add(p.getUUID()) && getVendorState() == VendorState.IDLE) setVendorState(VendorState.GREETING);
+            if (t >= 40) it.remove();
+        }
     }
 
     public VendorState getVendorState() {
@@ -128,7 +280,7 @@ public class TacoVendorEntity extends TacoNpc {
 
     public boolean acceptsCustomers() {
         VendorState s = getVendorState();
-        return line != null && !s.unmasking() && s != VendorState.INSPECTING;
+        return line != null && !isFriendly() && !s.unmasking() && s != VendorState.INSPECTING;
     }
 
     /** Line position of someone, or -1. */
@@ -162,6 +314,10 @@ public class TacoVendorEntity extends TacoNpc {
         setYRot(line.out().toYRot());
         yBodyRot = getYRot();
         if (getVendorState() != VendorState.COOKING) yHeadRot = getYRot();
+        if (isFriendly()) {
+            friendlyStep(level);
+            return;
+        }
 
         List<Entity> members = resolveQueue(level);
         serving = playerInLine(level);
@@ -243,6 +399,7 @@ public class TacoVendorEntity extends TacoNpc {
                 if (stateTicks >= 40) setVendorState(VendorState.EXPOSED);
             }
             case EXPOSED, UNMASK, REALIZE, RAGE -> unmasking(level);
+            case GREETING -> setVendorState(VendorState.IDLE);
         }
         if (line != null && tickCount % 200 == 7 && !getVendorState().unmasking()) TacoTruckScene.ensureGerbin(level, line);
 
@@ -461,6 +618,14 @@ public class TacoVendorEntity extends TacoNpc {
 
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (isFriendly()) {
+            // his menu, on the house
+            if (level().isClientSide) {
+                net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                        () -> () -> com.groid.papon.client.ClientHooks.openTacoMenu(getId()));
+            }
+            return InteractionResult.sidedSuccess(level().isClientSide);
+        }
         if (!level().isClientSide) {
             String key = getVendorState().unmasking() ? "message.papon.vendor_furious" : "message.papon.vendor_busy";
             player.displayClientMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD), true);
@@ -490,6 +655,7 @@ public class TacoVendorEntity extends TacoNpc {
             case UNMASK -> UNMASK;
             case REALIZE -> REALIZE;
             case RAGE -> RAGE;
+            case GREETING -> WAVE;
         };
         return event.setAndContinue(next);
     }
@@ -506,6 +672,10 @@ public class TacoVendorEntity extends TacoNpc {
         tag.put("Queue", q);
         tag.putInt("Served", served);
         tag.putInt("Total", total);
+        tag.putBoolean("Friendly", isFriendly());
+        ListTag g = new ListTag();
+        for (UUID id : greeted) g.add(NbtUtils.createUUID(id));
+        tag.put("Greeted", g);
     }
 
     @Override
@@ -523,5 +693,8 @@ public class TacoVendorEntity extends TacoNpc {
         for (Tag t : tag.getList("Queue", Tag.TAG_INT_ARRAY)) queue.add(NbtUtils.loadUUID(t));
         served = tag.getInt("Served");
         total = tag.getInt("Total");
+        entityData.set(DATA_FRIENDLY, tag.getBoolean("Friendly"));
+        greeted.clear();
+        for (Tag t : tag.getList("Greeted", Tag.TAG_INT_ARRAY)) greeted.add(NbtUtils.loadUUID(t));
     }
 }

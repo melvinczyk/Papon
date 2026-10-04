@@ -19,7 +19,7 @@ import org.joml.Matrix4f;
  */
 public class StageLampRenderer implements BlockEntityRenderer<StageLampBlockEntity> {
     private static final int SIDES = 14;
-    private static final float LENGTH = 9.5F, RADIUS = 2.6F, TILT = 24F;
+    private static final float LENGTH = 9.5F, RADIUS = 2.4F, TILT = 9F;
 
     public StageLampRenderer(BlockEntityRendererProvider.Context ctx) {}
 
@@ -32,7 +32,9 @@ public class StageLampRenderer implements BlockEntityRenderer<StageLampBlockEnti
         ps.pushPose();
         // the lens: up on the can, on the side it faces
         ps.translate(0.5, 1.62, 0.5);
-        ps.mulPose(Axis.YP.rotationDegrees(-s.getValue(StageLampBlock.FACING).toYRot()));
+        float aim = lamp.aim();
+        float yaw = Float.isNaN(aim) ? -s.getValue(StageLampBlock.FACING).toYRot() : (float) Math.toDegrees(Mth.HALF_PI - aim);
+        ps.mulPose(Axis.YP.rotationDegrees(yaw));
         ps.translate(0, 0, 0.3);
         ps.mulPose(Axis.XP.rotationDegrees(TILT));
         VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
