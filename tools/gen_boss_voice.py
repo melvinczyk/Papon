@@ -53,7 +53,14 @@ REFERENCE = os.path.join(ROOT, 'tools/src/voice/reference.mp3')
 RHUBARB = sorted(glob.glob(os.path.join(ROOT, 'tools/.cache/rhubarb/Rhubarb-Lip-Sync-*/rhubarb*')))
 TAKES = 8
 RATE = 50                      # Hz of the env / pitch / accent tracks
-MODAL_PROFILE = 'melvinczyk'
+# the Modal profile to run on: PAPON_MODAL_PROFILE, else whichever profile is active (~/.modal.toml)
+MODAL_PROFILE = os.environ.get('PAPON_MODAL_PROFILE')
+# Without the reference recording (it is gitignored: a fresh checkout has none), the clone is taken from his own
+# lines already built: the same voice, so new lines match the old ones. name -> lines, joined with a breath
+REFS_FROM_LINES = {
+    'animated': ['apology', 'charm3'],
+    'excited': ['intro', 'despierten'],
+}
 
 # The references: the same man worked up, or animated. The clone copies the delivery of the clip it is
 # given, so shouts are cloned from his "He will never pay!" and everything else from the liveliest stretch
@@ -175,6 +182,35 @@ LINES = {
     'groan1':     ("Nnngh... hhhAAAGH... AAAAAGH!", 'pained'),
     'groan2':     ("Hhhhh... HAAAAAAGH!!!", 'pained'),
     'ascend':     ("RRRAAAAAAAAAAAGH!!!", 'shout'),
+    # ---- Ascended Papon's fight (phase three): a demigod's moves, his charm, the crowd in the palm of his hand
+    'p3_combo':     ("Feel these GUNS, amigo!", 'smug'),
+    'p3_flash':     ("Too SLOW!", 'smug'),
+    'p3_comet':     ("From the HEAVENS, amigo!!!", 'shout'),
+    'p3_laser':     ("Look into my EYES, amigo.", 'sly'),
+    'p3_solar':     ("BEHOLD... the SUN of my ancestors!!!", 'shout'),
+    'p3_hide':      ("Hide, hide, little potato. The sun sees EVERYTHING.", 'sly'),
+    'p3_mariachi':  ("Maestro! Something with a little more FIRE!", 'shout'),
+    'p3_duel':      ("A DUEL, amigo! Guitar against guitar! Let the crowd decide!", 'shout'),
+    'p3_duel_won':  ("And THAT... is how a legend plays.", 'smug'),
+    'p3_duel_lost': ("Impossible... They cheer for YOU?!", 'surprised'),
+    'p3_squeeze':   ("Come here. Let me SQUEEZE you like an avocado.", 'sly'),
+    'p3_pinata':    ("Who wants CANDY?!", 'shout'),
+    'p3_braziers':  ("Light up my COLISEUM!!!", 'shout'),
+    'p3_nova':      ("Feel the heat of a THOUSAND suns... baked into ONE potato!!!", 'shout'),
+    'p3_siesta':    ("Ay... even a god needs a SIESTA...", 'pained'),
+    'p3_nitro':     ("Get in, amigo! Oh, wait... you are the ROAD.", 'sly'),
+    'p3_tango':     ("Now you DANCE for me.", 'sly'),
+    'p3_charm0':    ("LOUDER! I cannot hear my FANS!", 'shout'),
+    'p3_charm1':    ("They came to see a GOD tonight, amigo. Not you.", 'smug'),
+    'p3_charm2':    ("Every star needs a little background dancer.", 'sly'),
+    'p3_charm3':    ("Smile for the cameras, amigo. This is your LAST show.", 'sly'),
+    'p3_charm4':    ("Feel that? THAT is what perfection feels like.", 'smug'),
+    'p3_charm5':    ("Who is your favorite potato?! SAY IT!!!", 'shout'),
+    'p3_hit0':      ("Ay! Careful with the MERCHANDISE!", 'pained'),
+    'p3_hit1':      ("You DARE touch a demigod?!", 'angry'),
+    'p3_landed0':   ("Did you see that?! Did EVERYBODY see that?!", 'shout'),
+    'p3_landed1':   ("Thank you, thank you. I am here all NIGHT.", 'smug'),
+    'p3_low':       ("No, no, no... the show must go ON!", 'angry'),
 }
 
 NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend'}          # Whisper cannot judge a scream or a lone word
@@ -211,6 +247,35 @@ def signature(line):
     return {'text': text, 'ref': ref, 'instruct': direction}
 
 
+def have_ffmpeg():
+    import shutil
+    return shutil.which('ffmpeg') is not None
+
+
+def wav_bytes(y, sr):
+    import io
+    buf = io.BytesIO()
+    soundfile.write(buf, y, sr, format='WAV', subtype='PCM_16')
+    return buf.getvalue()
+
+
+def references():
+    """{name: [wav bytes, transcript]}: cut from the reference recording, or (without it) his built lines strung
+    together with a breath between them."""
+    if os.path.exists(REFERENCE):
+        return {name: [cut_reference(span), text] for name, (span, text) in REFS.items()}
+    print('no %s: cloning from his own built lines (%s)' % (REFERENCE, REFS_FROM_LINES))
+    out = {}
+    for name, lines in REFS_FROM_LINES.items():
+        parts, text = [], []
+        for line in lines:
+            y, sr = load_mono(os.path.join(ASSETS, 'sounds/voice/boss2/%s.ogg' % line))
+            parts += [y, np.zeros(int(0.35 * sr), np.float32)]
+            text.append(LINES[line][0].replace('...', ',').replace('!!!', '!'))
+        out[name] = [wav_bytes(np.concatenate(parts[:-1]), sr), ' '.join(text)]
+    return out
+
+
 def cut_reference(span):
     return subprocess.run(['ffmpeg', '-loglevel', 'error', '-ss', str(span[0]), '-to', str(span[1]), '-i', REFERENCE,
                            '-ac', '1', '-ar', '24000', '-f', 'wav', 'pipe:1'], capture_output=True, check=True).stdout
@@ -219,15 +284,16 @@ def cut_reference(span):
 def generate(lines, more=False):
     """Takes for `lines` on the GPU; saved under tools/.cache/voice/takes with what Whisper heard. With
     `more`, TAKES more takes are added to the ones a line already has (new seeds)."""
-    os.environ['MODAL_PROFILE'] = MODAL_PROFILE
+    if MODAL_PROFILE:
+        os.environ['MODAL_PROFILE'] = MODAL_PROFILE
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import modal
     import voice_modal
-    refs = {name: [cut_reference(span), text] for name, (span, text) in REFS.items()}
-    meta = json.load(open(meta_path())) if os.path.exists(meta_path()) else {}
+    refs = references()
+    meta = json.load(open(meta_path(), encoding='utf-8')) if os.path.exists(meta_path()) else {}
     have = {k: len(meta[k]['takes']) if more and k in meta else 0 for k in lines}
     batch = [dict(id=k, seed0=have[k], **signature(k)) for k in lines]
-    print('cloning %d lines x %d takes on Modal (%s)...' % (len(batch), TAKES, MODAL_PROFILE))
+    print('cloning %d lines x %d takes on Modal (%s)...' % (len(batch), TAKES, MODAL_PROFILE or 'active profile'))
     os.makedirs(os.path.join(CACHE, 'takes'), exist_ok=True)
     with modal.enable_output(), voice_modal.app.run():
         # a few containers at once
@@ -299,7 +365,8 @@ def heard_energy(heard):
 
 
 # takes chosen by ear over the automatic pick: line -> take index
-PICKED = {'felt': 2}          # "Mmm... I haven't felt this way in a loo-oong time." (the stretched "long")
+PICKED = {'felt': 2,          # "Mmm... I haven't felt this way in a loo-oong time." (the stretched "long")
+          'p3_duel': 3}       # "A duel, amigo!" (Whisper heard the picked take as "A drill")
 
 
 def pick(line, info):
@@ -362,6 +429,30 @@ def trim(y, sr, floor_db=-55, lead=0.05, tail=0.25):
 
 
 def loudness(y, sr, target=-9.5):
+    if not have_ffmpeg():
+        return loudness_py(y, sr)
+    return loudness_ffmpeg(y, sr, target)
+
+
+# what pyloudnorm measures on the lines mastered by loudness_ffmpeg (its meter reads them ~1.6 LU lower)
+PY_TARGET = -11.1
+
+
+def loudness_py(y, sr):
+    """loudness_ffmpeg without ffmpeg (pip install pyloudnorm): one gain to the level the built lines measure at,
+    then a soft limiter at 0.94."""
+    import pyloudnorm
+    lufs = pyloudnorm.Meter(sr).integrated_loudness(y)
+    if not np.isfinite(lufs):
+        return y
+    out = y * 10 ** ((PY_TARGET - lufs) / 20)
+    lim, knee = 0.94, 0.94 * 0.8
+    a = np.abs(out)
+    out = np.where(a > knee, np.sign(out) * (knee + (lim - knee) * np.tanh((a - knee) / (lim - knee))), out)
+    return out.astype(np.float32)
+
+
+def loudness_ffmpeg(y, sr, target=-9.5):
     """One gain for the whole line to an integrated loudness near `target` LUFS (ffmpeg ebur128), then a
     limiter, so he sits on top of the band and the crowd (they also duck under him: client/VoiceDuck)."""
     with tempfile.NamedTemporaryFile(suffix='.wav') as f:
@@ -418,12 +509,16 @@ def rhubarb(wav_path, text):
         raise SystemExit('Rhubarb not found in tools/.cache/rhubarb (download Rhubarb-Lip-Sync-1.13.0-macOS.zip)')
     with tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False) as d:
         d.write(re.sub(r'[^A-Za-z\' ,.!?]+', ' ', text))
+    out = d.name[:-4] + '.json'
     try:
-        r = subprocess.run([RHUBARB[0], '-q', '-f', 'json', '-r', 'pocketSphinx', '--extendedShapes', 'GHX',
-                            '--dialogFile', d.name, wav_path], capture_output=True, text=True, check=True)
+        # to a file: the Windows build prints nothing on stdout with -q
+        subprocess.run([RHUBARB[0], '-q', '-f', 'json', '-o', out, '-r', 'pocketSphinx', '--extendedShapes', 'GHX',
+                        '--dialogFile', d.name, wav_path], capture_output=True, text=True, check=True)
+        cues = json.load(open(out, encoding='utf-8'))['mouthCues']
     finally:
         os.unlink(d.name)
-    cues = json.loads(r.stdout)['mouthCues']
+        if os.path.exists(out):
+            os.unlink(out)
     return [[round(c['start'], 3), c['value']] for c in cues]
 
 
@@ -487,14 +582,15 @@ def beats(lengths):
     b['apology.wink'] = b['apology.aura'] + min(40, (b['apology.end'] - b['apology.aura']) // 2)
     # phase three (half health). Up off the sand, the lip wiped, his eyes slide over to the band; a maraca drops in
     # the silence. "This... is NOT... my style." A beat. "Let me show you how to REALLY play."
-    b['glare.maraca'] = 54
-    b['glare.notstyle'] = 82
-    b['glare.realplay'] = b['glare.notstyle'] + L('notstyle') + 18
-    b['glare.end'] = b['glare.realplay'] + L('realplay') + 12
+    # (tightened 2026-10-04: the user found phase three's cutscene too long)
+    b['glare.maraca'] = 30
+    b['glare.notstyle'] = 44
+    b['glare.realplay'] = b['glare.notstyle'] + L('notstyle') + 12
+    b['glare.end'] = b['glare.realplay'] + L('realplay') + 8
     # looming over the singer: "Give me THAT." and the guitar ripped out of his hands on the last word
     b['snatch.gimme'] = 6
     b['snatch.grab'] = max(18, b['snatch.gimme'] + L('gimme') - 6)
-    b['snatch.end'] = b['snatch.grab'] + 76         # holds on the band cowering after the rip
+    b['snatch.end'] = b['snatch.grab'] + 46         # holds on the band cowering after the rip
     # in the spotlight: the serenade is the song's first 18 s (guitar and voice), the last chord left ringing
     ps = json.load(open(os.path.join(ASSETS, 'song/para_siempre.json')))
     seren = next(s['length'] for s in ps['segments'] if s['id'] == 'serenade')
@@ -503,11 +599,12 @@ def beats(lengths):
     b['serenade.end'] = b['serenade.start'] + int(math.ceil(seren * 20)) + 12
     # the ascension (before the song, in the spotlight): bent double, a groan, a worse one, the wings tear out of his
     # back (ascend.burst: the flash, his new form), the roar
-    b['ascend.groan1'] = 14
-    b['ascend.groan2'] = b['ascend.groan1'] + L('groan1') + 12
-    b['ascend.burst'] = b['ascend.groan2'] + L('groan2') + 2
-    b['ascend.roar'] = b['ascend.burst'] + 8
-    b['ascend.end'] = b['ascend.roar'] + L('ascend') + 34
+    # one groan (the second made it 15 s of groaning): the wings tear out on its last cry
+    b['ascend.groan1'] = 10
+    b['ascend.groan2'] = -1
+    b['ascend.burst'] = b['ascend.groan1'] + L('groan1') - 8
+    b['ascend.roar'] = b['ascend.burst'] + 6
+    b['ascend.end'] = b['ascend.roar'] + L('ascend') + 18
     # the guitar down from his chin, the chord dying: "THIS... is more my style. Learn, muchachos."
     b['verdict.line'] = 10
     b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
@@ -516,12 +613,12 @@ def beats(lengths):
     b['toss.throw'] = 20
     b['toss.catch'] = 42
     b['toss.glance'] = 58
-    b['toss.end'] = b['toss.glance'] + 40
+    b['toss.end'] = b['toss.glance'] + 30
     # he turns to you, slowly, the power going through him: "Hmmm... I haven't felt this way... in a LOOOOONG
     # time." and an evil smile, held
     b['felt.line'] = 14
     b['felt.smile'] = b['felt.line'] + L('felt') + 2
-    b['felt.end'] = b['felt.smile'] + 40
+    b['felt.end'] = b['felt.smile'] + 26
     # his car: hoisted over his head, crushed in his hands into a ball, reformed in a flash into a black Skyline
     # that grows in his hands and is slammed down on its wheels; it revs
     b['crush.lifted'] = 14
@@ -538,7 +635,7 @@ def beats(lengths):
     # quietly: "Now... let's DANCE."
     b['dance.drop'] = int(round(pickup * 20))
     b['dance.line'] = b['dance.drop'] + 44
-    b['dance.end'] = b['dance.line'] + L('dance') + 24
+    b['dance.end'] = b['dance.line'] + L('dance') + 16
     return b
 
 
@@ -547,18 +644,24 @@ def build(meta):
     os.makedirs(out_dir, exist_ok=True)
     data = {'rate': RATE, 'lines': {}}
     lang_path = os.path.join(ASSETS, 'lang/en_us.json')
-    lang = json.load(open(lang_path))
+    lang = json.load(open(lang_path, encoding='utf-8'))
     sounds_path = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(sounds_path))
-    for k in [k for k in sounds if k.startswith('voice.boss2.')]:
+    sounds = json.load(open(sounds_path, encoding='utf-8'))
+    built_path = os.path.join(ASSETS, 'voice/boss2.json')
+    built = json.load(open(built_path, encoding='utf-8')).get('lines', {}) if os.path.exists(built_path) else {}
+    # lines with no takes here (a fresh checkout has no cache) keep what is built; only lines gone from LINES go
+    for k in [k for k in sounds if k.startswith('voice.boss2.') and k[len('voice.boss2.'):] not in LINES]:
         del sounds[k]
-    for k in [k for k in lang if k.startswith('speech.papon.boss2.')]:
+    for k in [k for k in lang if k.startswith('speech.papon.boss2.') and k[len('speech.papon.boss2.'):] not in LINES]:
         del lang[k]
     report = []
     for line, (text, mood) in LINES.items():
         info = meta.get(line)
         if not info or any(info.get(k) != v for k, v in signature(line).items()):
-            print('  (no takes for %s yet)' % line)
+            if line in built and LINES[line][0] == lang.get('speech.papon.boss2.' + line):
+                data['lines'][line] = built[line]           # as built before (no takes in this checkout)
+            else:
+                print('  (no takes for %s yet)' % line)
             continue
         k, key = pick(line, info)
         if k is None:
@@ -583,16 +686,26 @@ def build(meta):
     data['beats'] = beats({k: v['len'] for k, v in data['lines'].items()})
     report.append('beats: ' + json.dumps(data['beats']))
     os.makedirs(os.path.join(ASSETS, 'voice'), exist_ok=True)
-    with open(os.path.join(ASSETS, 'voice/boss2.json'), 'w', newline='\n') as f:
+    with open(built_path, 'w', newline='\n') as f:
         json.dump(data, f, separators=(',', ':'))
-    with open(sounds_path, 'w', newline='\n') as f:
+    with open(sounds_path, 'w', newline='\n', encoding='utf-8') as f:
         json.dump(sounds, f, indent=2, ensure_ascii=False)
         f.write('\n')
-    with open(lang_path, 'w', newline='\n') as f:
+    with open(lang_path, 'w', newline='\n', encoding='utf-8') as f:
         json.dump(lang, f, indent=2, ensure_ascii=False)
         f.write('\n')
     print('\n'.join(report))
     print(len(data['lines']), 'lines built')
+
+
+def built_lines():
+    """Lines already built into voice/boss2.json with their text unchanged (not taken again without --redo)."""
+    path = os.path.join(ASSETS, 'voice/boss2.json')
+    if not os.path.exists(path):
+        return set()
+    lang = json.load(open(os.path.join(ASSETS, 'lang/en_us.json'), encoding='utf-8'))
+    return {k for k in json.load(open(path, encoding='utf-8')).get('lines', {})
+            if k in LINES and lang.get('speech.papon.boss2.' + k) == LINES[k][0]}
 
 
 def main():
@@ -601,12 +714,14 @@ def main():
     ap.add_argument('--build', action='store_true', help='only build from cached takes')
     ap.add_argument('--more', default='', help='comma-separated lines to give TAKES more takes (keeping theirs)')
     a = ap.parse_args()
-    meta = json.load(open(meta_path())) if os.path.exists(meta_path()) else {}
+    meta = json.load(open(meta_path(), encoding='utf-8')) if os.path.exists(meta_path()) else {}
     if not a.build:
         redo = {s for s in a.redo.split(',') if s}
+        built = built_lines()
         todo = [l for l in LINES
-                if l in redo or l not in meta or any(meta[l].get(k) != v for k, v in signature(l).items())
-                or not all(os.path.exists(take_path(l, k)) for k in range(len(meta[l]['takes'])))]
+                if l in redo or (l not in meta and l not in built)
+                or (l in meta and (any(meta[l].get(k) != v for k, v in signature(l).items())
+                                   or not all(os.path.exists(take_path(l, k)) for k in range(len(meta[l]['takes'])))))]
         if todo:
             meta = generate(todo)
         if a.more:

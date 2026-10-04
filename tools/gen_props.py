@@ -16,6 +16,9 @@ Writes, under src/main/resources/assets/papon/:
   fx_burrito      a giant burrito, a player rolled up inside (their head sticks out the top)
   fx_sprouts      a ring of potato sprouts bursting out of the ground
   fx_giant_spud   the Spud Singularity: a giant potato
+  fx_pinata       La Piñata (phase three): a potato piñata in bands of fringed crepe paper, a painted grin, a
+                  rope loop on top (he kicks it open over the sand)
+  fx_candy        a wrapped candy bomb out of it: a bright sweet, its wrapper twisted at both ends
 
 All are drawn by client/PropRenderer (oriented, scaled, spun). Each element's six faces are packed
 onto the texture at RES pixels per model unit and painted by a function per element.
@@ -471,6 +474,73 @@ def sprouts():
     return m.save()
 
 
+PAPER = [(236, 72, 150), (255, 206, 48), (64, 196, 96), (54, 150, 236), (250, 120, 40), (170, 84, 220)]
+
+
+def fringe(c):
+    """Crepe paper: a band of colour cut into a fringe (alternate columns a shade darker, ragged bottom)."""
+    def p(f, r, m):
+        x0, y0, x1, y1 = r
+        m.fill(r, c, 0.04)
+        for x in range(x0, x1):
+            if x % 2:
+                for y in range(y0, y1):
+                    m.put(x, y, tone(c, 0.82))
+            if f not in ('up', 'down') and m.rng.random() < 0.5:
+                m.put(x, y1 - 1, tone(c, 0.6))
+    return p
+
+
+def pinata():
+    """A potato piñata: an ellipsoid of stacked bands of fringed crepe paper in every colour, a grin and two eyes
+    painted on its front, a rope loop on top."""
+    m = Model('fx_pinata', 128, 31)
+    bands = 6
+    for i in range(bands):
+        y0, y1 = 2 + i * 2.0, 4 + i * 2.0
+        k = 1 - abs((i + 0.5) / bands - 0.5) * 1.1
+        rx, rz = 6.2 * k, 4.6 * k
+        m.box([8 - rx, y0, 8 - rz], [8 + rx, y1, 8 + rz], fringe(PAPER[i % len(PAPER)]))
+    face = (40, 26, 18)
+
+    def front(f, r, m):
+        m.fill(r, (255, 236, 200), 0.02)
+        x0, y0, x1, y1 = r
+        w = x1 - x0
+        for x in (x0 + w // 4, x1 - 1 - w // 4):
+            m.put(x, y0 + 1, face)
+            m.put(x, y0 + 2, face)
+        for x in range(x0 + w // 5, x1 - w // 5):
+            m.put(x, y1 - 2, face)
+        m.put(x0 + w // 5 - 1, y1 - 3, face)
+        m.put(x1 - w // 5, y1 - 3, face)
+    m.box([4.5, 6.5, 3.2], [11.5, 10.5, 3.6], front, skip=('south',))
+    rope = (196, 160, 104)
+    m.box([7.6, 14, 7.6], [8.4, 16, 8.4], solid(rope, 0.08))
+    m.box([6.6, 15.4, 7.7], [9.4, 16, 8.3], solid(rope, 0.08))
+    return m.save()
+
+
+def candy():
+    """A wrapped sweet: the candy in the middle, the wrapper twisted to a bow at each end."""
+    m = Model('fx_candy', 64, 37)
+    sweet, wrap = (255, 64, 120), (255, 226, 70)
+
+    def striped(f, r, m):
+        x0, y0, x1, y1 = r
+        m.fill(r, sweet, 0.03)
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                if (x + y) % 4 < 2:
+                    m.put(x, y, (255, 250, 250))
+    m.box([5, 6, 6], [11, 10, 10], striped)
+    m.box([3, 7, 7], [5, 9, 9], solid(wrap, 0.05))
+    m.box([1, 6, 6], [3, 10, 10], solid(wrap, 0.05))
+    m.box([11, 7, 7], [13, 9, 9], solid(wrap, 0.05))
+    m.box([13, 6, 6], [15, 10, 10], solid(wrap, 0.05))
+    return m.save()
+
+
 def mash_wave():
     """32 x 32, tiled round the wave: mash, lumpy, gravy pooling along the top edge."""
     rng = random.Random(29)
@@ -491,5 +561,5 @@ def mash_wave():
 
 
 if __name__ == '__main__':
-    for fn in (tequila, spud, meteor, tot, guitar, giant_spud, fry, cleaver, burrito, sprouts, mash_wave):
+    for fn in (tequila, spud, meteor, tot, guitar, giant_spud, fry, cleaver, burrito, sprouts, mash_wave, pinata, candy):
         print(fn())

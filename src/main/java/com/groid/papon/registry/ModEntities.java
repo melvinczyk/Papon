@@ -113,6 +113,16 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(PaponMod.id("boss_prop").toString()));
 
+    // Phase three's beams of light: his eyes, his statues' eyes, the Aztec sun (only a picture: the boss burns what they touch)
+    public static final RegistryObject<EntityType<com.groid.papon.boss.BeamEntity>> BEAM = REGISTRY.register("beam",
+            () -> EntityType.Builder.<com.groid.papon.boss.BeamEntity>of(com.groid.papon.boss.BeamEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .fireImmune()
+                    .noSummon()
+                    .clientTrackingRange(12)
+                    .updateInterval(1)
+                    .build(PaponMod.id("beam").toString()));
+
     // His echoes (Los Tres Chefs): see-through copies of him in the air that throw cleavers
     public static final RegistryObject<EntityType<com.groid.papon.boss.PaponEchoEntity>> PAPON_ECHO = REGISTRY.register("papon_echo",
             () -> EntityType.Builder.<com.groid.papon.boss.PaponEchoEntity>of(com.groid.papon.boss.PaponEchoEntity::new, MobCategory.MISC)
@@ -141,7 +151,7 @@ public final class ModEntities {
     // Gerbin's present, laid on a bed.
     public static final RegistryObject<EntityType<com.groid.papon.entity.BodyPillowEntity>> BODY_PILLOW = REGISTRY.register("body_pillow",
             () -> EntityType.Builder.<com.groid.papon.entity.BodyPillowEntity>of(com.groid.papon.entity.BodyPillowEntity::new, MobCategory.MISC)
-                    .sized(0.5F, 0.25F)
+                    .sized(0.6F, 1.0F)
                     .clientTrackingRange(8)
                     .updateInterval(40)
                     .build(PaponMod.id("body_pillow").toString()));

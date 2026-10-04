@@ -4,15 +4,19 @@
   textures/gui/potato_splat.png           384x128: three splats of mashed potato (client/PotatoSplat lays
                                            them over the screen when a fan's potato hits you)
   textures/mob_effect/splattered.png       18x18: the Splattered effect icon (a splat)
-  textures/item/body_pillow.png            128x128: the dakimakura Gerbin gives the winner, a fan-art
-                                           Makima (Chainsaw Man) drawn here: front 48x128 at (0,0), back
-                                           48x128 at (48,0), the seam strip 8x128 at (96,0), the ends at (104,0)
-  models/item/body_pillow.json             a long soft pillow (6 x 16 x 2.5) with that texture (third person:
-                                           drawn by client/PillowLayer instead)
+  textures/item/body_pillow.png            256x256: the dakimakura Gerbin gives the winner: Makima (Chainsaw Man),
+                                           the user's picture (tools/src/makima_pillow.jpg, its two panels found by
+                                           their outlines and straightened row by row): front 96x256 at (0,0), back
+                                           96x256 at (96,0), the white cotton at (192,0). Without the picture, the
+                                           drawn fan art below.
+  models/item/body_pillow.json             builtin/entity: the pillow is a soft mesh drawn by client/PillowMesh
+                                           (squeezed, folded, slouched), here only its display transforms
   textures/entity/tongue.png               the player's tongue, licking it
+  textures/entity/sun_stone.png            256x256: El Sol Azteca (phase three): a Piedra del Sol in gold and stone, its rings
+                                           of glyphs and sun rays round Papon's grinning potato face (client/BossRenderer)
 
-The pillow art is our own drawing (it is not from anywhere); to use another picture, draw it over
-the front/back regions of body_pillow.png (48x128 each) and leave the rest.
+To use another picture, put it at tools/src/makima_pillow.jpg (two pillow panels side by side, outlined
+in a dark line, front on the left) and run this again.
 
   python tools/gen_extras.py
 """
@@ -252,50 +256,82 @@ def woof(im, W, H):
         x0 += 5 * s + 1
 
 
+PICTURE = os.path.join(ROOT, 'tools/src/makima_pillow.jpg')
+
+
+def panels(path, W, H):
+    """The two pillow panels of a dakimakura listing picture, each straightened into a W x H rectangle: per row the
+    dark outline's left and right edges in each half of the picture, the inside between them stretched to the width;
+    rows from the panel's first to last that are at least a third of its width wide."""
+    import numpy as np
+    src = Image.open(path).convert('RGB')
+    a = np.asarray(src).astype(np.int32)
+    grey = a.mean(axis=2)
+    h, w = grey.shape
+    out = []
+    for x0, x1 in ((0, w // 2), (w // 2, w)):
+        # the outline is the outermost dark line: look for it only in the outer quarter on each side (not in her hair),
+        # then smooth the edges over the rows (a median), so a stray dark pixel cannot pull a row out of line
+        q = (x1 - x0) // 4
+        raw = {}
+        for y in range(h):
+            left = np.nonzero(grey[y, x0:x0 + q] < 90)[0]
+            right = np.nonzero(grey[y, x1 - q:x1] < 90)[0]
+            if len(left) and len(right):
+                raw[y] = (x0 + left[0] + 3, x1 - q + right[-1] - 3)
+        ys = sorted(raw)
+        top, bottom = ys[0] + 4, ys[-1] - 4
+        spans = []
+        for y in range(top, bottom + 1):
+            near = [raw[k] for k in range(y - 6, y + 7) if k in raw]
+            if not near:
+                continue
+            spans.append((y, int(np.median([n[0] for n in near])), int(np.median([n[1] for n in near]))))
+        by_y = {y: (l, r) for y, l, r in spans}
+        rows = []
+        last = (spans[len(spans) // 2][1], spans[len(spans) // 2][2])
+        for y in range(top, bottom + 1):
+            l, r = by_y.get(y, last)
+            last = (l, r)
+            row = src.crop((l, y, r, y + 1)).resize((W * 2, 1), Image.LANCZOS)
+            rows.append(row)
+        panel = Image.new('RGB', (W * 2, len(rows)))
+        for i, row in enumerate(rows):
+            panel.paste(row, (0, i))
+        out.append(panel.resize((W, H), Image.LANCZOS).convert('RGBA'))
+    return out
+
+
 def pillow():
-    W, H = 48, 128
-    big = 4
-    tex = Image.new('RGBA', (128, 128), (0, 0, 0, 0))
-    f = front(W * big, H * big).resize((W, H), Image.LANCZOS)
-    b = back(W * big, H * big).resize((W, H), Image.LANCZOS)
-    woof(b, W, H)
+    tex = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
+    if os.path.exists(PICTURE):
+        f, b = panels(PICTURE, 96, 256)
+    else:
+        W, H = 48, 128
+        big = 4
+        f = front(W * big, H * big).resize((96, 256), Image.LANCZOS)
+        b = back(W * big, H * big).resize((W, H), Image.LANCZOS)
+        woof(b, W, H)
+        b = b.resize((96, 256), Image.NEAREST)
     tex.paste(f, (0, 0))
-    tex.paste(b, (48, 0))
-    # the side seam and the ends: white cotton, a pink piping
-    side = Image.new('RGBA', (8, 128), (246, 242, 244, 255))
-    sd = ImageDraw.Draw(side)
-    sd.line([3, 0, 3, 127], fill=(236, 160, 180, 255), width=2)
-    tex.paste(side, (96, 0))
-    end = Image.new('RGBA', (8, 8), (246, 242, 244, 255))
-    ImageDraw.Draw(end).rectangle([0, 3, 7, 4], fill=(236, 160, 180, 255))
-    tex.paste(end, (104, 0))
+    tex.paste(b, (96, 0))
+    cotton = Image.new('RGBA', (64, 256), (246, 242, 244, 255))
+    tex.paste(cotton, (192, 0))
     out = os.path.join(ASSETS, 'textures/item/body_pillow.png')
     tex.save(out)
-    # the model: 6 x 16 x 2.5, standing up in the item's 16-unit box; UVs in 16ths of the texture
-    u = lambda px: px / 8.0
-    faces = {
-        'north': {'uv': [u(0), u(0), u(48), u(128)], 'texture': '#0'},
-        'south': {'uv': [u(48), u(0), u(96), u(128)], 'texture': '#0'},
-        'east': {'uv': [u(96), u(0), u(100), u(128)], 'texture': '#0'},
-        'west': {'uv': [u(100), u(0), u(104), u(128)], 'texture': '#0'},
-        'up': {'uv': [u(104), u(0), u(112), u(8)], 'texture': '#0'},
-        'down': {'uv': [u(104), u(0), u(112), u(8)], 'texture': '#0'},
-    }
     model = {
-        'texture_size': [128, 128],
-        'textures': {'0': 'papon:item/body_pillow', 'particle': 'papon:item/body_pillow'},
-        'elements': [
-            {'from': [5, 0, 6.75], 'to': [11, 16, 9.25], 'faces': faces},
-        ],
+        'parent': 'builtin/entity',
+        'textures': {'particle': 'papon:item/body_pillow'},
         'display': {
-            'gui': {'rotation': [0, 180, -30], 'translation': [0, 0, 0], 'scale': [0.85, 0.85, 0.85]},
+            # client/PillowItemRenderer draws the mesh upright in the unit box, its length the box's height
+            'gui': {'rotation': [0, 200, -24], 'translation': [0, 0, 0], 'scale': [0.95, 0.95, 0.95]},
             'ground': {'rotation': [90, 0, 0], 'translation': [0, 2, 0], 'scale': [0.6, 0.6, 0.6]},
             'fixed': {'rotation': [0, 180, 0], 'scale': [1, 1, 1]},
-            # in third person the pillow is drawn by client/PillowLayer (hugged, licked, under the arm)
+            # in third person the pillow is drawn by client/PillowLayer (hugged, licked, humped, under the arm)
             'thirdperson_righthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0, 0, 0]},
             'thirdperson_lefthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0, 0, 0]},
-            'firstperson_righthand': {'rotation': [0, 160, 10], 'translation': [-2, 2, 0], 'scale': [0.7, 0.7, 0.7]},
-            'firstperson_lefthand': {'rotation': [0, 200, -10], 'translation': [-2, 2, 0], 'scale': [0.7, 0.7, 0.7]},
+            'firstperson_righthand': {'rotation': [0, 160, 10], 'translation': [-2, 2, 0], 'scale': [0.62, 0.62, 0.62]},
+            'firstperson_lefthand': {'rotation': [0, 200, -10], 'translation': [-2, 2, 0], 'scale': [0.62, 0.62, 0.62]},
             'head': {'rotation': [0, 180, 0], 'translation': [0, -6, -6], 'scale': [1, 1, 1]},
         },
     }
@@ -318,7 +354,80 @@ def tongue():
     return out
 
 
+def sun_stone():
+    """A potato Piedra del Sol: a disc of carved rings (rays, a band of glyph squares, dots, the four "movement" lobes)
+    in gold with dark stone in the cuts and turquoise inlay, and in the middle Papon's face, grinning, tongue out like
+    Tonatiuh's. Transparent outside the disc. Drawn at 4x and shrunk, so the carving reads at any size."""
+    S = 1024
+    im = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    c = S / 2
+    gold, gold_dk, gold_lt = (232, 178, 64, 255), (150, 98, 30, 255), (255, 222, 120, 255)
+    stone, turq, red = (70, 52, 34, 255), (60, 196, 186, 255), (204, 52, 44, 255)
+
+    def ring(r0, r1, fill):
+        d.ellipse([c - r1, c - r1, c + r1, c + r1], fill=fill)
+        if r0 > 0:
+            d.ellipse([c - r0, c - r0, c + r0, c + r0], fill=(0, 0, 0, 0))
+
+    # the outer rays: sixteen points round the rim
+    pts = []
+    for i in range(32):
+        a = math.pi * 2 * i / 32 - math.pi / 2
+        r = 510 if i % 2 == 0 else 440
+        pts.append((c + math.cos(a) * r, c + math.sin(a) * r))
+    d.polygon(pts, fill=gold)
+    d.ellipse([c - 450, c - 450, c + 450, c + 450], fill=gold_dk)
+    d.ellipse([c - 436, c - 436, c + 436, c + 436], fill=gold)
+    # a band of glyph squares, each a little carved potato glyph
+    for i in range(40):
+        a = math.pi * 2 * i / 40
+        x, y = c + math.cos(a) * 395, c + math.sin(a) * 395
+        k = 22
+        d.rectangle([x - k, y - k, x + k, y + k], fill=stone)
+        d.rectangle([x - k + 6, y - k + 6, x + k - 6, y + k - 6], fill=gold_lt if i % 3 else turq)
+        d.ellipse([x - 8, y - 5, x + 8, y + 5], fill=stone)
+    d.ellipse([c - 360, c - 360, c + 360, c + 360], fill=gold_dk)
+    d.ellipse([c - 348, c - 348, c + 348, c + 348], fill=gold)
+    # dots
+    for i in range(60):
+        a = math.pi * 2 * i / 60
+        x, y = c + math.cos(a) * 325, c + math.sin(a) * 325
+        d.ellipse([x - 9, y - 9, x + 9, y + 9], fill=stone if i % 2 else red)
+    # the day signs: twenty boxes
+    d.ellipse([c - 300, c - 300, c + 300, c + 300], fill=stone)
+    d.ellipse([c - 290, c - 290, c + 290, c + 290], fill=gold)
+    for i in range(20):
+        a = math.pi * 2 * (i + 0.5) / 20
+        x, y = c + math.cos(a) * 250, c + math.sin(a) * 250
+        d.polygon([(x + math.cos(a + 1.57) * 26, y + math.sin(a + 1.57) * 26), (x + math.cos(a) * 30, y + math.sin(a) * 30),
+                   (x - math.cos(a + 1.57) * 26, y - math.sin(a + 1.57) * 26), (x - math.cos(a) * 30, y - math.sin(a) * 30)],
+                  fill=turq if i % 2 else gold_lt, outline=stone)
+    d.ellipse([c - 205, c - 205, c + 205, c + 205], fill=stone)
+    d.ellipse([c - 195, c - 195, c + 195, c + 195], fill=gold)
+    # the four lobes (Nahui Ollin)
+    for i in range(4):
+        a = math.pi / 4 + math.pi / 2 * i
+        x, y = c + math.cos(a) * 150, c + math.sin(a) * 150
+        d.rectangle([x - 46, y - 46, x + 46, y + 46], fill=stone)
+        d.rectangle([x - 36, y - 36, x + 36, y + 36], fill=gold_lt)
+        d.ellipse([x - 18, y - 18, x + 18, y + 18], fill=red)
+    # Papon in the middle: a golden potato face, white eyes, the grin, the tongue out
+    d.ellipse([c - 120, c - 130, c + 120, c + 130], fill=(224, 164, 64, 255), outline=gold_dk, width=8)
+    for sx in (-1, 1):
+        d.rectangle([c + sx * 52 - 26, c - 50, c + sx * 52 + 26, c - 22], fill=(255, 255, 255, 255))
+        d.rectangle([c + sx * 52 - 34, c - 74, c + sx * 52 + 30, c - 62], fill=(90, 54, 24, 255))
+    d.rectangle([c - 64, c + 30, c + 64, c + 52], fill=(90, 54, 24, 255))
+    d.rectangle([c - 22, c + 52, c + 22, c + 92], fill=red)
+    d.rectangle([c - 22, c + 52, c + 22, c + 60], fill=(150, 30, 30, 255))
+    im = im.resize((256, 256), Image.LANCZOS)
+    out = os.path.join(ASSETS, 'textures/entity/sun_stone.png')
+    im.save(out)
+    return out
+
+
 if __name__ == '__main__':
     print(splats())
     print(*pillow())
     print(tongue())
+    print(sun_stone())

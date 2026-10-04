@@ -67,6 +67,8 @@ public final class ModItems {
     public static final RegistryObject<Item> FX_BURRITO = prop("fx_burrito");
     public static final RegistryObject<Item> FX_SPROUTS = prop("fx_sprouts");
     public static final RegistryObject<Item> FX_GIANT_SPUD = prop("fx_giant_spud");
+    public static final RegistryObject<Item> FX_PINATA = prop("fx_pinata");
+    public static final RegistryObject<Item> FX_CANDY = prop("fx_candy");
 
     public static final RegistryObject<Item> WANDERING_PAPON_SPAWN_EGG = egg("wandering_papon", ModEntities.WANDERING_PAPON, 0xD9AA51, 0x5C7840);
     public static final RegistryObject<Item> TACO_VENDOR_SPAWN_EGG = egg("taco_vendor", ModEntities.TACO_VENDOR, 0xF6F6F0, 0xD9AA51);

@@ -63,7 +63,11 @@ public class BossProp extends Entity {
         /** ¡Estampida!: a giant potato at the edge of the sand; waits its warning, then rolls straight across. */
         ROLLER,
         /** Phase three: the singer's requinto, thrown back to him over the boss's shoulder, end over end on an arc. */
-        GUITAR
+        GUITAR,
+        /** La Piñata (phase three): hangs over the sand on its rope (radius = how far down it has come) until he kicks it open. */
+        PINATA,
+        /** A candy bomb out of the piñata: on an arc onto its warning, where it goes off. */
+        CANDY
     }
 
     /** GUITAR: the pull down on its arc each tick. */
@@ -190,6 +194,7 @@ public class BossProp extends Entity {
         PaponBossEntity boss = owner();
         if (boss == null || --life <= 0) {
             if (k == Kind.METEOR && boss != null) boss.propLand(this, aim);
+            if (k == Kind.CANDY && boss != null) boss.propLand(this, position());
             if (k == Kind.TOT || k == Kind.TOT_SMALL) burst(level, boss);
             if (k == Kind.ROLLER) {
                 Fx.chunks(level, position().add(0, 1.4, 0), 24, 0.6F, Fx.POTATO, 0.8);
@@ -208,6 +213,14 @@ public class BossProp extends Entity {
             case GUITAR -> {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+            }
+            case CANDY -> {
+                move();
+                setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+            }
+            case PINATA -> {
+                move();
+                setDeltaMovement(getDeltaMovement().scale(0.9));
             }
             case BURRITO -> {
                 Entity f = followId == null ? null : level.getEntity(followId);
@@ -239,9 +252,13 @@ public class BossProp extends Entity {
                 }
             }
             case TOT, TOT_SMALL, PRODUCE -> move();
-            case GUITAR -> {
+            case GUITAR, CANDY -> {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+            }
+            case PINATA -> {
+                move();
+                setDeltaMovement(getDeltaMovement().scale(0.9));
             }
             case METEOR -> {
                 move();

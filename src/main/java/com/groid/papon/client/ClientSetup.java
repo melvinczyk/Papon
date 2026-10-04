@@ -84,6 +84,7 @@ public final class ClientSetup {
                 ctx -> new TumbleRenderer<>(ctx, () -> new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.POTATO), 0.9F, 18F));
         event.registerEntityRenderer(ModEntities.BOSS_PROP.get(), PropRenderer::new);
         event.registerEntityRenderer(ModEntities.PAPON_ECHO.get(), EchoRenderer::new);
+        event.registerEntityRenderer(ModEntities.BEAM.get(), BeamRenderer::new);
         event.registerEntityRenderer(ModEntities.MARIACHI.get(), MariachiRenderer::new);
         event.registerEntityRenderer(ModEntities.COLISEUM_CROWD.get(), ColiseumCrowdRenderer::new);
         event.registerEntityRenderer(ModEntities.BODY_PILLOW.get(), BodyPillowRenderer::new);

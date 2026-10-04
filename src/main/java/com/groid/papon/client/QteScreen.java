@@ -28,6 +28,12 @@ public class QteScreen extends Screen {
     }
 
     @Override
+    public boolean keyReleased(int key, int scan, int mods) {
+        QteClient.release(key);
+        return true;
+    }
+
+    @Override
     public boolean shouldCloseOnEsc() {
         return false;
     }

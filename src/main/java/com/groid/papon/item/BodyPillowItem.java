@@ -32,8 +32,9 @@ import java.util.function.Consumer;
  *   hold use           hug it: arms wrapped round it, cheek on it, swaying (client/PillowClient); hearts
  *                      and a purr now and then, and a line of what Gerbin would say
  *   hold use, sneaking lick it (the tongue out, the head bobbing into it): slurps, drips
- *   use on a bed       lay it down on one side of the bed (entity/BodyPillowEntity): sleep there and you
- *                      sleep on your side, facing her
+ *   hold use, looking down   hump it (folded over at the hips, squashed on every thrust): hearts
+ *   use on a bed       lay it on the bed (entity/BodyPillowEntity): it slouches against the headboard; right-click
+ *                      it to climb on with it; sleep there and she lies beside you, you on your side facing her
  */
 public class BodyPillowItem extends Item {
     public BodyPillowItem(Properties properties) {
@@ -75,11 +76,29 @@ public class BodyPillowItem extends Item {
         return UseAnim.NONE;
     }
 
+    /** Holding it and looking down (not sneaking): the hump. */
+    public static boolean humping(LivingEntity user) {
+        return !user.isCrouching() && user.getXRot() > 40;
+    }
+
     @Override
     public void onUseTick(Level level, LivingEntity user, ItemStack stack, int remaining) {
         if (!(level instanceof ServerLevel server) || !(user instanceof Player player)) return;
         int held = getUseDuration(stack) - remaining;
         double x = player.getX(), y = player.getEyeY() - 0.3, z = player.getZ();
+        if (humping(player)) {
+            // a stroke every 7 ticks (client/PillowClient.thrust)
+            if (player.tickCount % 7 == 2) {
+                server.playSound(null, x, y - 0.6, z, SoundEvents.WOOL_STEP, SoundSource.PLAYERS, 0.8F, 0.7F + level.random.nextFloat() * 0.2F);
+                if (level.random.nextInt(3) == 0) server.playSound(null, x, y - 0.6, z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.PLAYERS, 0.4F, 1.6F);
+            }
+            if (held % 20 == 6) server.sendParticles(ParticleTypes.HEART, x, y + 0.3, z, 1, 0.3, 0.2, 0.3, 0.02);
+            if (held % 90 == 40) {
+                player.displayClientMessage(Component.translatable("message.papon.body_pillow.hump." + level.random.nextInt(4))
+                        .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.ITALIC), true);
+            }
+            return;
+        }
         if (player.isCrouching()) {
             // a lick every half a second or so
             if (held % 11 == 5) {
