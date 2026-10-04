@@ -46,6 +46,13 @@ public class ColiseumCrowdEntity extends Entity {
     private static final EntityDataAccessor<Integer> DATA_THROW = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     /** Phase three's serenade: the share of the fans with a lighter up (0..1), spreading through the stands. */
     private static final EntityDataAccessor<Float> DATA_LIGHTERS = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.FLOAT);
+    /**
+     * Their noise: (a counter << 6) | (loud ? 32 : 0) | the mood's ordinal. Every reaction bumps it, so the client
+     * (CrowdSounds) plays one each time, even a roar over a roar; a loud one cuts through him talking.
+     */
+    private static final EntityDataAccessor<Integer> DATA_PULSE = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
+    /** Fireworks in the flag's colours on the song's beats: (a counter << 8) | how many beats (client/FlagFireworks). */
+    private static final EntityDataAccessor<Integer> DATA_SALVO = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     /** Ticks from the fan's wind-up starting to the potato leaving his hand (the renderer's throw pose matches). */
     public static final int WINDUP = 6;
     /** How close to the stands (blocks in from the edge of the sand) a challenger has to be to get pelted. */
@@ -78,6 +85,8 @@ public class ColiseumCrowdEntity extends Entity {
         entityData.define(DATA_SEED, 0);
         entityData.define(DATA_THROW, -1);
         entityData.define(DATA_LIGHTERS, 0F);
+        entityData.define(DATA_PULSE, -1);
+        entityData.define(DATA_SALVO, -1);
     }
 
     /** Client: ticks since the fan in seat {@code i} started a throw, or -1 if he is not throwing. */
@@ -181,8 +190,39 @@ public class ColiseumCrowdEntity extends Entity {
 
     /** A burst of something for a while, then back to the standing mood. */
     public void react(CrowdMood m, int ticks) {
+        react(m, ticks, false);
+    }
+
+    /** As {@link #react(CrowdMood, int)}; {@code loud}: the whole bowl, over anything (his entrance, the big moments). */
+    public void react(CrowdMood m, int ticks, boolean loud) {
         reactTicks = ticks;
         entityData.set(DATA_MOOD, m.ordinal());
+        pulse(m, loud);
+    }
+
+    /** Their noise once more (a roar, boos, a gasp) without changing what they are doing. */
+    public void pulse(CrowdMood m, boolean loud) {
+        pulses = (pulses + 1) & 0xFFFFFF;
+        entityData.set(DATA_PULSE, (pulses << 6) | (loud ? 32 : 0) | m.ordinal());
+    }
+
+    private int pulses;
+    private int salvos;
+
+    /** Client: the latest pulse (see DATA_PULSE), -1 before the first. */
+    public int pulseData() {
+        return entityData.get(DATA_PULSE);
+    }
+
+    /** Fireworks off the top of the walls in green, white and red, a volley on each of the next {@code beats} beats of the song. */
+    public void salvo(int beats) {
+        salvos = (salvos + 1) & 0x7FFFFF;
+        entityData.set(DATA_SALVO, (salvos << 8) | Math.min(255, beats));
+    }
+
+    /** Client: the latest salvo (see DATA_SALVO), -1 before the first. */
+    public int salvoData() {
+        return entityData.get(DATA_SALVO);
     }
 
     public boolean reacting() {

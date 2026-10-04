@@ -58,6 +58,7 @@ import java.util.UUID;
  *   boss                Chef Papon (the boss) right here, his van parked beside you (testing)
  *   van                 a van in front of you (testing; normally it comes with the truck)
  *   bossstate <STATE>   force the nearest boss into a state (testing)
+ *   cutaway <WHO>       cut to the band now (TRUMPETS, VIOLINS, GUITARRON, STRINGS, CORO, STANDS; testing)
  */
 public final class PaponCommand {
     private PaponCommand() {}
@@ -96,7 +97,11 @@ public final class PaponCommand {
                 .then(Commands.literal("bossstate").then(Commands.argument("state", StringArgumentType.word())
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                 java.util.Arrays.stream(BossState.values()).map(Enum::name), b))
-                        .executes(c -> bossState(c, StringArgumentType.getString(c, "state"))))));
+                        .executes(c -> bossState(c, StringArgumentType.getString(c, "state")))))
+                .then(Commands.literal("cutaway").then(Commands.argument("who", StringArgumentType.word())
+                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                java.util.Arrays.stream(PaponBossEntity.Cutaway.values()).map(Enum::name), b))
+                        .executes(c -> cutaway(c, StringArgumentType.getString(c, "who"))))));
     }
 
     private static int locate(CommandContext<CommandSourceStack> c) {
@@ -307,6 +312,22 @@ public final class PaponCommand {
         }
         boss.force(s);
         c.getSource().sendSuccess(() -> Component.literal("Chef Papon is now " + s + "."), true);
+        return 1;
+    }
+
+    private static int cutaway(CommandContext<CommandSourceStack> c, String name) {
+        Vec3 pos = c.getSource().getPosition();
+        PaponBossEntity boss = c.getSource().getLevel().getEntitiesOfClass(PaponBossEntity.class, new AABB(pos, pos).inflate(64))
+                .stream().min(Comparator.comparingDouble(e -> e.distanceToSqr(pos))).orElse(null);
+        if (boss == null) return fail(c, "No boss within 64 blocks.");
+        PaponBossEntity.Cutaway w;
+        try {
+            w = PaponBossEntity.Cutaway.valueOf(name.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return fail(c, "Unknown cutaway " + name + ".");
+        }
+        boss.devCutaway(w);
+        c.getSource().sendSuccess(() -> Component.literal("Cut to the " + w + "."), true);
         return 1;
     }
 

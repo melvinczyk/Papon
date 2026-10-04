@@ -91,6 +91,16 @@ public final class CommonEvents {
         }
     }
 
+    /** A totem in Chef Papon's fight: he calls it what it is. */
+    @SubscribeEvent
+    public static void onTotem(net.minecraftforge.event.entity.living.LivingUseTotemEvent event) {
+        if (!(event.getEntity() instanceof Player p) || p.level().isClientSide) return;
+        for (com.groid.papon.boss.PaponBossEntity b : p.level().getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class,
+                p.getBoundingBox().inflate(48))) {
+            b.sawTotem(p);
+        }
+    }
+
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         PaponCommand.register(event.getDispatcher());

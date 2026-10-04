@@ -824,20 +824,23 @@ def papon_boss():
     return out + [base + 'papon_boss_baked.png', base + 'papon_boss_baked_glowmask.png']
 
 
-P3_GUITAR = [-3.0, 8.5, -9.4]       # the requinto's soundhole on his belly (phase three)
+# the requinto's soundhole (phase three): low on his right hip, the neck level across under his mouth, so his lips
+# (the brown bar low on the potato, y 9.3-11, opening down to 6.7) are never behind it while he sings
+P3_GUITAR = [-7.0, 5.0, -10.4]
+P3_GUITAR_ROT = [0, 0, 86]
 
 
 def phase_three(m):
     """Phase three (half health): the singer's requinto, which he snatches and plays himself. The same
     instrument as the band's (gen_band.requinto_cubes, the same place on the same wkcr body):
-      p3_guitar        played: low across his belly, neck out to his left (gen_band.REQUINTO)
+      p3_guitar        played: on his right hip, the neck level across under his mouth, out to his left
       p3_guitar_carry  carried in his right fist by the neck, the body hanging below it (the snatch, the
                        walk back, the toss over his shoulder)
     Both pinned to 0 in every animation that does not show them (gen_boss_anims B.pins)."""
     import gen_band
-    # played: across the middle of his belly (higher than on the singer, so his big arms do not hide it); the
-    # animations show it at 1.5x (gen_boss_anims.GUITAR_SCALE): he makes the little requinto look like his
-    m.add(bone('p3_guitar', P3_GUITAR, 'body', gen_band.placed(gen_band.requinto_cubes(m), P3_GUITAR), rotation=[0, 0, 70]))
+    # played: on his right hip, the neck level under his mouth (his mouth is low on him: the guitar across his belly
+    # hid it); the animations show it at 1.35x (gen_boss_anims.GUITAR_SCALE): he makes the little requinto look like his
+    m.add(bone('p3_guitar', P3_GUITAR, 'body', gen_band.placed(gen_band.requinto_cubes(m), P3_GUITAR), rotation=P3_GUITAR_ROT))
     # the neck in the fist: the soundhole (the bone's pivot) 12 px down the neck from the hand, upside down
     carry = [HAND_R[0], HAND_R[1] - 1.5, HAND_R[2]]
     m.add(bone('p3_guitar_carry', carry, 'arm_r', gen_band.placed(gen_band.requinto_cubes(m), [carry[0], carry[1] - 11.5, carry[2] + 1.2]),

@@ -32,7 +32,7 @@ package com.groid.papon.boss;
  *                                                              intro, his apology and his aura; "where were we?"; he
  *                                                              works the stands into a roar, and the fight is on the
  *                                                              moment the singing starts. With no coliseum: P2_ARRIVE --> IDLE)
- * IDLE --> P2_SOLO --> IDLE                                   (the singer's guitar solo: the camera on him a moment,
+ * IDLE --> P2_SOLO | P2_CUTAWAY --> IDLE                                   (the singer's guitar solo: the camera on him a moment,
  *                                                              the boss stops to air-guitar along)
  * IDLE --> GRAB [--> GRAB_COMBO [--> CHARGE_WINDUP]] --> IDLE  (grabs you: blowtorch, salt, the throw)
  * IDLE --> P2_BARRAGE | P2_METEOR | P2_DIVE --> IDLE          (phase two: hands, meteors, dive bombs)
@@ -53,7 +53,7 @@ package com.groid.papon.boss;
  * IDLE --> TO_VAN --> DRINK_HANDLE --> ENTER_VAN --> DRIVING --> EXIT_STUMBLE --> IDLE   (the van)
  * IDLE --> PHASE --> IDLE                                   (half health)
  * IDLE --> P3_KNOCKBACK --> P3_GLARE --> P3_STALK --> P3_SNATCH --> P3_RETURN --> P3_BLACKOUT --> P3_ASCEND
- *       --> P3_SERENADE --> P3_VERDICT --> P3_TOSS --> P3_FELT --> P3_TO_CAR --> P3_CRUSH --> P3_GO --> P3_DANCE --> IDLE
+ *       --> P3_SERENADE --> P3_VERDICT --> P3_TOSS --> P3_FELT --> P3_TO_CAR --> P3_CRUSH --> P3_SHOWCAR --> P3_GO --> P3_DANCE --> IDLE
  *                                                             (half health, in the coliseum: knocked out of the air, he
  *                                                              glares at the band ("This is NOT my style"), takes the
  *                                                              singer's requinto, the lights go out round the bowl, and
@@ -234,7 +234,19 @@ public enum BossState {
     /** ...and he drops out of the sky, spent (taking double). */
     P3_SPENT(80),
     /** Nitro: onto the Skyline's roof and in at the wheel (then DRIVING, the nitro on). */
-    P3_NITRO(0);
+    P3_NITRO(0),
+    /**
+     * A moment on the band in the middle of the fight (1.8 s, like the guitar solo): the camera cuts to the trumpets
+     * coming in, the violins' run, Gordo's guitarron, the coro, or the stands; he stops and grooves along.
+     * Which: PaponBossEntity.cutaway() (a Cutaway).
+     */
+    P2_CUTAWAY(36),
+    /**
+     * The Skyline's reveal, after the crush: quick action shots all round the car as he starts it (the lamps come on),
+     * the purple underglow flickers on front to back, the rev and the backfire, the blow-off, the eagle on the hood,
+     * from over the roof; then him by it: "...and in with the NEW." (beats showcar.*)
+     */
+    P3_SHOWCAR(170);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;
@@ -262,12 +274,12 @@ public enum BossState {
 
     /** Any part of the phase-two cutscene (he cannot be hurt), the guitar solo's moment, and the phase-three cutscene. */
     public boolean cutscene() {
-        return silent() || this == P2_ARRIVE || coliseum() || this == P2_SOLO || phaseThree();
+        return silent() || this == P2_ARRIVE || coliseum() || this == P2_SOLO || this == P2_CUTAWAY || phaseThree();
     }
 
     /** The phase-three cutscene, the knockback to "let's dance". */
     public boolean phaseThree() {
-        return ordinal() >= P3_KNOCKBACK.ordinal() && ordinal() <= P3_ASCEND.ordinal();
+        return ordinal() >= P3_KNOCKBACK.ordinal() && ordinal() <= P3_ASCEND.ordinal() || this == P3_SHOWCAR;
     }
 
     /** Through phase three's cutscene, before the band takes the song back: the stands' own song is off. */

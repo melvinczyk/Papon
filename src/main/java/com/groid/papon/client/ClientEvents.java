@@ -31,6 +31,7 @@ public final class ClientEvents {
         SongPlayer.tick();
         BossMusic.tick();
         CrowdSounds.tick();
+        FlagFireworks.tick();
         PotatoSky.tick();
     }
 

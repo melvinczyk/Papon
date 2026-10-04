@@ -211,6 +211,63 @@ LINES = {
     'p3_landed0':   ("Did you see that?! Did EVERYBODY see that?!", 'shout'),
     'p3_landed1':   ("Thank you, thank you. I am here all NIGHT.", 'smug'),
     'p3_low':       ("No, no, no... the show must go ON!", 'angry'),
+    # ---- 2026-10-04: more of him. Phase two's entrance is the showman's ("my coliseum, they all came for ME");
+    # phase three is the ascended potato god, done playing
+    'welcome':      ("WELCOME... to MY COLISEUM!!!", 'shout'),
+    'p3_god':       ("No more games, amigo. Behold... the POTATO GOD.", 'evil'),
+    'p3_out':       ("Out with the OLD...", 'cold'),
+    'p3_new':       ("...and in with the NEW.", 'smug'),
+    # his reactions to what you do (any phase; PaponBossEntity.react picks a variant, never the same twice running)
+    'stolen1':      ("My VAN?! Get OUT of my van!!!", 'angry'),
+    'stolen2':      ("Hey, HEY! Who gave YOU the keys?!", 'angry'),
+    'stolen3':      ("That van is a FAMILY heirloom, amigo!", 'surprised'),
+    'sky_stolen0':  ("My SKYLINE?! Nobody drives the Skyline but ME!", 'angry'),
+    'sky_stolen1':  ("Careful! That is a COLLECTOR'S ITEM!", 'surprised'),
+    'runover0':     ("You hit me... with my OWN van?!", 'surprised'),
+    'runover1':     ("I have NO insurance, amigo!!!", 'angry'),
+    'runover2':     ("Hit and RUN?! In front of my FANS?!", 'angry'),
+    'honk0':        ("Do NOT honk at me!", 'angry'),
+    'honk1':        ("Beep beep YOURSELF, amigo!", 'sly'),
+    'vangone':      ("Where is my VAN?! Who took my VAN?!", 'surprised'),
+    'shield0':      ("A shield? How CUTE.", 'smug'),
+    'shield1':      ("Hiding behind a pot lid, amigo?", 'sly'),
+    'ranged0':      ("Arrows? From ALL the way over there? COWARD!", 'angry'),
+    'ranged1':      ("Come closer and say that to my FACE!", 'angry'),
+    'snack0':       ("A snack break? In the middle of MY show?!", 'surprised'),
+    'snack1':       ("Chew FASTER, amigo!", 'sly'),
+    'mytaco':       ("Are you eating MY tacos?! In front of ME?!", 'angry'),
+    'potion':       ("Drink up, amigo. You will NEED it.", 'sly'),
+    'lowhp0':       ("Ay, you look TIRED, amigo.", 'smug'),
+    'lowhp1':       ("Do not die yet! The crowd paid for the WHOLE show!", 'sly'),
+    'kill0':        ("Another one for the GRILL!", 'shout'),
+    'kill1':        ("Rest in PEACE... and in SALSA.", 'smug'),
+    'totem':        ("A TOTEM?! CHEATER!!!", 'angry'),
+    'high0':        ("Get DOWN from there!", 'angry'),
+    'high1':        ("You think you can fly? I INVENTED flying!", 'smug'),
+    'kite0':        ("Where are you GOING? The show is HERE!", 'angry'),
+    'kite1':        ("Running away? There ARE no exits, amigo.", 'sly'),
+    'miss0':        ("Stand STILL, you slippery little potato!", 'angry'),
+    'miss1':        ("Ay, you dance better than my BAND!", 'warm'),
+    'bighit':       ("OOF! Okay... THAT one I felt.", 'pained'),
+    'qte_escape':   ("You SLIPPERY little...!", 'angry'),
+    # more variations: phase two's showman
+    'charm6':       ("Welcome to MY house, amigo. Wipe your feet.", 'smug'),
+    'charm7':       ("Look at all these people... and every SINGLE one came for ME.", 'smug'),
+    'charm8':       ("Wave to the cameras, amigo! Oh, sorry... they are all pointed at ME.", 'sly'),
+    'charm9':       ("SOLD OUT! Every night! Because of ME!", 'shout'),
+    'landed2':      ("Did you SEE that?! Replay! REPLAY!", 'shout'),
+    'landed3':      ("Encore? For you, amigo... ANYTHING.", 'sly'),
+    'hit2':         ("Hey! Not in front of my PUBLIC!", 'angry'),
+    'hit3':         ("Lucky shot! The crowd did not even SEE it!", 'angry'),
+    # and phase three's god
+    'p3_charm6':    ("Kneel, amigo. Even the sun bows to me now.", 'cold'),
+    'p3_charm7':    ("I was a chef. Now... I am a GOD.", 'evil'),
+    'p3_charm8':    ("No more games. No more tacos. Only the END.", 'cold'),
+    'p3_charm9':    ("Pray, little mortal. Pray to the POTATO.", 'evil'),
+    'p3_landed2':   ("THAT is the difference... between a man and a GOD.", 'cold'),
+    'p3_landed3':   ("FEEL my power!!!", 'shout'),
+    'p3_hit2':      ("You scratched a god. How... BRAVE.", 'contempt'),
+    'p3_hit3':      ("Impressive. It changes NOTHING.", 'cold'),
 }
 
 NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend'}          # Whisper cannot judge a scream or a lone word
@@ -547,9 +604,13 @@ def beats(lengths):
     b['season.end'] = max(100, b['season.golden'] + L('golden') + 16)
     # the scream (15): everyone is pulled up into the coliseum only once it is out of him
     b['scream.end'] = 70
-    # the coliseum: down he comes (36), "ARE... YOU... READY?!", then the point at the band stand: "MUSIC, MAESTRO!!!"
-    b['arrive.listos'] = 42
-    b['arrive.musica'] = max(74, b['arrive.listos'] + L('listos') + 22)
+    # the coliseum: down he comes (36) to a roar, spinning round to the stands: "WELCOME... to MY COLISEUM!!!", the
+    # roar back (arrive.roar1); "ARE YOU READY?!", the roar back (roar2); then the point at the band stand: "MUSIC, MAESTRO!!!"
+    b['arrive.welcome'] = 46
+    b['arrive.roar1'] = b['arrive.welcome'] + L('welcome') + 1
+    b['arrive.listos'] = b['arrive.roar1'] + 16
+    b['arrive.roar2'] = b['arrive.listos'] + L('listos') + 1
+    b['arrive.musica'] = max(74, b['arrive.roar2'] + 26)
     b['arrive.hush'] = b['arrive.musica'] + L('musica') + 6
     b['arrive.end'] = max(100, b['arrive.hush'] + 14)
     # nothing. "Maestro...? ...MAESTRO?!", and he fumes
@@ -604,7 +665,9 @@ def beats(lengths):
     b['ascend.groan2'] = -1
     b['ascend.burst'] = b['ascend.groan1'] + L('groan1') - 8
     b['ascend.roar'] = b['ascend.burst'] + 6
-    b['ascend.end'] = b['ascend.roar'] + L('ascend') + 18
+    # and, risen, the god speaks, low: "No more games, amigo. Behold... the POTATO GOD."
+    b['ascend.god'] = b['ascend.roar'] + L('ascend') + 2
+    b['ascend.end'] = b['ascend.god'] + L('p3_god') + 12
     # the guitar down from his chin, the chord dying: "THIS... is more my style. Learn, muchachos."
     b['verdict.line'] = 10
     b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
@@ -621,13 +684,26 @@ def beats(lengths):
     b['felt.end'] = b['felt.smile'] + 26
     # his car: hoisted over his head, crushed in his hands into a ball, reformed in a flash into a black Skyline
     # that grows in his hands and is slammed down on its wheels; it revs
+    # "Out with the OLD..." as it goes up over his head; then the crunch
+    b['crush.out'] = 4
     b['crush.lifted'] = 14
-    b['crush.squeeze'] = 18
-    b['crush.ball'] = 42
-    b['crush.reform'] = 52
-    b['crush.down'] = 66
-    b['crush.rev'] = 76
-    b['crush.end'] = 96
+    b['crush.squeeze'] = max(18, b['crush.out'] + L('p3_out') + 2)
+    b['crush.ball'] = b['crush.squeeze'] + 24
+    b['crush.reform'] = b['crush.ball'] + 10
+    b['crush.down'] = b['crush.reform'] + 14
+    b['crush.rev'] = -1
+    b['crush.end'] = b['crush.down'] + 14
+    # the Skyline, shown off (a montage on its rev): the fob (keys), the engine and lamps (lamps), the underglow
+    # stuttering on (glow), the rev (rev: the sound is 4.6 s, blips, flat out, the blow-off at bov), then him by it:
+    # "...and in with the NEW." (line), the stands (roar)
+    b['showcar.keys'] = 10
+    b['showcar.lamps'] = 16
+    b['showcar.glow'] = 34
+    b['showcar.rev'] = 56
+    b['showcar.bov'] = b['showcar.rev'] + 54
+    b['showcar.line'] = b['showcar.rev'] + 72
+    b['showcar.roar'] = b['showcar.line'] + L('p3_new') + 2
+    b['showcar.end'] = b['showcar.roar'] + 26
     # he whirls round on the band: "What are you WAITING for?! GO!!!"
     b['go.line'] = 8
     b['go.end'] = b['go.line'] + L('go') + 4
