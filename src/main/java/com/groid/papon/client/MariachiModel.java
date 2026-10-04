@@ -47,6 +47,8 @@ import java.util.Map;
 public class MariachiModel extends GeoModel<MariachiEntity> {
     private static final ResourceLocation GEO = PaponMod.id("geo/entity/mariachi.geo.json");
     private static final ResourceLocation TEX = PaponMod.id("textures/entity/mariachi.png");
+    /** Phase four: the band of the dead (tools/gen_muertos.py: bone faces painted as sugar skulls, black and silver charro suits). */
+    private static final ResourceLocation TEX_DEAD = PaponMod.id("textures/entity/mariachi_muertos.png");
     private static final ResourceLocation ANIM = PaponMod.id("animations/entity/mariachi.animation.json");
 
     /** Rhubarb's shapes: how open (px), how wide, teeth showing, tongue showing. */
@@ -88,7 +90,7 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
 
     @Override
     public ResourceLocation getTextureResource(MariachiEntity m) {
-        return TEX;
+        return m.isDead() ? TEX_DEAD : TEX;
     }
 
     @Override
@@ -116,9 +118,9 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
         int b = (int) Math.floor(beat);
         float ph = (float) (beat - b);
         float energy = SongPlayer.energy();
-        // the beat: a bounce, the right foot tapping
-        float bounce = (1 - ph) * (1 - ph) * (0.35F + 0.5F * energy);
-        add(bone("root"), 0, 0, 0, 0, bounce, 0);
+        // the beat: a bounce, the right foot tapping (the dead: a real hop on every beat, a sway of the bony hips)
+        float bounce = (1 - ph) * (1 - ph) * (0.35F + 0.5F * energy) * (m.isDead() ? 2.6F : 1F);
+        add(bone("root"), 0, 0, m.isDead() ? 9F * Mth.sin((float) (beat * Math.PI)) : 0, 0, bounce, 0);
         rot(bone("leg_r"), b % 2 == 0 ? -14 * (float) Math.pow(1 - ph, 4) : 0, 0, 0);
         switch (role.kind) {
             case "singer" -> singer(mm, song, poses, t, beat, dt);

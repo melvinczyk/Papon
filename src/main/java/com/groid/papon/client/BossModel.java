@@ -26,6 +26,8 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     private static final float[] SHAPES = {0.15F, 0.55F, 0.3F, 0.8F, 0.15F, 0.4F, 0.65F, 0.25F};
 
     private static final net.minecraft.resources.ResourceLocation ASCENDED_GEO = PaponMod.id("geo/entity/papon_ascended.geo.json");
+    /** El Rey de los Muertos (tools/gen_muertos_papon.py): Ascended's bones, bone white, a Catrin's hat, the spirit hammer. */
+    private static final net.minecraft.resources.ResourceLocation MUERTOS_GEO = PaponMod.id("geo/entity/papon_muertos.geo.json");
 
     public BossModel() {
         super(PaponMod.id("papon_boss"));
@@ -34,14 +36,15 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     /** Ascended Papon (tools/gen_ascended.py): the same bones, his better potato, white eyes, eagle wings. */
     @Override
     public net.minecraft.resources.ResourceLocation getModelResource(PaponBossEntity boss) {
-        return boss.isAscended() ? ASCENDED_GEO : super.getModelResource(boss);
+        return boss.isMuertos() ? MUERTOS_GEO : boss.isAscended() ? ASCENDED_GEO : super.getModelResource(boss);
     }
 
     @Override
     public void setCustomAnimations(PaponBossEntity boss, long instanceId, AnimationState<PaponBossEntity> state) {
         super.setCustomAnimations(boss, instanceId, state);
         if (boss.getBossState() == BossState.P3_SERENADE) serenade(boss, state.getPartialTick());
-        if (boss.getBossState() == BossState.P3_DUEL) shred(boss, state.getPartialTick());
+        if (boss.getBossState() == BossState.P3_DUEL || boss.getBossState() == BossState.P4_GIGANTE) shred(boss, state.getPartialTick());
+        if (boss.isMuertos() || boss.getBossState().phaseFour()) spiritProps(boss);
         BossFace.apply(getAnimationProcessor(), boss, state.getPartialTick());
     }
 
@@ -84,6 +87,26 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
         float pos = Mth.lerp(Math.min(1F, into * 4), RUN[Math.floorMod(step - 1, RUN.length)], run);
         set("l", Mth.lerp(pos, FRET_LOW[0], FRET_HIGH[0]), Mth.lerp(pos, FRET_LOW[1], FRET_HIGH[1]),
                 Mth.lerp(pos, FRET_LOW[2], FRET_HIGH[2]), Mth.lerp(pos, FRET_LOW[3], FRET_HIGH[3]), k);
+    }
+
+    /**
+     * Phase four's things out of thin air: the spirit hammer while he holds it (PaponBossEntity.spiritProp 1; the guitar
+     * when he plays for El Gigante, 2), the Catrin's hat on his truest form. Set every frame: no animation keys them.
+     */
+    private void spiritProps(PaponBossEntity boss) {
+        int prop = boss.spiritProp();
+        show("spirit_hammer", prop == 1);
+        show("catrin_hat", boss.isMuertos());
+        if (prop == 2) show("p3_guitar", true);
+    }
+
+    private void show(String name, boolean shown) {
+        CoreGeoBone bone = getAnimationProcessor().getBone(name);
+        if (bone == null) return;
+        float k = shown ? 1 : 0;
+        bone.setScaleX(k);
+        bone.setScaleY(k);
+        bone.setScaleZ(k);
     }
 
     /** His shred's runs up and down the neck (0 low .. 1 high). */

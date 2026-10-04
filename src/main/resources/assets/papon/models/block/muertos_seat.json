@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "papon:block/muertos_seat_top",
+    "side": "papon:block/muertos_stone",
+    "bottom": "papon:block/muertos_stone"
+  }
+}

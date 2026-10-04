@@ -123,6 +123,16 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(PaponMod.id("beam").toString()));
 
+    // Phase four's El Gigante: the hologram skeleton under the arena (its skull and hands over the wall)
+    public static final RegistryObject<EntityType<com.groid.papon.boss.SpiritGiantEntity>> SPIRIT_GIANT = REGISTRY.register("spirit_giant",
+            () -> EntityType.Builder.<com.groid.papon.boss.SpiritGiantEntity>of(com.groid.papon.boss.SpiritGiantEntity::new, MobCategory.MISC)
+                    .sized(2.0F, 2.0F)
+                    .fireImmune()
+                    .noSummon()
+                    .clientTrackingRange(16)
+                    .updateInterval(2)
+                    .build(PaponMod.id("spirit_giant").toString()));
+
     // His echoes (Los Tres Chefs): see-through copies of him in the air that throw cleavers
     public static final RegistryObject<EntityType<com.groid.papon.boss.PaponEchoEntity>> PAPON_ECHO = REGISTRY.register("papon_echo",
             () -> EntityType.Builder.<com.groid.papon.boss.PaponEchoEntity>of(com.groid.papon.boss.PaponEchoEntity::new, MobCategory.MISC)

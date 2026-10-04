@@ -85,6 +85,7 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.BOSS_PROP.get(), PropRenderer::new);
         event.registerEntityRenderer(ModEntities.PAPON_ECHO.get(), EchoRenderer::new);
         event.registerEntityRenderer(ModEntities.BEAM.get(), BeamRenderer::new);
+        event.registerEntityRenderer(ModEntities.SPIRIT_GIANT.get(), SpiritGiantRenderer::new);
         event.registerEntityRenderer(ModEntities.MARIACHI.get(), MariachiRenderer::new);
         event.registerEntityRenderer(ModEntities.COLISEUM_CROWD.get(), ColiseumCrowdRenderer::new);
         event.registerEntityRenderer(ModEntities.BODY_PILLOW.get(), BodyPillowRenderer::new);

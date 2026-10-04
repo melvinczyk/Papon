@@ -82,7 +82,12 @@ public class BossProp extends Entity {
         /** The salsa burst: a ring of salsa thrown out round him (radius synced, like the mash wave). */
         SALSA_RING,
         /** El Sol Azteca: a giant potato stood on end, risen out of the sand: the only shade from his sun. */
-        MONOLITH
+        MONOLITH,
+        /** La Grieta de las Almas (phase four): a tortured soul out of the rift, reaching for you (moved by the boss). */
+        SOUL,
+        /** Papel Picado (phase four): a string of giant cut-paper banners sweeping the floor: half its length = radius,
+         *  travelling along its yaw; the delay slot 0 low (jump it), 1 high (duck it). Moved by the boss. */
+        PAPEL
     }
 
     /** GUITAR: the pull down on its arc each tick. */
@@ -285,6 +290,11 @@ public class BossProp extends Entity {
                     level().addParticle(new com.groid.papon.fx.FxOptions(com.groid.papon.registry.ModParticles.SMOKE.get(), -1, 0.8F, 1.8F,
                             0x4A4440, 0.7F, 20, 0), getX() - v.x * 1.6, getY() - v.y * 1.6 + 0.4, getZ() - v.z * 1.6, 0, 0.01, 0);
                 }
+            }
+            case SOUL -> {
+                // a tail of soul smoke behind it
+                if (tickCount % 2 == 0) level().addParticle(net.minecraft.core.particles.ParticleTypes.SCULK_SOUL, getX() + (random.nextDouble() - 0.5) * 0.4,
+                        getY() + 0.6, getZ() + (random.nextDouble() - 0.5) * 0.4, 0, 0.02, 0);
             }
             case BAND_WAVE -> {
                 // notes riding the blast

@@ -31,6 +31,9 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     /** Ascended Papon is drawn bigger than the risen one. */
     private static final float ASCENDED_SCALE = 2.0F;
     private static final ResourceLocation AURA = PaponMod.id("textures/entity/papon_aura.png");
+    private static final ResourceLocation MUERTOS = PaponMod.id("textures/entity/papon_muertos.png");
+    /** El Rey de los Muertos is bigger again. */
+    private static final float MUERTOS_SCALE = 2.25F;
 
     public BossRenderer(EntityRendererProvider.Context ctx) {
         super(ctx, new BossModel());
@@ -52,9 +55,11 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
                     pose.translate(0, -0.9, 0);
                     float f = k * (grow > 1.1F ? 0.6F : 1F);
                     boolean crimson = boss.isPhaseThree() || boss.getBossState() == BossState.P3_DANCE;
+                    boolean dead = boss.isMuertos() || boss.getBossState() == BossState.P4_TRUEFORM;
+                    float cr = dead ? 0.2F : 1F, cg = dead ? 0.85F : crimson ? 0.14F : 0.78F, cb = dead ? 1F : crimson ? 0.16F : 0.32F;
                     getRenderer().reRender(model, pose, buffers, boss, swirl, buffers.getBuffer(swirl), partialTick,
                             net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY,
-                            Math.min(1F, f), Math.min(1F, f * (crimson ? 0.14F : 0.78F)), Math.min(1F, f * (crimson ? 0.16F : 0.32F)), 1F);
+                            Math.min(1F, f * cr), Math.min(1F, f * cg), Math.min(1F, f * cb), 1F);
                     pose.popPose();
                 }
             }
@@ -80,13 +85,21 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
             if (t < drop) return 0;
             return (t < drop + 20 ? 1.0F - (t - drop) / 20F * 0.55F : 0.45F) * pulse;
         }
+        // phase four: blue fire takes him as he burns down to the bone, and stays round him, flaring through his moves
+        if (s == BossState.P4_TRUEFORM) {
+            float burn = com.groid.papon.boss.VoiceLines.beat("p4.burn", 8), bone = com.groid.papon.boss.VoiceLines.beat("p4.bone", 40);
+            if (t < burn) return 0;
+            return (t < bone ? 0.4F + 0.6F * (t - burn) / (bone - burn) : Math.max(0.4F, 1.2F - (t - bone) / 30F)) * pulse;
+        }
+        if (s == BossState.P4_HAMMER || s == BossState.P4_STRIKE || s == BossState.P4_RISE) return 0.3F * pulse;
+        if (boss.isMuertos()) return (s.muertosMove() ? 0.55F : 0.35F) * pulse;
         if (boss.isPhaseThree() && !s.phaseThree()) return 0.32F * pulse;
         return 0;
     }
 
     @Override
     public ResourceLocation getTextureLocation(PaponBossEntity boss) {
-        return boss.isAscended() ? ASCENDED : boss.isBaked() ? BAKED : super.getTextureLocation(boss);
+        return boss.isMuertos() ? MUERTOS : boss.isAscended() ? ASCENDED : boss.isBaked() ? BAKED : super.getTextureLocation(boss);
     }
 
     @Override
@@ -165,7 +178,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     @Override
     public void preRender(PoseStack pose, PaponBossEntity entity, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,
                           boolean reRender, float partialTick, int light, int overlay, float r, float g, float b, float a) {
-        float s = entity.isPassenger() ? DRIVING_SCALE : entity.isAscended() ? ASCENDED_SCALE : entity.isRisen() ? RISEN_SCALE : SCALE;
+        float s = entity.isPassenger() ? DRIVING_SCALE : entity.isMuertos() ? MUERTOS_SCALE : entity.isAscended() ? ASCENDED_SCALE
+                : entity.isRisen() ? RISEN_SCALE : SCALE;
         this.scaleWidth = s;
         this.scaleHeight = s;
         if (!reRender) hideForPov(model, handInView(entity));
@@ -196,6 +210,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         if (entity.isArmored()) {
             // mid-move and untouchable: a golden shimmer running through him
             float k = 0.5F + 0.5F * net.minecraft.util.Mth.sin((entity.tickCount + partialTick) * 0.9F);
+            if (entity.isMuertos()) return software.bernie.geckolib.core.object.Color.ofRGBA(0.6F + 0.15F * k, 0.95F, 1.0F, 1F);
             return software.bernie.geckolib.core.object.Color.ofRGBA(1.0F, 0.86F + 0.1F * k, 0.45F + 0.2F * k, 1F);
         }
         if (entity.getBossState().unstoppable() && !entity.isGhost()) {
@@ -355,7 +370,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         float spot = spot(entity, partialTick);
         super.render(entity, yaw, partialTick, pose, buffers, spot > 0.5F ? net.minecraft.client.renderer.LightTexture.FULL_BRIGHT : keyLight(entity, light));
         if (spot > 0) drawSpotlight(entity, pose, buffers, spot, partialTick);
-        if (entity.isAscended()) eyeLightning(entity, partialTick, buffers);
+        if (entity.isAscended() && !entity.isMuertos()) eyeLightning(entity, partialTick, buffers);
         else eyesSeen = false;
         float k = rays(entity, partialTick);
         if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
