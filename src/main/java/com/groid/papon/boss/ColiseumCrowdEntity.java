@@ -44,6 +44,8 @@ public class ColiseumCrowdEntity extends Entity {
     private static final EntityDataAccessor<Integer> DATA_SEED = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     /** The latest throw: (a counter << 16) | the thrower's seat index (seats(seed) order); -1 none yet. */
     private static final EntityDataAccessor<Integer> DATA_THROW = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
+    /** Phase three's serenade: the share of the fans with a lighter up (0..1), spreading through the stands. */
+    private static final EntityDataAccessor<Float> DATA_LIGHTERS = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.FLOAT);
     /** Ticks from the fan's wind-up starting to the potato leaving his hand (the renderer's throw pose matches). */
     public static final int WINDUP = 6;
     /** How close to the stands (blocks in from the edge of the sand) a challenger has to be to get pelted. */
@@ -75,6 +77,7 @@ public class ColiseumCrowdEntity extends Entity {
         entityData.define(DATA_MOOD, 0);
         entityData.define(DATA_SEED, 0);
         entityData.define(DATA_THROW, -1);
+        entityData.define(DATA_LIGHTERS, 0F);
     }
 
     /** Client: ticks since the fan in seat {@code i} started a throw, or -1 if he is not throwing. */
@@ -139,6 +142,14 @@ public class ColiseumCrowdEntity extends Entity {
         Vec3 v = new Vec3(d.x / ticks, d.y / ticks + 0.5 * g * ticks, d.z / ticks).scale(1.04);     // a hair extra for the air drag
         level.addFreshEntity(new CrowdPotatoEntity(level, from, v));
         level.playSound(null, from.x, from.y, from.z, SoundEvents.SNOWBALL_THROW, SoundSource.NEUTRAL, 0.9F, 0.7F + random.nextFloat() * 0.3F);
+    }
+
+    public float lighters() {
+        return entityData.get(DATA_LIGHTERS);
+    }
+
+    public void setLighters(float f) {
+        entityData.set(DATA_LIGHTERS, f);
     }
 
     public void setSeed(int seed) {

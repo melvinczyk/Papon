@@ -9,6 +9,7 @@ import com.groid.papon.network.PaponNetwork;
 import com.groid.papon.registry.ModDamage;
 import com.groid.papon.vehicle.CaravanEntity;
 import net.minecraft.ChatFormatting;
+import com.groid.papon.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ItemParticleOption;
@@ -45,6 +46,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -107,6 +109,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** Up in El Coliseo Papa. */
     private static final EntityDataAccessor<Boolean> DATA_ARENA =
             SynchedEntityData.defineId(PaponBossEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Phase three (half health, "Para Siempre"), from the band's drop on. */
+    private static final EntityDataAccessor<Boolean> DATA_PHASE3 =
+            SynchedEntityData.defineId(PaponBossEntity.class, EntityDataSerializers.BOOLEAN);
+    /** How dark his coliseum is (phase three): 0 day .. 1 black. */
+    private static final EntityDataAccessor<Float> DATA_NIGHT =
+            SynchedEntityData.defineId(PaponBossEntity.class, EntityDataSerializers.FLOAT);
+    /** The spotlight on him (phase three). */
+    private static final EntityDataAccessor<Boolean> DATA_SPOT =
+            SynchedEntityData.defineId(PaponBossEntity.class, EntityDataSerializers.BOOLEAN);
 
     private static final String ANIM = "animation.papon_boss.";
     private static final RawAnimation LEAP_OUT = once("leap_out");
@@ -128,6 +139,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation DEATH = once("death");
     private static final RawAnimation A_OVERHEAD = once("swipe_overhead");
     private static final RawAnimation A_LEAP = once("leap");
+    // phase three's cutscene (gen_boss_anims b_p3_*)
+    private static final RawAnimation A_P3_KNOCKBACK = once("p3_knockback");
+    private static final RawAnimation A_P3_GLARE = once("p3_glare");
+    private static final RawAnimation A_P3_GLARE_HOLD = loop("p3_glare_hold");
+    private static final RawAnimation A_P3_STALK = loop("p3_stalk");
+    private static final RawAnimation A_P3_SNATCH = once("p3_snatch");
+    private static final RawAnimation A_P3_CARRY = loop("p3_carry");
+    private static final RawAnimation A_P3_CARRY_HOLD = loop("p3_carry_hold");
+    private static final RawAnimation A_P3_BLACKOUT = once("p3_blackout");
+    private static final RawAnimation A_P3_SERENADE = once("p3_serenade");
+    private static final RawAnimation A_P3_VERDICT = once("p3_verdict");
+    private static final RawAnimation A_P3_TOSS = once("p3_toss");
+    private static final RawAnimation A_P3_DANCE = once("p3_dance");
     private static final RawAnimation A_LEAP_LAND = once("leap_land");
     private static final RawAnimation A_WINDUP = once("charge_windup");
     private static final RawAnimation A_CHARGE = loop("charge");
@@ -198,6 +222,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final double TARGET_RANGE = 40;
     /** Phase two starts when he is down to this share of his health. */
     private static final float PHASE_TWO_AT = 0.75F;
+    /** ...and phase three ("Para Siempre"). */
+    private static final float PHASE_THREE_AT = 0.5F;
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final ServerBossEvent bossEvent = new ServerBossEvent(Component.translatable(BAR_KEY),
@@ -313,6 +339,18 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private boolean bandWoken;
     /** Game tick (low 31 bits) of the song's first downbeat (the band's count-in); 0 before. */
     private int songStart;
+    /** The song the band plays (Song.CANCION, from phase three Song.PARA_SIEMPRE). */
+    private int songId;
+    // phase three: the hit that knocked him down came from here; his flight back (start, touchdown, end of the skid)
+    private boolean phaseThreeDue;
+    @Nullable private Vec3 p3From;
+    @Nullable private Vec3 p3Start, p3Land, p3End;
+    private float p3Yaw;
+    /** The coliseum's braziers round the bowl (phase three puts them out in this order) and how many are out. */
+    private List<BlockPos> braziers = new ArrayList<>();
+    private int braziersOut;
+    /** How far he had to walk back to the middle with the guitar (the lights go out as he covers it). */
+    private double returnFrom;
     /** The mariachi whose chair he is off to kick (entity id), or -1. */
     private int kickWho = -1;
     /** Waiting on the band, he paces the front of the stand: which end he is headed for. */
@@ -440,6 +478,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         entityData.define(DATA_FLYING, false);
         entityData.define(DATA_HELD, -1);
         entityData.define(DATA_QTE, 0);
+        entityData.define(DATA_PHASE3, false);
+        entityData.define(DATA_NIGHT, 0F);
+        entityData.define(DATA_SPOT, false);
     }
 
     public int qteKind() {
@@ -731,6 +772,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         tickMashWaves(level);
         tickSnares(level);
         tickBrickVan(level, target);
+        if (!phaseThreeDue && isPhaseTwo() && !isPhaseThree() && getHealth() <= getMaxHealth() * PHASE_THREE_AT && getHealth() > 0
+                && getBossState() == BossState.IDLE) {
+            phaseThreeDue = true;           // a reload in the middle of it: from the top
+        }
+        if (phaseThreeDue && canStartPhaseThree()) {
+            startPhaseThree(level);
+            return;
+        }
         switch (getBossState()) {
             case LEAP_OUT -> tickLeap(level);
             case CHUG -> tickChug(level);
@@ -810,6 +859,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case ARENA_FRYER -> tickArenaFryer(level, target);
             case ARENA_HECKLE -> tickArenaHeckle(level, target);
             case P2_MASHER -> tickMasher(level, target);
+            case P3_KNOCKBACK -> tickP3Knockback(level);
+            case P3_GLARE -> tickP3Glare(level);
+            case P3_STALK -> tickP3Stalk(level);
+            case P3_SNATCH -> tickP3Snatch(level);
+            case P3_RETURN -> tickP3Return(level);
+            case P3_BLACKOUT -> tickP3Blackout(level);
+            case P3_SERENADE -> tickP3Serenade(level);
+            case P3_VERDICT -> tickP3Verdict(level);
+            case P3_TOSS -> tickP3Toss(level);
+            case P3_DANCE -> tickP3Dance(level);
         }
     }
 
@@ -2990,8 +3049,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (bandWoken) {
             songStart = (int) ((level.getGameTime() + 10) & 0x7FFFFFFF);
-            for (MariachiEntity m : band(level)) m.play(songStart);
+            for (MariachiEntity m : band(level)) m.play(songStart, songId);
         }
+        if (isPhaseThree()) lightsCrimson(level);
     }
 
     /** The coliseum comes down: everyone and everything in it back to the ground, him included. */
@@ -3612,6 +3672,416 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowdReact(level, CrowdMood.ROAR, 20);
             setBossState(BossState.IDLE);
         }
+    }
+
+    // ------------------------------------------------------------------ phase three: "Para Siempre"
+
+    /** Whether the hit that took him to half health can knock him out of what he is doing now. */
+    private boolean canStartPhaseThree() {
+        BossState s = getBossState();
+        if (s.cutscene() || s.intro() || s.qte() || s == BossState.DEATH || s == BossState.ROAR) return false;
+        if (isPassenger() || s == BossState.ENTER_VAN || s == BossState.DRIVING) return false;
+        // his coliseum's own beats come first (the band has to be up and playing)
+        return !inColiseum() || bandWoken;
+    }
+
+    /**
+     * Half health: whatever he was doing, the hit knocks him out of it (and out of the air): flung back from
+     * whoever landed it, down on his back on the sand, a skid. The band's song grinds to a halt under it.
+     */
+    private void startPhaseThree(ServerLevel level) {
+        phaseThreeDue = false;
+        release();
+        getNavigation().stop();
+        setFlying(false);
+        p3Start = position();
+        Vec3 from = p3From != null ? p3From : position().add(Vec3.directionFromRotation(0, getYRot()).scale(3));
+        Vec3 away = position().subtract(from).multiply(1, 0, 1);
+        away = away.lengthSqr() < 1e-4 ? Vec3.directionFromRotation(0, getYRot()).scale(-1) : away.normalize();
+        double floor = inColiseum() && arena != null ? arena.floorY() : groundBelow(level, position());
+        Vec3 end = position().add(away.scale(9.5));
+        if (inColiseum() && arena != null) end = arena.clamp(end, 5, 0, 0);
+        p3End = new Vec3(end.x, floor, end.z);
+        p3Land = p3Start.lerp(p3End, 0.55);
+        p3Land = new Vec3(p3Land.x, floor, p3Land.z);
+        p3Yaw = (float) (Mth.atan2(from.z - getZ(), from.x - getX()) * Mth.RAD_TO_DEG) - 90F;
+        for (MariachiEntity m : band(level)) m.stop();
+        crowdReact(level, CrowdMood.GASP, 40);
+        level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 2.0F, 0.5F);
+        level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 1.2F, 1.4F);
+        Fx.hit(level, position().add(0, getBbHeight() * 0.6, 0), 2.2F, Fx.WHITE);
+        PaponNetwork.shake(level, position(), 48, 0.6F, 14);
+        setBossState(BossState.P3_KNOCKBACK);
+        setNoGravity(true);
+        noPhysics = true;
+        PaponMod.LOG.info("[boss] phase three: knocked back from {} to {}", p3Start, p3End);
+    }
+
+    /** The ground under {@code p} (no coliseum): the first solid block within 24 below. */
+    private double groundBelow(ServerLevel level, Vec3 p) {
+        var hit = level.clip(new net.minecraft.world.level.ClipContext(p.add(0, 0.5, 0), p.add(0, -24, 0),
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.ANY, this));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? p.y : hit.getLocation().y;
+    }
+
+    /** Facing back the way the hit came from (he is flung away from it, looking at it). */
+    private void holdYaw() {
+        setYRot(p3Yaw);
+        yBodyRot = p3Yaw;
+        yHeadRot = p3Yaw;
+    }
+
+    /**
+     * The knockback (2.5 s): flung back through the air (0-0.7 s, the arc is his motion; the animation curls
+     * him up round the hit), down on his back on the sand (0.7: a crater of dust, the ground shakes), a skid
+     * that carves a furrow (to 1.3), still for a moment, and up (from 1.7) to one knee, then his feet.
+     */
+    private void tickP3Knockback(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        setDeltaMovement(Vec3.ZERO);
+        if (p3Start == null || p3Land == null || p3End == null) {
+            p3Start = position();
+            p3Land = position();
+            p3End = position();
+        }
+        holdYaw();
+        if (t <= 14) {
+            double k = t / 14.0;
+            double e = 1 - (1 - k) * (1 - k);
+            Vec3 at = p3Start.lerp(p3Land, e);
+            double y = Mth.lerp(k * k, p3Start.y, p3Land.y) + 1.6 * 4 * k * (1 - k);
+            setPos(at.x, y, at.z);
+        } else if (t <= 26) {
+            double k = (t - 14) / 12.0;
+            double e = 1 - (1 - k) * (1 - k) * (1 - k);
+            Vec3 at = p3Land.lerp(p3End, e);
+            setPos(at.x, p3End.y, at.z);
+            if (t % 2 == 0) {
+                Fx.dust(level, position(), 0.8, 3);
+                Fx.chunks(level, position().add(0, 0.2, 0), 2, 0.25F, 0xE8CF94, 0.15);
+            }
+            if (t % 4 == 1) level.playSound(null, getX(), getY(), getZ(), SoundEvents.SAND_BREAK, SoundSource.HOSTILE, 1.6F, 0.6F);
+        }
+        if (t == 14) {
+            landImpact(level, position(), 4.5F, 0F, 0.9F);
+            Fx.dust(level, position(), 3.2, 16);
+            Fx.chunks(level, position().add(0, 0.4, 0), 14, 0.35F, 0xE8CF94, 0.4);
+            crowdReact(level, CrowdMood.GASP, 30);
+        }
+        if (t == 26) {
+            noPhysics = false;
+            setNoGravity(false);
+        }
+        if (t == 30) crowdMood(level, CrowdMood.HUSH);
+        if (t == 36) level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 1.2F, 0.6F);
+        if (t >= BossState.P3_KNOCKBACK.duration) {
+            noPhysics = false;
+            setNoGravity(false);
+            boolean band = inColiseum() && singer(level) != null;
+            setBossState(band ? BossState.P3_GLARE : BossState.P3_DANCE);
+        }
+    }
+
+    /**
+     * Up. The blood thumbed off his lip, his breath heaving; then, slowly, his eyes go to the band stand and
+     * stay there. In the silence a maraca slips out of a coro's hand and rolls. "This... is NOT... my
+     * style." A beat. "Let me show you how to REALLY play." (His heart is all you hear.)
+     */
+    private void tickP3Glare(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        MariachiEntity singer = singer(level);
+        if (t < 18) holdYaw();
+        else if (singer != null) turnToward(singer.position(), 2.5F);
+        if (t % 22 == 0) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.HOSTILE, 1.4F, 0.8F);
+        if (t == beat("glare.maraca", 26)) {
+            MariachiEntity coro = null;
+            for (MariachiEntity m : band(level)) if (m.getRole().coro()) coro = m;
+            Vec3 at = coro != null ? coro.position() : standFront();
+            level.playSound(null, at.x, at.y + 1, at.z, SoundEvents.BAMBOO_WOOD_FALL, SoundSource.NEUTRAL, 1.0F, 1.4F);
+            for (int i = 0; i < 4; i++) {
+                level.playSound(null, at.x, at.y + 0.3, at.z, SoundEvents.NOTE_BLOCK_SNARE.value(), SoundSource.NEUTRAL, 0.35F - i * 0.07F, 1.8F);
+            }
+        }
+        if (t == beat("glare.notstyle", 40)) sayPlain("notstyle", 60);
+        if (t == beat("glare.realplay", 100)) sayPlain("realplay", 50);
+        if (t >= beat("glare.end", BossState.P3_GLARE.duration)) setBossState(BossState.P3_STALK);
+    }
+
+    /** Over to the band stand, slow and certain, every step a thud the stands can feel. */
+    private void tickP3Stalk(ServerLevel level) {
+        Vec3 to = wakeSpot();
+        double d = horizontalDist(to);
+        MariachiEntity singer = singer(level);
+        if (d < 0.6 || stateTicks > 300) {
+            getNavigation().stop();
+            getMoveControl().setWantedPosition(getX(), getY(), getZ(), 0);
+            setDeltaMovement(getDeltaMovement().multiply(0.2, 1, 0.2));
+            setBossState(BossState.P3_SNATCH);
+            return;
+        }
+        getNavigation().stop();
+        getMoveControl().setWantedPosition(to.x, to.y, to.z, d > 2.5 ? 0.85 : 0.45 + d * 0.16);
+        if (singer != null && d < 5) turnToward(singer.position(), 8F);
+        if (stateTicks % 12 == 6) {
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 1.6F, 0.55F);
+            PaponNetwork.shake(level, position(), 40, 0.14F, 5);
+            Fx.dust(level, position(), 0.6, 2);
+        }
+        if (stateTicks == 30) for (MariachiEntity m : band(level)) if (!m.getRole().singer()) m.scare(10 + random.nextInt(40));
+    }
+
+    /** Looming over the singer: "Give me THAT." and the requinto ripped out of his hands on the word. */
+    private void tickP3Snatch(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        MariachiEntity singer = singer(level);
+        if (singer != null) face(singer.position());
+        if (t == beat("snatch.gimme", 6)) sayPlain("gimme", 30);
+        if (t == beat("snatch.grab", 22)) {
+            if (singer != null) {
+                singer.rob();
+                Vec3 at = singer.position().add(0, 1.0, 0);
+                level.playSound(null, at.x, at.y, at.z, SoundEvents.NOTE_BLOCK_GUITAR.value(), SoundSource.NEUTRAL, 1.6F, 0.6F);
+                level.playSound(null, at.x, at.y, at.z, SoundEvents.NOTE_BLOCK_GUITAR.value(), SoundSource.NEUTRAL, 1.2F, 0.75F);
+                level.playSound(null, at.x, at.y, at.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.HOSTILE, 1.2F, 0.6F);
+            }
+            for (MariachiEntity m : band(level)) if (!m.getRole().singer()) m.scare(random.nextInt(6));
+            crowdReact(level, CrowdMood.GASP, 30);
+            PaponNetwork.shake(level, position(), 40, 0.2F, 8);
+        }
+        if (t >= beat("snatch.end", BossState.P3_SNATCH.duration)) {
+            braziers = arena != null ? arena.braziers() : new ArrayList<>();
+            braziersOut = 0;
+            returnFrom = horizontalDist(arena != null ? arena.centerVec() : position());
+            setBossState(BossState.P3_RETURN);
+        }
+    }
+
+    /**
+     * Back to the middle of the sand, the guitar hanging from his fist by the neck. As he goes the braziers
+     * go out one after another round the bowl, a wave of dark following him in: by the time he gets there
+     * the bowl is lit only by what is left of the day.
+     */
+    private void tickP3Return(ServerLevel level) {
+        Vec3 c = arena != null ? arena.centerVec() : position();
+        Vec3 to = new Vec3(c.x, arena != null ? arena.floorY() : getY(), c.z);
+        double d = horizontalDist(to);
+        double f = returnFrom <= 0.1 ? 1 : Mth.clamp(1 - d / returnFrom, 0, 1);
+        lightsOut(level, (int) Math.floor(f * 0.8 * braziers.size()));
+        entityData.set(DATA_NIGHT, (float) (f * 0.6));
+        if (d < 0.6 || stateTicks > 400) {
+            getNavigation().stop();
+            getMoveControl().setWantedPosition(getX(), getY(), getZ(), 0);
+            setDeltaMovement(getDeltaMovement().multiply(0.2, 1, 0.2));
+            MariachiEntity singer = singer(level);
+            if (singer != null) face(singer.position());
+            setBossState(BossState.P3_BLACKOUT);
+            return;
+        }
+        getNavigation().stop();
+        getMoveControl().setWantedPosition(to.x, to.y, to.z, d > 2 ? 0.75 : 0.4 + d * 0.17);
+        if (stateTicks % 12 == 6) level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 1.2F, 0.6F);
+    }
+
+    /** Puts braziers out in order round the bowl until {@code upTo} are out, each with a hiss and a puff of smoke. */
+    private void lightsOut(ServerLevel level, int upTo) {
+        upTo = Math.min(upTo, braziers.size());
+        while (braziersOut < upTo) {
+            BlockPos p = braziers.get(braziersOut++);
+            BlockState s = level.getBlockState(p);
+            if (!s.is(ModBlocks.ARENA_BRAZIER.get())) continue;
+            level.setBlock(p, s.setValue(com.groid.papon.block.ArenaBrazierBlock.LIT, false), Block.UPDATE_CLIENTS);
+            level.playSound(null, p, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS, 1.6F, 0.6F + random.nextFloat() * 0.2F);
+            Fx.smoke(level, Vec3.atCenterOf(p).add(0, 0.6, 0), 3, 0.2, 1.0F, 0x3A3A3A);
+        }
+    }
+
+    /** Every brazier back, crimson: the fire roars back up round the whole bowl at once. */
+    private void lightsCrimson(ServerLevel level) {
+        if (arena == null) return;
+        if (braziers.isEmpty()) braziers = arena.braziers();
+        int i = 0;
+        for (BlockPos p : braziers) {
+            BlockState s = level.getBlockState(p);
+            if (!s.is(ModBlocks.ARENA_BRAZIER.get())) continue;
+            level.setBlock(p, s.setValue(com.groid.papon.block.ArenaBrazierBlock.LIT, true).setValue(com.groid.papon.block.ArenaBrazierBlock.CRIMSON, true),
+                    Block.UPDATE_CLIENTS);
+            if (i++ % 3 == 0) {
+                Fx.spark(level, Vec3.atCenterOf(p).add(0, 0.8, 0), 6, 0.3, 0.4F, 0xFF2A34);
+                level.playSound(null, p, SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS, 0.8F, 0.6F + random.nextFloat() * 0.3F);
+            }
+        }
+        braziersOut = 0;
+    }
+
+    /**
+     * The last braziers out and black (0-0.8 s); a second of nothing; then the spotlight slams on from high
+     * over the sand (1.5 s: a heavy clunk), straight down on him: head bowed, the guitar coming round on its
+     * strap into his hands. The stands hold their breath.
+     */
+    private void tickP3Blackout(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        if (t == 1) {
+            lightsOut(level, braziers.size());
+            crowdMood(level, CrowdMood.HUSH);
+        }
+        entityData.set(DATA_NIGHT, Math.min(1F, 0.6F + t / 16F * 0.4F));
+        if (t == 30) {
+            entityData.set(DATA_SPOT, true);
+            level.playSound(null, getX(), getY() + 8, getZ(), SoundEvents.IRON_DOOR_CLOSE, SoundSource.HOSTILE, 3.0F, 0.5F);
+            level.playSound(null, getX(), getY() + 8, getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 3.0F, 0.6F);
+            level.playSound(null, getX(), getY() + 8, getZ(), SoundEvents.PISTON_EXTEND, SoundSource.HOSTILE, 2.0F, 0.5F);
+            PaponNetwork.shake(level, position(), 48, 0.18F, 6);
+        }
+        if (t >= BossState.P3_BLACKOUT.duration) {
+            for (MariachiEntity m : band(level)) m.awe();
+            setBossState(BossState.P3_SERENADE);
+        }
+    }
+
+    /**
+     * In the spotlight he plays the song's opening on the singer's requinto and sings its first lines
+     * himself (the record's own guitar and voice: client/SongPlayer plays it, BossModel and BossFace put it
+     * in his hands and on his lips). The stands light up a lighter at a time, row by row, until the whole
+     * bowl is a sky of little flames; at the first sung word they sway.
+     */
+    private void tickP3Serenade(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        entityData.set(DATA_NIGHT, Math.max(0.85F, 1F - t / 120F * 0.15F));
+        ColiseumCrowdEntity crowd = crowd(level);
+        if (crowd != null) {
+            if (t == 60) crowd.setMood(CrowdMood.LIGHTERS);
+            crowd.setLighters(Mth.clamp((t - 60) / 200F, 0F, 1F));
+        }
+        if (t >= beat("serenade.end", BossState.P3_SERENADE.duration)) setBossState(BossState.P3_VERDICT);
+    }
+
+    /** The chord dying, the guitar lowered from his chest: "THIS... is more my style. Learn, muchachos." The stands erupt. */
+    private void tickP3Verdict(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        LivingEntity target = getTarget();
+        // round to his audience, back to the band (the toss goes over his shoulder)
+        if (t > 4 && target != null) turnToward(target.position(), 5F);
+        if (t == beat("verdict.line", 10)) sayPlain("mystyle", 70);
+        if (t == beat("verdict.end", 80) - 8) {
+            crowdReact(level, CrowdMood.ROAR, 40);
+            ColiseumCrowdEntity crowd = crowd(level);
+            if (crowd != null) crowd.setLighters(0.5F);
+        }
+        if (t >= beat("verdict.end", BossState.P3_VERDICT.duration)) setBossState(BossState.P3_TOSS);
+    }
+
+    /**
+     * Over his shoulder without a look: the requinto spins through the beam of the spotlight to the singer, who
+     * juggles it twice and has it. He whirls round on the band: "What are you WAITING for?! GO!!!"
+     */
+    private void tickP3Toss(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        MariachiEntity singer = singer(level);
+        int go = beat("toss.go", 30);
+        if (t < go - 4) {
+            LivingEntity target = getTarget();
+            if (target != null) turnToward(target.position(), 4F);
+        } else if (singer != null) {
+            turnToward(singer.position(), 30F);
+        }
+        int flight = Math.max(8, beat("toss.catch", 26) - beat("toss.throw", 6));
+        if (t == beat("toss.throw", 6) && singer != null) {
+            Vec3 from = position().add(0, getBbHeight() * 0.85, 0).add(Vec3.directionFromRotation(0, getYRot()).scale(-0.6));
+            Vec3 to = singer.position().add(0, singer.getBbHeight() * 0.6, 0);
+            BossProp g = BossProp.create(level, BossProp.Kind.GUITAR, this, from).toss(to, flight);
+            level.addFreshEntity(g);
+            level.playSound(null, from.x, from.y, from.z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.HOSTILE, 1.2F, 0.8F);
+        }
+        if (t == beat("toss.catch", 26) && singer != null) {
+            singer.catchGuitar();
+            level.playSound(null, singer.getX(), singer.getY() + 1, singer.getZ(), SoundEvents.NOTE_BLOCK_GUITAR.value(), SoundSource.NEUTRAL, 1.0F, 1.2F);
+            crowdReact(level, CrowdMood.CHEER, 10);
+        }
+        if (t == go) {
+            sayPlain("go", 50);
+            for (MariachiEntity m : band(level)) m.ready();
+            PaponNetwork.shake(level, position(), 48, 0.35F, 10);
+        }
+        if (t >= beat("toss.end", BossState.P3_TOSS.duration)) {
+            // the singer takes the song back from its pickup, now; the band comes in on the downbeat after it
+            songStart = (int) (level.getGameTime() & 0x7FFFFFFF);
+            songId = Song.PARA_SIEMPRE;
+            for (MariachiEntity m : band(level)) m.play(songStart, Song.PARA_SIEMPRE);
+            setBossState(BossState.P3_DANCE);
+        }
+    }
+
+    /**
+     * The singer's pickup, alone (2 s); the band crashes in on the downbeat and with it the fire, crimson, round
+     * the whole bowl at once; fireworks, the place shaking. He rolls his shoulders, cracks his neck, and very
+     * quietly: "Now... let's DANCE." The rest of the fight is at night, in his spotlight.
+     */
+    private void tickP3Dance(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        LivingEntity target = getTarget();
+        boolean band = inColiseum() && !band(level).isEmpty() && songId == Song.PARA_SIEMPRE;
+        int drop = band ? beat("dance.drop", 42) : 4;
+        int line = band ? beat("dance.line", drop + 34) : 24;
+        int end = band ? beat("dance.end", BossState.P3_DANCE.duration) : line + 60;
+        if (target != null) turnToward(target.position(), t < drop ? 3F : 8F);
+        if (t == drop) {
+            entityData.set(DATA_PHASE3, true);
+            bossEvent.setName(Component.translatable(BAR_KEY + ".phase3"));
+            if (inColiseum()) {
+                lightsCrimson(level);
+                entityData.set(DATA_NIGHT, NIGHT_P3);
+                entityData.set(DATA_SPOT, true);
+                fireworks(level);
+                crowdMood(level, CrowdMood.CHEER);
+                crowdReact(level, CrowdMood.ROAR, 70);
+                ColiseumCrowdEntity crowd = crowd(level);
+                if (crowd != null) crowd.setLighters(0F);
+            }
+            PaponNetwork.shake(level, position(), 48, 0.8F, 26);
+            Fx.shock(level, position(), 8F, 0xFF2A34);
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 3.0F, 0.8F);
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.BLAZE_SHOOT, SoundSource.HOSTILE, 3.0F, 0.5F);
+        }
+        if (t == line) sayPlain("dance", 50);
+        if (t == line + 20) title(level, "title.papon.para_siempre", 40);
+        if (t >= end) {
+            if (!isPhaseThree()) {
+                entityData.set(DATA_PHASE3, true);
+                bossEvent.setName(Component.translatable(BAR_KEY + ".phase3"));
+            }
+            finishCutscene(level);
+        }
+    }
+
+    /** How dark the coliseum stays through phase three (the braziers and his spotlight light it). */
+    private static final float NIGHT_P3 = 0.8F;
+
+    public boolean isPhaseThree() {
+        return entityData.get(DATA_PHASE3);
+    }
+
+    /** How dark it is round him (client: the lightmap, the sky, the fog), 0 day .. 1 pitch black. */
+    public float night() {
+        return entityData.get(DATA_NIGHT);
+    }
+
+    /** The spotlight is on him (from the blackout on, through phase three). */
+    public boolean spotlit() {
+        return entityData.get(DATA_SPOT);
+    }
+
+    /** Client: the serenade's place in the song (seconds into the recording), or NaN outside it. */
+    public double serenadeTime(float partial) {
+        if (getBossState() != BossState.P3_SERENADE) return Double.NaN;
+        return (ticksInState() + partial - VoiceLines.beat("serenade.start", 4)) / 20.0;
     }
 
     private void finishCutscene(ServerLevel level) {
@@ -5291,6 +5761,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             quip("hit" + random.nextInt(2), 0.2F);
         }
         if (hurt && !isPhaseTwo() && !phaseDue && getHealth() <= getMaxHealth() * PHASE_TWO_AT && getHealth() > 0) phaseDue = true;
+        if (hurt && isPhaseTwo() && !isPhaseThree() && !phaseThreeDue && getHealth() <= getMaxHealth() * PHASE_THREE_AT && getHealth() > 0) {
+            phaseThreeDue = true;
+            p3From = attacker != null ? attacker.position() : from;
+        }
         return hurt;
     }
 
@@ -5530,6 +6004,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_TOT -> A_TOT;
             case P2_SNARE -> A_STOMP;
             case P2_GRAVITY -> A_GRAVITY;
+            case P3_KNOCKBACK -> A_P3_KNOCKBACK;
+            case P3_GLARE -> A_P3_GLARE;
+            case P3_STALK -> event.isMoving() ? A_P3_STALK : A_P3_GLARE_HOLD;
+            case P3_SNATCH -> A_P3_SNATCH;
+            case P3_RETURN -> event.isMoving() ? A_P3_CARRY : A_P3_CARRY_HOLD;
+            case P3_BLACKOUT -> A_P3_BLACKOUT;
+            case P3_SERENADE -> A_P3_SERENADE;
+            case P3_VERDICT -> A_P3_VERDICT;
+            case P3_TOSS -> A_P3_TOSS;
+            case P3_DANCE -> A_P3_DANCE;
         };
         return event.setAndContinue(next);
     }
@@ -5556,6 +6040,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (arena != null) tag.put("Arena", arena.save());
         tag.putBoolean("BandWoken", bandWoken);
         tag.putInt("SongStart", songStart);
+        tag.putInt("Song", songId);
+        tag.putBoolean("Phase3", isPhaseThree());
         if (home != null) tag.put("Home", NbtUtils.writeBlockPos(BlockPos.containing(home)));
         if (portalAt != null) {
             tag.putDouble("PortalX", portalAt.x);
@@ -5576,8 +6062,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         oldDome = tag.contains("Dome") ? tag.getCompound("Dome") : null;
         bandWoken = tag.getBoolean("BandWoken");
         songStart = tag.getInt("SongStart");
+        songId = tag.getInt("Song");
+        boolean p3 = tag.getBoolean("Phase3");
+        entityData.set(DATA_PHASE3, p3);
+        entityData.set(DATA_NIGHT, p3 ? NIGHT_P3 : 0F);
+        entityData.set(DATA_SPOT, p3);
         if (isRisen()) foilCd = 40;
-        if (isPhaseTwo()) bossEvent.setName(Component.translatable(BAR_KEY + ".phase2"));
+        if (isPhaseTwo()) bossEvent.setName(Component.translatable(BAR_KEY + (p3 ? ".phase3" : ".phase2")));
         if (tag.contains("Home")) home = Vec3.atBottomCenterOf(NbtUtils.readBlockPos(tag.getCompound("Home")));
         if (tag.contains("PortalX")) {
             portalAt = new Vec3(tag.getDouble("PortalX"), tag.getDouble("PortalY"), tag.getDouble("PortalZ"));

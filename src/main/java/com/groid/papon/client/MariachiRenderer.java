@@ -61,7 +61,7 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
         BandState s = m.getBandState();
         if (s == BandState.COUNT) return Math.min(0.5F, m.ticksInState() / 60F);
         if (s != BandState.PLAY) return 0;
-        Song song = Song.get();
+        Song song = SongPlayer.song();
         double t = SongPlayer.songTime(partialTick);
         float v = song == null || Double.isNaN(t) ? 0 : song.voiceAt(t);
         float pulse = 0.88F + 0.12F * net.minecraft.util.Mth.sin((m.tickCount + partialTick) * 0.4F);
@@ -75,7 +75,8 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
         this.scaleWidth = SCALE * role.width;
         this.scaleHeight = SCALE * role.height;
         for (String inst : INSTRUMENTS) {
-            boolean mine = inst.equals(role.instrument) || role.coro() && inst.equals("hand_mic");
+            boolean mine = (inst.equals(role.instrument) || role.coro() && inst.equals("hand_mic"))
+                    && !(m.robbed() && inst.equals("requinto"));                    // phase three: it is in the boss's hands
             model.getBone(inst).ifPresent(bone -> bone.setHidden(!mine));
             model.getBone(inst + "_floor").ifPresent(bone -> bone.setHidden(!mine));
         }

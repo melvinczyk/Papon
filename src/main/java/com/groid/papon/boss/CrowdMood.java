@@ -24,7 +24,9 @@ public enum CrowdMood {
     /** He fell: heads down, hats off. */
     MOURN,
     /** On their feet, hands on their heads. */
-    GASP;
+    GASP,
+    /** Phase three, the spotlight: swaying slowly side to side, a lighter held up (ColiseumCrowdEntity.lighters: how many). */
+    LIGHTERS;
 
     public static CrowdMood byId(int id) {
         CrowdMood[] all = values();

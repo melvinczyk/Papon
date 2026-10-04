@@ -102,7 +102,7 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
         BandState s = m.getBandState();
         blink(m, partial, s);
         if (s != BandState.PLAY) return;
-        Song song = Song.get();
+        Song song = SongPlayer.song();
         BandPoses poses = BandPoses.get();
         double t = SongPlayer.songTime(partial);
         if (song == null || poses == null || Double.isNaN(t)) return;
@@ -135,7 +135,7 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
     /** The guitar solos and breaks are his. */
     private static boolean guitarFeature() {
         Song.Segment seg = SongPlayer.segment();
-        return seg != null && (seg.id().startsWith("solo") || seg.id().equals("break1"));
+        return seg != null && (seg.id().startsWith("solo") || seg.id().equals("break1") || seg.id().equals("break"));
     }
 
     private void singer(Mem mm, Song song, BandPoses poses, double t, double beat, float dt) {

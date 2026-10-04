@@ -103,6 +103,16 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 pose.translate(0, 0.9 * up, 0);
                 pose.scale(1.8F, 1.8F * up, 1.8F);
             }
+            case GUITAR -> {
+                // the requinto, end over end along its arc, catching the spotlight
+                stack = new ItemStack(ModItems.FX_GUITAR.get());
+                float yawT = (float) (Mth.atan2(p.getDeltaMovement().x, p.getDeltaMovement().z) * Mth.RAD_TO_DEG);
+                pose.translate(0, 0.3, 0);
+                pose.mulPose(Axis.YP.rotationDegrees(yawT));
+                pose.mulPose(Axis.XP.rotationDegrees(age * 38F));
+                pose.scale(1.7F, 1.7F, 1.7F);
+                lit = LightTexture.FULL_BRIGHT;
+            }
             case PRODUCE -> {
                 // a tomato (a beetroot will do), a potato, a carrot, a baked potato, tumbling
                 net.minecraft.world.item.Item[] what = {net.minecraft.world.item.Items.BEETROOT, net.minecraft.world.item.Items.POTATO,

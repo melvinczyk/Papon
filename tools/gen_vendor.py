@@ -815,12 +815,29 @@ def papon_boss():
         m.box([-7.5, 40, -7.5], [15, 4, 15], (196, 200, 210), noise=0.04, extra=holes),
     ]))
 
+    phase_three(m)
     rig_hands(m)
     out = m.save()
     base = os.path.join(ASSETS, 'textures/entity/')
     baked(Image.open(base + 'papon_boss.png').convert('RGBA'), lids).save(base + 'papon_boss_baked.png')
     m.glow.im.save(base + 'papon_boss_baked_glowmask.png')
     return out + [base + 'papon_boss_baked.png', base + 'papon_boss_baked_glowmask.png']
+
+
+def phase_three(m):
+    """Phase three (half health): the singer's requinto, which he snatches and plays himself. The same
+    instrument as the band's (gen_band.requinto_cubes, the same place on the same wkcr body):
+      p3_guitar        played: low across his belly, neck out to his left (gen_band.REQUINTO)
+      p3_guitar_carry  carried in his right fist by the neck, the body hanging below it (the snatch, the
+                       walk back, the toss over his shoulder)
+    Both pinned to 0 in every animation that does not show them (gen_boss_anims B.pins)."""
+    import gen_band
+    m.add(bone('p3_guitar', gen_band.REQUINTO, 'body', gen_band.placed(gen_band.requinto_cubes(m), gen_band.REQUINTO),
+               rotation=[0, 0, 80]))
+    # the neck in the fist: the soundhole (the bone's pivot) 12 px down the neck from the hand, upside down
+    carry = [HAND_R[0], HAND_R[1] - 1.5, HAND_R[2]]
+    m.add(bone('p3_guitar_carry', carry, 'arm_r', gen_band.placed(gen_band.requinto_cubes(m), [carry[0], carry[1] - 11.5, carry[2] + 1.2]),
+               rotation=[0, 0, 0]))
 
 
 def aura():

@@ -77,6 +77,8 @@ DIRECTION = {
     'sad': ('animated', 'Speak %s, heartbroken and tragic, almost crying, with long dramatic pauses.' % STAR),
     'surprised': ('animated', 'Speak %s, in shocked disbelief, with dramatic pauses.' % STAR),
     'drunk': ('animated', 'Speak %s, drunk and slurring, wobbly and indignant.' % STAR),
+    'cold': ('animated', 'Speak %s: cold, quiet and deadly serious, low and slow, with a long dramatic pause at the ellipsis.' % STAR),
+    'contempt': ('animated', 'Speak %s: seething with quiet contempt, offended to the core, slow, with dramatic pauses at the ellipses.' % STAR),
 }
 
 # line -> (text, mood). The text is directed: capitals are stressed, an ellipsis is a pause (one at most, and
@@ -160,6 +162,13 @@ LINES = {
     'hit1':       ("You will PAY for that, in TACOS.", 'angry'),
     'landed0':    ("Gracias, gracias. You are TOO kind.", 'smug'),
     'landed1':    ("And the crowd goes WILD!!!", 'shout'),
+    # phase three: half health, the band's song is not his style; he takes the guitar and shows them
+    'notstyle':   ("This... is NOT... my style.", 'contempt'),
+    'realplay':   ("Let me show you how to REALLY play.", 'sly'),
+    'gimme':      ("Give me THAT.", 'angry'),
+    'mystyle':    ("THIS... is more my style. Learn, muchachos.", 'smug'),
+    'go':         ("What are you WAITING for?! GO!!!", 'shout'),
+    'dance':      ("Now... let's DANCE.", 'cold'),
 }
 
 NO_CHECK = {'charm5', 'vendor_exposed'}          # Whisper cannot judge a scream or a lone word
@@ -464,6 +473,34 @@ def beats(lengths):
     fight = int(round(intro * b['song.passes'] * 20))
     b['apology.end'] = fight - SHOWTIME - b['resume.total'] - HYPE
     b['apology.wink'] = b['apology.aura'] + min(40, (b['apology.end'] - b['apology.aura']) // 2)
+    # phase three (half health). Up off the sand, the lip wiped, his eyes slide over to the band; a maraca drops in
+    # the silence. "This... is NOT... my style." A beat. "Let me show you how to REALLY play."
+    b['glare.maraca'] = 26
+    b['glare.notstyle'] = 40
+    b['glare.realplay'] = b['glare.notstyle'] + L('notstyle') + 18
+    b['glare.end'] = b['glare.realplay'] + L('realplay') + 12
+    # looming over the singer: "Give me THAT." and the guitar ripped out of his hands on the last word
+    b['snatch.gimme'] = 6
+    b['snatch.grab'] = max(18, b['snatch.gimme'] + L('gimme') - 6)
+    b['snatch.end'] = b['snatch.grab'] + 34
+    # in the spotlight: the serenade is the song's first 18 s (guitar and voice), the last chord left ringing
+    ps = json.load(open(os.path.join(ASSETS, 'song/para_siempre.json')))
+    seren = next(s['length'] for s in ps['segments'] if s['id'] == 'serenade')
+    pickup = next(s['length'] for s in ps['segments'] if s['id'] == 'pickup')
+    b['serenade.start'] = 4
+    b['serenade.end'] = b['serenade.start'] + int(math.ceil(seren * 20)) + 12
+    # the guitar down from his chin, the chord dying: "THIS... is more my style. Learn, muchachos."
+    b['verdict.line'] = 10
+    b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
+    # over his shoulder without looking (6), the singer juggles it and has it (26); he whirls round: "...GO!!!"
+    b['toss.throw'] = 6
+    b['toss.catch'] = 26
+    b['toss.go'] = 30
+    b['toss.end'] = b['toss.go'] + L('go') + 2
+    # the singer's pickup, a cappella, then the band crashes in; once the fire is back: "Now... let's DANCE."
+    b['dance.drop'] = int(round(pickup * 20))
+    b['dance.line'] = b['dance.drop'] + 34
+    b['dance.end'] = b['dance.line'] + L('dance') + 24
     return b
 
 

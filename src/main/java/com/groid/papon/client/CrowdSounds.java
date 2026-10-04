@@ -73,7 +73,7 @@ public final class CrowdSounds {
             if (one != null) play(mc, one, near, 1.0F);
         }
         // on the beat: the chant and the claps
-        Song song = Song.get();
+        Song song = SongPlayer.song();
         double t = SongPlayer.songTime(0);
         double beat = song != null && !Double.isNaN(t) ? song.beatAt(t) : mc.level.getGameTime() / 9.4;
         long b = (long) Math.floor(beat);

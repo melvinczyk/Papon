@@ -337,7 +337,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         float moodT = crowd.moodTicks() + partial;
         float blend = Math.min(1F, moodT / 10F);
         CrowdMood mood = crowd.mood(), prev = crowd.previousMood();
-        Song song = Song.get();
+        Song song = SongPlayer.song();
         double st = SongPlayer.songTime(partial);
         double beat = song != null && !Double.isNaN(st) ? Math.max(0, song.beatAt(st)) : t / 9.4;
         // they watch him

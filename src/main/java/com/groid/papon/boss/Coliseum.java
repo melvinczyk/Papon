@@ -560,6 +560,23 @@ public final class Coliseum {
         return started;
     }
 
+    /**
+     * Every brazier in the plan (podium, walls, top), in order round the bowl starting from the band stand (north)
+     * and going clockwise seen from above: phase three puts them out in this order, a wave of dark running round.
+     */
+    public List<BlockPos> braziers() {
+        Block brazier = ModBlocks.ARENA_BRAZIER.get();
+        List<BlockPos> out = new ArrayList<>();
+        for (long[] b : blocks()) {
+            if (Block.stateById((int) b[1]).is(brazier)) out.add(BlockPos.of(b[0]));
+        }
+        out.sort(java.util.Comparator.comparingDouble(p -> {
+            double a = Math.atan2(p.getX() - center.getX(), -(p.getZ() - center.getZ()));
+            return a < 0 ? a + Math.PI * 2 : a;
+        }));
+        return out;
+    }
+
     /** Takes down every planned block that is still an arena block, and the crowd and the band with it. */
     public void teardown(ServerLevel level) {
         BlockState air = Blocks.AIR.defaultBlockState();

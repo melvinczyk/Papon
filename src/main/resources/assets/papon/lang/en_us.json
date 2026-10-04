@@ -415,5 +415,18 @@
   "speech.papon.boss2.hit0": "AH!!! Not the FACE!",
   "speech.papon.boss2.hit1": "You will PAY for that, in TACOS.",
   "speech.papon.boss2.landed0": "Gracias, gracias. You are TOO kind.",
-  "speech.papon.boss2.landed1": "And the crowd goes WILD!!!"
+  "speech.papon.boss2.landed1": "And the crowd goes WILD!!!",
+  "speech.papon.boss2.notstyle": "This... is NOT... my style.",
+  "speech.papon.boss2.realplay": "Let me show you how to REALLY play.",
+  "speech.papon.boss2.gimme": "Give me THAT.",
+  "speech.papon.boss2.mystyle": "THIS... is more my style. Learn, muchachos.",
+  "speech.papon.boss2.go": "What are you WAITING for?! GO!!!",
+  "speech.papon.boss2.dance": "Now... let's DANCE.",
+  "bossbar.papon.chef.phase3": "Chef Papon, Para Siempre",
+  "title.papon.para_siempre": "PARA SIEMPRE",
+  "title.papon.para_siempre.subtitle": "El Último Baile",
+  "item.papon.fx_guitar": "Requinto",
+  "speech.papon.band.hey": "¡OYE! ¡Mi requinto!",
+  "speech.papon.band.ay_dios": "¡Ay, Dios mío!",
+  "speech.papon.band.got_it": "¡Lo tengo! ¡Lo tengo!"
 }

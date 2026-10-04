@@ -39,6 +39,12 @@ public class MariachiEntity extends TacoNpc {
             SynchedEntityData.defineId(MariachiEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_SONG_START =
             SynchedEntityData.defineId(MariachiEntity.class, EntityDataSerializers.INT);
+    /** Which song they play (Song.CANCION, Song.PARA_SIEMPRE). */
+    private static final EntityDataAccessor<Integer> DATA_SONG =
+            SynchedEntityData.defineId(MariachiEntity.class, EntityDataSerializers.INT);
+    /** The singer, his requinto in the boss's hands (it is not drawn on him). */
+    private static final EntityDataAccessor<Boolean> DATA_ROBBED =
+            SynchedEntityData.defineId(MariachiEntity.class, EntityDataSerializers.BOOLEAN);
 
     @Nullable private Vec3 home;
     private float homeYaw;
@@ -70,6 +76,17 @@ public class MariachiEntity extends TacoNpc {
         super.defineSynchedData();
         entityData.define(DATA_ROLE, 0);
         entityData.define(DATA_SONG_START, 0);
+        entityData.define(DATA_SONG, 0);
+        entityData.define(DATA_ROBBED, false);
+    }
+
+    /** The song they play: Song.CANCION through phase two, Song.PARA_SIEMPRE from phase three. */
+    public int songId() {
+        return entityData.get(DATA_SONG);
+    }
+
+    public boolean robbed() {
+        return entityData.get(DATA_ROBBED);
     }
 
     public BandRole getRole() {
@@ -132,6 +149,51 @@ public class MariachiEntity extends TacoNpc {
         setBandState(BandState.PLAY);
     }
 
+    /** ...a given song: phase three's starts at its pickup, the singer alone, at {@code songStartTick}. */
+    public void play(int songStartTick, int song) {
+        entityData.set(DATA_SONG, song);
+        play(songStartTick);
+    }
+
+    // ------------------------------------------------------------------ phase three
+
+    /** The boss knocked down: the music stops dead, instruments still in hand. */
+    public void stop() {
+        if (getBandState() == BandState.PLAY || getBandState() == BandState.COUNT) setBandState(BandState.READY);
+    }
+
+    /** The boss over them, the requinto torn away: everyone cowers ({@code delay} ticks late, each his own way). */
+    public void scare(int delay) {
+        if (getRole().singer()) return;
+        this.delay = delay;
+        scareDue = true;
+    }
+
+    /** The singer: his requinto out of his hands. */
+    public void rob() {
+        entityData.set(DATA_ROBBED, true);
+        setBandState(BandState.ROBBED);
+        say("hey", 30);
+    }
+
+    /** The spotlight on the boss: they forget to be scared and watch. */
+    public void awe() {
+        if (getBandState() == BandState.SCARED || getBandState() == BandState.READY) setBandState(BandState.AWED);
+    }
+
+    /** The singer: the requinto back at him through the air (it lands in his hands now). */
+    public void catchGuitar() {
+        entityData.set(DATA_ROBBED, false);
+        setBandState(BandState.CATCH);
+    }
+
+    /** "What are you waiting for?!": instruments up. */
+    public void ready() {
+        if (getBandState() != BandState.CATCH) setBandState(BandState.READY);
+    }
+
+    private boolean scareDue;
+
     public void bow() {
         if (getBandState() == BandState.PLAY || getBandState().ready()) setBandState(BandState.BOW);
     }
@@ -155,7 +217,19 @@ public class MariachiEntity extends TacoNpc {
         BandState s = getBandState();
         int t = stateTicks;
         BandRole role = getRole();
+        if (scareDue && delay-- <= 0) {
+            scareDue = false;
+            setBandState(BandState.SCARED);
+            if (random.nextInt(3) == 0) say("ay_dios", 30);
+        }
         switch (s) {
+            case ROBBED -> {
+                if (t >= s.duration) setBandState(BandState.SCARED);
+            }
+            case CATCH -> {
+                if (t == 20) say("got_it", 26);
+                if (t >= s.duration) setBandState(BandState.READY);
+            }
             case STARTLE -> {
                 if (t >= s.duration + delay) setBandState(BandState.GETUP);
             }
@@ -233,7 +307,8 @@ public class MariachiEntity extends TacoNpc {
 
     private static final RawAnimation STARTLE = once("startle"), GETUP = once("getup"), RESLEEP = once("resleep"),
             JACKET = once("jacket"), HAT = once("hat"), SHADES = once("shades"), COUNT = once("count"), BOW = once("bow"),
-            WHACKED = once("whacked"), JACKET_SLOW = once("jacket_slow"), HAT_SLOW = once("hat_slow");
+            WHACKED = once("whacked"), JACKET_SLOW = once("jacket_slow"), HAT_SLOW = once("hat_slow"),
+            SCARED = loop("scared"), ROBBED = once("robbed"), AWED = loop("awed"), CATCH = once("catch");
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -259,6 +334,10 @@ public class MariachiEntity extends TacoNpc {
             case WHACKED -> WHACKED;
             case JACKET_SLOW -> JACKET_SLOW;
             case HAT_SLOW -> HAT_SLOW;
+            case SCARED -> SCARED;
+            case ROBBED -> ROBBED;
+            case AWED -> AWED;
+            case CATCH -> CATCH;
         };
         return event.setAndContinue(next);
     }
@@ -271,6 +350,8 @@ public class MariachiEntity extends TacoNpc {
         tag.putInt("Role", entityData.get(DATA_ROLE));
         tag.putInt("Band", stateId());
         tag.putInt("SongStart", songStart());
+        tag.putInt("Song", songId());
+        tag.putBoolean("Robbed", robbed());
         tag.putBoolean("Kicked", kicked);
         tag.putBoolean("Woken", woken);
         if (home != null) {
@@ -287,6 +368,8 @@ public class MariachiEntity extends TacoNpc {
         entityData.set(DATA_ROLE, tag.getInt("Role"));
         setStateId(tag.getInt("Band"));
         entityData.set(DATA_SONG_START, tag.getInt("SongStart"));
+        entityData.set(DATA_SONG, tag.getInt("Song"));
+        entityData.set(DATA_ROBBED, tag.getBoolean("Robbed"));
         kicked = tag.getBoolean("Kicked");
         woken = tag.getBoolean("Woken");
         if (tag.contains("HX")) home = new Vec3(tag.getDouble("HX"), tag.getDouble("HY"), tag.getDouble("HZ"));

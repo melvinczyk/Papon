@@ -9,6 +9,8 @@ package com.groid.papon.boss;
  *                                             \--> RESLEEP --> SLEEP (the dozer, until he is kicked)
  * SLEEP --(the boss's spatula: the singer)--> WHACKED --> JACKET_SLOW --> HAT_SLOW --> SHADES --> GRAB --> READY
  * READY --(the singer)--> COUNT --> PLAY (everyone, the song) --> BOW (the fight is over)
+ * PLAY --(phase three: the boss knocked down)--> READY --(his snatch)--> SCARED (the singer: ROBBED --> SCARED)
+ *      --(the spotlight)--> AWED --(the guitar thrown back: the singer)--> CATCH --> READY --> PLAY (Para Siempre)
  * </pre>
  */
 public enum BandState {
@@ -28,7 +30,15 @@ public enum BandState {
     WHACKED(50),
     /** ...and dressing under protest. */
     JACKET_SLOW(90),
-    HAT_SLOW(50);
+    HAT_SLOW(50),
+    /** Phase three: cowering from the boss, instrument hugged. */
+    SCARED(0),
+    /** The singer, his requinto ripped out of his hands: spun round, a look at his empty hands, and down he cowers. */
+    ROBBED(40),
+    /** Watching the boss play in the spotlight, swaying, hands clasped. */
+    AWED(0),
+    /** The singer: the requinto thrown back at him, juggled twice and caught. */
+    CATCH(30);
 
     public final int duration;
 
@@ -47,6 +57,6 @@ public enum BandState {
 
     /** Up, dressed and holding his instrument. */
     public boolean ready() {
-        return this == READY || this == COUNT || this == PLAY || this == BOW;
+        return this == READY || this == COUNT || this == PLAY || this == BOW || this == SCARED || this == AWED || this == CATCH;
     }
 }
