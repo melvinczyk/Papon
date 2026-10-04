@@ -78,11 +78,22 @@ quality throughout."
      hats and jackets on and grab their instruments**; the **singer counts them off** and they play.
      The song is **"Canción del Mariachi" (Antonio Banderas & Los Lobos)**, the user's own copy, dropped at
      `tools/src/song/` (gitignored; never download it from YouTube). The singer has a **microphone**, his
-     **lips and mouth lip-sync the song** (the Papon's mouth is the brown bar low on his body), he **looks
-     really cool with an aura**; the intro starts with **a zoom in on his guitar playing**. Chef Papon then
+     **lips and mouth lip-sync the song** (the Papon's mouth is the brown bar low on his body) (the gold
+     aura he first had was taken off on the user's request, 2026-10-03); the intro starts with **a zoom in on his guitar playing**. Chef Papon then
      **apologises for his poor hospitality and taking so long, aura farms, and says "where were we?"**;
      **the fight starts when the singer starts singing**. The song **loops for the whole fight**, its
      **highs and lows following the state of the battle**.
+   - **Coliseum nights (2026-10-03, the user's requests, see "Coliseum nights and the ending" below):** the potato
+     smiley in the middle of the Mexican flags, redesigned and **the same on every flag in the stadium**; the fans
+     carry **small flags with that design**; the crowd **livelier: jumping up, throwing their hands in the air**;
+     the **sun and moon are potato variants during the fight** (day or night: the fight is long); **lights for the
+     band stage at night, a lamp a member turns on in the background every time it turns to night**; **no chairs
+     for the band except Gordo** (the guitarron, the one in the dialogue with the boss: he dozes off again and gets
+     his chair kicked); **no gold aura on the singer**.
+   - **The pillow:** the player **hugs the Makima pillow "sensually"** (an animation), can **lick it**, and can **put
+     it on a bed and sleep next to it on their side**.
+   - **After his fall:** once Gerbin gives you the pillow you **go back to the Taco Truck**; **Chef Papon is a vendor
+     again, friendly, back working in the truck, and his vendor menu gives you free tacos**.
 8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
    separate entity, just more Papon animations (the llama lives in his model) — across rivers,
    lakes and oceans.
@@ -144,7 +155,9 @@ player and were not exercised headless.
 | The crowd: hundreds of Papon fans in the stands, one entity drawn in one pass (frustum-culled, back faces skipped, procedural poses per mood and on the song's beat); synthesized crowd noise | `boss/ColiseumCrowdEntity.java`, `boss/CrowdMood.java`, `client/ColiseumCrowdRenderer.java`, `client/CrowdSounds.java`, `tools/gen_band.py` (`arena_fan`), `tools/gen_crowd.py` |
 | The mariachi band: thirteen Papons (singer with mic, requinto and aviators; 3 trumpets, 3 violins, guitar, vihuela, guitarron, a coro of 3), asleep → woken (the singer whacked) → dressed → playing; lip sync, strums, bowing, trumpet fingering and the coro's harmonies from the song's data, hand poses solved on the rig | `boss/MariachiEntity.java`, `BandRole.java`, `BandState.java`, `client/MariachiModel.java`, `client/BandPoses.java`, `client/MariachiRenderer.java`, `tools/gen_band.py`, `tools/gen_band_anims.py`, `tools/band_ik.py` |
 | Potatoes from the stands (Splattered: 10% of the screen in mash for 5 s) | `boss/CrowdPotatoEntity.java`, `effect/SplatteredEffect.java`, `client/PotatoSplat.java`, `ColiseumCrowdEntity.pelt` |
-| Gerbin's present: a Makima body pillow for every winner | `item/BodyPillowItem.java`, `GerbinEntity.reward`, `client/GerbinRenderer.java`, `tools/gen_extras.py` |
+| Gerbin's present: a Makima body pillow for every winner; hugged, licked, laid on a bed to sleep beside | `item/BodyPillowItem.java`, `entity/BodyPillowEntity.java`, `GerbinEntity.reward`, `client/GerbinRenderer.java`, `client/PillowClient.java`, `client/PillowLayer.java`, `client/BodyPillowRenderer.java`, `tools/gen_extras.py` |
+| La Bandera Papa (one potato-smiley flag everywhere: podium, arches, band backdrop, the fans' hands), the livelier crowd, the potato sun and moon, the stage floodlights and the lamplighter | `tools/gen_flag.py`, `block/ArenaFlagBlock*`, `client/ArenaFlagRenderer.java`, `client/FlagCloth.java`, `ColiseumCrowdRenderer.lively`, `client/PotatoSky.java`, `tools/gen_sky.py`, `block/StageLampBlock*`, `client/StageLampRenderer.java`, `MariachiEntity.tickLamp` |
+| The ending: back at the truck after Gerbin's pillow, Chef Papon reformed (bald, friendly), free tacos off his menu | `TacoVendorEntity.reform/welcomeBack/order`, `client/VendorRenderer.java`, `client/TacoMenuScreen.java`, `client/ScreenFade.java`, `ModItems.TACOS`, `gen_items.taco_icon`, `gen_npc_anims.v_wave` |
 | The song: "Canción del Mariachi" cut into bar-aligned segments with energy levels; Rhubarb lip sync, vocal loudness/pitch and guitar strums; the adaptive score | `tools/gen_song.py`, `assets/papon/song/cancion.json`, `boss/Song.java`, `client/SongPlayer.java` |
 | Foil-potato shields (phase two): orbit him, he takes a third of every hit while any is left, rewrapped 45 s after the last breaks | `boss/FoilPotatoEntity.java`, `client/FoilPotatoRenderer.java`, `gen_vendor.foil_potato` |
 | The grab (Ignis-style, no escape, he is invincible through it): lunge → held in his fist (his passenger; `GrabHold` cancels the dismount) → blowtorched → salted (**Brittle**: armor and armor toughness −30% for 20 s) → hurled, half the time straight into a charge | `PaponBossEntity` (`tickGrab`, `tickGrabCombo`, `positionRider`), `effect/BrittleEffect.java`, `registry/ModEffects.java`, `gen_ui.brittle_icon` |
@@ -310,16 +323,17 @@ player and were not exercised headless.
 - **The band** (`MariachiEntity`, a TacoNpc: nothing hurts or moves them; `BandRole` by stage place: build
   width/height, instrument; `BandState`: SLEEP → STARTLE → GETUP → (the guitarron: RESLEEP → SLEEP until
   kicked) → JACKET → HAT → (singer: SHADES) → GRAB → READY → COUNT (singer) → PLAY → BOW at his fall; the
-  singer instead: WHACKED 50t (`whacked`: up in the air 1.4 blocks *in the animation*, so his chair stays
-  put) → JACKET_SLOW 90t → HAT_SLOW 50t (dressing under protest) → SHADES ...). Thirteen members: the
+  singer instead: WHACKED 50t (`whacked`: up in the air 1.4 blocks *in the animation*, off the floor) →
+  JACKET_SLOW 90t → HAT_SLOW 50t (dressing under protest) → SHADES ...). Only Gordo (the guitarron, the dozer)
+  has a chair; everyone else sleeps sitting on the stage floor, the jacket folded behind him (`jacket_floor`;
+  the chair animations are also written as `<name>_floor`, `MariachiEntity.chair`). Thirteen members: the
   coro (CORO_1..3, kind `coro`: maraca + hand mic) on the riser beside the trumpets (riser |x| ≤ 7).
   Model `mariachi` (`gen_band.py`): the wkcr rig split like the boss's (rig_hands); **the painted mouth bar is
   removed** and rebuilt as a lip rig (`mouth` width > `lip_up`, `lip_low`, `mouth_in`, `teeth`, `tongue`);
   eyelids; jacket/sleeves/sombrero on, or `jacket_chair`/`sombrero_floor` off; `chair` and the `*_floor`
   instruments are top-level bones (they stay put). Instrument cubes are built around (0,0,0) and moved to
   their pivot (`placed`): geo cube origins are absolute. `MariachiRenderer` hides every instrument but the
-  role's, scales the build, draws the singer's gold aura (the boss's energy swirl) and light rays in the
-  climax. Animations `gen_band_anims.py`; **every animation keys every bone `MariachiModel` touches**
+  role's, scales the build, hides the chair but Gordo's (no aura on the singer any more). Animations `gen_band_anims.py`; **every animation keys every bone `MariachiModel` touches**
   (`DEFAULTS` in `M.compile`; GeckoLib leaves unkeyed bones as they were, so one member's pose would leak
   onto the next drawn). Sleeves sit on `arm_*` (not the stretching mesh): a long reach shows the potato
   arm out of the cuff, and stretched arms thin out (`girth`, also in `BandPoses.girth`).
@@ -426,6 +440,45 @@ player and were not exercised headless.
   `tools/src/crowd`, gitignored): three seamless ambience loops, three roars; gen_crowd.py keeps the rest.
 - New lines of his: `bleed` (before "enough"), `charm0-5` (phase-two taunts), `hit0-1` (hurt), `landed0-1` (lands
   one in the coliseum) via `quip` (never over another line or in a cutscene).
+
+### Coliseum nights and the ending (status 2026-10-03, v0.7.4; check with `-Pautoshot=nights` and `-Pautoshot=ending`)
+- **La Bandera Papa** (`tools/gen_flag.py` → `textures/entity/potato_flag.png`, 120x68, 7:4): green | white with
+  Papon's smiling potato face (fry crown, laurel wreath, tricolour knot) | red. One texture for every flag:
+  `block/ArenaFlagBlock` (+ `ArenaFlagBlockEntity`: kind DRAPE 4.2x2.4 on the podium every 14 blocks of arc,
+  ARCH 2.8x1.6 in the flagged arches facing out, BACKDROP 7x4 behind the band; the wall's normal set by the build)
+  drawn as waving cloth by `client/ArenaFlagRenderer` + `client/FlagCloth` (a gold rod on brackets); the old drape
+  blocks are only his box's canopy now (same palette, `gen_blocks` takes it from `gen_flag`). `Coliseum.Plan.special`
+  places blocks whose block entity is told something after (`flagCandidate` keeps one cell per flag).
+- **The fans' flags**: half the fans (`ColiseumCrowdRenderer.prop`) carry a stick (`arena_fan` `flag` bone); the
+  cloth is `FlagCloth` in pole mode off the stick's tip, flapping harder as the arm swings.
+- **Livelier crowd**: `ColiseumCrowdRenderer.lively` lays each fan's own moments over the mood (more often in
+  ROAR/CHEER): two jumps with the arms flung up, both arms swaying overhead, a fist pumped, the flag swung in
+  circles (or an overhead clap), a hop turned to the neighbour; ROAR is real jumping (off the ground half the time,
+  legs tucked), flag holders wave them in CHEER/ROAR/CHANT; fewer fans sit in CHEER.
+- **Potato sky** (`client/PotatoSky`, `tools/gen_sky.py`): while a boss is within 160 blocks (and 5 s after), the
+  vanilla `sun.png` / `moon_phases.png` texture slots are re-registered to `textures/environment/potato_sun.png`
+  (a grinning potato with fry rays) and `potato_moon_phases.png` (a sleepy silver potato, all 8 phases); put back
+  after. Drawn additively by the sky: black is see-through, faces are deeper tones, not black.
+- **Stage floodlights**: `block/StageLampBlock` (FACING, LIT: light 15) at the stage's back corners (`Coliseum.lamps()`,
+  aimed at the singer through `StageLampBlockEntity.aim`), beam = `client/StageLampRenderer` (additive cone). The
+  lamplighter (`BandRole.lamplighter()`, CORO_3), while the band plays, when night falls (day time 12600..23200) or
+  breaks: `BandState.LAMP_GO` (walks to the stage-left lamp, stepping off the riser) → `LAMP_SWITCH` 40t (a tug on
+  the chain at t16: both lamps switch, the far one 7t later) → `LAMP_BACK` → PLAY (`MariachiEntity.tickLamp`;
+  animations `lamp_walk`, `lamp_switch`).
+- **The pillow** (`item/BodyPillowItem`): hold use = hug (`client/PillowClient.HUG` arm pose: arms wrapped, cheek on
+  it, slow sway, a nuzzle every few seconds; hearts, purrs), sneak + use = lick (`LICK`: up at the face, the head
+  bobbing on each lick; slurps and drips; the tongue drawn by `client/PillowLayer`), first person by
+  `applyForgeHandTransform`. Third person the pillow is drawn by `PillowLayer` (hugged, licked, carried under the
+  arm; the item's own third-person transform is scale 0). Used on a bed (`onItemUseFirst`, before the bed takes the
+  click): `entity/BodyPillowEntity` lies on one side of the bed (right-click to take back; drops if the bed goes);
+  sleeping in that bed, `PillowClient` rolls the player onto their side facing it (RenderPlayerEvent Pre/Post).
+- **The ending**: `TacoBoss.startFight` gives the boss his truck (`setTruck`, saved); at the end of his DEATH
+  `TacoVendorEntity.reform` puts a friendly vendor (`DATA_FRIENDLY`) behind the counter at `portalAt`; Gerbin's GIVE
+  (or the note) calls `TacoVendorEntity.welcomeBack(player, delay)`: `PaponNetwork.Fade` (`client/ScreenFade`), the
+  player is put in front of the window facing it while it is black, he waves (`VendorState.GREETING`, animation
+  `vendor_wave`) and says the tacos are free forever. Right-click him: `client/TacoMenuScreen` (four tacos,
+  prices chalked out, GRATIS) → `PaponNetwork.OrderTaco` → he cooks (50t) and serves (`ModItems.TACOS`:
+  al pastor, carne asada, pollo, papa). `client/VendorRenderer`: friendly = no toque, no fake mustache, hair shown.
 
 ### Boss hardening (status 2026-10-03, v0.7.2; check with `./gradlew runClient -Pautoshot=arena`)
 - **Containment**: `Coliseum.Gate` refuses any foreign mob joining within 32 blocks of a standing coliseum (`keepAlive`

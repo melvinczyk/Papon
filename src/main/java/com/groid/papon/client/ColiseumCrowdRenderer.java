@@ -44,7 +44,12 @@ import java.util.Map;
  * (arena_fan, gen_band.py) with no GeckoLib animation per fan. Each fan's pose is worked out here
  * from the crowd's mood, his own dice (Coliseum.Seat.seed: hat, prop, jersey, skin, size, how keen)
  * and the song's beat, blended over from the last mood; then the bones are set and the cubes
- * written straight to the buffer.
+ * written straight to the buffer. Over the mood each fan does his own thing now and then
+ * ({@link #lively}): jumps with his arms thrown up, pumps a fist, shakes both arms over his head,
+ * waves his flag round, turns to his neighbour; the louder the stands, the more often.
+ *
+ * Half of them carry a little La Bandera Papa on a stick (the cloth drawn by {@link FlagCloth} off the
+ * stick's tip, flapping harder the more he waves it).
  *
  * Cheap enough for a thousand-odd Papons: only fans in the view frustum are drawn, faces turned
  * away from the camera are skipped before they are written, the far ones leave out their brows and
@@ -68,6 +73,10 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     @Nullable private BakedGeoModel model;
     private final Map<GeoBone, float[]> rest = new HashMap<>();
     private GeoBone root, torso, body, armR, armL, legR, legL, browR, browL, mouthIn, jersey;
+    /** The flag stick's far tip (baked model units): where the cloth hangs from. */
+    private final Vector3f flagTip = new Vector3f();
+    private VertexConsumer flagVc;
+    private float flagTime, flagPhase, flagAmp;
     private final GeoBone[] hats = new GeoBone[HATS.length];
     private final GeoBone[] props = new GeoBone[PROPS.length];
 
@@ -108,6 +117,21 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             jersey = m.getBone("jersey").orElse(null);
             for (int i = 0; i < HATS.length; i++) hats[i] = m.getBone(HATS[i]).orElse(null);
             for (int i = 0; i < PROPS.length; i++) props[i] = m.getBone(PROPS[i]).orElse(null);
+            if (props[1] != null && !props[1].getCubes().isEmpty()) {
+                // the stick: its far end (lowest y at rest) is where the cloth starts
+                float minY = Float.MAX_VALUE, sx = 0, sz = 0;
+                int n = 0;
+                for (GeoQuad q : props[1].getCubes().get(0).quads()) {
+                    if (q == null) continue;
+                    for (GeoVertex v : q.vertices()) {
+                        minY = Math.min(minY, v.position().y());
+                        sx += v.position().x();
+                        sz += v.position().z();
+                        n++;
+                    }
+                }
+                if (n > 0) flagTip.set(sx / n, minY, sz / n);
+            }
         }
         return root != null && body != null;
     }
@@ -154,13 +178,25 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         return (h & 0xFFFF) / 65535F;
     }
 
+    /** Which prop he brought: 0 none, 1 a foam finger, 2 a flag, 3 maracas. Half of them have a flag. */
+    static int prop(int seed) {
+        int k = (int) (rnd(seed, 11) * 10);
+        return k == 2 ? 1 : k >= 3 && k <= 7 ? 2 : k == 8 ? 3 : 0;
+    }
+
     private static void seated(Pose p) {
         p.rootY = -4;
         p.leg = -88;
     }
 
     private void moodPose(Pose p, CrowdMood mood, int seed, float t, double beat, float angle, float moodT) {
+        moodPoseBase(p, mood, seed, t, beat, angle, moodT);
+        lively(p, mood, seed, t, prop(seed) == 2);
+    }
+
+    private void moodPoseBase(Pose p, CrowdMood mood, int seed, float t, double beat, float angle, float moodT) {
         float r1 = rnd(seed, 1), r2 = rnd(seed, 2), r3 = rnd(seed, 3), r4 = rnd(seed, 4), r5 = rnd(seed, 5), r6 = rnd(seed, 6);
+        boolean flag = prop(seed) == 2;
         p.rootY = 0;
         p.yaw = 0;
         p.torsoX = p.torsoZ = 0;
@@ -178,8 +214,8 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         int bi = (int) Math.floor(beat);
         switch (mood) {
             case CHEER -> {
-                if (r1 > 0.45F) seated(p);
-                else p.rootY = 0.8F * Math.abs(Mth.sin(t * 0.22F + r6 * 6));
+                if (r1 > 0.66F) seated(p);
+                else p.rootY = 1.1F * Math.abs(Mth.sin(t * (0.2F + 0.1F * r2) + r6 * 6));
                 float period = 34 + r2 * 40;
                 float ph = ((t + r3 * 200) % period) / period;
                 if (ph < 0.3F) {
@@ -194,17 +230,24 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                     p.mouth = 2 * k;
                 }
                 p.torsoZ = 4 * Mth.sin(t * 0.09F + r5 * 6);
+                if (flag) flagWave(p, t, r3, 0.6F);
             }
             case ROAR -> {
-                p.rootY = 2.6F * Math.abs(Mth.sin(t * 0.42F + r6 * 6));
-                float w = 16 * Mth.sin(t * 0.55F + r5 * 6);
-                p.armRX = -165;
-                p.armRZ = 22 + w;
-                p.armLX = -165;
-                p.armLZ = -22 + w;
-                p.bodyS = 1.04F;
+                // jumping up and down, each at his own rate: off the ground half the time, legs tucked at the top
+                float jump = Mth.sin(t * (0.36F + 0.18F * r2) + r6 * 6);
+                float air = Math.max(0, jump);
+                p.rootY = 5.0F * air;
+                p.leg = -22 * air;
+                p.bodyS = jump < -0.8F ? 0.95F : 1.04F;
+                float w = 18 * Mth.sin(t * (0.5F + 0.2F * r3) + r5 * 6);
+                p.armRX = -168 + 8 * air;
+                p.armRZ = 30 + w;
+                p.armLX = -168 + 8 * air;
+                p.armLZ = -30 + w;
+                p.torsoX = -6 * air;
                 p.mouth = 2.6F;
                 p.brow = 0.6F;
+                if (flag) flagWave(p, t, r3, 1F);
             }
             case BOO -> {
                 if (r1 > 0.7F) seated(p);
@@ -230,9 +273,13 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 boolean up = bi % 2 == 0 || r1 < 0.2F;
                 p.armRX = up ? -100 - 70 * k : -40;
                 p.armRZ = 14;
-                p.rootY = 0.8F * k;
+                p.rootY = (r2 < 0.4F ? 2.2F : 0.8F) * k;
                 p.mouth = 2.2F * k;
                 p.brow = 0.3F;
+                if (flag) {
+                    p.armLX = up ? -150 - 20 * k : -120;
+                    p.armLZ = -18 - 14 * k;
+                }
             }
             case WAVE -> {
                 float front = (t * 0.11F) % (Mth.PI * 2);
@@ -286,6 +333,111 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 p.armLY = 30;
                 p.brow = 1F;
                 p.mouth = 2.6F;
+            }
+        }
+    }
+
+    /** The flag up over his head, swung from side to side (the cloth flaps harder for it). */
+    private static void flagWave(Pose p, float t, float r, float energy) {
+        float sw = Mth.sin(t * (0.22F + 0.12F * r) + r * 9);
+        p.armLX = -150 - 14 * energy + 8 * Mth.cos(t * 0.31F + r * 5);
+        p.armLY = 10 * sw * energy;
+        p.armLZ = -20 + 34 * sw * energy;
+    }
+
+    /**
+     * A fan's own moments over the mood: every so often (more often the louder the stands) he does
+     * something, eased in and out over a second or two: jumps twice with both arms thrown up, shakes
+     * both arms over his head, pumps a fist, waves his flag round in big circles (or claps over his
+     * head), or turns to the fan beside him with a hop. Up off his seat for any of them.
+     */
+    private static void lively(Pose p, CrowdMood mood, int seed, float t, boolean flag) {
+        float energy = switch (mood) {
+            case ROAR -> 0.9F;
+            case CHEER -> 0.7F;
+            case CHANT -> 0.4F;
+            case CLAP, BOO -> 0.3F;
+            default -> 0;
+        };
+        if (energy <= 0) return;
+        float period = (100 - 55 * energy) * (0.7F + 0.6F * rnd(seed, 20));
+        float local = t + rnd(seed, 21) * 600;
+        int cycle = (int) (local / period);
+        float ph = (local - cycle * period) / period;
+        if (rnd(seed * 31 + cycle, 22) > 0.3F + 0.65F * energy) return;
+        float span = 0.55F;
+        if (ph > span) return;
+        float k = ph / span;
+        float env = Math.min(1, Mth.sin(k * Mth.PI) * 1.6F);
+        int act = (int) (rnd(seed * 17 + cycle, 23) * 5);
+        if (mood == CrowdMood.BOO) act = 2;                 // a fist shaken at you
+        // up off the seat
+        p.rootY = Mth.lerp(env, p.rootY, Math.max(0, p.rootY));
+        p.leg = Mth.lerp(env, p.leg, 0);
+        switch (act) {
+            case 0 -> {
+                // two jumps, arms flung up and out
+                float hop = Math.abs(Mth.sin(k * Mth.PI * 2));
+                p.rootY += 5.5F * hop * env;
+                p.leg = -26 * hop * env;
+                p.armRX = Mth.lerp(env, p.armRX, -172);
+                p.armRZ = Mth.lerp(env, p.armRZ, 38);
+                p.armLX = Mth.lerp(env, p.armLX, -172);
+                p.armLZ = Mth.lerp(env, p.armLZ, -38);
+                p.armRY = Mth.lerp(env, p.armRY, 0);
+                p.armLY = Mth.lerp(env, p.armLY, 0);
+                p.torsoX = Mth.lerp(env, p.torsoX, -10 * hop);
+                p.mouth = Math.max(p.mouth, 2.6F * env);
+                p.brow = Math.max(p.brow, 0.7F * env);
+            }
+            case 1 -> {
+                // both arms up, swaying from side to side, a bounce in the knees
+                float sw = Mth.sin(t * 0.5F + seed);
+                p.armRX = Mth.lerp(env, p.armRX, -165);
+                p.armLX = Mth.lerp(env, p.armLX, -165);
+                p.armRZ = Mth.lerp(env, p.armRZ, 20 + 26 * sw);
+                p.armLZ = Mth.lerp(env, p.armLZ, -20 + 26 * sw);
+                p.torsoZ = Mth.lerp(env, p.torsoZ, 9 * sw);
+                p.rootY += 1.2F * Math.abs(Mth.sin(t * 0.5F)) * env;
+                p.mouth = Math.max(p.mouth, 2.0F * env);
+            }
+            case 2 -> {
+                // a fist pumped three times
+                float pump = Math.abs(Mth.sin(k * Mth.PI * 3));
+                p.armRX = Mth.lerp(env, p.armRX, -120 - 55 * pump);
+                p.armRY = Mth.lerp(env, p.armRY, 0);
+                p.armRZ = Mth.lerp(env, p.armRZ, 12);
+                p.torsoX = Mth.lerp(env, p.torsoX, mood == CrowdMood.BOO ? 12 : -4 * pump);
+                p.rootY += 0.9F * pump * env;
+                p.mouth = Math.max(p.mouth, 2.2F * pump * env);
+            }
+            case 3 -> {
+                if (flag) {
+                    // the flag round in big circles over his head
+                    float a = k * Mth.TWO_PI * 2;
+                    p.armLX = Mth.lerp(env, p.armLX, -160 + 22 * Mth.sin(a));
+                    p.armLZ = Mth.lerp(env, p.armLZ, -24 + 30 * Mth.cos(a));
+                    p.armRX = Mth.lerp(env, p.armRX, -150);
+                    p.armRZ = Mth.lerp(env, p.armRZ, 26);
+                    p.rootY += 1.6F * Math.abs(Mth.sin(a)) * env;
+                } else {
+                    // a clap over his head
+                    float c = Math.abs(Mth.sin(k * Mth.PI * 5));
+                    p.armRX = Mth.lerp(env, p.armRX, -170);
+                    p.armLX = Mth.lerp(env, p.armLX, -170);
+                    p.armRZ = Mth.lerp(env, p.armRZ, 6 + 22 * c);
+                    p.armLZ = Mth.lerp(env, p.armLZ, -6 - 22 * c);
+                }
+                p.mouth = Math.max(p.mouth, 1.8F * env);
+            }
+            default -> {
+                // turns to his neighbour, a hop, an arm round the air
+                float side = rnd(seed, 24) < 0.5F ? -1 : 1;
+                p.yaw = Mth.lerp(env, p.yaw, 48 * side);
+                p.rootY += 2.4F * Math.abs(Mth.sin(k * Mth.PI * 2)) * env;
+                p.armRX = Mth.lerp(env, p.armRX, -140);
+                p.armRZ = Mth.lerp(env, p.armRZ, 40);
+                p.mouth = Math.max(p.mouth, 2.4F * env);
             }
         }
     }
@@ -347,6 +499,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         if (boss != null) look = boss.getPosition(partial).add(0, 1.5, 0);
         if (mood == CrowdMood.HUSH) look = at.add(0, 1, -Coliseum.B + 3);
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutout(TEX));
+        flagVc = buffers.getBuffer(FlagCloth.renderType());
         // a few seats' light a frame
         for (int k = 0; k < 24 && lights.length > 0; k++) {
             lightCursor = (lightCursor + 1) % lights.length;
@@ -376,6 +529,10 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 turn = Mth.clamp(Mth.wrapDegrees(want - s.yaw()), -42F, 42F);
             }
             apply(pose, seed, near);
+            flagTime = t;
+            flagPhase = rnd(seed, 25) * 6.28F;
+            // the harder his arm is swinging it, the harder the cloth flaps
+            flagAmp = 0.05F + 0.05F * Math.min(1F, Math.abs(pose.armLZ + 20) / 30F);
             ps.pushPose();
             ps.translate(s.x(), s.y(), s.z());
             ps.mulPose(Axis.YP.rotationDegrees(180F - (s.yaw() + turn + pose.yaw)));
@@ -409,9 +566,9 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         }
         int hat = (int) (rnd(seed, 10) * 5);
         for (int i = 0; i < hats.length; i++) if (hats[i] != null) hats[i].setHidden(hat != i + 1);
-        int prop = (int) (rnd(seed, 11) * 6);
+        int prop = prop(seed);
         if (props[0] != null) props[0].setHidden(prop != 1);
-        if (props[1] != null) props[1].setHidden(prop != 2 && prop != 5);
+        if (props[1] != null) props[1].setHidden(prop != 2);
         if (props[2] != null) props[2].setHidden(prop != 3);
         if (props[3] != null) props[3].setHidden(prop != 3);
         if (jersey != null) jersey.setHidden(rnd(seed, 12) > 0.33F);
@@ -451,6 +608,15 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                             n3.x(), n3.y(), n3.z());
                 }
             }
+        }
+        if (bone == props[1]) {
+            // the cloth: its hoist down the stick from the tip, flying off forward (toward -Z at rest)
+            ps.pushPose();
+            ps.translate(flagTip.x(), flagTip.y(), flagTip.z());
+            ps.mulPose(Axis.YP.rotationDegrees(-90));
+            ps.mulPose(Axis.ZP.rotationDegrees(180));
+            FlagCloth.draw(ps, flagVc, 0.7F, 0.4F, light, flagTime, flagPhase, flagAmp, true, near ? 7 : 4, near ? 3 : 2);
+            ps.popPose();
         }
         for (GeoBone child : bone.getChildBones()) drawBone(ps, child, vc, light, skin, near);
         ps.popPose();

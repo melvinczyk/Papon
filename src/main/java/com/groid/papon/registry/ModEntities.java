@@ -138,6 +138,14 @@ public final class ModEntities {
                     .updateInterval(4)
                     .build(PaponMod.id("coliseum_crowd").toString()));
 
+    // Gerbin's present, laid on a bed.
+    public static final RegistryObject<EntityType<com.groid.papon.entity.BodyPillowEntity>> BODY_PILLOW = REGISTRY.register("body_pillow",
+            () -> EntityType.Builder.<com.groid.papon.entity.BodyPillowEntity>of(com.groid.papon.entity.BodyPillowEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.25F)
+                    .clientTrackingRange(8)
+                    .updateInterval(40)
+                    .build(PaponMod.id("body_pillow").toString()));
+
     private static RegistryObject<EntityType<TacoCustomerEntity>> customer(Customer kind, float width, float height) {
         return REGISTRY.register(kind.id, () -> EntityType.Builder.of(TacoCustomerEntity.factory(kind), MobCategory.MISC)
                 .sized(width, height)

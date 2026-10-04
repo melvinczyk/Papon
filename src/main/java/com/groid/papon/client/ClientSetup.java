@@ -49,12 +49,20 @@ public final class ClientSetup {
         event.registerSpriteSet(type, sprites -> new FxParticle.Provider(sprites, mode));
     }
 
+    /** The body pillow on players (hugged, licked, carried): client/PillowLayer. */
+    @SubscribeEvent
+    public static void addLayers(EntityRenderersEvent.AddLayers event) {
+        for (String skin : event.getSkins()) {
+            var renderer = event.getSkin(skin);
+            if (renderer instanceof net.minecraft.client.renderer.entity.player.PlayerRenderer pr) pr.addLayer(new PillowLayer(pr));
+        }
+    }
+
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.WANDERING_PAPON.get(), WanderingPaponRenderer::new);
         // The Papon at the window is the boss to come: half again as big as any other.
-        event.registerEntityRenderer(ModEntities.TACO_VENDOR.get(),
-                ctx -> new CrowdRenderer<>(ctx, new CrowdModel<>("taco_vendor", "papon_npc", false), 1.5F, 0.9F, 0.35F));
+        event.registerEntityRenderer(ModEntities.TACO_VENDOR.get(), VendorRenderer::new);
         customer(event, ModEntities.DON_POLLO.get(), Customer.DON_POLLO);
         // EDP445 and Badlands Chugs are MakeHuman bodies shaped to their builds, with their
         // photographed faces (tools/mh_human.py); their props are cubes painted into the same atlas.
@@ -78,6 +86,9 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.PAPON_ECHO.get(), EchoRenderer::new);
         event.registerEntityRenderer(ModEntities.MARIACHI.get(), MariachiRenderer::new);
         event.registerEntityRenderer(ModEntities.COLISEUM_CROWD.get(), ColiseumCrowdRenderer::new);
+        event.registerEntityRenderer(ModEntities.BODY_PILLOW.get(), BodyPillowRenderer::new);
+        event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.ARENA_FLAG.get(), ArenaFlagRenderer::new);
+        event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.STAGE_LAMP.get(), StageLampRenderer::new);
     }
 
     private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,

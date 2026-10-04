@@ -417,13 +417,13 @@ public final class Cinematic {
      *   P2_WAIT      him tapping his foot; a slow pan along the band getting dressed; again
      *   P2_KICK      on the guitarron and the boot
      *   P2_COUNT     close on the singer counting in, pushing in
-     *   P2_SHOWTIME  the guitar: in on his hands, tilting up to his face, the shades, the aura
+     *   P2_SHOWTIME  the guitar: in on his hands, tilting up to his face, the shades
      *   P2_APOLOGY   the two of you as he comes over; on him apologising; the aura: a slow low orbit
      *   P2_RESUME    close: "Where were we?"
      *   P2_HYPE      over his shoulder to the roaring stands as he cups his ear; round him as he turns to
      *                the other side; craning up through the raise-the-roof with the bowl behind him; from
      *                behind you as he points you out; the FOV punch as the place erupts and the singing starts
-     *   P2_SOLO      (mid-fight) the singer's guitar solo: in on his hands, up to his face in the aura, then
+     *   P2_SOLO      (mid-fight) the singer's guitar solo: in on his hands, up to his face, then
      *                from behind him out over the sand at the boss air-guitaring along
      */
     @Nullable

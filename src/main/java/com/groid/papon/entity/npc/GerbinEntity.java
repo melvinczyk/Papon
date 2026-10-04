@@ -118,6 +118,7 @@ public class GerbinEntity extends TacoNpc {
             } else {
                 hand(p);
                 p.displayClientMessage(Component.translatable("message.papon.pillow_note").withStyle(ChatFormatting.LIGHT_PURPLE), false);
+                TacoVendorEntity.welcomeBack(level, p, 80);
             }
         }
         if (g != null && !g.getGerbinState().equals(GerbinState.DELIVER) && g.getGerbinState() != GerbinState.GIVE) {
@@ -156,6 +157,7 @@ public class GerbinEntity extends TacoNpc {
             // could not get there: the present turns up anyway
             hand(p);
             p.displayClientMessage(Component.translatable("message.papon.pillow_note").withStyle(ChatFormatting.LIGHT_PURPLE), false);
+            if (p instanceof net.minecraft.server.level.ServerPlayer sp) TacoVendorEntity.welcomeBack(level, sp, 60);
             owed.poll();
             setGerbinState(GerbinState.DELIVER);
             return;
@@ -194,6 +196,8 @@ public class GerbinEntity extends TacoNpc {
             level.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ITEM_PICKUP, net.minecraft.sounds.SoundSource.NEUTRAL, 0.8F, 0.8F);
             level.sendParticles(ParticleTypes.HEART, getX(), getY() + getBbHeight() + 0.3, getZ(), 3, 0.3, 0.2, 0.3, 0.02);
             p.displayClientMessage(Component.translatable("message.papon.pillow_given").withStyle(ChatFormatting.LIGHT_PURPLE), false);
+            // ...and then back to the truck, where the chef is waiting (TacoVendorEntity: he is a friend now)
+            if (p instanceof net.minecraft.server.level.ServerPlayer sp) TacoVendorEntity.welcomeBack(level, sp, 50);
         }
         if (stateTicks >= GerbinState.GIVE.duration) {
             if (!owed.isEmpty()) setGerbinState(GerbinState.DELIVER);

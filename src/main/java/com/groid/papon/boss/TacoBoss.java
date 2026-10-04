@@ -40,6 +40,7 @@ public final class TacoBoss {
         PaponBossEntity boss = spawn(level, from, vendor.getYRot(), van);
         if (boss == null) return;
         boss.begin(from, to, van);
+        if (line != null) boss.setTruck(line);
         vendor.discard();
         PaponMod.LOG.info("[boss] Chef Papon is loose at {} (van {})", boss.blockPosition(), van == null ? "none" : van.blockPosition());
     }

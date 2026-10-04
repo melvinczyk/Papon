@@ -24,6 +24,7 @@ gen_celeb_anims.py, with poses solved on their models by pose_solver.py.
   vendor_exposed 3.0 s = EXPOSED, vendor_unmask 5.0 s = UNMASK, vendor_realize 3.0 s = REALIZE,
   vendor_rage 3.5 s = RAGE (the unmasking; TacoVendorEntity fires its effects at the same ticks)
   vendor_cook loops every 4.0 s = Customer.COOK
+  vendor_wave 2.5 s = GREETING (beaten and friendly: the welcome back)
 """
 import json
 import os
@@ -704,9 +705,30 @@ def v_rage():
     return a
 
 
+def v_wave():
+    """2.5 s (beaten, back at his window, friendly). A big wave over his head, a lean out of the
+    window, a pat on the counter: come on over, amigo. Bald and proud (client/VendorRenderer shows the
+    hair this pins away)."""
+    a = P('vendor_wave', 2.5, 'hold')
+    wave = [(0, [0, 0, 2]), (0.35, [-160, 0, 30], 'easeOutBack')]
+    for i in range(5):
+        wave.append((round(0.55 + 0.22 * i, 2), [-165, 0, 48 if i % 2 == 0 else 18]))
+    wave += [(1.75, [-150, 0, 30]), (2.1, [0, 0, 2], 'easeInOutSine'), (2.5, [0, 0, 2])]
+    a.rot('arm_r', wave, 'lin')
+    a.rot('arm_l', [(0, [0, 0, -2]), (1.8, [0, 0, -2]), (2.0, [-70, 10, 0], 'easeInOutSine'), (2.12, [-62, 10, 0]),
+                    (2.24, [-70, 10, 0]), (2.36, [-62, 10, 0]), (2.5, [-40, 6, 0], 'easeInOutSine')], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.35, [10, 0, -6], 'easeOutQuad'), (1.0, [10, 0, 6]), (1.6, [10, 0, -4]),
+                    (2.0, [14, 0, 0], 'easeInOutSine'), (2.5, [4, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.3, [1.04, 0.96, 1.04], 'easeOutQuad'), (0.6, [1, 1, 1])], 'lin')
+    for brow in ('brow_r', 'brow_l'):
+        a.pos(brow, [(0, [0, 0, 0]), (0.35, [0, 1.0, 0], 'easeOutBack'), (2.0, [0, 0.8, 0]), (2.5, [0, 0.3, 0])], 'lin')
+    a.sound(0.3, 'hmm').sound(2.0, 'tap').sound(2.24, 'tap')
+    return a
+
+
 PAPON = [p_walk, p_walk_taco, p_hold_taco, p_idle, p_order, p_receive, p_react,
          v_idle, v_take_order, v_cook, v_serve, v_inspect, v_fraud, v_furious,
-         v_exposed, v_unmask, v_realize, v_rage]
+         v_exposed, v_unmask, v_realize, v_rage, v_wave]
 
 
 def write(name, fns, prefix):

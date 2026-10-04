@@ -332,8 +332,66 @@ def snooze():
     return save_json({'textures': ['papon:snooze']}, 'particles/snooze.json')
 
 
+# The tacos Chef Papon serves for free once he is beaten and back at his window (TacoVendorEntity's
+# menu): a folded corn tortilla seen from the side, its filling heaped over the top edge.
+TACOS = {
+    # filling base, then the bits scattered through it
+    'al_pastor': ((206, 84, 40), [(248, 206, 64), (70, 150, 52), (242, 238, 226)]),   # pork, pineapple, cilantro, onion
+    'carne_asada': ((116, 66, 36), [(70, 150, 52), (242, 238, 226), (150, 200, 70)]),  # beef, cilantro, onion, lime
+    'pollo': ((228, 196, 140), [(108, 178, 62), (214, 52, 40), (250, 214, 90)]),       # chicken, lettuce, tomato, cheese
+    'papa': ((240, 196, 84), [(200, 40, 36), (250, 246, 232), (70, 150, 52)]),         # potato, salsa, crema, cilantro
+}
+
+
+def taco_icon(base, bits, seed):
+    """A folded taco from the front: the far rim of the tortilla arching up behind the filling, the
+    filling heaped in the fold, the near side of the tortilla sagging between its two raised tips."""
+    import math
+    import random
+    rng = random.Random(seed)
+    im = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+    shell, shell_dk, shell_hi = (236, 196, 108, 255), (186, 136, 60, 255), (252, 226, 156, 255)
+
+    def k(x):
+        return max(0.0, 1 - ((x - 7.5) / 7.5) ** 2)
+    # the far rim, behind everything
+    for x in range(1, 15):
+        y = int(round(5.2 - 3.4 * k(x)))
+        im.putpixel((x, y), shell_dk)
+        im.putpixel((x, y + 1), shell)
+    # the filling, in the fold between the rims
+    for x in range(1, 15):
+        top = int(round(6.4 - 3.0 * k(x))) + (rng.random() < 0.3)
+        for y in range(top, 10):
+            c = base if rng.random() > 0.38 else bits[rng.randrange(len(bits))]
+            im.putpixel((x, y), tuple(c) + (255,))
+    # the near side: from its sagging top edge down round the fold
+    for x in range(16):
+        if k(x) <= 0:
+            continue
+        top = 4.6 + 3.6 * k(x)
+        bot = 6.0 + 6.6 * math.sqrt(k(x))
+        for y in range(int(math.ceil(top)), int(bot) + 1):
+            c = shell
+            if y == int(math.ceil(top)):
+                c = shell_dk if y > 5 else shell
+            elif y >= int(bot):
+                c = shell_dk
+            elif y == int(math.ceil(top)) + 1 and 3 < x < 12:
+                c = shell_hi
+            elif (x * 5 + y * 3) % 11 == 0:
+                c = shell_dk
+            im.putpixel((x, min(15, y)), c)
+    return im
+
+
 def main():
     print(coupon())
+    for i, (name, (base, bits)) in enumerate(TACOS.items()):
+        item = 'taco_' + name
+        print(save(taco_icon(base, bits, 11 + i * 7), 'textures/item/%s.png' % item))
+        print(save_json({'parent': 'minecraft:item/generated', 'textures': {'layer0': 'papon:item/%s' % item}},
+                        'models/item/%s.json' % item))
     for name, liquid in FLAVOURS.items():
         item = 'jarrito_' + name
         print(save(jarrito_texture(liquid), 'textures/item/%s.png' % item))
@@ -341,8 +399,7 @@ def main():
     print(save(chancla_texture(), 'textures/item/chancla.png'))
     print(save_json(chancla_model(), 'models/item/chancla.json'))
     print(snooze())
-    print(save(tequila_texture(), 'textures/item/tequila.png'))
-    print(save_json(tequila_model(), 'models/item/tequila.json'))
+    # the tequila item is gen_props.py's now (the bottle that reads as tequila); the old one here is not written
     print(save(keys_icon(), 'textures/item/caravan_keys.png'))
     print(save_json({'parent': 'minecraft:item/generated', 'textures': {'layer0': 'papon:item/caravan_keys'}},
                     'models/item/caravan_keys.json'))

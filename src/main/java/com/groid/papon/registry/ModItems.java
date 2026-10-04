@@ -41,6 +41,22 @@ public final class ModItems {
     public static final RegistryObject<Item> BODY_PILLOW = REGISTRY.register("body_pillow",
             () -> new com.groid.papon.item.BodyPillowItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
 
+    /** Chef Papon's tacos, free from his menu once he is beaten and back at the window (TacoVendorEntity). */
+    public static final RegistryObject<Item> TACO_AL_PASTOR = taco("al_pastor", 8, 0.8F);
+    public static final RegistryObject<Item> TACO_CARNE_ASADA = taco("carne_asada", 8, 0.9F);
+    public static final RegistryObject<Item> TACO_POLLO = taco("pollo", 7, 0.7F);
+    public static final RegistryObject<Item> TACO_PAPA = REGISTRY.register("taco_papa", () -> new Item(new Item.Properties()
+            .food(new net.minecraft.world.food.FoodProperties.Builder().nutrition(6).saturationMod(0.75F)
+                    .effect(() -> new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.REGENERATION, 100), 1F)
+                    .build())));
+    /** The menu, in order. */
+    public static final List<RegistryObject<Item>> TACOS = List.of(TACO_AL_PASTOR, TACO_CARNE_ASADA, TACO_POLLO, TACO_PAPA);
+
+    private static RegistryObject<Item> taco(String name, int nutrition, float saturation) {
+        return REGISTRY.register("taco_" + name, () -> new Item(new Item.Properties()
+                .food(new net.minecraft.world.food.FoodProperties.Builder().nutrition(nutrition).saturationMod(saturation).build())));
+    }
+
     // models for the boss fight's props (client/PropRenderer, TumbleRenderer); not in any tab
     public static final RegistryObject<Item> FX_SPUD = prop("fx_spud");
     public static final RegistryObject<Item> FX_METEOR = prop("fx_meteor");
