@@ -215,6 +215,20 @@ public class MariachiEntity extends TacoNpc {
     }
 
     private boolean scareDue;
+    /** Ticks until a snatched instrument is back in his hands (the boss's guitar duel). */
+    private int giveBackIn;
+
+    /** A player of the band robbed of his instrument mid-song (phase three's guitar duel): he cowers without it. */
+    public void snatch() {
+        entityData.set(DATA_ROBBED, true);
+        setBandState(BandState.SCARED);
+        say("hey", 30);
+    }
+
+    /** ...and in {@code delay} ticks it is back in his hands (thrown back, or a spare): on with the song. */
+    public void giveBack(int delay) {
+        giveBackIn = Math.max(1, delay);
+    }
 
     public void bow() {
         if (getBandState().lamp()) {
@@ -388,6 +402,10 @@ public class MariachiEntity extends TacoNpc {
     @Override
     public void tick() {
         super.tick();
+        if (!level().isClientSide && giveBackIn > 0 && --giveBackIn == 0) {
+            entityData.set(DATA_ROBBED, false);
+            if (getBandState() == BandState.SCARED && songStart() != 0) play(songStart(), songId());
+        }
         if (level().isClientSide && getBandState().asleep() && tickCount % 30 == 0) {
             // the Z's: a snooze bubble drifting up off whoever is sleeping
             level().addParticle(ModParticles.SNOOZE.get(), getX(), getY() + getBbHeight() * 1.05, getZ(), 0, 0.02, 0);

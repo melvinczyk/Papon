@@ -20,6 +20,9 @@ public final class ModDamage {
     public static final ResourceKey<DamageType> TEQUILA_FIRE = ResourceKey.create(Registries.DAMAGE_TYPE, PaponMod.id("tequila_fire"));
     public static final ResourceKey<DamageType> MOLOTOV = ResourceKey.create(Registries.DAMAGE_TYPE, PaponMod.id("molotov"));
 
+    /** Ascended Papon's fists and his lightning (phase three). */
+    public static final ResourceKey<DamageType> DEMIGOD = ResourceKey.create(Registries.DAMAGE_TYPE, PaponMod.id("demigod"));
+
     /** A share of your maximum health, through armor, enchantments and shields: his mechanics, not his stats. */
     public static final ResourceKey<DamageType> TRUE_HIT = ResourceKey.create(Registries.DAMAGE_TYPE, PaponMod.id("true_hit"));
     /** The Habanero burn and its boil-over (also through armor). */

@@ -113,6 +113,25 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 pose.scale(1.7F, 1.7F, 1.7F);
                 lit = LightTexture.FULL_BRIGHT;
             }
+            case PINATA -> {
+                // the piñata, swinging gently on its rope (the rope up out of sight is drawn as a line)
+                stack = new ItemStack(ModItems.FX_PINATA.get());
+                pose.translate(0, 1.6, 0);
+                pose.mulPose(Axis.YP.rotationDegrees(age * 1.5F));
+                pose.mulPose(Axis.ZP.rotationDegrees(Mth.sin(age * 0.12F) * 8F));
+                pose.translate(0, -1.6, 0);
+                pose.scale(6.0F, 6.0F, 6.0F);
+                pose.translate(0, 0.45, 0);
+                drawRope(pose, buffers, 30F / 6F);
+            }
+            case CANDY -> {
+                stack = new ItemStack(ModItems.FX_CANDY.get());
+                pose.translate(0, 0.3, 0);
+                pose.mulPose(Axis.YP.rotationDegrees(age * 31F));
+                pose.mulPose(Axis.XP.rotationDegrees(age * 23F));
+                pose.scale(1.6F, 1.6F, 1.6F);
+                lit = LightTexture.FULL_BRIGHT;
+            }
             case PRODUCE -> {
                 // a tomato (a beetroot will do), a potato, a carrot, a baked potato, tumbling
                 net.minecraft.world.item.Item[] what = {net.minecraft.world.item.Items.BEETROOT, net.minecraft.world.item.Items.POTATO,
@@ -272,5 +291,22 @@ public class PropRenderer extends EntityRenderer<BossProp> {
     @Override
     public ResourceLocation getTextureLocation(BossProp p) {
         return MASH;
+    }
+
+    /** The piñata's rope, straight up out of sight from the top of it (model space: the item's 16 units are a block). */
+    private static void drawRope(PoseStack pose, MultiBufferSource buffers, float up) {
+        VertexConsumer vc = buffers.getBuffer(RenderType.debugQuads());
+        Matrix4f m = pose.last().pose();
+        float w = 0.03F;
+        for (int side = 0; side < 2; side++) {
+            float dx = side == 0 ? w : 0, dz = side == 0 ? 0 : w;
+            for (int face = 0; face < 2; face++) {
+                float s = face == 0 ? 1 : -1;
+                vc.vertex(m, -dx * s, 0.45F, -dz * s).color(150, 118, 72, 255).endVertex();
+                vc.vertex(m, dx * s, 0.45F, dz * s).color(150, 118, 72, 255).endVertex();
+                vc.vertex(m, dx * s, up, dz * s).color(120, 94, 58, 255).endVertex();
+                vc.vertex(m, -dx * s, up, -dz * s).color(120, 94, 58, 255).endVertex();
+            }
+        }
     }
 }

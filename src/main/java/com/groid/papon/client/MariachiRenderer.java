@@ -33,7 +33,7 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
         this.scaleHeight = SCALE * role.height;
         for (String inst : INSTRUMENTS) {
             boolean mine = (inst.equals(role.instrument) || role.coro() && inst.equals("hand_mic"))
-                    && !(m.robbed() && inst.equals("requinto"));                    // phase three: it is in the boss's hands
+                    && !(m.robbed() && inst.equals(m.getRole().instrument));                    // phase three: it is in the boss's hands
             model.getBone(inst).ifPresent(bone -> bone.setHidden(!mine));
             model.getBone(inst + "_floor").ifPresent(bone -> bone.setHidden(!mine));
         }

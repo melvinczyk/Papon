@@ -4,15 +4,17 @@
   textures/gui/potato_splat.png           384x128: three splats of mashed potato (client/PotatoSplat lays
                                            them over the screen when a fan's potato hits you)
   textures/mob_effect/splattered.png       18x18: the Splattered effect icon (a splat)
-  textures/item/body_pillow.png            128x128: the dakimakura Gerbin gives the winner, a fan-art
-                                           Makima (Chainsaw Man) drawn here: front 48x128 at (0,0), back
-                                           48x128 at (48,0), the seam strip 8x128 at (96,0), the ends at (104,0)
-  models/item/body_pillow.json             a long soft pillow (6 x 16 x 2.5) with that texture (third person:
-                                           drawn by client/PillowLayer instead)
+  textures/item/body_pillow.png            256x256: the dakimakura Gerbin gives the winner: Makima (Chainsaw Man),
+                                           the user's picture (tools/src/makima_pillow.jpg, its two panels found by
+                                           their outlines and straightened row by row): front 96x256 at (0,0), back
+                                           96x256 at (96,0), the white cotton at (192,0). Without the picture, the
+                                           drawn fan art below.
+  models/item/body_pillow.json             builtin/entity: the pillow is a soft mesh drawn by client/PillowMesh
+                                           (squeezed, folded, slouched), here only its display transforms
   textures/entity/tongue.png               the player's tongue, licking it
 
-The pillow art is our own drawing (it is not from anywhere); to use another picture, draw it over
-the front/back regions of body_pillow.png (48x128 each) and leave the rest.
+To use another picture, put it at tools/src/makima_pillow.jpg (two pillow panels side by side, outlined
+in a dark line, front on the left) and run this again.
 
   python tools/gen_extras.py
 """
@@ -252,50 +254,82 @@ def woof(im, W, H):
         x0 += 5 * s + 1
 
 
+PICTURE = os.path.join(ROOT, 'tools/src/makima_pillow.jpg')
+
+
+def panels(path, W, H):
+    """The two pillow panels of a dakimakura listing picture, each straightened into a W x H rectangle: per row the
+    dark outline's left and right edges in each half of the picture, the inside between them stretched to the width;
+    rows from the panel's first to last that are at least a third of its width wide."""
+    import numpy as np
+    src = Image.open(path).convert('RGB')
+    a = np.asarray(src).astype(np.int32)
+    grey = a.mean(axis=2)
+    h, w = grey.shape
+    out = []
+    for x0, x1 in ((0, w // 2), (w // 2, w)):
+        # the outline is the outermost dark line: look for it only in the outer quarter on each side (not in her hair),
+        # then smooth the edges over the rows (a median), so a stray dark pixel cannot pull a row out of line
+        q = (x1 - x0) // 4
+        raw = {}
+        for y in range(h):
+            left = np.nonzero(grey[y, x0:x0 + q] < 90)[0]
+            right = np.nonzero(grey[y, x1 - q:x1] < 90)[0]
+            if len(left) and len(right):
+                raw[y] = (x0 + left[0] + 3, x1 - q + right[-1] - 3)
+        ys = sorted(raw)
+        top, bottom = ys[0] + 4, ys[-1] - 4
+        spans = []
+        for y in range(top, bottom + 1):
+            near = [raw[k] for k in range(y - 6, y + 7) if k in raw]
+            if not near:
+                continue
+            spans.append((y, int(np.median([n[0] for n in near])), int(np.median([n[1] for n in near]))))
+        by_y = {y: (l, r) for y, l, r in spans}
+        rows = []
+        last = (spans[len(spans) // 2][1], spans[len(spans) // 2][2])
+        for y in range(top, bottom + 1):
+            l, r = by_y.get(y, last)
+            last = (l, r)
+            row = src.crop((l, y, r, y + 1)).resize((W * 2, 1), Image.LANCZOS)
+            rows.append(row)
+        panel = Image.new('RGB', (W * 2, len(rows)))
+        for i, row in enumerate(rows):
+            panel.paste(row, (0, i))
+        out.append(panel.resize((W, H), Image.LANCZOS).convert('RGBA'))
+    return out
+
+
 def pillow():
-    W, H = 48, 128
-    big = 4
-    tex = Image.new('RGBA', (128, 128), (0, 0, 0, 0))
-    f = front(W * big, H * big).resize((W, H), Image.LANCZOS)
-    b = back(W * big, H * big).resize((W, H), Image.LANCZOS)
-    woof(b, W, H)
+    tex = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
+    if os.path.exists(PICTURE):
+        f, b = panels(PICTURE, 96, 256)
+    else:
+        W, H = 48, 128
+        big = 4
+        f = front(W * big, H * big).resize((96, 256), Image.LANCZOS)
+        b = back(W * big, H * big).resize((W, H), Image.LANCZOS)
+        woof(b, W, H)
+        b = b.resize((96, 256), Image.NEAREST)
     tex.paste(f, (0, 0))
-    tex.paste(b, (48, 0))
-    # the side seam and the ends: white cotton, a pink piping
-    side = Image.new('RGBA', (8, 128), (246, 242, 244, 255))
-    sd = ImageDraw.Draw(side)
-    sd.line([3, 0, 3, 127], fill=(236, 160, 180, 255), width=2)
-    tex.paste(side, (96, 0))
-    end = Image.new('RGBA', (8, 8), (246, 242, 244, 255))
-    ImageDraw.Draw(end).rectangle([0, 3, 7, 4], fill=(236, 160, 180, 255))
-    tex.paste(end, (104, 0))
+    tex.paste(b, (96, 0))
+    cotton = Image.new('RGBA', (64, 256), (246, 242, 244, 255))
+    tex.paste(cotton, (192, 0))
     out = os.path.join(ASSETS, 'textures/item/body_pillow.png')
     tex.save(out)
-    # the model: 6 x 16 x 2.5, standing up in the item's 16-unit box; UVs in 16ths of the texture
-    u = lambda px: px / 8.0
-    faces = {
-        'north': {'uv': [u(0), u(0), u(48), u(128)], 'texture': '#0'},
-        'south': {'uv': [u(48), u(0), u(96), u(128)], 'texture': '#0'},
-        'east': {'uv': [u(96), u(0), u(100), u(128)], 'texture': '#0'},
-        'west': {'uv': [u(100), u(0), u(104), u(128)], 'texture': '#0'},
-        'up': {'uv': [u(104), u(0), u(112), u(8)], 'texture': '#0'},
-        'down': {'uv': [u(104), u(0), u(112), u(8)], 'texture': '#0'},
-    }
     model = {
-        'texture_size': [128, 128],
-        'textures': {'0': 'papon:item/body_pillow', 'particle': 'papon:item/body_pillow'},
-        'elements': [
-            {'from': [5, 0, 6.75], 'to': [11, 16, 9.25], 'faces': faces},
-        ],
+        'parent': 'builtin/entity',
+        'textures': {'particle': 'papon:item/body_pillow'},
         'display': {
-            'gui': {'rotation': [0, 180, -30], 'translation': [0, 0, 0], 'scale': [0.85, 0.85, 0.85]},
+            # client/PillowItemRenderer draws the mesh upright in the unit box, its length the box's height
+            'gui': {'rotation': [0, 200, -24], 'translation': [0, 0, 0], 'scale': [0.95, 0.95, 0.95]},
             'ground': {'rotation': [90, 0, 0], 'translation': [0, 2, 0], 'scale': [0.6, 0.6, 0.6]},
             'fixed': {'rotation': [0, 180, 0], 'scale': [1, 1, 1]},
-            # in third person the pillow is drawn by client/PillowLayer (hugged, licked, under the arm)
+            # in third person the pillow is drawn by client/PillowLayer (hugged, licked, humped, under the arm)
             'thirdperson_righthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0, 0, 0]},
             'thirdperson_lefthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0, 0, 0]},
-            'firstperson_righthand': {'rotation': [0, 160, 10], 'translation': [-2, 2, 0], 'scale': [0.7, 0.7, 0.7]},
-            'firstperson_lefthand': {'rotation': [0, 200, -10], 'translation': [-2, 2, 0], 'scale': [0.7, 0.7, 0.7]},
+            'firstperson_righthand': {'rotation': [0, 160, 10], 'translation': [-2, 2, 0], 'scale': [0.8, 0.8, 0.8]},
+            'firstperson_lefthand': {'rotation': [0, 200, -10], 'translation': [-2, 2, 0], 'scale': [0.8, 0.8, 0.8]},
             'head': {'rotation': [0, 180, 0], 'translation': [0, -6, -6], 'scale': [1, 1, 1]},
         },
     }

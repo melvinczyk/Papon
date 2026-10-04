@@ -97,8 +97,11 @@ public final class Cinematic {
     private static boolean qte;
 
     public static boolean qteActive() {
-        return active && qte;
+        return active && (qte || duelShot);
     }
+
+    /** The guitar duel's shot: over the challenger's shoulder at him shredding; no letterbox over the fretboard. */
+    private static boolean duelShot, duelWas;
 
     public static boolean povActive() {
         return active && pov != null;
@@ -150,7 +153,7 @@ public final class Cinematic {
         } else if (active && ++lost > GRACE) {
             stop(mc);
         }
-        bars = Mth.clamp(bars + (active ? 0.12F : -0.08F), 0, 1);
+        bars = Mth.clamp(bars + (active && !duelShot ? 0.12F : -0.15F), 0, 1);
         if (!active) pov = null;
         vignette = Mth.clamp(vignette + (pov != null ? 0.1F : -0.1F), 0, 1);
         if (flashTarget < 0) flash = Math.max(0, flash - 0.08F);
@@ -328,6 +331,21 @@ public final class Cinematic {
             return new Shot(eye, face, 46F - 10F * push, 0, cut);
         }
         lastQteState = -1;
+        duelShot = false;
+        if (QteClient.duel(b) && Minecraft.getInstance().player != null) {
+            // the duel: low over your shoulder, him shredding in front of you, the camera drifting slowly from side to side
+            duelShot = true;
+            boolean cut = !duelWas;
+            duelWas = true;
+            var me = Minecraft.getInstance().player;
+            Vec3 toHim = b.position().subtract(me.position()).multiply(1, 0, 1);
+            toHim = toHim.lengthSqr() < 1e-4 ? f.scale(-1) : toHim.normalize();
+            Vec3 side = new Vec3(-toHim.z, 0, toHim.x);
+            double drift = Math.sin(b.tickCount * 0.025) * 1.4;
+            Vec3 eye = me.position().subtract(toHim.scale(3.2)).add(side.scale(1.5 + drift)).add(0, 2.1, 0);
+            return new Shot(eye, b.position().add(0, b.getBbHeight() * 0.55, 0), 64, 0, cut);
+        }
+        duelWas = false;
         Shot p3 = phaseThreeShot(b, s, t, f, right);
         if (p3 != null) return b.isAscended() ? ascendedRoom(b, p3) : p3;
         Shot col = coliseumShot(b, s, t, f, right);
@@ -646,7 +664,8 @@ public final class Cinematic {
         Vec3 right = new Vec3(-f.z, 0, f.x);
         float h = b.getBbHeight();
         Vec3 body = b.position().add(0, h * 0.55, 0);
-        Vec3 face = b.position().add(0, h * 0.74, 0);
+        // his face: the ascended model sits lower in its (bigger) box, so his eyes are lower down it
+        Vec3 face = b.position().add(0, h * (b.isAscended() ? 0.62 : 0.74), 0);
         java.util.List<com.groid.papon.boss.MariachiEntity> band = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class,
                 b.getBoundingBox().inflate(64), e -> true);
         com.groid.papon.boss.MariachiEntity singer = band.stream().filter(m -> m.getRole().singer()).findFirst().orElse(null);
@@ -675,7 +694,7 @@ public final class Cinematic {
                 int ns = VoiceLines.beat("glare.notstyle", 40), rp = VoiceLines.beat("glare.realplay", 100);
                 if (t < 22) return new Shot(face.add(f.scale(4.4)).add(right.scale(1.0)).add(0, -0.4, 0), face, 46, 0, t == 0);
                 int eyes = Math.max(40, ns - 30);
-                if (t < eyes) return new Shot(face.add(f.scale(2.9)).add(0, -0.3, 0), face.add(0, -0.2, 0), 22, 0, t == 22);    // his eyes
+                if (t < eyes) return new Shot(face.add(f.scale(3.9)).add(0, -0.3, 0), face.add(0, -0.15, 0), 32, 0, t == 22);    // his eyes
                 if (t < ns) return new Shot(singerFace.add(stageFacing.scale(3.6)).add(stageSide.scale(0.5)), singerFace, 34, 0, t == eyes);
                 if (t < rp) {
                     double k = Math.min(1, (t - ns) / (double) Math.max(20, rp - ns));
@@ -737,9 +756,10 @@ public final class Cinematic {
                 if (t < 118) {
                     // the stands, from down on the sand: the first lighters coming on, faces in awe
                     // over the middle of the sand, so the camera is always in the open, looking up at the stands
+                    // well off to his side (his wings are wide), over the sand, up at the stands across from the camera
                     Vec3 side = right.scale(b.position().subtract(center).dot(right) > 0 ? -1 : 1);
-                    Vec3 eye = center.add(side.scale(-4)).add(0, 3.0, 0);
-                    return new Shot(eye, center.add(side.scale(com.groid.papon.boss.Coliseum.A + 6)).add(0, 8, 0), 66, 0, t == 85, true);
+                    Vec3 eye = b.position().add(side.scale(-11)).add(f.scale(-4)).add(0, 3.0, 0);
+                    return new Shot(eye, center.add(side.scale(com.groid.papon.boss.Coliseum.A + 6)).add(f.scale(10)).add(0, 8, 0), 66, 0, t == 85, true);
                 }
                 if (t < 150) {
                     // the band, watching him play: the singer's face, the coro behind
@@ -823,8 +843,9 @@ public final class Cinematic {
                     double k = (t - ln) / (double) Math.max(1, sm - ln);
                     return new Shot(face.add(f.scale(6.0 - 2.6 * k)).add(right.scale(0.5)).add(0, -0.4, 0), face, 44 - (float) k * 8, 0, t == ln);
                 }
-                // the smile: right in on it
-                return new Shot(face.add(f.scale(3.0)).add(0, -0.25, 0), face.add(0, -0.1, 0), 30, 0, t == sm);
+                // the smile: in on his face, mouth and eyes both
+                Vec3 grin = b.position().add(0, h * (b.isAscended() ? 0.56 : 0.66), 0);
+                return new Shot(grin.add(f.scale(3.2)).add(0, 0.1, 0), grin, 38, 0, t == sm);
             }
             case P3_TO_CAR -> {
                 return new Shot(face.add(f.scale(5.5)).add(right.scale(2.0)).add(0, -0.5, 0), face, 50, 0, t == 0);

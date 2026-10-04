@@ -63,6 +63,15 @@ package com.groid.papon.boss;
  *                                                              crimson: "Now... let's DANCE." Night from here on, the
  *                                                              spotlight on him. With no coliseum: P3_KNOCKBACK --> P3_GLARE
  *                                                              --> P3_DANCE)
+ * IDLE --> P3_COMBO | P3_FLASH | P3_LASER | P3_SOLAR | P3_MARIACHI | P3_PINATA | P3_BRAZIERS --> IDLE
+ *                                                             (Ascended Papon, phase three's fight: golden fists, lightning
+ *                                                              dashes, eye lasers, the Aztec sun, the band's fire, the piñata,
+ *                                                              the braziers; none of the chef's moves)
+ * IDLE --> P3_COMET --> P3_COMET_LAND [--> P3_COMET --> P3_COMET_LAND] --> IDLE   (two comets)
+ * IDLE --> P3_DUEL_FETCH --> P3_DUEL --> P3_DUEL_SMASH | P3_DUEL_SHAME --> IDLE    (the guitar duel, a guitar-hero QTE)
+ * IDLE --> P3_NOVA --> P3_SPENT --> IDLE                     (the supernova: only his shadow is safe; then he is spent)
+ * IDLE --> P3_NITRO --> DRIVING --> IDLE                     (the Skyline, nitro on; out through the roof)
+ * IDLE --> QTE_GRAB (kind 5) --> QTE_HOLD --> QTE_FAIL | QTE_BROKEN --> IDLE      (the squeeze: spam keys to break out)
  * any --> DEATH
  * </pre>
  * Append new states at the end: the ordinal is synced and the name is saved.
@@ -192,7 +201,40 @@ public enum BossState {
     P3_GO(70),
     /** In the spotlight, before the song: bent double, groaning, the wings tear out of his back (the flash, his new
      *  form), and the roar. Appended (the ordinal is synced). */
-    P3_ASCEND(150);
+    P3_ASCEND(150),
+    // ---- Ascended Papon's own moves (phase three's fight, after "let's dance"): a demigod's, none of the chef's
+    /** Puños de Oro: in like a thunderbolt, three golden jabs, an uppercut, and down on you from above. */
+    P3_COMBO(56),
+    /** Relámpago Dorado: five lightning dashes through you, each on a golden line (AI-held). */
+    P3_FLASH(0),
+    /** Cometa de Papa: up out of sight, a red mark that follows you and locks, and down he comes burning (AI-held). */
+    P3_COMET(0),
+    /** ...the crater, and three rings rolling out across the sand (jump them). */
+    P3_COMET_LAND(30),
+    /** Ojos de Papa: lasers out of his eyes (and his golden statues' eyes), chasing you over the sand. The Skyline stops them. */
+    P3_LASER(110),
+    /** El Sol Azteca: a sun stone behind him and its light over the whole sand; only the Skyline's shade is safe. */
+    P3_SOLAR(170),
+    /** ¡Fuego, Mariachi!: he conducts the band at you: trumpet blasts along the ground (jump), violin cuts at head height (duck). */
+    P3_MARIACHI(160),
+    /** Duelo de Guitarras: to the band stand for the guitarist's guitar, and back down in front of you (AI-held). */
+    P3_DUEL_FETCH(0),
+    /** The duel: a guitar-hero QTE on your screen while he shreds (AI-held until it is over). */
+    P3_DUEL(0),
+    /** He won the duel: the guitar over your head. */
+    P3_DUEL_SMASH(50),
+    /** You won: the crowd cheers you and he stands there, humiliated (taking double). */
+    P3_DUEL_SHAME(80),
+    /** La Piñata: a giant potato piñata over the sand, a flying kick, and candy bombs raining down. */
+    P3_PINATA(140),
+    /** Llamas del Coliseo: the braziers round the podium hurl burning potatoes at you, one after another. */
+    P3_BRAZIERS(110),
+    /** La Supernova: a star over the middle of the sand; only his shadow is safe when it goes. */
+    P3_NOVA(150),
+    /** ...and he drops out of the sky, spent (taking double). */
+    P3_SPENT(80),
+    /** Nitro: onto the Skyline's roof and in at the wheel (then DRIVING, the nitro on). */
+    P3_NITRO(0);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;

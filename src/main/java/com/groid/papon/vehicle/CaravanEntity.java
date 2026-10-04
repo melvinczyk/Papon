@@ -129,6 +129,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     private int shoveTicks;
     private float shoveSpin;
     private float shoveDamage = 1F;
+    /** Ascended Papon at the wheel with the nitro on (phase three): a ram takes this share of your health, through armor (0: off). */
+    private float ramShare;
     private boolean wasSliding;
     /** Carried over Chef Papon's head: no physics of its own, he places it. */
     private boolean carried;
@@ -180,6 +182,11 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         entityData.define(DATA_GHOST, false);
         entityData.define(DATA_SKYLINE, false);
         entityData.define(DATA_SQUASH, 1F);
+    }
+
+    /** The nitro ram (phase three): each hit takes {@code share} of the victim's maximum health; 0 puts it back to normal. */
+    public void setRamShare(float share) {
+        ramShare = share;
     }
 
     public boolean isSkyline() {
@@ -728,7 +735,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         float damage = (float) (PaponConfig.VAN_RAM_DAMAGE.get() * Mth.clamp(Math.abs(v) / top, 0.25, 1.15));
         if (driver instanceof Player && e instanceof PaponBossEntity) damage *= 0.8F;
         DamageSource source = ModDamage.caravan(level, this, driver);
-        e.hurt(source, damage);
+        if (ramShare > 0 && driver instanceof PaponBossEntity) com.groid.papon.boss.Mechanics.trueHit(e, ramShare, driver, true);
+        else e.hurt(source, damage);
         Vec3 f = forward().scale(Math.signum(v));
         Vec3 side = left().scale(Math.signum(lat == 0 ? 1 : lat));
         boolean rear = v < 0;

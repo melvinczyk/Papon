@@ -41,6 +41,7 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     public void setCustomAnimations(PaponBossEntity boss, long instanceId, AnimationState<PaponBossEntity> state) {
         super.setCustomAnimations(boss, instanceId, state);
         if (boss.getBossState() == BossState.P3_SERENADE) serenade(boss, state.getPartialTick());
+        if (boss.getBossState() == BossState.P3_DUEL) shred(boss, state.getPartialTick());
         BossFace.apply(getAnimationProcessor(), boss, state.getPartialTick());
     }
 
@@ -66,6 +67,27 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
         set("l", Mth.lerp(pos, FRET_LOW[0], FRET_HIGH[0]) + wob, Mth.lerp(pos, FRET_LOW[1], FRET_HIGH[1]),
                 Mth.lerp(pos, FRET_LOW[2], FRET_HIGH[2]), Mth.lerp(pos, FRET_LOW[3], FRET_HIGH[3]), k);
     }
+
+    /**
+     * The guitar duel: he shreds. The picking fist a blur over the strings (a dozen strokes a second, digging in on the
+     * accents); the fretting hand racing up and down the neck in runs, a new position every eighth of a second.
+     */
+    private void shred(PaponBossEntity boss, float partial) {
+        double t = (boss.ticksInState() + partial) / 20.0;
+        float k = (float) Mth.clamp(t / 0.4, 0, 1);
+        float accent = (float) Math.pow(Math.max(0, Math.sin(t * Math.PI * 2 * 1.7)), 6);
+        float pick = (6 + 10 * accent) * Mth.sin((float) (t * Math.PI * 2 * 12));
+        set("r", STRUM[0] + pick * k, STRUM[1], STRUM[2], STRUM[3], k);
+        int step = (int) Math.floor(t * 8);
+        float run = RUN[Math.floorMod(step, RUN.length)];
+        float into = (float) (t * 8 - step);
+        float pos = Mth.lerp(Math.min(1F, into * 4), RUN[Math.floorMod(step - 1, RUN.length)], run);
+        set("l", Mth.lerp(pos, FRET_LOW[0], FRET_HIGH[0]), Mth.lerp(pos, FRET_LOW[1], FRET_HIGH[1]),
+                Mth.lerp(pos, FRET_LOW[2], FRET_HIGH[2]), Mth.lerp(pos, FRET_LOW[3], FRET_HIGH[3]), k);
+    }
+
+    /** His shred's runs up and down the neck (0 low .. 1 high). */
+    private static final float[] RUN = {0.1F, 0.3F, 0.5F, 0.75F, 1.0F, 0.8F, 0.55F, 0.35F, 0.9F, 0.6F, 0.2F, 0.45F};
 
     /** An arm outright (blended {@code k} of the way from what the animation has), as a keyframe would set it. */
     private void set(String side, float x, float y, float z, float stretch, float k) {

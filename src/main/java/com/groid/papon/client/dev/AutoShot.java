@@ -57,6 +57,8 @@ public final class AutoShot {
     private static final boolean NIGHTS = MODE.equals("nights");
     /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
     private static final boolean ENDING = MODE.equals("ending");
+    /** -Pautoshot=pillow: a bed against a wall; the pillow hugged, licked and humped (third and first person), slouched on the bed, humped there. */
+    private static final boolean PILLOW = MODE.equals("pillow");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -88,6 +90,10 @@ public final class AutoShot {
         }
         if (ENDING) {
             ending(mc);
+            return;
+        }
+        if (PILLOW) {
+            pillow(mc);
             return;
         }
         if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3) {
@@ -428,6 +434,94 @@ public final class AutoShot {
      * with the harmonies about 8.6 s into the first verse), the trumpets (their part from 11.5 s),
      * the violins; each from in front of the member, at his eye level.
      */
+    @Nullable private static net.minecraft.core.BlockPos bedAt;
+
+    private static void pillow(Minecraft mc) {
+        var opts = mc.options;
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:papon_boss]", "kill @e[type=papon:body_pillow]", "tp @s 4100 200 4100");
+            case 70 -> run("execute positioned 4100 0 4100 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 180 0");
+            case 90 -> {
+                var p = mc.player.blockPosition();
+                bedAt = p.north(3);
+                run(String.format("fill %d %d %d %d %d %d minecraft:smooth_stone", p.getX() - 4, p.getY() - 1, p.getZ() - 6, p.getX() + 4, p.getY() - 1, p.getZ() + 4),
+                        String.format("fill %d %d %d %d %d %d minecraft:air", p.getX() - 4, p.getY(), p.getZ() - 6, p.getX() + 4, p.getY() + 4, p.getZ() + 4),
+                        String.format("fill %d %d %d %d %d %d minecraft:stone_bricks", p.getX() - 2, p.getY(), p.getZ() - 5, p.getX() + 2, p.getY() + 3, p.getZ() - 5),
+                        String.format("setblock %d %d %d minecraft:red_bed[facing=north,part=head]", bedAt.getX(), bedAt.getY(), bedAt.getZ() - 1),
+                        String.format("setblock %d %d %d minecraft:red_bed[facing=north,part=foot]", bedAt.getX(), bedAt.getY(), bedAt.getZ()),
+                        "item replace entity @s weapon.mainhand with papon:body_pillow");
+            }
+            // third person, from the front: hug, lick, hump
+            case 120 -> {
+                opts.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                run("tp @s ~ ~ ~ 0 0");
+            }
+            case 125 -> net.minecraft.client.KeyMapping.set(opts.keyUse.getKey(), true);
+            case 150 -> shot(mc, "pl01_hug_front");
+            case 160 -> opts.setCameraType(CameraType.THIRD_PERSON_BACK);
+            case 170 -> shot(mc, "pl02_hug_back");
+            case 175 -> {
+                opts.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), true);
+            }
+            case 195 -> shot(mc, "pl03_lick");
+            case 200 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
+            case 205 -> run("tp @s ~ ~ ~ 0 70");
+            case 225 -> shot(mc, "pl04_hump_front");
+            case 228 -> shot(mc, "pl05_hump_front2");
+            case 232 -> {
+                opts.setCameraType(CameraType.THIRD_PERSON_BACK);
+                run("tp @s ~ ~ ~ 0 -10");
+            }
+            case 236 -> run("tp @s ~ ~ ~ 0 70");
+            case 250 -> shot(mc, "pl06_hump_back");
+            // first person
+            case 255 -> {
+                opts.setCameraType(CameraType.FIRST_PERSON);
+                run("tp @s ~ ~ ~ 0 70");
+            }
+            case 270 -> shot(mc, "pl07_hump_fp");
+            case 275 -> run("tp @s ~ ~ ~ 0 0");
+            case 290 -> shot(mc, "pl08_hug_fp");
+            case 295 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), true);
+            case 310 -> shot(mc, "pl09_lick_fp");
+            case 315 -> {
+                net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
+                net.minecraft.client.KeyMapping.set(opts.keyUse.getKey(), false);
+            }
+            case 320 -> shot(mc, "pl10_carry_fp");
+            // on the bed: slouched against the wall
+            case 330 -> {
+                var srv = mc.getSingleplayerServer();
+                var pos = bedAt;
+                if (srv != null && pos != null) srv.execute(() -> com.groid.papon.entity.BodyPillowEntity.place(srv.overworld(), pos));
+                opts.setCameraType(CameraType.FIRST_PERSON);
+            }
+            case 340 -> {
+                var p = bedAt;
+                if (p != null) tpLook(Vec3.atBottomCenterOf(p).add(1.6, 0.4, 2.6), Vec3.atBottomCenterOf(p).add(0, 0.9, -1.2));
+            }
+            case 355 -> shot(mc, "pl11_bed_slouch");
+            case 357 -> {
+                var p = bedAt;
+                if (p != null) tpLook(Vec3.atBottomCenterOf(p).add(-2.4, 0.6, 0.4), Vec3.atBottomCenterOf(p).add(0, 0.9, -1.2));
+            }
+            case 370 -> shot(mc, "pl12_bed_slouch_side");
+            case 375 -> {
+                var pillow = nearest(mc, com.groid.papon.entity.BodyPillowEntity.class);
+                if (pillow != null) mc.gameMode.interact(mc.player, pillow, net.minecraft.world.InteractionHand.MAIN_HAND);
+                opts.setCameraType(CameraType.THIRD_PERSON_BACK);
+            }
+            case 395 -> shot(mc, "pl13_bed_hump_back");
+            case 400 -> opts.setCameraType(CameraType.THIRD_PERSON_FRONT);
+            case 415 -> shot(mc, "pl14_bed_hump_front");
+            case 425 -> mc.stop();
+            default -> {}
+        }
+    }
+
     /** After his fall (the boss is gone): Gerbin brings the pillow over. */
     private static void gerbinShots(Minecraft mc, int k) {
             // Gerbin comes over with the pillow
@@ -808,8 +902,11 @@ public final class AutoShot {
             case P3_TOSS -> t == 14 ? "t27_toss" : t == 30 ? "t28_flight" : t == 46 ? "t29_catch" : t == 80 ? "t29b_band_glances" : null;
             case P3_FELT -> t == 8 ? "t30_ascended" : t == 50 ? "t30b_felt" : t == 110 ? "t30c_evil_smile" : null;
             case P3_TO_CAR -> t == 20 ? "t31_to_car" : null;
-            case P3_CRUSH -> t == 16 ? "t32_lift" : t == 50 ? "t32b_crush" : t == 80 ? "t32c_ball" : t == 96 ? "t32d_reform" : t == 116 ? "t32e_skyline"
-                    : t == 135 ? "t32f_underglow" : t == 170 ? "t32g_lets_dance" : null;
+            case P3_CRUSH -> t == 14 ? "t32_lift" : t == 30 ? "t32b_crush" : t == 46 ? "t32c_ball" : t == 54 ? "t32d_reform" : t == 70 ? "t32e_skyline"
+                    : t == 82 ? "t32f_underglow" : null;
+            case P3_ASCEND -> t == 30 ? "t18b_groan" : t == com.groid.papon.boss.VoiceLines.beat("ascend.burst", 100) + 3 ? "t18c_wings_tear"
+                    : t == com.groid.papon.boss.VoiceLines.beat("ascend.roar", 108) + 12 ? "t18d_roar"
+                    : t == com.groid.papon.boss.VoiceLines.beat("ascend.end", 150) - 8 ? "t18e_band_awe" : null;
             case P3_GO -> t == 14 ? "t33_go" : null;
             case P3_DANCE -> t == 20 ? "t34_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 20 ? "t35_fire_back" : t == 90 ? "t36_stance" : null;
             default -> null;
@@ -830,16 +927,74 @@ public final class AutoShot {
                 run("gamemode survival");
                 run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~7");
             }
-            if (j == 140) shot(mc, "t39_fighting_at_night");
-            if (j == 240) shot(mc, "t40_fighting_at_night2");
-            if (j == 260) run("kill @e[type=papon:papon_boss]");
-            if (j == 330) shot(mc, "t41_his_fall");
-            if (j == 420) mc.stop();
+            if (j >= 46) ascendedShowcase(mc, b, j - 46);
         }
         if (k > 60 * 20 * 4) mc.stop();
     }
 
     private static int p3Mark = -1;
+
+    /** Ascended Papon's moves, one after another (an invulnerable armor stand is the target, the camera a spectator), then the QTEs on you. */
+    private static final String[] SHOW = {"P3_COMBO", "P3_FLASH", "P3_COMET", "P3_LASER", "P3_SOLAR", "P3_MARIACHI", "P3_PINATA",
+            "P3_BRAZIERS", "P3_NITRO", "P3_NOVA", "QTE_GRAB", "P3_DUEL_FETCH"};
+    private static final int[] SHOW_LEN = {70, 110, 170, 120, 180, 170, 150, 120, 320, 250, 150, 520};
+
+    private static void ascendedShowcase(Minecraft mc, PaponBossEntity b, int j) {
+        if (j == 0) {
+            run("papon escort true", "gamemode spectator",
+                    "execute as @e[type=papon:papon_boss,limit=1] at @s run summon armor_stand ~7 ~ ~5 {Invulnerable:1b,NoGravity:0b}");
+        }
+        int at = 14, i = 0;
+        for (; i < SHOW.length; i++) {
+            if (j < at + SHOW_LEN[i]) break;
+            at += SHOW_LEN[i];
+        }
+        if (j < 14) return;
+        if (i >= SHOW.length) {
+            int u = j - at;
+            if (u == 4) run("kill @e[type=papon:papon_boss]");
+            if (u == 80) once(mc, "u99_his_fall");
+            if (u == 160) mc.stop();
+            return;
+        }
+        int u = j - at;
+        String st = SHOW[i];
+        boolean qte = st.equals("QTE_GRAB") || st.equals("P3_DUEL_FETCH");
+        if (u == 0) {
+            PaponMod.LOG.info("[autoshot] showcase {}", st);
+            if (qte) {
+                run("kill @e[type=armor_stand]", "gamemode survival",
+                        "execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ^ ^ ^5 facing entity @s");
+            }
+            run("papon bossstate " + st);
+        }
+        var stand = mc.level.getEntitiesOfClass(net.minecraft.world.entity.decoration.ArmorStand.class, b.getBoundingBox().inflate(60), e -> true)
+                .stream().findFirst().orElse(null);
+        if (!qte && u % 8 == 1) {
+            Vec3 c = b.arena() != null ? b.arena().centerVec() : b.position();
+            boolean wide = st.equals("P3_SOLAR") || st.equals("P3_NOVA") || st.equals("P3_PINATA") || st.equals("P3_MARIACHI") || st.equals("P3_BRAZIERS");
+            if (wide) {
+                tpLook(c.add(0, 14, 24), c.add(0, 3, 0));
+            } else {
+                Vec3 tgt = stand != null ? stand.position() : c;
+                Vec3 mid = tgt.lerp(b.position(), 0.5);
+                Vec3 d = b.position().subtract(tgt).multiply(1, 0, 1);
+                d = d.lengthSqr() < 1e-3 ? new Vec3(1, 0, 0) : d.normalize();
+                Vec3 side = new Vec3(-d.z, 0, d.x);
+                tpLook(mid.add(side.scale(13)).add(0, 4, 0), mid.add(0, 2, 0));
+            }
+        }
+        if (qte) {
+            lookAt(mc, b);
+            if (st.equals("P3_DUEL_FETCH") || u % 2 == 0) com.groid.papon.client.QteClient.devPress();
+        }
+        int len = SHOW_LEN[i];
+        int[] shots = st.equals("P3_DUEL_FETCH") ? new int[]{40, 120, 200, 300, 400, 470}
+                : st.equals("QTE_GRAB") ? new int[]{24, 34, 44, 90} : new int[]{len / 5, 2 * len / 5, 3 * len / 5, 4 * len / 5};
+        for (int k = 0; k < shots.length; k++) {
+            if (u == shots[k]) shot(mc, String.format("u%02d_%s_%d", i, st.toLowerCase(java.util.Locale.ROOT), k));
+        }
+    }
 
     @Nullable private static com.groid.papon.boss.VoiceLines.Line lastLine;
     private static int lastLineTick;

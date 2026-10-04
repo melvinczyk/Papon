@@ -204,6 +204,13 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         float t = boss.ticksInState() + partialTick;
         if (s == BossState.P2_SEASON && t > 72) return Math.max(0, 1F - Math.abs(t - 82) / 12F);
         if (s == BossState.P2_SCREAM && t > 12) return t < 22 ? (t - 12) / 10F : t < 50 ? 1F : Math.max(0, 1F - (t - 50) / 14F);
+        if (s == BossState.P3_NOVA) {
+            // the supernova: a star growing in him, white at the blast, gone after
+            if (t < 20) return t / 40F;
+            if (t < 130) return 0.5F + 0.5F * (t - 20) / 110F;
+            return Math.max(0, 1F - (t - 130) / 16F);
+        }
+        if (s == BossState.P3_SOLAR && t > 86 && t < 140) return 0.45F;
         if (s == BossState.P3_ASCEND) {
             // the ascension: light cracking out of him as he groans, bursting with the wings, fading after the roar
             float burst = com.groid.papon.boss.VoiceLines.beat("ascend.burst", 100);
@@ -302,7 +309,93 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         else eyesSeen = false;
         float k = rays(entity, partialTick);
         if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
+        if (entity.getBossState() == BossState.P3_SOLAR) drawSunStone(entity, pose, buffers, partialTick);
+        if (entity.getBossState() == BossState.P3_NOVA) drawStar(entity, pose, buffers, partialTick);
         SpeechBubble.render(entity, entity.getSpeech(), 0.4F, pose, buffers, light, entityRenderDispatcher);
+    }
+
+    private static final ResourceLocation SUN_STONE = PaponMod.id("textures/entity/sun_stone.png");
+
+    /**
+     * El Sol Azteca: the sun stone (tools/gen_extras.sun_stone: a potato Piedra del Sol, his face in the middle) wheeling up
+     * behind his back, turning, growing in (1.5-4.5 s), blazing while it fires (4.5-6.8 s), gone after. Where the server
+     * puts the beam's origin (PaponBossEntity.sunPos).
+     */
+    private static void drawSunStone(PaponBossEntity b, PoseStack pose, MultiBufferSource buffers, float partial) {
+        float t = b.ticksInState() + partial;
+        float grow = net.minecraft.util.Mth.clamp((t - 24) / 50F, 0, 1);
+        float fade = net.minecraft.util.Mth.clamp((156 - t) / 16F, 0, 1);
+        float k = grow * fade;
+        if (k <= 0) return;
+        float size = 4.2F * (0.3F + 0.7F * (1 - (1 - grow) * (1 - grow)));
+        float yaw = net.minecraft.util.Mth.rotLerp(partial, b.yBodyRotO, b.yBodyRot);
+        pose.pushPose();
+        pose.translate(0, b.getBbHeight() * 0.8, 0);
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-yaw));
+        pose.translate(0, 0, -3.2);
+        pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(t * (t > 90 && t < 136 ? 4F : 1.2F)));
+        boolean firing = t > 90 && t < 136;
+        int a = (int) (255 * k);
+        int glow = firing ? 255 : (int) (170 + 85 * Math.sin(t * 0.3));
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityTranslucentEmissive(SUN_STONE));
+        org.joml.Matrix4f m = pose.last().pose();
+        org.joml.Matrix3f n = pose.last().normal();
+        for (int side = 0; side < 2; side++) {
+            float s = side == 0 ? 1 : -1;
+            vc.vertex(m, -size * s, -size, 0).color(glow, glow, glow, a).uv(side == 0 ? 0 : 1, 1).overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
+                    .uv2(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT).normal(n, 0, 0, s).endVertex();
+            vc.vertex(m, size * s, -size, 0).color(glow, glow, glow, a).uv(side == 0 ? 1 : 0, 1).overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
+                    .uv2(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT).normal(n, 0, 0, s).endVertex();
+            vc.vertex(m, size * s, size, 0).color(glow, glow, glow, a).uv(side == 0 ? 1 : 0, 0).overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
+                    .uv2(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT).normal(n, 0, 0, s).endVertex();
+            vc.vertex(m, -size * s, size, 0).color(glow, glow, glow, a).uv(side == 0 ? 0 : 1, 0).overlayCoords(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
+                    .uv2(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT).normal(n, 0, 0, s).endVertex();
+        }
+        // and the corona round it
+        drawRays(pose, buffers, (firing ? 0.9F : 0.4F) * k, t, 0);
+        pose.popPose();
+    }
+
+    /** La Supernova: a white-gold sphere of light swelling round him (additive, layered shells), shaking as it nears the blast. */
+    private static void drawStar(PaponBossEntity b, PoseStack pose, MultiBufferSource buffers, float partial) {
+        float t = b.ticksInState() + partial;
+        float k = t < 130 ? net.minecraft.util.Mth.clamp((t - 10) / 120F, 0, 1) : Math.max(0, 1F - (t - 130) / 6F) * 1.6F;
+        if (k <= 0) return;
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        pose.pushPose();
+        pose.translate(0, b.getBbHeight() * 0.5, 0);
+        if (t > 100 && t < 130) {
+            var r = b.getRandom();
+            pose.translate(r.nextGaussian() * 0.08, r.nextGaussian() * 0.08, r.nextGaussian() * 0.08);
+        }
+        org.joml.Matrix4f m = pose.last().pose();
+        for (int shell = 0; shell < 3; shell++) {
+            float rad = (1.2F + 3.2F * k) * (1F - shell * 0.22F);
+            int al = (int) (Math.min(1F, k) * (40 + shell * 35));
+            sphere(vc, m, rad, 255, 236 - shell * 20, 180 - shell * 50, al);
+        }
+        pose.popPose();
+    }
+
+    private static void sphere(VertexConsumer vc, org.joml.Matrix4f m, float r, int cr, int cg, int cb, int a) {
+        int lat = 8, lon = 14;
+        for (int i = 0; i < lat; i++) {
+            double t0 = Math.PI * i / lat - Math.PI / 2, t1 = Math.PI * (i + 1) / lat - Math.PI / 2;
+            for (int j = 0; j < lon; j++) {
+                double p0 = Math.PI * 2 * j / lon, p1 = Math.PI * 2 * (j + 1) / lon;
+                float[][] v = {
+                        {(float) (Math.cos(t0) * Math.cos(p0)), (float) Math.sin(t0), (float) (Math.cos(t0) * Math.sin(p0))},
+                        {(float) (Math.cos(t0) * Math.cos(p1)), (float) Math.sin(t0), (float) (Math.cos(t0) * Math.sin(p1))},
+                        {(float) (Math.cos(t1) * Math.cos(p1)), (float) Math.sin(t1), (float) (Math.cos(t1) * Math.sin(p1))},
+                        {(float) (Math.cos(t1) * Math.cos(p0)), (float) Math.sin(t1), (float) (Math.cos(t1) * Math.sin(p0))}};
+                for (int q = 0; q < 2; q++) {
+                    for (int c = 0; c < 4; c++) {
+                        float[] p = v[q == 0 ? c : 3 - c];
+                        vc.vertex(m, p[0] * r, p[1] * r, p[2] * r).color(cr, cg, cb, a).endVertex();
+                    }
+                }
+            }
+        }
     }
 
     /**

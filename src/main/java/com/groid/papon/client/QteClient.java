@@ -43,6 +43,14 @@ public final class QteClient {
     private static int endTicks;
     private static boolean endWon;
     private static int beat;
+    /** The squeeze (kind 5): the meter (0..1, draining), presses in a row on the current pair, ticks left. */
+    private static float meter;
+    private static int spamCount, spamLeft;
+    /** The guitar duel (kind 6), while it runs. */
+    @org.jetbrains.annotations.Nullable private static GuitarDuel duel;
+
+    /** The squeeze's meter: how much a right press adds, and how much drains a tick (7-8 presses a second to fill it in time). */
+    private static final float SPAM_GAIN = 0.096F, SPAM_DRAIN = 0.025F;
 
     private QteClient() {}
 
@@ -58,11 +66,27 @@ public final class QteClient {
         stepTicks = 0;
         flashTicks = 99;
         endTicks = 0;
+        meter = 0.2F;
+        spamCount = 0;
+        spamLeft = window;
+        duel = k == 6 && ks.length >= 3 ? new GuitarDuel(boss, ks[0], ks[1], ks[2]) : null;
+        if (k == 6) grace = 0;
         Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                 SoundEvents.NOTE_BLOCK_BELL.get(), 0.6F));
     }
 
+    /** The guitar duel is on (its own camera, no slow motion). */
+    public static boolean duel(PaponBossEntity boss) {
+        return active && duel != null && boss.getId() == bossId;
+    }
+
+    /** The squeeze's pair of keys right now: the meter moves you through the three pairs. */
+    private static int spamPair() {
+        return meter < 0.45F ? 0 : meter < 0.75F ? 1 : 2;
+    }
+
     public static void end(boolean won) {
+        duel = null;
         active = false;
         locked = true;
         endWon = won;
@@ -73,7 +97,7 @@ public final class QteClient {
 
     /** True while the camera should be on this boss for the QTE (the sequence, and a moment after it). */
     public static boolean focus(PaponBossEntity boss) {
-        return boss.getId() == bossId && (active || endTicks > 14);
+        return boss.getId() == bossId && (active || endTicks > 14) && duel == null;
     }
 
     public static boolean active() {
@@ -82,6 +106,14 @@ public final class QteClient {
 
     /** Dev (AutoShot): press the right key now, as a player would. */
     public static void devPress() {
+        if (duel != null) {
+            duel.devPlay();
+            return;
+        }
+        if (active && !locked && grace <= 0 && kind == 5) {
+            press(keys[spamPair() * 2 + spamCount % 2]);
+            return;
+        }
         if (!active || locked || grace > 0 || step >= keys.length) return;
         PaponNetwork.qteInput(bossId, step, true);
         step++;
@@ -107,14 +139,31 @@ public final class QteClient {
             return;
         }
         if (mc.screen == null) mc.setScreen(new QteScreen());
+        if (duel != null) {
+            duel.tick();
+            if (duel.over() && !locked) locked = true;
+            return;
+        }
         // slow motion: a slow heartbeat under it all
-        if (++beat % 16 == 0) {
+        if (++beat % (kind == 5 ? 8 : 16) == 0) {
             mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                     SoundEvents.WARDEN_HEARTBEAT, 0.6F, 1.6F));
         }
         if (locked) return;
         if (grace > 0) {
             grace--;
+            return;
+        }
+        if (kind == 5) {
+            // the squeeze: the meter drains; full, you are out; time up, he crushes you
+            meter -= SPAM_DRAIN;
+            if (meter < 0) meter = 0;
+            if (--spamLeft <= 0) {
+                PaponNetwork.qteResult(bossId, 5, false, Math.round(meter * 100));
+                locked = true;
+                flashGood = false;
+                flashTicks = 0;
+            }
             return;
         }
         if (++stepTicks > window) {
@@ -125,12 +174,43 @@ public final class QteClient {
         }
     }
 
+    /** A key let go (the duel's frets light while held). */
+    static void release(int key) {
+        if (duel != null) duel.release(key);
+    }
+
     /** A key pressed while the QTE's screen is up (the only way presses reach the QTE). */
     static void press(int key) {
         if (!active) return;
         if (key == GLFW.GLFW_KEY_F1 || key == GLFW.GLFW_KEY_F2 || key == GLFW.GLFW_KEY_F3
                 || (key >= GLFW.GLFW_KEY_LEFT_SHIFT && key <= GLFW.GLFW_KEY_RIGHT_SUPER)) return;
         if (grace > 0) return;                       // still the fight's presses: they do not count
+        if (duel != null) {
+            duel.press(key);
+            return;
+        }
+        if (kind == 5) {
+            if (locked) return;
+            int pair = spamPair();
+            int want = keys[pair * 2 + spamCount % 2];
+            boolean ok = key == want;
+            flashGood = ok;
+            flashTicks = 0;
+            if (ok) {
+                spamCount++;
+                meter = Math.min(1F, meter + SPAM_GAIN);
+                if (spamPair() != pair) spamCount = 0;           // a new pair: start it from its first key
+                Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        SoundEvents.NOTE_BLOCK_HAT.get(), 1.0F + meter * 0.8F, 0.6F));
+                if (meter >= 1F) {
+                    PaponNetwork.qteResult(bossId, 5, true, 100);
+                    locked = true;
+                }
+            } else if (key != keys[pair * 2 + (spamCount + 1) % 2]) {
+                meter = Math.max(0, meter - 0.08F);              // a key that is not in the pair at all
+            }
+            return;
+        }
         if (!locked && step < keys.length) {
             boolean ok = key == keys[step];
             PaponNetwork.qteInput(bossId, step, ok);
@@ -159,6 +239,16 @@ public final class QteClient {
         float pt = event.getPartialTick();
         int cx = w / 2;
         int cy = (int) (h * 0.62F);
+        if (active && duel != null) {
+            Component dt = Component.translatable("qte.papon.title.6").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+            g.pose().pushPose();
+            g.pose().translate(cx, 18, 0);
+            g.pose().scale(1.6F, 1.6F, 1);
+            g.drawString(font, dt, -font.width(dt) / 2, 0, 0xFFFFFF, true);
+            g.pose().popPose();
+            duel.render(g, w, h, pt);
+            return;
+        }
         if (active || endTicks > 14) vignette(g, w, h, active ? 1F : (endTicks - 14) / 26F);
         if (!active) {
             // the result
@@ -180,9 +270,13 @@ public final class QteClient {
         g.drawString(font, title, -font.width(title) / 2, 0, 0xFFFFFF, true);
         g.pose().popPose();
         if (kind >= 3) {
-            // what to do: mash the one key / dance on the beat
+            // what to do: mash the one key / dance on the beat / spam the pair
             Component how = Component.translatable("qte.papon.how." + kind).withStyle(ChatFormatting.YELLOW);
             g.drawString(font, how, cx - font.width(how) / 2, cy - 32, 0xFFFFFF, true);
+        }
+        if (kind == 5) {
+            spamHud(g, font, cx, cy, pt);
+            return;
         }
         if (step < keys.length) {
             // the keycap: grows in, shakes as time runs out, flashes on a press
@@ -225,6 +319,38 @@ public final class QteClient {
             int c = i < step ? 0xFF55FF55 : i == step ? 0xFFFFD27A : 0xFF6A5A4A;
             g.fill(sx + i * dx - 3, dy - 3, sx + i * dx + 3, dy + 3, c);
         }
+    }
+
+    /** The squeeze: the pair of keys (the one to press next jumping), the meter filling and draining, the time running out. */
+    private static void spamHud(GuiGraphics g, net.minecraft.client.gui.Font font, int cx, int cy, float pt) {
+        Minecraft mc = Minecraft.getInstance();
+        int pair = spamPair();
+        for (int i = 0; i < 2; i++) {
+            int key = keys[Math.min(keys.length - 1, pair * 2 + i)];
+            boolean next = spamCount % 2 == i;
+            int sz = next ? 34 : 28;
+            int x0 = cx + (i == 0 ? -44 : 10) + (next ? 0 : 3), y0 = cy - sz / 2 - (next && grace <= 0 ? (int) (3 * Math.abs(Mth.sin((mc.level.getGameTime() + pt) * 1.4F))) : 0);
+            int edge = grace > 0 ? 0xFF8A7A6A : flashTicks < 3 ? (flashGood ? 0xFF55FF55 : 0xFFFF4444) : next ? 0xFFFFD27A : 0xFF8A7A6A;
+            g.fill(x0 - 2, y0 - 2, x0 + sz + 2, y0 + sz + 2, edge);
+            g.fill(x0, y0, x0 + sz, y0 + sz, 0xE0201812);
+            String name = InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString().toUpperCase();
+            g.pose().pushPose();
+            g.pose().translate(x0 + sz / 2F, y0 + sz / 2F, 0);
+            g.pose().scale(next ? 2.4F : 1.8F, next ? 2.4F : 1.8F, 1);
+            g.drawString(font, name, -font.width(name) / 2, -4, 0xFFFFFF, true);
+            g.pose().popPose();
+        }
+        // the meter: three bands for the three pairs, the fill, the line to reach
+        int bw = 140, by = cy + 30;
+        g.fill(cx - bw / 2 - 2, by - 2, cx + bw / 2 + 2, by + 12, 0xFF000000);
+        int fill = (int) (bw * Mth.clamp(meter, 0, 1));
+        int col = meter > 0.75F ? 0xFF55FF55 : meter > 0.45F ? 0xFFFFD27A : 0xFFFF7A3A;
+        g.fill(cx - bw / 2, by, cx - bw / 2 + fill, by + 10, col);
+        g.fill(cx - bw / 2 + (int) (bw * 0.45F), by, cx - bw / 2 + (int) (bw * 0.45F) + 1, by + 10, 0x80FFFFFF);
+        g.fill(cx - bw / 2 + (int) (bw * 0.75F), by, cx - bw / 2 + (int) (bw * 0.75F) + 1, by + 10, 0x80FFFFFF);
+        // the time
+        float left = Mth.clamp(spamLeft / (float) Math.max(1, window), 0, 1);
+        g.fill(cx - bw / 2, by + 16, cx - bw / 2 + (int) (bw * left), by + 19, left > 0.3F ? 0xFFFFD27A : 0xFFFF3A2A);
     }
 
     private static final net.minecraft.resources.ResourceLocation VIGNETTE =

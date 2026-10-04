@@ -54,6 +54,8 @@ public final class PaponNetwork {
             b.writeVarInt(m.vendorId());
             b.writeVarInt(m.taco());
         }, b -> new OrderTaco(b.readVarInt(), b.readVarInt()), OrderTaco::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(8, QteResult.class, QteResult::encode, QteResult::decode, QteResult::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     /** The screen fades to black over {@code in} ticks, stays black {@code hold}, and fades back over {@code out}. */
@@ -123,6 +125,34 @@ public final class PaponNetwork {
     /** From the client: key {@code step} of the QTE pressed right ({@code ok}) or not. */
     public static void qteInput(int bossId, int step, boolean ok) {
         CHANNEL.sendToServer(new QteInput(bossId, step, ok));
+    }
+
+    /** From the client: a QTE that is judged as a whole (the spam meter, the guitar duel) is over; {@code score} 0..100. */
+    public static void qteResult(int bossId, int kind, boolean won, int score) {
+        CHANNEL.sendToServer(new QteResult(bossId, kind, won, score));
+    }
+
+    public record QteResult(int bossId, int kind, boolean won, int score) {
+        void encode(FriendlyByteBuf b) {
+            b.writeVarInt(bossId);
+            b.writeVarInt(kind);
+            b.writeBoolean(won);
+            b.writeVarInt(score);
+        }
+
+        static QteResult decode(FriendlyByteBuf b) {
+            return new QteResult(b.readVarInt(), b.readVarInt(), b.readBoolean(), b.readVarInt());
+        }
+
+        void handle(Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer p = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (p != null && p.level().getEntity(bossId) instanceof com.groid.papon.boss.PaponBossEntity boss) {
+                    boss.qteResult(p, kind, won, score);
+                }
+            });
+            ctx.get().setPacketHandled(true);
+        }
     }
 
     public record QteStart(int bossId, int kind, int[] keys, int window) {

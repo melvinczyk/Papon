@@ -5,7 +5,6 @@ import com.groid.papon.item.BodyPillowItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -15,15 +14,15 @@ import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.HumanoidArm;
-import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 /**
- * The body pillow on a player, seen from outside (its own third-person item transform is empty): hugged
- * to the chest, held up to the face and licked (the tongue out with each lick), or just carried, tucked
- * under the arm. The arm and head poses are PillowClient's.
+ * The body pillow on a player, seen from outside (its own third-person item transform is empty), as the soft mesh
+ * (PillowMesh) in the shape of what they are doing with it (PillowClient.shape): hugged to the chest and squeezed,
+ * held up to the face and licked (the tongue out with each lick), folded over at the hips and humped, or just carried,
+ * tucked under the arm. The arm and head poses are PillowClient's.
  */
 public class PillowLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
     private static final ResourceLocation TONGUE = PaponMod.id("textures/entity/tongue.png");
@@ -44,42 +43,53 @@ public class PillowLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
         }
         if (player.isSleeping()) return;
         PlayerModel<AbstractClientPlayer> model = getParentModel();
-        boolean using = PillowClient.using(player, stack);
+        PillowClient.Mode mode = PillowClient.mode(player, stack);
+        PillowMesh.Shape shape = PillowClient.shape(player, partial, false);
         ps.pushPose();
-        if (using && player.isCrouching()) {
-            // up at the face
-            model.body.translateAndRotate(ps);
-            ps.translate(0, -0.12, -0.42);
-            ps.mulPose(Axis.XP.rotationDegrees(-10));
-            drawPillow(ps, buffers, light, player, stack, 1.35F);
-            ps.popPose();
-            tongue(ps, buffers, light, model, PillowClient.lick(age));
-            return;
-        } else if (using) {
-            // held tight against the chest, Makima to you
-            model.body.translateAndRotate(ps);
-            ps.translate(0, 0.42, -0.3);
-            ps.mulPose(Axis.ZP.rotationDegrees(4 * (float) Math.sin(age * 0.08F)));
-            drawPillow(ps, buffers, light, player, stack, 1.55F);
-        } else {
-            // carried: tucked under the arm, along the side
-            HumanoidArm arm = main == (player.getMainArm() == HumanoidArm.RIGHT) ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
-            (arm == HumanoidArm.RIGHT ? model.rightArm : model.leftArm).translateAndRotate(ps);
-            int s = arm == HumanoidArm.RIGHT ? -1 : 1;
-            ps.translate(s * 0.05, 0.42, 0.02);
-            ps.mulPose(Axis.YP.rotationDegrees(90));
-            ps.mulPose(Axis.XP.rotationDegrees(-12));
-            drawPillow(ps, buffers, light, player, stack, 1.25F);
+        switch (mode) {
+            case LICK -> {
+                // up at the face, pressed in where the face is
+                model.body.translateAndRotate(ps);
+                ps.translate(0, -0.05, -0.4);
+                ps.mulPose(Axis.XP.rotationDegrees(-10));
+                drawPillow(ps, buffers, light, shape);
+                ps.popPose();
+                tongue(ps, buffers, light, model, PillowClient.lick(age));
+                return;
+            }
+            case HUG -> {
+                // held tight against the chest, Makima to you, squeezed where the arms are
+                model.body.translateAndRotate(ps);
+                ps.translate(0, 0.3, -0.33);
+                ps.mulPose(Axis.ZP.rotationDegrees(4 * (float) Math.sin(age * 0.08F)));
+                drawPillow(ps, buffers, light, shape);
+            }
+            case HUMP -> {
+                // folded over double at the hips, sticking out in front, squashed on every thrust
+                model.body.translateAndRotate(ps);
+                ps.translate(0, 0.72, -0.24);
+                ps.mulPose(Axis.ZP.rotationDegrees(180));
+                ps.mulPose(Axis.XP.rotationDegrees(90));
+                PillowMesh.render(ps, buffers, light, shape);
+            }
+            default -> {
+                // carried: tucked under the arm, along the side
+                HumanoidArm arm = main == (player.getMainArm() == HumanoidArm.RIGHT) ? HumanoidArm.RIGHT : HumanoidArm.LEFT;
+                (arm == HumanoidArm.RIGHT ? model.rightArm : model.leftArm).translateAndRotate(ps);
+                int s = arm == HumanoidArm.RIGHT ? -1 : 1;
+                ps.translate(s * 0.05, 0.42, 0.02);
+                ps.mulPose(Axis.YP.rotationDegrees(90));
+                ps.mulPose(Axis.XP.rotationDegrees(-12));
+                drawPillow(ps, buffers, light, shape);
+            }
         }
         ps.popPose();
     }
 
-    /** The item upright (model space is y-down here) at {@code scale}, its front toward the wearer. */
-    private static void drawPillow(PoseStack ps, MultiBufferSource buffers, int light, AbstractClientPlayer player, ItemStack stack, float scale) {
+    /** The pillow upright (model space is y-down here), its front toward the wearer. */
+    private static void drawPillow(PoseStack ps, MultiBufferSource buffers, int light, PillowMesh.Shape shape) {
         ps.mulPose(Axis.ZP.rotationDegrees(180));
-        ps.scale(scale, scale, scale);
-        Minecraft.getInstance().getItemRenderer().renderStatic(stack, ItemDisplayContext.FIXED, light, OverlayTexture.NO_OVERLAY, ps, buffers,
-                player.level(), player.getId());
+        PillowMesh.render(ps, buffers, light, shape);
     }
 
     /** The tongue: a pink slab out of the mouth, longer at the top of each lick. */

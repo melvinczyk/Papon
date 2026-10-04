@@ -25,12 +25,13 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Gerbin's present laid on a bed (BodyPillowItem, used on a bed): it lies along one side of the mattress,
- * Makima turned toward the middle, and whoever sleeps in that bed sleeps on their side, facing her
- * (client/PillowClient). Right-click it to pick it back up; if the bed goes, it drops.
+ * Gerbin's present laid on a bed (BodyPillowItem, used on a bed): it slouches against the headboard, sat on the
+ * mattress with its top leaning on the wall (client/BodyPillowRenderer); with someone asleep in the bed it lies along
+ * one side of it instead, Makima turned toward the middle, and they sleep on their side facing her (client/PillowClient).
+ * Right-click it and you climb on the bed with it (you ride it: the hump, client/PillowClient; the bed creaks, hearts;
+ * sneak to get off); sneak + right-click to take it back. If the bed goes, it drops.
  *
- * Sits at the middle of the bed's length, {@link #SIDE} over from its centre line; {@link #side()} is the
- * direction it lies on (the sleeper is rolled to face it).
+ * Sits at the head of the bed; {@link #side()} is the side it lies on when someone sleeps there.
  */
 public class BodyPillowEntity extends Entity {
     private static final EntityDataAccessor<BlockPos> DATA_BED = SynchedEntityData.defineId(BodyPillowEntity.class, EntityDataSerializers.BLOCK_POS);
@@ -55,7 +56,7 @@ public class BodyPillowEntity extends Entity {
         BodyPillowEntity e = new BodyPillowEntity(com.groid.papon.registry.ModEntities.BODY_PILLOW.get(), level);
         e.entityData.set(DATA_BED, head);
         e.entityData.set(DATA_FACING, facing.get2DDataValue());
-        Vec3 at = e.restingPlace();
+        Vec3 at = e.slouchPlace();
         e.moveTo(at.x, at.y, at.z, facing.toYRot(), 0);
         level.addFreshEntity(e);
         return e;
@@ -82,11 +83,18 @@ public class BodyPillowEntity extends Entity {
         return facing().getCounterClockWise();
     }
 
-    /** On the mattress, halfway along the bed, off to its side. */
+    /** On the mattress, halfway along the bed, off to its side (where it lies while someone sleeps in the bed). */
     public Vec3 restingPlace() {
         Direction f = facing(), sd = side();
         Vec3 head = Vec3.atBottomCenterOf(bed());
         return head.add(-f.getStepX() * 0.5 + sd.getStepX() * SIDE, 0.5625, -f.getStepZ() * 0.5 + sd.getStepZ() * SIDE);
+    }
+
+    /** Where it slouches: sat on the mattress at the head of the bed, against the headboard (the bottom of the fold). */
+    public Vec3 slouchPlace() {
+        Direction f = facing();
+        Vec3 head = Vec3.atBottomCenterOf(bed());
+        return head.add(f.getStepX() * 0.1, 0.5625, f.getStepZ() * 0.1);
     }
 
     @Override
@@ -98,9 +106,51 @@ public class BodyPillowEntity extends Entity {
     @Override
     public void tick() {
         super.tick();
-        if (!level().isClientSide && tickCount % 20 == 0 && !level().getBlockState(bed()).is(BlockTags.BEDS)) {
+        if (level().isClientSide) return;
+        if (tickCount % 20 == 0 && !level().getBlockState(bed()).is(BlockTags.BEDS)) {
             dropIt();
+            return;
         }
+        if (getFirstPassenger() instanceof Player p && level() instanceof net.minecraft.server.level.ServerLevel server) {
+            // the bed creaking in time (client/PillowClient.thrust: a stroke every 7 ticks), hearts, a word now and then
+            int t = p.tickCount;
+            if (t % 7 == 2) {
+                server.playSound(null, getX(), getY(), getZ(), SoundEvents.WOOD_STEP, SoundSource.PLAYERS, 0.7F, 0.6F + random.nextFloat() * 0.15F);
+                server.playSound(null, getX(), getY(), getZ(), SoundEvents.WOOL_STEP, SoundSource.PLAYERS, 0.6F, 0.8F);
+            }
+            if (t % 20 == 5) server.sendParticles(net.minecraft.core.particles.ParticleTypes.HEART, getX(), getY() + 1.0, getZ(), 2, 0.3, 0.3, 0.3, 0.02);
+            if (t % 90 == 30) {
+                p.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.papon.body_pillow.hump." + random.nextInt(4))
+                        .withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.ITALIC), true);
+            }
+        }
+    }
+
+    // ---- climbing on the bed with her
+
+    @Override
+    protected boolean canAddPassenger(Entity passenger) {
+        return getPassengers().isEmpty() && passenger instanceof Player;
+    }
+
+    @Override
+    public boolean shouldRiderSit() {
+        return false;                 // up on the knees (client/PillowClient sinks them into the mattress), not sat
+    }
+
+    @Override
+    protected void positionRider(Entity passenger, MoveFunction move) {
+        Direction f = facing();
+        Vec3 at = slouchPlace().subtract(f.getStepX() * 0.62, 0, f.getStepZ() * 0.62);
+        move.accept(passenger, at.x, at.y, at.z);
+        if (passenger instanceof net.minecraft.world.entity.LivingEntity le) le.setYBodyRot(f.toYRot());
+    }
+
+    @Override
+    public Vec3 getDismountLocationForPassenger(net.minecraft.world.entity.LivingEntity passenger) {
+        Direction f = facing();
+        Vec3 foot = Vec3.atBottomCenterOf(bed()).subtract(f.getStepX() * 2.0, 0, f.getStepZ() * 2.0);
+        return new Vec3(foot.x, bed().getY() + 0.6, foot.z);
     }
 
     private void dropIt() {
@@ -110,7 +160,18 @@ public class BodyPillowEntity extends Entity {
 
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
+        if (!player.isSecondaryUseActive()) {
+            // onto the bed with her
+            if (isVehicle() || player.isPassenger() || hand != InteractionHand.MAIN_HAND) return InteractionResult.PASS;
+            if (level().isClientSide) return InteractionResult.SUCCESS;
+            player.startRiding(this);
+            level().playSound(null, getX(), getY(), getZ(), SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 1.0F, 0.7F);
+            player.displayClientMessage(net.minecraft.network.chat.Component.translatable("message.papon.body_pillow.climb")
+                    .withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.ITALIC), true);
+            return InteractionResult.CONSUME;
+        }
         if (level().isClientSide) return InteractionResult.SUCCESS;
+        ejectPassengers();
         ItemStack pillow = new ItemStack(ModItems.BODY_PILLOW.get());
         if (!player.getInventory().add(pillow)) player.drop(pillow, false);
         level().playSound(null, getX(), getY(), getZ(), SoundEvents.WOOL_BREAK, SoundSource.PLAYERS, 0.8F, 1.1F);
