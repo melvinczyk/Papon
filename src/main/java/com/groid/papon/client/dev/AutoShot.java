@@ -804,7 +804,8 @@ public final class AutoShot {
             case P3_SERENADE -> t == 40 ? "t19_orbit" : t == 120 ? "t20_fingers" : t == 200 ? "t21_lighters" : t == 240 ? "t22_sings"
                     : t == 300 ? "t23_sings_close" : t == 372 ? "t24_last_chord" : null;
             case P3_VERDICT -> t == 30 ? "t25_more_my_style" : t == 70 ? "t26_learn" : null;
-            case P3_TOSS -> t == 14 ? "t27_toss" : t == 24 ? "t28_flight" : t == 28 ? "t29_catch" : t == 40 ? "t30_go" : null;
+            case P3_TOSS -> t == 14 ? "t27_toss" : t == 24 ? "t28_flight" : t == 28 ? "t29_catch" : t == 60 ? "t29b_band_glances"
+                    : t == com.groid.papon.boss.VoiceLines.beat("toss.go", 104) - 8 ? "t29c_he_waits" : t == com.groid.papon.boss.VoiceLines.beat("toss.go", 104) + 8 ? "t30_go" : null;
             case P3_DANCE -> t == 20 ? "t31_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 8 ? "t32_fire_back"
                     : t == com.groid.papon.boss.VoiceLines.beat("dance.line", 76) + 26 ? "t33_lets_dance" : null;
             default -> null;

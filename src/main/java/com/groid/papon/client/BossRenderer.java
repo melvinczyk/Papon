@@ -48,9 +48,10 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
                     pose.scale(grow, grow, grow);
                     pose.translate(0, -0.9, 0);
                     float f = k * (grow > 1.1F ? 0.6F : 1F);
+                    boolean crimson = boss.isPhaseThree() || boss.getBossState() == BossState.P3_DANCE;
                     getRenderer().reRender(model, pose, buffers, boss, swirl, buffers.getBuffer(swirl), partialTick,
                             net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY,
-                            Math.min(1F, f), Math.min(1F, f * 0.78F), Math.min(1F, f * 0.32F), 1F);
+                            Math.min(1F, f), Math.min(1F, f * (crimson ? 0.14F : 0.78F)), Math.min(1F, f * (crimson ? 0.16F : 0.32F)), 1F);
                     pose.popPose();
                 }
             }
@@ -70,6 +71,13 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
             return k * pulse;
         }
         if (s == BossState.P2_SCREAM) return Math.max(0, 1F - t / 40F) * pulse;
+        // phase three: crimson, flaring as the band crashes in and the fire comes back, then smouldering on him all fight
+        if (s == BossState.P3_DANCE) {
+            float drop = com.groid.papon.boss.VoiceLines.beat("dance.drop", 42);
+            if (t < drop) return 0;
+            return (t < drop + 20 ? 1.0F - (t - drop) / 20F * 0.55F : 0.45F) * pulse;
+        }
+        if (boss.isPhaseThree() && !s.phaseThree()) return 0.32F * pulse;
         return 0;
     }
 

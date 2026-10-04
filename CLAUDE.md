@@ -422,7 +422,9 @@ player and were not exercised headless.
   `DATA_SPOT` at t30) → P3_SERENADE (`serenade.end`: the song's `serenade` segment, 0-18.36 s: guitar alone, then
   voice and guitar; the band AWED; the crowd LIGHTERS mood, `ColiseumCrowdEntity.lighters` spreading 0→1) →
   P3_VERDICT ("THIS... is more my style. Learn, muchachos." `mystyle`) → P3_TOSS (a `BossProp` GUITAR on a ballistic
-  arc to the singer, `catchGuitar` at toss.catch, "What are you WAITING for?! GO!!!" `go`; at the end the band
+  arc to the singer, `catchGuitar` at toss.catch; then **a pause** (the user asked for it): from `toss.glance` the band
+  are NERVOUS (look at each other, `nervous_a/_b`), the stands hush, he waits with his back to them tapping his foot,
+  and only at `toss.go` (~3 s on) whirls round: "What are you WAITING for?! GO!!!" `go`; at the end the band
   `play(start, Song.PARA_SIEMPRE)` from the **pickup**) → P3_DANCE (the singer's a cappella pickup; at `dance.drop`
   the band comes in: braziers relit **crimson** (`lightsCrimson`), fireworks, `DATA_PHASE3`, bar "Para Siempre",
   night held at `NIGHT_P3`; "Now... let's DANCE." `dance`; title) → IDLE. No coliseum: knockback → P3_DANCE.
@@ -432,6 +434,11 @@ player and were not exercised headless.
   Trumpets/violins from the 6-stem `other` stem's loudness. `Song.get(id)`; `SongPlayer.song()` is what plays;
   sounds `music.para_siempre.<id>`. Singing in the serenade is the record's own vocal (Rhubarb mouth shapes →
   `BossFace`), his hands are `BossModel` (poses solved by `gen_boss_anims.guitar_poses`, keep `STRUM/FRET_*` in step).
+- **Camera** (the user: "more close-ups on his face"): `Cinematic.phaseThreeShot` frames almost every beat at his face,
+  aimed by `yBodyRot` (the model), not his head yaw; the serenade's guitar intro (to his first sung word) is cut between
+  him from every side, the stands lighting up, the band in awe; the stands are near silent while he plays
+  (`CrowdSounds`: LIGHTERS bed 0.05). Foil potatoes are not drawn in the cutscene. His aura goes **crimson** from the drop
+  (`BossRenderer.aura`: flares, then smoulders through the fight).
 - **Night** (`client/NightLight`): the coliseum has full skylight, so the client darkens the lightmap (reflection on
   `LightTexture`: forces vanilla's rebuild each frame, then scales skylight by `1 - night`, keeps block light, tints
   it crimson once `isPhaseThree`; cell (15,15) stays white for his spotlight), covers the sky with a black box after
