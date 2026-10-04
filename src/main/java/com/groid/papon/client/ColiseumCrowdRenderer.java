@@ -75,7 +75,14 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     private GeoBone root, torso, body, armR, armL, legR, legL, browR, browL, mouthIn, jersey;
     /** The flag stick's far tip (baked model units): where the cloth hangs from. */
     private final Vector3f flagTip = new Vector3f();
-    private VertexConsumer flagVc;
+    /**
+     * The fans' little flags, drawn after all the fans: the cutout buffer and the cloth's are both immediate
+     * buffers, and asking for one ends the other's batch, so writing to both in turn would draw every fan with the
+     * flag's texture (the whole crowd green). Each flag's pose is kept and they go down in a second pass.
+     */
+    private record FlagDraw(Matrix4f pose, Matrix3f normal, int light, float time, float phase, float amp, int nx, int ny) {}
+
+    private final List<FlagDraw> flagDraws = new java.util.ArrayList<>();
     private float flagTime, flagPhase, flagAmp;
     private final GeoBone[] hats = new GeoBone[HATS.length];
     private final GeoBone[] props = new GeoBone[PROPS.length];
@@ -169,6 +176,16 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     }
 
     private final Pose pa = new Pose(), pb = new Pose(), pose = new Pose();
+    /** Phase three: the share of fans with a lighter up (ColiseumCrowdEntity.lighters), and this frame's flames (view space). */
+    private float lightersNow;
+    private final List<Vector3f> flames = new java.util.ArrayList<>();
+    @Nullable private Vector3f flameAt;
+    private boolean wantFlame;
+
+    /** Whether this fan has his lighter up yet (they spread through the stands as the share grows). */
+    private boolean lighter(int seed) {
+        return rnd(seed, 13) < lightersNow;
+    }
 
     private static float rnd(int seed, int k) {
         int h = seed * 0x9E3779B1 + k * 0x85EBCA6B;
@@ -334,6 +351,28 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 p.brow = 1F;
                 p.mouth = 2.6F;
             }
+            case LIGHTERS -> {
+                // the whole bowl swaying together, slowly, a lighter held high; the rest still sitting, watching
+                float sway = Mth.sin(t * 0.07F + angle * 0.5F);
+                if (lighter(seed)) {
+                    if (r1 > 0.55F) seated(p);
+                    p.armRX = -158 - 8 * r2;
+                    p.armRZ = 6 + 10 * sway;
+                    p.torsoZ = 8 * sway;
+                    p.armLX = -20;
+                    p.brow = 0.5F;
+                } else {
+                    // in awe: hands clasped up under the chin, mouth open, brows up
+                    seated(p);
+                    p.armRX = -120;
+                    p.armRY = -48;
+                    p.armLX = -120;
+                    p.armLY = 48;
+                    p.torsoZ = 3 * sway;
+                    p.brow = 0.9F;
+                    p.mouth = 1.2F;
+                }
+            }
         }
     }
 
@@ -489,7 +528,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         float moodT = crowd.moodTicks() + partial;
         float blend = Math.min(1F, moodT / 10F);
         CrowdMood mood = crowd.mood(), prev = crowd.previousMood();
-        Song song = Song.get();
+        Song song = SongPlayer.song();
         double st = SongPlayer.songTime(partial);
         double beat = song != null && !Double.isNaN(st) ? Math.max(0, song.beatAt(st)) : t / 9.4;
         // they watch him
@@ -498,8 +537,11 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 .stream().findFirst().orElse(null);
         if (boss != null) look = boss.getPosition(partial).add(0, 1.5, 0);
         if (mood == CrowdMood.HUSH) look = at.add(0, 1, -Coliseum.B + 3);
+        float night = NightLight.night(partial);
+        lightersNow = crowd.lighters();         // up through a roar too (their fists are up anyway)
+        flames.clear();
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutout(TEX));
-        flagVc = buffers.getBuffer(FlagCloth.renderType());
+        flagDraws.clear();
         // a few seats' light a frame
         for (int k = 0; k < 24 && lights.length > 0; k++) {
             lightCursor = (lightCursor + 1) % lights.length;
@@ -540,9 +582,49 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             ps.scale(size, size, size);
             float[] skin = SKINS[(int) (rnd(seed, 8) * SKINS.length) % SKINS.length];
             int lt = lights[i] < 0 ? light : lights[i];
+            wantFlame = lightersNow > 0 && lighter(seed);
+            if (night > 0.2F) {
+                // phase three's night: the stands are not lost in it; a fan with a lighter up is lit by his flame
+                lt = net.minecraft.client.renderer.LightTexture.pack(Math.max(wantFlame ? 13 : 9, net.minecraft.client.renderer.LightTexture.block(lt)),
+                        net.minecraft.client.renderer.LightTexture.sky(lt));
+            }
+            flameAt = null;
             for (GeoBone b : model.topLevelBones()) drawBone(ps, b, vc, lt, skin, near);
+            if (wantFlame && flameAt != null) flames.add(flameAt);
             ps.popPose();
         }
+        if (!flagDraws.isEmpty()) {
+            VertexConsumer flagVc = buffers.getBuffer(FlagCloth.renderType());
+            PoseStack fp = new PoseStack();
+            for (FlagDraw d : flagDraws) {
+                fp.last().pose().set(d.pose());
+                fp.last().normal().set(d.normal());
+                FlagCloth.draw(fp, flagVc, 0.7F, 0.4F, d.light(), d.time(), d.phase(), d.amp(), true, d.nx(), d.ny());
+            }
+        }
+        if (!flames.isEmpty()) drawFlames(buffers.getBuffer(RenderType.lightning()), t);
+    }
+
+    /**
+     * The lighters: a little flame over each raised fist, a hot core in a warm halo (additive, so a bowl full of
+     * them reads as a sky of flames in the dark), each flickering on its own. Positions are in view space.
+     */
+    private void drawFlames(VertexConsumer vc, float t) {
+        for (int i = 0; i < flames.size(); i++) {
+            Vector3f c = flames.get(i);
+            float flick = 0.85F + 0.15F * Mth.sin(t * 1.7F + i * 2.3F) + 0.06F * Mth.sin(t * 4.1F + i);
+            // a warm halo (big enough to read as a point of light from across the bowl) round a hot core
+            quad(vc, c.x(), c.y() + 0.12F * flick, c.z(), 0.32F * flick, 0.42F * flick, 1F, 0.5F, 0.12F, 0.28F);
+            quad(vc, c.x(), c.y() + 0.08F * flick, c.z(), 0.07F, 0.17F * flick, 1F, 0.92F, 0.62F, 0.95F);
+        }
+    }
+
+    /** A diamond facing the camera (view space: x right, y up) centred on (x, y, z). */
+    private static void quad(VertexConsumer vc, float x, float y, float z, float w, float h, float r, float g, float b, float a) {
+        vc.vertex(x, y - h, z).color(r, g, b, a).endVertex();
+        vc.vertex(x + w, y, z).color(r, g, b, a * 0.4F).endVertex();
+        vc.vertex(x, y + h, z).color(r, g, b, a * 0.1F).endVertex();
+        vc.vertex(x - w, y, z).color(r, g, b, a * 0.4F).endVertex();
     }
 
     /** Sets the shared bones for this fan: rest + pose, hats and props per his dice. */
@@ -593,6 +675,23 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         float r = tinted ? skin[0] : 1, g = tinted ? skin[1] : 1, b = tinted ? skin[2] : 1;
         Matrix4f m = ps.last().pose();
         Matrix3f nm = ps.last().normal();
+        if (wantFlame && bone == armR && flameAt == null) {
+            // the fist: the middle of the arm cube's end face (down at rest; up over his head with the arm raised)
+            for (GeoCube cube : bone.getCubes()) {
+                for (GeoQuad quad : cube.quads()) {
+                    if (quad == null || quad.normal().y() > -0.9F) continue;
+                    float x = 0, y = 0, z = 0;
+                    for (GeoVertex vert : quad.vertices()) {
+                        m.transform(v4.set(vert.position().x(), vert.position().y(), vert.position().z(), 1));
+                        x += v4.x() / 4;
+                        y += v4.y() / 4;
+                        z += v4.z() / 4;
+                    }
+                    flameAt = new Vector3f(x, y + 0.06F, z);
+                }
+                break;
+            }
+        }
         for (GeoCube cube : bone.getCubes()) {
             for (GeoQuad quad : cube.quads()) {
                 if (quad == null) continue;
@@ -615,7 +714,8 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             ps.translate(flagTip.x(), flagTip.y(), flagTip.z());
             ps.mulPose(Axis.YP.rotationDegrees(-90));
             ps.mulPose(Axis.ZP.rotationDegrees(180));
-            FlagCloth.draw(ps, flagVc, 0.7F, 0.4F, light, flagTime, flagPhase, flagAmp, true, near ? 7 : 4, near ? 3 : 2);
+            flagDraws.add(new FlagDraw(new Matrix4f(ps.last().pose()), new Matrix3f(ps.last().normal()), light, flagTime, flagPhase, flagAmp,
+                    near ? 7 : 4, near ? 3 : 2));
             ps.popPose();
         }
         for (GeoBone child : bone.getChildBones()) drawBone(ps, child, vc, light, skin, near);

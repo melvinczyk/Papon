@@ -25,6 +25,10 @@ import java.util.List;
  * aura farm, "where were we?", and him working the stands up).
  */
 public final class Song {
+    /** The songs (MariachiEntity.songId): phase two's, and phase three's, "Para Siempre" (song/para_siempre.json). */
+    public static final int CANCION = 0, PARA_SIEMPRE = 1;
+    private static final String[] FILES = {"cancion", "para_siempre"};
+
     /** Passes of the guitar intro before he sings: at least two, more if his apology and aura farm need the room (VoiceLines). */
     public static int introPasses() {
         return VoiceLines.beat("song.passes", 2);
@@ -37,6 +41,8 @@ public final class Song {
     }
 
     public final List<Segment> segments = new ArrayList<>();
+    /** The sound events of the segments: this plus the segment's id ("music.song.", "music.para_siempre."). */
+    public final String sounds;
     public final double[] beats;
     private final float[] mouthT;
     private final char[] mouthS;
@@ -55,10 +61,11 @@ public final class Song {
     private final double[] bowT;
     private final float[] bowP;
 
-    @Nullable private static Song instance;
-    private static boolean tried;
+    private static final Song[] instances = new Song[FILES.length];
+    private static final boolean[] tried = new boolean[FILES.length];
 
     private Song(JsonObject j) {
+        sounds = j.has("sounds") ? j.get("sounds").getAsString() : "music.song.";
         int i = 0;
         for (JsonElement e : j.getAsJsonArray("segments")) {
             JsonObject s = e.getAsJsonObject();
@@ -104,18 +111,37 @@ public final class Song {
         return out;
     }
 
-    /** The song, or null if this build has none (then phase two plays the old score). */
+    /** Phase two's song, or null if this build has none (then phase two plays the old score). */
     @Nullable
-    public static synchronized Song get() {
-        if (!tried) {
-            tried = true;
-            try (InputStream in = Song.class.getResourceAsStream("/assets/papon/song/cancion.json")) {
-                if (in != null) instance = new Song(JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject());
+    public static Song get() {
+        return get(CANCION);
+    }
+
+    /** A song by id (CANCION, PARA_SIEMPRE), or null if this build does not have it. */
+    @Nullable
+    public static synchronized Song get(int id) {
+        if (id < 0 || id >= FILES.length) id = CANCION;
+        if (!tried[id]) {
+            tried[id] = true;
+            try (InputStream in = Song.class.getResourceAsStream("/assets/papon/song/" + FILES[id] + ".json")) {
+                if (in != null) instances[id] = new Song(JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject());
             } catch (Exception e) {
-                PaponMod.LOG.warn("[song] could not read the song data", e);
+                PaponMod.LOG.warn("[song] could not read the song data ({})", FILES[id], e);
             }
         }
-        return instance;
+        return instances[id];
+    }
+
+    /** The first segment at this level ("end": the song's ending). */
+    @Nullable
+    public Segment byLevel(String level) {
+        for (Segment s : segments) if (s.level.equals(level)) return s;
+        return null;
+    }
+
+    /** Whether the adaptive score may pick it (not the intro, the ending, or a cutscene's own part). */
+    public static boolean pickable(Segment s) {
+        return s.level.equals("low") || s.level.equals("mid") || s.level.equals("high");
     }
 
     @Nullable
@@ -126,6 +152,7 @@ public final class Song {
 
     public Segment intro() {
         Segment s = byId("intro");
+        if (s == null) s = byLevel("intro");          // Para Siempre: the singer's pickup
         return s != null ? s : segments.get(0);
     }
 

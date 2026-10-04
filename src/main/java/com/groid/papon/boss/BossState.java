@@ -52,6 +52,17 @@ package com.groid.papon.boss;
  * (SLAM is no longer chosen; LEAP replaced it. PHASE is the old half-health roar, no longer used)
  * IDLE --> TO_VAN --> DRINK_HANDLE --> ENTER_VAN --> DRIVING --> EXIT_STUMBLE --> IDLE   (the van)
  * IDLE --> PHASE --> IDLE                                   (half health)
+ * IDLE --> P3_KNOCKBACK --> P3_GLARE --> P3_STALK --> P3_SNATCH --> P3_RETURN --> P3_BLACKOUT --> P3_ASCEND
+ *       --> P3_SERENADE --> P3_VERDICT --> P3_TOSS --> P3_FELT --> P3_TO_CAR --> P3_CRUSH --> P3_GO --> P3_DANCE --> IDLE
+ *                                                             (half health, in the coliseum: knocked out of the air, he
+ *                                                              glares at the band ("This is NOT my style"), takes the
+ *                                                              singer's requinto, the lights go out round the bowl, and
+ *                                                              in a spotlight he plays and sings the opening of "Para
+ *                                                              Siempre" himself; "Learn, muchachos", the guitar back,
+ *                                                              "GO!", the band takes it from there and the fire comes back
+ *                                                              crimson: "Now... let's DANCE." Night from here on, the
+ *                                                              spotlight on him. With no coliseum: P3_KNOCKBACK --> P3_GLARE
+ *                                                              --> P3_DANCE)
  * any --> DEATH
  * </pre>
  * Append new states at the end: the ordinal is synced and the name is saved.
@@ -148,7 +159,40 @@ public enum BossState {
     /** ¡La Ola! (phase two, coliseum): he gets the stands doing the wave and three waves of salsa sweep the sand: jump them. */
     ARENA_OLA(36),
     /** ¡Estampida!: a whistle to the stands and giant potatoes roll across the sand in lanes, three volleys: find the gaps. */
-    ARENA_STAMPEDE(36);
+    ARENA_STAMPEDE(36),
+    // ---- phase three, "Para Siempre" (half health; see the diagram). Durations of the voiced beats are fallbacks:
+    // VoiceLines.beat times them to his lines.
+    /** Knocked out of the air: flung back, down on his back on the sand, a skid, and up again (2.5 s). */
+    P3_KNOCKBACK(50),
+    /** Up, the blood wiped off his lip, and a long look at the band: "This... is NOT... my style." */
+    P3_GLARE(110),
+    /** He walks over to the band stand, every step a thud. */
+    P3_STALK(0),
+    /** "Give me THAT.": the singer's requinto ripped out of his hands; the band cowers. */
+    P3_SNATCH(70),
+    /** Back to the middle of the sand with it, the braziers going out round the bowl one by one behind him. */
+    P3_RETURN(0),
+    /** Dark: a beat of nothing, then the spotlight slams on him (1.5 s), head bowed, the guitar coming round. */
+    P3_BLACKOUT(50),
+    /** He plays the song's opening and sings its first lines himself, ascended, in the spotlight; the stands light lighters. */
+    P3_SERENADE(390),
+    /** "THIS... is more my style. Learn, muchachos." */
+    P3_VERDICT(80),
+    /** The guitar thrown back over his shoulder without a look; the singer juggles it; "What are you WAITING for?! GO!!!" */
+    P3_TOSS(80),
+    /** The singer's pickup, the band crashing in, the fire back in crimson round the bowl; quietly: "Now... let's DANCE." */
+    P3_DANCE(130),
+    /** Ascended: he turns to you, the power going through him: "Hmmm... I haven't felt this way... in a LOOOOONG time." An evil smile. */
+    P3_FELT(120),
+    /** Over to his van. */
+    P3_TO_CAR(0),
+    /** The van over his head, crushed in his hands, reformed into a black Skyline and slammed down; it revs. */
+    P3_CRUSH(200),
+    /** He whirls round on the band: "What are you WAITING for?! GO!!!" */
+    P3_GO(70),
+    /** In the spotlight, before the song: bent double, groaning, the wings tear out of his back (the flash, his new
+     *  form), and the roar. Appended (the ordinal is synced). */
+    P3_ASCEND(150);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;
@@ -174,9 +218,19 @@ public enum BossState {
         return this == P2_KNEEL || this == P2_TALK || this == P2_SEASON || this == P2_SCREAM;
     }
 
-    /** Any part of the phase-two cutscene (he cannot be hurt), and the guitar solo's moment. */
+    /** Any part of the phase-two cutscene (he cannot be hurt), the guitar solo's moment, and the phase-three cutscene. */
     public boolean cutscene() {
-        return silent() || this == P2_ARRIVE || coliseum() || this == P2_SOLO;
+        return silent() || this == P2_ARRIVE || coliseum() || this == P2_SOLO || phaseThree();
+    }
+
+    /** The phase-three cutscene, the knockback to "let's dance". */
+    public boolean phaseThree() {
+        return ordinal() >= P3_KNOCKBACK.ordinal() && ordinal() <= P3_ASCEND.ordinal();
+    }
+
+    /** Through phase three's cutscene, before the band takes the song back: the stands' own song is off. */
+    public boolean bandStopped() {
+        return phaseThree() && this != P3_DANCE;
     }
 
     /** The coliseum's own beats: the band, the count-in, the apology. */

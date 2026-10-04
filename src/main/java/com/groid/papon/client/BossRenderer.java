@@ -27,6 +27,9 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     private static final float RISEN_SCALE = 1.75F;
     private static final float DRIVING_SCALE = 0.95F;
     private static final ResourceLocation BAKED = PaponMod.id("textures/entity/papon_boss_baked.png");
+    private static final ResourceLocation ASCENDED = PaponMod.id("textures/entity/papon_ascended.png");
+    /** Ascended Papon is drawn bigger than the risen one. */
+    private static final float ASCENDED_SCALE = 2.0F;
     private static final ResourceLocation AURA = PaponMod.id("textures/entity/papon_aura.png");
 
     public BossRenderer(EntityRendererProvider.Context ctx) {
@@ -48,9 +51,10 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
                     pose.scale(grow, grow, grow);
                     pose.translate(0, -0.9, 0);
                     float f = k * (grow > 1.1F ? 0.6F : 1F);
+                    boolean crimson = boss.isPhaseThree() || boss.getBossState() == BossState.P3_DANCE;
                     getRenderer().reRender(model, pose, buffers, boss, swirl, buffers.getBuffer(swirl), partialTick,
                             net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY,
-                            Math.min(1F, f), Math.min(1F, f * 0.78F), Math.min(1F, f * 0.32F), 1F);
+                            Math.min(1F, f), Math.min(1F, f * (crimson ? 0.14F : 0.78F)), Math.min(1F, f * (crimson ? 0.16F : 0.32F)), 1F);
                     pose.popPose();
                 }
             }
@@ -70,12 +74,19 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
             return k * pulse;
         }
         if (s == BossState.P2_SCREAM) return Math.max(0, 1F - t / 40F) * pulse;
+        // phase three: crimson, flaring as the band crashes in and the fire comes back, then smouldering on him all fight
+        if (s == BossState.P3_DANCE) {
+            float drop = com.groid.papon.boss.VoiceLines.beat("dance.drop", 42);
+            if (t < drop) return 0;
+            return (t < drop + 20 ? 1.0F - (t - drop) / 20F * 0.55F : 0.45F) * pulse;
+        }
+        if (boss.isPhaseThree() && !s.phaseThree()) return 0.32F * pulse;
         return 0;
     }
 
     @Override
     public ResourceLocation getTextureLocation(PaponBossEntity boss) {
-        return boss.isBaked() ? BAKED : super.getTextureLocation(boss);
+        return boss.isAscended() ? ASCENDED : boss.isBaked() ? BAKED : super.getTextureLocation(boss);
     }
 
     @Override
@@ -146,7 +157,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     @Override
     public void preRender(PoseStack pose, PaponBossEntity entity, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,
                           boolean reRender, float partialTick, int light, int overlay, float r, float g, float b, float a) {
-        float s = entity.isPassenger() ? DRIVING_SCALE : entity.isRisen() ? RISEN_SCALE : SCALE;
+        float s = entity.isPassenger() ? DRIVING_SCALE : entity.isAscended() ? ASCENDED_SCALE : entity.isRisen() ? RISEN_SCALE : SCALE;
         this.scaleWidth = s;
         this.scaleHeight = s;
         if (!reRender) hideForPov(model, handInView(entity));
@@ -193,6 +204,12 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         float t = boss.ticksInState() + partialTick;
         if (s == BossState.P2_SEASON && t > 72) return Math.max(0, 1F - Math.abs(t - 82) / 12F);
         if (s == BossState.P2_SCREAM && t > 12) return t < 22 ? (t - 12) / 10F : t < 50 ? 1F : Math.max(0, 1F - (t - 50) / 14F);
+        if (s == BossState.P3_ASCEND) {
+            // the ascension: light cracking out of him as he groans, bursting with the wings, fading after the roar
+            float burst = com.groid.papon.boss.VoiceLines.beat("ascend.burst", 100);
+            if (t < burst) return 0.1F + 0.7F * t / burst;
+            return Math.max(0.2F, 1F - (t - burst) / 40F);
+        }
         return 0;
     }
 
@@ -221,12 +238,149 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         pose.popPose();
     }
 
+    // Ascended Papon's eyes: their bones' final matrices, caught as they are drawn, for the lightning round them
+    private final org.joml.Matrix4f eyeR = new org.joml.Matrix4f(), eyeL = new org.joml.Matrix4f();
+    private boolean eyesSeen;
+
+    @Override
+    public void renderCubesOfBone(PoseStack pose, software.bernie.geckolib.cache.object.GeoBone bone, VertexConsumer buffer, int light,
+                                  int overlay, float r, float g, float b, float a) {
+        if (bone.getName().equals("eye_r")) {
+            eyeR.set(pose.last().pose());
+            eyesSeen = true;
+        } else if (bone.getName().equals("eye_l")) {
+            eyeL.set(pose.last().pose());
+        }
+        super.renderCubesOfBone(pose, bone, buffer, light, overlay, r, g, b, a);
+    }
+
+    /**
+     * Lightning crackling off his white eyes (Ascended Papon): a few jagged arcs from each, re-struck every couple
+     * of ticks, white at the core in a violet glow. Drawn in the eye bones' own space, so they follow his face.
+     */
+    private void eyeLightning(PaponBossEntity boss, float partial, MultiBufferSource buffers) {
+        if (!eyesSeen) return;
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        int seed = boss.tickCount / 2;
+        for (int e = 0; e < 2; e++) {
+            org.joml.Matrix4f m = e == 0 ? eyeR : eyeL;
+            float ex = (e == 0 ? 4.5F : -4.5F) / 16F, ey = 19.5F / 16F, ez = -8.3F / 16F;
+            net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(seed * 31L + e * 7L + boss.getId());
+            int arcs = 2 + r.nextInt(2);
+            for (int a = 0; a < arcs; a++) {
+                float x = ex, y = ey, z = ez;
+                float dx = (e == 0 ? 1 : -1) * (0.04F + r.nextFloat() * 0.05F), dy = (r.nextFloat() - 0.3F) * 0.06F;
+                for (int k = 0; k < 5; k++) {
+                    float nx = x + dx + (r.nextFloat() - 0.5F) * 0.03F, ny = y + dy + (r.nextFloat() - 0.5F) * 0.05F, nz = z - 0.01F;
+                    ribbon(vc, m, x, y, z, nx, ny, nz, 0.012F * (1 - k / 6F), 200, 170, 255, 210);
+                    ribbon(vc, m, x, y, z, nx, ny, nz, 0.005F, 255, 255, 255, 255);
+                    x = nx; y = ny; z = nz;
+                }
+            }
+        }
+        eyesSeen = false;
+    }
+
+    private static void ribbon(VertexConsumer vc, org.joml.Matrix4f m, float x0, float y0, float z0, float x1, float y1, float z1, float w,
+                               int cr, int cg, int cb, int ca) {
+        org.joml.Vector4f a = m.transform(new org.joml.Vector4f(x0, y0 - w, z0, 1));
+        org.joml.Vector4f b = m.transform(new org.joml.Vector4f(x0, y0 + w, z0, 1));
+        org.joml.Vector4f c = m.transform(new org.joml.Vector4f(x1, y1 + w, z1, 1));
+        org.joml.Vector4f d = m.transform(new org.joml.Vector4f(x1, y1 - w, z1, 1));
+        vc.vertex(a.x, a.y, a.z).color(cr, cg, cb, ca).endVertex();
+        vc.vertex(b.x, b.y, b.z).color(cr, cg, cb, ca).endVertex();
+        vc.vertex(c.x, c.y, c.z).color(cr, cg, cb, ca).endVertex();
+        vc.vertex(d.x, d.y, d.z).color(cr, cg, cb, ca).endVertex();
+    }
+
     @Override
     public void render(PaponBossEntity entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
-        super.render(entity, yaw, partialTick, pose, buffers, keyLight(entity, light));
+        float spot = spot(entity, partialTick);
+        super.render(entity, yaw, partialTick, pose, buffers, spot > 0.5F ? net.minecraft.client.renderer.LightTexture.FULL_BRIGHT : keyLight(entity, light));
+        if (spot > 0) drawSpotlight(entity, pose, buffers, spot, partialTick);
+        if (entity.isAscended()) eyeLightning(entity, partialTick, buffers);
+        else eyesSeen = false;
         float k = rays(entity, partialTick);
         if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
         SpeechBubble.render(entity, entity.getSpeech(), 0.4F, pose, buffers, light, entityRenderDispatcher);
+    }
+
+    /**
+     * How bright his spotlight is (phase three, in his coliseum): it slams on in the blackout (a stutter as the
+     * lamp catches), and stays on him for the rest of the fight.
+     */
+    static float spot(PaponBossEntity b, float partial) {
+        if (!b.inColiseum() || !b.spotlit()) return 0;
+        if (b.getBossState() == BossState.P3_BLACKOUT) {
+            int t = b.ticksInState();
+            if (t < 30) return 0;
+            return t == 31 || t == 33 ? 0.25F : 1F;           // the lamp catching
+        }
+        return 1F;
+    }
+
+    /**
+     * The spotlight: a beam straight down on him out of the dark from high over the sand (two cones, a soft wide
+     * one round a brighter core, brightest where it meets the ground), the pool of light on the sand under him,
+     * and dust turning in it. Additive, so it only shows against the dark.
+     */
+    private static void drawSpotlight(PaponBossEntity b, PoseStack pose, MultiBufferSource buffers, float k, float partial) {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.world.phys.Vec3 at = b.getPosition(partial);
+        var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(at.add(0, 0.5, 0), at.add(0, -30, 0),
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, null));
+        float ground = hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? 0F : (float) (hit.getLocation().y - at.y) + 0.03F;
+        float top = ground + 30F;
+        float scale = b.isRisen() ? 1.15F : 1F;
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        org.joml.Matrix4f m = pose.last().pose();
+        float flick = 0.94F + 0.06F * net.minecraft.util.Mth.sin((b.tickCount + partial) * 0.9F);
+        // seen from inside the beam (or close to it) it would wash everything behind it out: fade it
+        net.minecraft.world.phys.Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
+        double axis = Math.hypot(cam.x - at.x, cam.z - at.z);
+        float inside = (float) net.minecraft.util.Mth.clamp((axis - 2.5) / 6.0, 0.2, 1.0);
+        k *= inside;
+        cone(vc, m, top, ground, 0.5F, 3.4F * scale, 255, 240, 214, (int) (26 * k * flick));
+        cone(vc, m, top, ground, 0.25F, 1.9F * scale, 255, 248, 230, (int) (38 * k * flick));
+        // the pool on the sand
+        int n = 32;
+        float r = 3.6F * scale;
+        for (int i = 0; i < n; i++) {
+            float a0 = (float) (Math.PI * 2 * i / n), a1 = (float) (Math.PI * 2 * (i + 1) / n);
+            int c = (int) (150 * k * flick);
+            vc.vertex(m, 0, ground, 0).color(255, 246, 225, c).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a0) * r * 0.55F, ground, net.minecraft.util.Mth.sin(a0) * r * 0.55F).color(255, 240, 214, c * 2 / 3).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a1) * r * 0.55F, ground, net.minecraft.util.Mth.sin(a1) * r * 0.55F).color(255, 240, 214, c * 2 / 3).endVertex();
+            vc.vertex(m, 0, ground, 0).color(255, 246, 225, c).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a0) * r * 0.55F, ground, net.minecraft.util.Mth.sin(a0) * r * 0.55F).color(255, 240, 214, c * 2 / 3).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a0) * r, ground, net.minecraft.util.Mth.sin(a0) * r).color(255, 230, 200, 0).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a1) * r, ground, net.minecraft.util.Mth.sin(a1) * r).color(255, 230, 200, 0).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a1) * r * 0.55F, ground, net.minecraft.util.Mth.sin(a1) * r * 0.55F).color(255, 240, 214, c * 2 / 3).endVertex();
+        }
+    }
+
+    /** One cone of the beam: from a small ring at the lamp down to {@code r1} at the ground, fading out toward the lamp. Both sides. */
+    private static void cone(VertexConsumer vc, org.joml.Matrix4f m, float top, float bottom, float r0, float r1, int cr, int cg, int cb, int alpha) {
+        int n = 28;
+        for (int i = 0; i < n; i++) {
+            float a0 = (float) (Math.PI * 2 * i / n), a1 = (float) (Math.PI * 2 * (i + 1) / n);
+            float c0 = net.minecraft.util.Mth.cos(a0), s0 = net.minecraft.util.Mth.sin(a0), c1 = net.minecraft.util.Mth.cos(a1), s1 = net.minecraft.util.Mth.sin(a1);
+            float mid = bottom + (top - bottom) * 0.35F;
+            float rm = r1 + (r0 - r1) * 0.35F;
+            for (int side = 0; side < 2; side++) {
+                float[][] ring = side == 0 ? new float[][]{{c0, s0}, {c1, s1}} : new float[][]{{c1, s1}, {c0, s0}};
+                // the lower part, bright at the ground
+                vc.vertex(m, ring[0][0] * r1, bottom, ring[0][1] * r1).color(cr, cg, cb, alpha).endVertex();
+                vc.vertex(m, ring[1][0] * r1, bottom, ring[1][1] * r1).color(cr, cg, cb, alpha).endVertex();
+                vc.vertex(m, ring[1][0] * rm, mid, ring[1][1] * rm).color(cr, cg, cb, alpha * 3 / 5).endVertex();
+                vc.vertex(m, ring[0][0] * rm, mid, ring[0][1] * rm).color(cr, cg, cb, alpha * 3 / 5).endVertex();
+                // the upper part, fading into the dark at the lamp
+                vc.vertex(m, ring[0][0] * rm, mid, ring[0][1] * rm).color(cr, cg, cb, alpha * 3 / 5).endVertex();
+                vc.vertex(m, ring[1][0] * rm, mid, ring[1][1] * rm).color(cr, cg, cb, alpha * 3 / 5).endVertex();
+                vc.vertex(m, ring[1][0] * r0, top, ring[1][1] * r0).color(cr, cg, cb, alpha / 6).endVertex();
+                vc.vertex(m, ring[0][0] * r0, top, ring[0][1] * r0).color(cr, cg, cb, alpha / 6).endVertex();
+            }
+        }
     }
 
     /**

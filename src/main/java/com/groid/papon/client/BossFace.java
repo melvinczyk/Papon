@@ -80,6 +80,13 @@ public final class BossFace {
         MOODS.put("drunk", new Look(0.6F, 0.35F, 0.4F, -0.3F, 0.3F, 0.8F, 0, 1.05F, 1, 0, 0).eyes(0.9F, 0, 0.3F));
         MOODS.put("bliss", new Look(1.0F, 1.0F, 0.7F, 0.7F, 0.8F, 0.8F, -6, 1, 1, 2, 0));
         MOODS.put("smoulder", new Look(0.5F, 0.45F, 0.8F, 0.2F, 0.1F, 0.9F, 2, 1, 1, -5, 0).eyes(0.85F, 0.7F, 0));
+        // phase three: singing his heart out in the spotlight (lids low, brows up and pleading, eyes to the sky)
+        MOODS.put("croon", new Look(0.55F, 0.55F, 0.25F, 0.25F, 1.0F, 1.0F, -10, 1.25F, 1, 3, 0).eyes(0.9F, 0, -0.4F));
+        // ...and cold fury: still, narrow, the mouth a flat line
+        MOODS.put("cold", new Look(0.3F, 0.3F, -0.3F, -0.3F, -0.2F, -0.2F, 10, 0.8F, 1, 0, 0).eyes(0.6F, 0, 0));
+        // the evil smile (Ascended Papon): a wide grin, the corners right up, brows down hard in a V, eyes narrowed
+        MOODS.put("evil", new Look(0.45F, 0.45F, 1.4F, 1.4F, -0.7F, -0.7F, 12, 0.7F, 1.12F, 0, 0).eyes(0.65F, 0, 0.2F));
+        MOODS.put("contempt", new Look(0.35F, 0.15F, -0.2F, 0.4F, -0.4F, 0.6F, 6, 0.9F, 1, -2, 0).eyes(0.7F, 0.4F, 0));
     }
 
     /** What his face is doing now, per boss (eased toward the look he should have). */
@@ -168,6 +175,23 @@ public final class BossFace {
             tongue = Mth.lerp(e, was.tongue, sh.tongue);
             pitch = line.pitchAt(t);
             accent = line.accentAt(t);
+        }
+        // phase three's serenade: he sings the song's opening (the record's own voice), on the song's mouth shapes
+        double song = boss.serenadeTime(partial);
+        com.groid.papon.boss.Song ps = Double.isNaN(song) ? null : com.groid.papon.boss.Song.get(com.groid.papon.boss.Song.PARA_SIEMPRE);
+        if (!saying && ps != null && song >= 0 && ps.voiceAt(song) > 0.02F) {
+            Shape sh = SHAPES.getOrDefault(ps.mouthAt(song), SHAPES.get('X'));
+            Shape was = SHAPES.getOrDefault(ps.mouthBefore(song), SHAPES.get('X'));
+            float e = (float) Mth.clamp(ps.mouthSince(song) / 0.07, 0, 1);
+            e = e * e * (3 - 2 * e);
+            loud = ps.voiceAt(song);
+            open = Mth.lerp(e, was.open, sh.open) * (0.6F + 0.8F * loud) * f.open;
+            if (loud < 0.05F) open *= loud / 0.05F;
+            width = Mth.lerp(e, was.width, sh.width);
+            teeth = Mth.lerp(e, was.teeth, sh.teeth);
+            tongue = Mth.lerp(e, was.tongue, sh.tongue);
+            pitch = ps.pitchAt(song);
+            accent = Math.max(0, loud - 0.6F);
         }
         // the scream has no voice (the roars are it): his mouth gapes through it anyway, shaking
         if (!saying && boss.getBossState() == BossState.P2_SCREAM) {
@@ -290,7 +314,19 @@ public final class BossFace {
             case P2_WAIT -> MOODS.get("sly");
             case P2_COUNT, P2_SHOWTIME -> MOODS.get("bliss");
             case P2_APOLOGY -> t >= VoiceLines.beat("apology.aura", 110) ? MOODS.get("smoulder") : MOODS.get("warm");
-            case IDLE -> MOODS.get("sly");
+            case IDLE -> MOODS.get(boss.isPhaseThree() ? "cold" : "sly");
+            case P3_KNOCKBACK -> MOODS.get("pained");
+            case P3_GLARE -> t < 30 ? MOODS.get("pained") : MOODS.get("contempt");
+            case P3_STALK, P3_SNATCH -> MOODS.get("cold");
+            case P3_RETURN -> MOODS.get("smoulder");
+            case P3_BLACKOUT -> MOODS.get("bliss");
+            case P3_SERENADE -> MOODS.get("croon");
+            case P3_VERDICT -> MOODS.get("smug");
+            case P3_TOSS -> MOODS.get("sly");
+            case P3_DANCE, P3_GO -> MOODS.get("cold");
+            case P3_FELT -> t >= VoiceLines.beat("felt.smile", 100) - 6 ? MOODS.get("evil") : MOODS.get("smoulder");
+            case P3_TO_CAR -> MOODS.get("cold");
+            case P3_CRUSH -> t >= VoiceLines.beat("crush.down", 110) ? MOODS.get("evil") : MOODS.get("angry");
             default -> MOODS.get("angry");                // fighting
         };
     }

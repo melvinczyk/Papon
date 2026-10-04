@@ -63,6 +63,7 @@ public final class ModItems {
     public static final RegistryObject<Item> FX_CLEAVER = prop("fx_cleaver");
     public static final RegistryObject<Item> FX_FRY = prop("fx_fry");
     public static final RegistryObject<Item> FX_TOT = prop("fx_tot");
+    public static final RegistryObject<Item> FX_GUITAR = prop("fx_guitar");
     public static final RegistryObject<Item> FX_BURRITO = prop("fx_burrito");
     public static final RegistryObject<Item> FX_SPROUTS = prop("fx_sprouts");
     public static final RegistryObject<Item> FX_GIANT_SPUD = prop("fx_giant_spud");

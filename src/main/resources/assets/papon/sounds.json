@@ -639,6 +639,70 @@
       }
     ]
   },
+  "music.para_siempre.serenade": {
+    "sounds": [
+      {
+        "name": "papon:music/para_siempre/serenade",
+        "stream": true
+      }
+    ]
+  },
+  "music.para_siempre.pickup": {
+    "sounds": [
+      {
+        "name": "papon:music/para_siempre/pickup",
+        "stream": true
+      }
+    ]
+  },
+  "music.para_siempre.verse1": {
+    "sounds": [
+      {
+        "name": "papon:music/para_siempre/verse1",
+        "stream": true
+      }
+    ]
+  },
+  "music.para_siempre.chorus1": {
+    "sounds": [
+      {
+        "name": "papon:music/para_siempre/chorus1",
+        "stream": true
+      }
+    ]
+  },
+  "music.para_siempre.break": {
+    "sounds": [
+      {
+        "name": "papon:music/para_siempre/break",
+        "stream": true
+      }
+    ]
+  },
+  "music.para_siempre.verse2": {
+    "sounds": [
+      {
+        "name": "papon:music/para_siempre/verse2",
+        "stream": true
+      }
+    ]
+  },
+  "music.para_siempre.climax": {
+    "sounds": [
+      {
+        "name": "papon:music/para_siempre/climax",
+        "stream": true
+      }
+    ]
+  },
+  "music.para_siempre.ending": {
+    "sounds": [
+      {
+        "name": "papon:music/para_siempre/ending",
+        "stream": true
+      }
+    ]
+  },
   "voice.boss2.bleed": {
     "sounds": [
       {
@@ -1140,6 +1204,76 @@
     "sounds": [
       {
         "name": "papon:voice/boss2/landed1"
+      }
+    ]
+  },
+  "voice.boss2.notstyle": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/notstyle"
+      }
+    ]
+  },
+  "voice.boss2.realplay": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/realplay"
+      }
+    ]
+  },
+  "voice.boss2.gimme": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/gimme"
+      }
+    ]
+  },
+  "voice.boss2.mystyle": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/mystyle"
+      }
+    ]
+  },
+  "voice.boss2.go": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/go"
+      }
+    ]
+  },
+  "voice.boss2.dance": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/dance"
+      }
+    ]
+  },
+  "voice.boss2.felt": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/felt"
+      }
+    ]
+  },
+  "voice.boss2.groan1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/groan1"
+      }
+    ]
+  },
+  "voice.boss2.groan2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/groan2"
+      }
+    ]
+  },
+  "voice.boss2.ascend": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/ascend"
       }
     ]
   }

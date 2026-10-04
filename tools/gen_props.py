@@ -12,6 +12,7 @@ Writes, under src/main/resources/assets/papon/:
   fx_cleaver      a meat cleaver: Dungeons Delight's iron cleaver in 3D (thrown, it spins)
   fx_fry          a giant crinkle-cut fry (a javelin off his fry wings)
   fx_tot          a tater tot (the cluster bomb, and its bomblets)
+  fx_guitar       the singer's requinto, thrown back to him over the boss's shoulder (phase three)
   fx_burrito      a giant burrito, a player rolled up inside (their head sticks out the top)
   fx_sprouts      a ring of potato sprouts bursting out of the ground
   fx_giant_spud   the Spud Singularity: a giant potato
@@ -300,6 +301,45 @@ def tot():
     return m.save()
 
 
+def guitar():
+    """The singer's requinto in flight (gen_band.requinto_cubes, at item scale): spruce top with a gold
+    rosette round a dark soundhole, a dark bridge, warm sides, a fretted neck and a dark head."""
+    m = Model('fx_guitar', 64, 21)
+    spruce, wood, wood_dk, gold, silver = (226, 186, 120), (190, 128, 64), (104, 60, 28), (228, 182, 70), (206, 210, 218)
+
+    def body(f, r, m):
+        x0, y0, x1, y1 = r
+        if f in ('north', 'south'):
+            m.fill(r, spruce, 0.05)
+            cx, cy = (x0 + x1) / 2, y0 + (y1 - y0) * 0.4
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    d = ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) ** 0.5
+                    if d < 1.6:
+                        m.put(x, y, (40, 24, 14))
+                    elif d < 2.6:
+                        m.put(x, y, gold)
+            m.fill((x0 + 2, y1 - 3, x1 - 2, y1 - 2), wood_dk, 0.02)
+        else:
+            m.fill(r, wood, 0.06)
+
+    def neck(f, r, m):
+        m.fill(r, (60, 36, 20), 0.05)
+        if f in ('north', 'south'):
+            x0, y0, x1, y1 = r
+            for y in range(y0, y1, 2):
+                for x in range(x0, x1):
+                    m.put(x, y, silver)
+
+    def head(f, r, m):
+        m.fill(r, wood_dk, 0.06)
+    m.box([4, 0.5, 7], [12, 7, 9], body)
+    m.box([5, 7, 7.25], [11, 9, 8.75], body)
+    m.box([7.25, 9, 7.5], [8.75, 14.5, 8.5], neck)
+    m.box([7, 14.5, 7.4], [9, 16, 8.6], head)
+    return m.save()
+
+
 def giant_spud():
     m = Model('fx_giant_spud', 128, 17)
     spuddy(m, potato_skin(0.03), 8, 8, 8, 6.5, 4.8, 4.6)
@@ -451,5 +491,5 @@ def mash_wave():
 
 
 if __name__ == '__main__':
-    for fn in (tequila, spud, meteor, tot, giant_spud, fry, cleaver, burrito, sprouts, mash_wave):
+    for fn in (tequila, spud, meteor, tot, guitar, giant_spud, fry, cleaver, burrito, sprouts, mash_wave):
         print(fn())

@@ -32,7 +32,8 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
         this.scaleWidth = SCALE * role.width;
         this.scaleHeight = SCALE * role.height;
         for (String inst : INSTRUMENTS) {
-            boolean mine = inst.equals(role.instrument) || role.coro() && inst.equals("hand_mic");
+            boolean mine = (inst.equals(role.instrument) || role.coro() && inst.equals("hand_mic"))
+                    && !(m.robbed() && inst.equals("requinto"));                    // phase three: it is in the boss's hands
             model.getBone(inst).ifPresent(bone -> bone.setHidden(!mine));
             model.getBone(inst + "_floor").ifPresent(bone -> bone.setHidden(!mine));
         }
@@ -47,6 +48,10 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
 
     @Override
     public void render(MariachiEntity m, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        // phase three's dark: the spill of the boss's spotlight (and the stage lamps) keeps the band in view
+        float night = NightLight.night(partialTick);
+        if (night > 0.3F) light = net.minecraft.client.renderer.LightTexture.pack(Math.max(11, net.minecraft.client.renderer.LightTexture.block(light)),
+                net.minecraft.client.renderer.LightTexture.sky(light));
         super.render(m, yaw, partialTick, pose, buffers, light);
         SpeechBubble.render(m, m.getSpeech(), 0.6F, pose, buffers, light, entityRenderDispatcher);
     }

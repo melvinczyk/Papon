@@ -76,12 +76,14 @@ public final class CaravanSounds {
             z = van.getZ();
             float s = (float) Mth.clamp(speedOf(van) / 0.9, 0, 1.2);
             smooth += (s - smooth) * 0.25F;
+            // the Skyline (Ascended Papon's): a straight six, higher and angrier than the van's V6
+            float sport = van.isSkyline() ? 1.35F : 1F;
             if (driving) {
                 volume = Mth.clamp(smooth * 1.6F, 0.01F, 1.4F);
-                pitch = 0.62F + smooth * 0.85F;
+                pitch = (0.62F + smooth * 0.85F) * sport;
             } else {
                 volume = Mth.clamp(1.0F - smooth * 0.8F, 0.15F, 1.0F);
-                pitch = 0.95F + smooth * 0.35F;
+                pitch = (0.95F + smooth * 0.35F) * sport;
             }
         }
     }

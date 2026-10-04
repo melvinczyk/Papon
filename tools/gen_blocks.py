@@ -269,12 +269,17 @@ def brazier(rng):
     return im
 
 
-def coals(rng):
+COALS = ((255, 210, 90), (240, 120, 30), (150, 40, 16), (60, 22, 14))
+COALS_OUT = ((96, 90, 86), (64, 58, 54), (40, 36, 34), (26, 24, 22))          # phase three's blackout: ash
+COALS_CRIMSON = ((255, 120, 110), (230, 30, 40), (130, 8, 20), (50, 6, 10))   # ...and the fire back, crimson
+
+
+def coals(rng, pal=COALS):
     im = Image.new('RGBA', (16, 16))
     for y in range(16):
         for x in range(16):
             k = rng.random()
-            c = (255, 210, 90) if k < 0.15 else (240, 120, 30) if k < 0.5 else (150, 40, 16) if k < 0.8 else (60, 22, 14)
+            c = pal[0] if k < 0.15 else pal[1] if k < 0.5 else pal[2] if k < 0.8 else pal[3]
             im.putpixel((x, y), c + (255,))
     return im
 
@@ -338,12 +343,22 @@ def arena():
         return {'from': fr, 'to': to, 'faces': {
             'north': {'texture': b}, 'south': {'texture': b}, 'east': {'texture': b}, 'west': {'texture': b},
             'up': {'texture': top}, 'down': {'texture': b}}}
-    write_model('arena_brazier', {
-        'parent': 'minecraft:block/block', 'ambientocclusion': False,
-        'textures': {'particle': 'papon:block/arena_brazier', 'bronze': 'papon:block/arena_brazier',
-                     'coals': 'papon:block/arena_coals'},
-        'elements': [box([4, 0, 4], [12, 1, 12]), box([7, 1, 7], [9, 7, 9]), box([3, 7, 3], [13, 9, 13]),
-                     box([1, 9, 1], [15, 13, 15], top=c)]})
+    write_tex('arena_coals_out', coals(random.Random(24), COALS_OUT))
+    write_tex('arena_coals_crimson', coals(random.Random(24), COALS_CRIMSON))
+    for name, tex in (('arena_brazier', 'arena_coals'), ('arena_brazier_out', 'arena_coals_out'),
+                      ('arena_brazier_crimson', 'arena_coals_crimson')):
+        write_json('models/block/%s.json' % name, {
+            'parent': 'minecraft:block/block', 'ambientocclusion': False,
+            'textures': {'particle': 'papon:block/arena_brazier', 'bronze': 'papon:block/arena_brazier',
+                         'coals': 'papon:block/' + tex},
+            'elements': [box([4, 0, 4], [12, 1, 12]), box([7, 1, 7], [9, 7, 9]), box([3, 7, 3], [13, 9, 13]),
+                         box([1, 9, 1], [15, 13, 15], top=c)]})
+    # lit / out (phase three's blackout) / crimson (phase three's fire)
+    write_json('blockstates/arena_brazier.json', {'variants': {
+        'crimson=false,lit=true': {'model': 'papon:block/arena_brazier'},
+        'crimson=true,lit=true': {'model': 'papon:block/arena_brazier_crimson'},
+        'crimson=false,lit=false': {'model': 'papon:block/arena_brazier_out'},
+        'crimson=true,lit=false': {'model': 'papon:block/arena_brazier_out'}}})
     # a stretch of wall with a flag on it: the wall's ashlar (the cloth is drawn by client/ArenaFlagRenderer)
     write_model('arena_flag', {'parent': 'minecraft:block/cube_all', 'textures': {'all': 'papon:block/arena_bricks'}})
     write_json('blockstates/arena_flag.json', {'variants': {'': {'model': 'papon:block/arena_flag'}}})

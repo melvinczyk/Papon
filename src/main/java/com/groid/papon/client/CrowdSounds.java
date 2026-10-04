@@ -53,6 +53,7 @@ public final class CrowdSounds {
         CrowdMood mood = crowd.mood();
         bed.want = near * LOUDNESS * switch (mood) {
             case HUSH, MOURN -> 0.18F;
+            case LIGHTERS -> 0.05F;                 // his serenade: you could hear a pin drop
             case ROAR, GASP -> 0.75F;
             case CHANT, CLAP, WAVE -> 0.5F;
             default -> 0.55F;
@@ -73,7 +74,7 @@ public final class CrowdSounds {
             if (one != null) play(mc, one, near, 1.0F);
         }
         // on the beat: the chant and the claps
-        Song song = Song.get();
+        Song song = SongPlayer.song();
         double t = SongPlayer.songTime(0);
         double beat = song != null && !Double.isNaN(t) ? song.beatAt(t) : mc.level.getGameTime() / 9.4;
         long b = (long) Math.floor(beat);

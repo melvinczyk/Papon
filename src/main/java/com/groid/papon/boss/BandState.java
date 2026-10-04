@@ -10,6 +10,8 @@ package com.groid.papon.boss;
  * SLEEP --(the boss's spatula: the singer)--> WHACKED --> JACKET_SLOW --> HAT_SLOW --> SHADES --> GRAB --> READY
  * READY --(the singer)--> COUNT --> PLAY (everyone, the song) --> BOW (the fight is over)
  * PLAY --(nightfall, or dawn: the lamplighter, the third of the coro)--> LAMP_GO --> LAMP_SWITCH --> LAMP_BACK --> PLAY
+ * PLAY --(phase three: the boss knocked down)--> READY --(his snatch)--> SCARED (the singer: ROBBED --> SCARED)
+ *      --(the spotlight)--> AWED --(the guitar thrown back: the singer)--> CATCH --> READY --> PLAY (Para Siempre)
  * </pre>
  */
 public enum BandState {
@@ -35,7 +37,17 @@ public enum BandState {
     /** A tug on its chain: on (or off). */
     LAMP_SWITCH(40),
     /** ...and back to his place, still singing. */
-    LAMP_BACK(0);
+    LAMP_BACK(0),
+    /** Phase three: cowering from the boss, instrument hugged. */
+    SCARED(0),
+    /** The singer, his requinto ripped out of his hands: spun round, a look at his empty hands, and down he cowers. */
+    ROBBED(40),
+    /** Watching the boss play in the spotlight, swaying, hands clasped. */
+    AWED(0),
+    /** The singer: the requinto thrown back at him, juggled twice and caught. */
+    CATCH(30),
+    /** The guitar is back, the boss has his back to them: they look at each other, nobody dares start. */
+    NERVOUS(0);
 
     public final int duration;
 
@@ -58,6 +70,6 @@ public enum BandState {
 
     /** Up, dressed and holding his instrument. */
     public boolean ready() {
-        return this == READY || this == COUNT || this == PLAY || this == BOW;
+        return this == READY || this == COUNT || this == PLAY || this == BOW || this == SCARED || this == AWED || this == CATCH || this == NERVOUS;
     }
 }

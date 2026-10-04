@@ -49,7 +49,7 @@ public final class ModBlocks {
     public static final RegistryObject<Block> ARENA_DRAPE_RED = cloth("arena_drape_red", MapColor.COLOR_RED);
     public static final RegistryObject<Block> ARENA_DRAPE_EMBLEM = cloth("arena_drape_emblem", MapColor.SNOW);
     public static final RegistryObject<Block> ARENA_BRAZIER = REGISTRY.register("arena_brazier",
-            () -> new ArenaBrazierBlock(props(MapColor.COLOR_ORANGE).sound(SoundType.LANTERN).lightLevel(s -> 15).noOcclusion()));
+            () -> new ArenaBrazierBlock(props(MapColor.COLOR_ORANGE).sound(SoundType.LANTERN).lightLevel(s -> s.getValue(ArenaBrazierBlock.LIT) ? 15 : 0).noOcclusion()));
     public static final RegistryObject<Block> ARENA_BARRIER = REGISTRY.register("arena_barrier",
             () -> new ArenaBarrierBlock(props(MapColor.NONE).noOcclusion().noParticlesOnBreak()
                     .isViewBlocking((s, l, p) -> false).isSuffocating((s, l, p) -> false).isRedstoneConductor((s, l, p) -> false)));

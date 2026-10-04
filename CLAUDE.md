@@ -70,6 +70,16 @@ quality throughout."
      everything is potato blocks**. He **looks stronger and can fly**. The user rejected: pink sprout arms,
      spectral hands, tortilla wings, red glowing eyes, a direct copy of the Spiritcaller, white splits on
      his sides, too dark a bake. Phase-two parts must never show in phase-one animations.
+   - **Phase three at 50% health (built 2026-10-03, see "Phase three" below), the user's spec:** he gets knocked
+     back, **glares at the singer and the band**: "**This is NOT my style, let me show you how to really play**";
+     walks over and **angrily snatches the guitar from the singer**, the band **all get scared of him**; walks back to
+     the centre, **everything turns dark**, a **spotlight** comes on above him and the **user's song "Para Siempre"**
+     plays (their copy, `tools/src/song/para_siempre.mp3`, gitignored, from `~/Downloads/Para Siempre.mp3`): he
+     **plays the intro on the guitar and sings the beginning** (the record's own voice, the user's call: no voice
+     conversion), "**This is more my style, learn muchachos**", **throws the guitar back** at the singer, "**What
+     are you waiting for, GO**", the band **continues the song**; then serious: "**Now, let's dance!**". The user
+     asked for it **very dramatic and epic**; they chose: keep his golden form with a **crimson** aura/fire, and
+     the rest of the fight **stays night with the spotlight on him**.
    - **Phase two's arena, overhauled (2026-10-03, see "El Coliseo Papa" below):** the dome is gone. His
      pocket dimension is **a Roman coliseum themed on potatoes and on him**, his own arena where he fights
      challengers, its stands **full of Papon-like fans cheering him on against the player**. Teleported in,
@@ -172,6 +182,7 @@ player and were not exercised headless.
 | Carry On blacklist tag | `data/carryon/tags/entity_types/entity_blacklist.json` |
 | Mesh celebrities' bodies: knees (`shin_r/_l` bones), relaxed hands, shoes, loose trousers, neck clear of the shoulders, Blender decimation to quads (~10.5k verts, head and hands untouched) | `tools/mh_human.py` (`relax_hands`, `dress`, `optimize`), `tools/blender_decimate.py` |
 | Previews without Minecraft: Blender stills and animation filmstrips (GeckoLib keyframes evaluated, mesh skinned) | `tools/blender_preview.py`, `tools/anim_preview.py` + `tools/blender_filmstrip.py` |
+| Phase three "Para Siempre" (half health): knockback, glare, the snatch, lights out round the bowl, the spotlight, his serenade (the song's first 18 s), the toss, the band's drop with the fire back crimson, "let's dance"; night for the rest of the fight | `boss/PaponBossEntity` (`startPhaseThree`, `tickP3*`), `BossState.P3_*`, `boss/BandState` (SCARED/ROBBED/AWED/CATCH), `client/NightLight.java`, `client/BossRenderer` (`drawSpotlight`), `client/BossModel` (serenade hands), `client/BossFace` (sings), `client/Cinematic.phaseThreeShot`, `client/SongPlayer` (`phaseThree`), `client/ColiseumCrowdRenderer` (lighters), `block/ArenaBrazierBlock` (LIT/CRIMSON), `tools/gen_song.py --song para_siempre` |
 | Phase-two voice: his lines in English in a cloned voice (Qwen3-TTS on Modal), lip-synced, the cutscene timed to them | `tools/gen_boss_voice.py`, `tools/voice_modal.py`, `boss/VoiceLines.java`, `client/BossFace.java`, `client/BossModel.java`, `assets/papon/voice/boss2.json`, `sounds/voice/boss2/` |
 
 ### The boss fight (status 2026-10-02: built; tested headless and with the autoshot client)
@@ -395,6 +406,45 @@ player and were not exercised headless.
 - **Voices:** in phase two he speaks with the cloned voice (see "Phase-two voice"); the hype and the solo use
   lines already recorded (charm1, landed1, charm5), so they need no new takes.
   The band speaks in bubbles with babble, like the Taco Truck crowd.
+
+### Phase three, "Para Siempre" (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=phase3`)
+- **Trigger**: a hit that takes him to ≤ 50% (`PHASE_THREE_AT`) in phase two sets `phaseThreeDue` (and where it came
+  from); the next tick he is free (not a cutscene, QTE, the van, or the coliseum's own beats before the band plays)
+  `startPhaseThree` knocks him out of whatever he was doing. A reload mid-cutscene starts it again from the top
+  (`DATA_PHASE3` is only set at the band's drop). `/papon bossstate P3_KNOCKBACK` forces it (health to just under half).
+- **Beats** (`BossState`, all cutscene/invulnerable; timed by `gen_boss_voice.beats` `glare.* snatch.* serenade.*
+  verdict.* toss.* dance.*`): P3_KNOCKBACK 50t (scripted flight from the hitter, lands t14, skid to t26, up from 34;
+  the band stops; `SongPlayer` winds the record down in pitch) → P3_GLARE (heartbeat, the maraca drop, "This... is
+  NOT... my style." `notstyle`, "Let me show you how to REALLY play." `realplay`) → P3_STALK (walks to `wakeSpot`,
+  thuds, the band cowers) → P3_SNATCH ("Give me THAT." `gimme`; `MariachiEntity.rob()`: `DATA_ROBBED` hides the
+  singer's requinto, the boss shows `p3_guitar_carry`) → P3_RETURN (to the middle; `Coliseum.braziers()` put out in
+  order round the bowl as he covers the distance, `DATA_NIGHT` up to 0.6) → P3_BLACKOUT 50t (all out, night 1,
+  `DATA_SPOT` at t30) → P3_SERENADE (`serenade.end`: the song's `serenade` segment, 0-18.36 s: guitar alone, then
+  voice and guitar; the band AWED; the crowd LIGHTERS mood, `ColiseumCrowdEntity.lighters` spreading 0→1) →
+  P3_VERDICT ("THIS... is more my style. Learn, muchachos." `mystyle`) → P3_TOSS (a `BossProp` GUITAR on a ballistic
+  arc to the singer, `catchGuitar` at toss.catch; then **a pause** (the user asked for it): from `toss.glance` the band
+  are NERVOUS (look at each other, `nervous_a/_b`), the stands hush, he waits with his back to them tapping his foot,
+  and only at `toss.go` (~3 s on) whirls round: "What are you WAITING for?! GO!!!" `go`; at the end the band
+  `play(start, Song.PARA_SIEMPRE)` from the **pickup**) → P3_DANCE (the singer's a cappella pickup; at `dance.drop`
+  the band comes in: braziers relit **crimson** (`lightsCrimson`), fireworks, `DATA_PHASE3`, bar "Para Siempre",
+  night held at `NIGHT_P3`; "Now... let's DANCE." `dance`; title) → IDLE. No coliseum: knockback → P3_DANCE.
+- **The song** (`gen_song.py --song para_siempre`: htdemucs_6s, cache `tools/.cache/song_p3`): 6/8 at ~103 tracked
+  bpm (3 beats a bar). Segments: `serenade` 0-18.36 (level `cutscene`, his), `pickup` 18.36-20.46 (`intro`, the
+  singer alone), verse1 (mid), chorus1 (high), break (low, guitar), verse2 (mid), climax (high), ending (end).
+  Trumpets/violins from the 6-stem `other` stem's loudness. `Song.get(id)`; `SongPlayer.song()` is what plays;
+  sounds `music.para_siempre.<id>`. Singing in the serenade is the record's own vocal (Rhubarb mouth shapes →
+  `BossFace`), his hands are `BossModel` (poses solved by `gen_boss_anims.guitar_poses`, keep `STRUM/FRET_*` in step).
+- **Camera** (the user: "more close-ups on his face"): `Cinematic.phaseThreeShot` frames almost every beat at his face,
+  aimed by `yBodyRot` (the model), not his head yaw; the serenade's guitar intro (to his first sung word) is cut between
+  him from every side, the stands lighting up, the band in awe; the stands are near silent while he plays
+  (`CrowdSounds`: LIGHTERS bed 0.05). Foil potatoes are not drawn in the cutscene. His aura goes **crimson** from the drop
+  (`BossRenderer.aura`: flares, then smoulders through the fight).
+- **Night** (`client/NightLight`): the coliseum has full skylight, so the client darkens the lightmap (reflection on
+  `LightTexture`: forces vanilla's rebuild each frame, then scales skylight by `1 - night`, keeps block light, tints
+  it crimson once `isPhaseThree`; cell (15,15) stays white for his spotlight), covers the sky with a black box after
+  the sky pass, and blacks the fog. **Spotlight**: `BossRenderer.drawSpotlight` (two additive cones from 30 up and a
+  pool on the sand), him drawn full-bright, white-ash motes. **Braziers** `ArenaBrazierBlock.LIT/CRIMSON` (models
+  `arena_brazier_out/_crimson`, `gen_blocks.py`).
 
 ### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
 - **From the kneel on he talks in English, in a cloned voice** (the user's reference: Spanish-accented English,

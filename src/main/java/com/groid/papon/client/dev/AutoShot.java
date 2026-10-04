@@ -51,6 +51,8 @@ public final class AutoShot {
     private static final boolean VOICE = MODE.equals("voice");
     /** -Pautoshot=arena: into the coliseum, then the arena attacks one by one (meteor, fryer, masher, heckle, salsa burst), containment and the portal checked. */
     private static final boolean ARENA = MODE.equals("arena");
+    /** -Pautoshot=phase3: phase two into the coliseum and the song, then half health: phase three's cutscene beat by beat, and the night fight. */
+    private static final boolean PHASE3 = MODE.equals("phase3");
     /** -Pautoshot=nights: into the coliseum, then the flags, the crowd up close, the potato sun, nightfall (the lamplighter), the potato moon. */
     private static final boolean NIGHTS = MODE.equals("nights");
     /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
@@ -88,7 +90,7 @@ public final class AutoShot {
             ending(mc);
             return;
         }
-        if (COLISEUM || VOICE || ARENA || NIGHTS) {
+        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3) {
             coliseum(mc);
             if (VOICE) voice(mc);
             return;
@@ -353,6 +355,10 @@ public final class AutoShot {
         }
         if (colMark > 0 && NIGHTS) {
             nightsTour(mc, b, tick - colMark);
+            return;
+        }
+        if (colMark > 0 && PHASE3) {
+            phaseThreeTour(mc, b, tick - colMark);
             return;
         }
         // the band, member by member, while they play (from the front, a few blocks off)
@@ -775,6 +781,65 @@ public final class AutoShot {
             PaponMod.LOG.info("[autoshot] asleep: {} at {}", sp.isSleeping(), head);
         });
     }
+
+    /** Phase three: knocked down at half health, the cutscene shot by shot (through the cinematic camera), then the night fight. */
+    private static void phaseThreeTour(Minecraft mc, PaponBossEntity b, int k) {
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        if (k == 2) {
+            run("gamemode survival");
+            run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~7");
+        }
+        if (k == 60) run("papon bossstate P3_KNOCKBACK");
+        if (k > 60 && !com.groid.papon.client.Cinematic.isActive() && !s.phaseThree()) lookAt(mc, b);
+        String n = switch (s) {
+            case P3_KNOCKBACK -> t == 8 ? "t01_flung" : t == 15 ? "t02_impact" : t == 26 ? "t03_down" : t == 44 ? "t04_rising" : null;
+            case P3_GLARE -> t == 10 ? "t05_wipe" : t == 36 ? "t06_eyes" : t == 66 ? "t07_singer_sweats" : t == 102 ? "t08_not_my_style"
+                    : t == com.groid.papon.boss.VoiceLines.beat("glare.realplay", 100) + 30 ? "t09_really_play" : null;
+            case P3_STALK -> t == 20 ? "t10_stalk" : t == 60 ? "t10b_stalk" : null;
+            case P3_SNATCH -> t == 10 ? "t11_looming" : t == com.groid.papon.boss.VoiceLines.beat("snatch.grab", 22) + 3 ? "t12_rip"
+                    : t == com.groid.papon.boss.VoiceLines.beat("snatch.grab", 22) + 50 ? "t13_band_cowers" : null;
+            case P3_RETURN -> t == 30 ? "t14_lights_out" : t == 90 ? "t15_lights_out2" : null;
+            case P3_BLACKOUT -> t == 22 ? "t16_black" : t == 34 ? "t17_spotlight" : t == 48 ? "t18_spot_on_him" : null;
+            case P3_SERENADE -> t == 40 ? "t19_orbit" : t == 100 ? "t20_stands" : t == 130 ? "t20b_band_watching" : t == 200 ? "t21_lighters"
+                    : t == 260 ? "t22_sings" : t == 306 ? "t22b_power_builds" : t == 318 ? "t23_ascension_flash" : t == 336 ? "t23b_wings_unfurl"
+                    : t == 352 ? "t23c_wings_open" : t == 366 ? "t23d_band_awe" : t == 376 ? "t24_last_chord" : null;
+            case P3_VERDICT -> t == 30 ? "t25_more_my_style" : t == 70 ? "t26_learn" : null;
+            case P3_TOSS -> t == 14 ? "t27_toss" : t == 30 ? "t28_flight" : t == 46 ? "t29_catch" : t == 80 ? "t29b_band_glances" : null;
+            case P3_FELT -> t == 8 ? "t30_ascended" : t == 50 ? "t30b_felt" : t == 110 ? "t30c_evil_smile" : null;
+            case P3_TO_CAR -> t == 20 ? "t31_to_car" : null;
+            case P3_CRUSH -> t == 16 ? "t32_lift" : t == 50 ? "t32b_crush" : t == 80 ? "t32c_ball" : t == 96 ? "t32d_reform" : t == 116 ? "t32e_skyline"
+                    : t == 135 ? "t32f_underglow" : t == 170 ? "t32g_lets_dance" : null;
+            case P3_GO -> t == 14 ? "t33_go" : null;
+            case P3_DANCE -> t == 20 ? "t34_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 20 ? "t35_fire_back" : t == 90 ? "t36_stance" : null;
+            default -> null;
+        };
+        if (n != null) once(mc, n);
+        if (b.isPhaseThree() && s == BossState.IDLE && p3Mark < 0) p3Mark = k;
+        if (p3Mark > 0) {
+            int j = k - p3Mark;
+            if (j == 2) PaponBossEntity.devFrozen = true;
+            if (j == 4) run("gamemode spectator");
+            if (j == 6) tpLook(b.position().add(4, 2, 8), b.position().add(0, 2, 0));
+            if (j == 20) shot(mc, "t37_night_fight");
+            if (j == 22) tpLook(b.position().add(0, 18, 26), b.position());
+            if (j == 40) shot(mc, "t38_night_bowl");
+            if (j == 42) PaponMod.LOG.info("[autoshot] night fps {}", mc.getFps());
+            if (j == 44) {
+                PaponBossEntity.devFrozen = false;
+                run("gamemode survival");
+                run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~7");
+            }
+            if (j == 140) shot(mc, "t39_fighting_at_night");
+            if (j == 240) shot(mc, "t40_fighting_at_night2");
+            if (j == 260) run("kill @e[type=papon:papon_boss]");
+            if (j == 330) shot(mc, "t41_his_fall");
+            if (j == 420) mc.stop();
+        }
+        if (k > 60 * 20 * 4) mc.stop();
+    }
+
+    private static int p3Mark = -1;
 
     @Nullable private static com.groid.papon.boss.VoiceLines.Line lastLine;
     private static int lastLineTick;

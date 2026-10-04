@@ -61,8 +61,13 @@ public class BossProp extends Entity {
         /** El Machacador: the giant masher, its plate (with the holes: boss/Masher) at this height; radius = height over the sand. */
         MASHER,
         /** ¡Estampida!: a giant potato at the edge of the sand; waits its warning, then rolls straight across. */
-        ROLLER
+        ROLLER,
+        /** Phase three: the singer's requinto, thrown back to him over the boss's shoulder, end over end on an arc. */
+        GUITAR
     }
+
+    /** GUITAR: the pull down on its arc each tick. */
+    private static final double TOSS_G = 0.05;
 
     private static final EntityDataAccessor<Integer> DATA_KIND = SynchedEntityData.defineId(BossProp.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> DATA_RADIUS = SynchedEntityData.defineId(BossProp.class, EntityDataSerializers.FLOAT);
@@ -122,6 +127,14 @@ public class BossProp extends Entity {
         this.aim = to;
         this.life = ticks;
         setDeltaMovement(to.subtract(position()).scale(1.0 / ticks));
+        return this;
+    }
+
+    /** A throw on an arc that lands on {@code to} in {@code ticks} (both sides fly it the same way). */
+    public BossProp toss(Vec3 to, int ticks) {
+        this.life = ticks;
+        Vec3 d = to.subtract(position());
+        setDeltaMovement(new Vec3(d.x / ticks, (d.y + TOSS_G * ticks * (ticks - 1) / 2.0) / ticks, d.z / ticks));
         return this;
     }
 
@@ -192,6 +205,10 @@ public class BossProp extends Entity {
             case TOT, TOT_SMALL -> tickTot(level, boss);
             case PRODUCE -> tickProduce(level, boss);
             case METEOR -> move();
+            case GUITAR -> {
+                move();
+                setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+            }
             case BURRITO -> {
                 Entity f = followId == null ? null : level.getEntity(followId);
                 if (!(f instanceof LivingEntity le) || !le.isAlive() || !com.groid.papon.event.StunEvents.burrito(le)) {
@@ -222,6 +239,10 @@ public class BossProp extends Entity {
                 }
             }
             case TOT, TOT_SMALL, PRODUCE -> move();
+            case GUITAR -> {
+                move();
+                setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+            }
             case METEOR -> {
                 move();
                 Vec3 v = getDeltaMovement().normalize();

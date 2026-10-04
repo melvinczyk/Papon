@@ -37,6 +37,9 @@ public final class SongPlayer {
     private static final double RANGE = 96;
 
     @Nullable private static Song.Segment current;
+    /** The song playing (phase two's or phase three's). */
+    @Nullable private static Song song;
+    private static int songId = -1;
     /** Client game tick (fractional) the current segment's first beat falls on. */
     private static double currentAt;
     @Nullable private static Segment playing;
@@ -49,6 +52,12 @@ public final class SongPlayer {
 
     public static boolean isActive() {
         return active && current != null;
+    }
+
+    /** The song now playing (its lip sync, beats, the band's parts); phase two's when nothing plays. */
+    @Nullable
+    public static Song song() {
+        return isActive() && song != null ? song : Song.get();
     }
 
     /** Seconds into the recording now (NaN when the song is not playing). */
@@ -72,9 +81,13 @@ public final class SongPlayer {
 
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
-        Song song = Song.get();
-        if (mc.level == null || mc.player == null || song == null || !PaponConfig.BOSS_MUSIC.get()) {
+        if (mc.level == null || mc.player == null || Song.get() == null || !PaponConfig.BOSS_MUSIC.get()) {
             stop();
+            return;
+        }
+        PaponBossEntity boss = boss(mc);
+        if (boss != null && boss.getBossState().bandStopped()) {
+            phaseThree(mc, boss);
             return;
         }
         MariachiEntity singer = singer(mc);
@@ -83,16 +96,22 @@ public final class SongPlayer {
             return;
         }
         long now = mc.level.getGameTime();
-        if (singer.songStart() != runStart) {
+        if (singer.songStart() != runStart || singer.songId() != songId) {
             stop();
             runStart = singer.songStart();
+            songId = singer.songId();
         }
+        Song song = Song.get(songId);
+        if (song == null) {
+            stop();
+            return;
+        }
+        SongPlayer.song = song;
         active = true;
         mc.getMusicManager().stopPlaying();
-        PaponBossEntity boss = boss(mc);
         if (boss != null && boss.getBossState() == BossState.DEATH && !ending) {
             // his fall: the song's own last line and final hit, right now
-            Song.Segment end = song.byId("ending");
+            Song.Segment end = song.byLevel("end");
             if (end != null) {
                 if (playing != null) playing.fadeOut();
                 ending = true;
@@ -105,9 +124,9 @@ public final class SongPlayer {
             Song.Segment intro = song.intro();
             double late = (now - first) / 20.0;
             if (late < -intro.pre() - 0.05) return;                       // still counting in
-            if (late > intro.length() * Song.introPasses()) {
+            if (late > intro.length() * passes(song)) {
                 // joined (or came back) mid-song: straight in with a segment that suits the fight
-                introPasses = Song.introPasses();
+                introPasses = passes(song);
                 Song.Segment s = choose(song, intro, boss);
                 begin(mc, s, now + s.pre() * 20);
             } else {
@@ -123,8 +142,49 @@ public final class SongPlayer {
         if (now >= endAt - next.pre() * 20 - 0.5) begin(mc, next, endAt);
     }
 
+    /** Passes of the intro before the song moves on: phase two's guitar intro covers his apology; phase three's pickup plays once. */
+    private static int passes(Song song) {
+        return song == Song.get() ? Song.introPasses() : 1;
+    }
+
+    /**
+     * Phase three's cutscene: the band's song grinds to a halt as he is knocked out of the air (the record
+     * slowing down under it), then silence; in the spotlight his own serenade (the song's opening, his guitar
+     * and his voice), left to ring out under "Learn, muchachos"; the band takes the song back from the pickup.
+     */
+    private static void phaseThree(Minecraft mc, PaponBossEntity boss) {
+        BossState st = boss.getBossState();
+        mc.getMusicManager().stopPlaying();
+        if (st == BossState.P3_SERENADE) {
+            Song ps = Song.get(Song.PARA_SIEMPRE);
+            Song.Segment seren = ps == null ? null : ps.byId("serenade");
+            if (seren == null) return;
+            if (current != seren) {
+                if (playing != null) playing.fadeOut();
+                song = ps;
+                songId = Song.PARA_SIEMPRE;
+                active = true;
+                ending = false;
+                long now = mc.level.getGameTime();
+                begin(mc, seren, now - boss.ticksInState() + com.groid.papon.boss.VoiceLines.beat("serenade.start", 4));
+            }
+            return;
+        }
+        if (current != null && current.id().equals("serenade")) return;      // the last chord rings on under his lines
+        if (playing != null && !playing.fading) {
+            if (st == BossState.P3_KNOCKBACK) playing.windDown();
+            else playing.fadeOut();
+        }
+        playing = null;
+        current = null;
+        introPasses = 0;
+        ending = false;
+        active = false;
+        runStart = 0;
+    }
+
     private static void begin(Minecraft mc, Song.Segment s, double at) {
-        if (s.id().equals("intro")) introPasses++;
+        if (s.level().equals("intro")) introPasses++;
         if (s.id().startsWith("solo") && !ending) {
             // the singer's guitar solo: the server may cut to him for a moment (P2_SOLO)
             PaponBossEntity boss = boss(mc);
@@ -138,12 +198,12 @@ public final class SongPlayer {
 
     /** The next segment after {@code cur} for how the fight is going. */
     private static Song.Segment choose(Song song, Song.Segment cur, @Nullable PaponBossEntity boss) {
-        if (cur.id().equals("intro") && introPasses < Song.introPasses()) return cur;
+        if (cur.level().equals("intro") && introPasses < passes(song)) return cur;
         int n = song.segments.size();
         Song.Segment natural = null;
         for (int k = 1; k <= n; k++) {
             Song.Segment s = song.segments.get((cur.index() + k) % n);
-            if (!s.level().equals("intro") && !s.level().equals("end")) {
+            if (Song.pickable(s)) {
                 natural = s;
                 break;
             }
@@ -213,8 +273,10 @@ public final class SongPlayer {
         private boolean fading;
         private float level = 1F;
 
+        private int winding = -1;
+
         Segment(Song.Segment s) {
-            super(SoundEvent.createVariableRangeEvent(PaponMod.id("music.song." + s.id())), SoundSource.RECORDS,
+            super(SoundEvent.createVariableRangeEvent(PaponMod.id((song != null ? song.sounds : "music.song.") + s.id())), SoundSource.RECORDS,
                     SoundInstance.createUnseededRandom());
             looping = false;
             delay = 0;
@@ -228,6 +290,12 @@ public final class SongPlayer {
             fading = true;
         }
 
+        /** The record grinding to a halt: down in pitch as it fades (a second). */
+        void windDown() {
+            fading = true;
+            winding = 0;
+        }
+
         @Override
         public boolean canStartSilent() {
             return true;
@@ -235,7 +303,15 @@ public final class SongPlayer {
 
         @Override
         public void tick() {
-            if (fading) {
+            if (winding >= 0) {
+                winding++;
+                pitch = Math.max(0.5F, 1F - winding * 0.035F);
+                level = Math.max(0, 1F - (winding / 22F) * (winding / 22F));
+                if (level <= 0) {
+                    stop();
+                    return;
+                }
+            } else if (fading) {
                 level -= 0.08F;
                 if (level <= 0) {
                     stop();

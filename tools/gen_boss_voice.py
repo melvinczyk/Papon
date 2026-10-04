@@ -77,6 +77,9 @@ DIRECTION = {
     'sad': ('animated', 'Speak %s, heartbroken and tragic, almost crying, with long dramatic pauses.' % STAR),
     'surprised': ('animated', 'Speak %s, in shocked disbelief, with dramatic pauses.' % STAR),
     'drunk': ('animated', 'Speak %s, drunk and slurring, wobbly and indignant.' % STAR),
+    'cold': ('animated', 'Speak %s: cold, quiet and deadly serious, low and slow, with a long dramatic pause at the ellipsis.' % STAR),
+    'evil': ('animated', 'Speak %s: low, slow and dangerous, savouring every word like a villain who has just remembered his power, with long dramatic pauses at the ellipses, stretching the long vowels.' % STAR),
+    'contempt': ('animated', 'Speak %s: seething with quiet contempt, offended to the core, slow, with dramatic pauses at the ellipses.' % STAR),
 }
 
 # line -> (text, mood). The text is directed: capitals are stressed, an ellipsis is a pause (one at most, and
@@ -160,9 +163,21 @@ LINES = {
     'hit1':       ("You will PAY for that, in TACOS.", 'angry'),
     'landed0':    ("Gracias, gracias. You are TOO kind.", 'smug'),
     'landed1':    ("And the crowd goes WILD!!!", 'shout'),
+    # phase three: half health, the band's song is not his style; he takes the guitar and shows them
+    'notstyle':   ("This... is NOT... my style.", 'contempt'),
+    'realplay':   ("Let me show you how to REALLY play.", 'sly'),
+    'gimme':      ("Give me THAT.", 'angry'),
+    'mystyle':    ("THIS... is more my style. Learn, muchachos.", 'smug'),
+    'go':         ("What are you WAITING for?! GO!!!", 'shout'),
+    'dance':      ("Now... let's DANCE.", 'cold'),
+    'felt':       ("Hmmm... I haven't felt this way... in a LOOOOONG time.", 'evil'),
+    # the ascension: in pain, the wings tearing out of his back
+    'groan1':     ("Nnngh... hhhAAAGH... AAAAAGH!", 'pained'),
+    'groan2':     ("Hhhhh... HAAAAAAGH!!!", 'pained'),
+    'ascend':     ("RRRAAAAAAAAAAAGH!!!", 'shout'),
 }
 
-NO_CHECK = {'charm5', 'vendor_exposed'}          # Whisper cannot judge a scream or a lone word
+NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend'}          # Whisper cannot judge a scream or a lone word
 
 
 def norm(s):
@@ -283,8 +298,14 @@ def heard_energy(heard):
     return heard.count('!'), caps, stretch
 
 
+# takes chosen by ear over the automatic pick: line -> take index
+PICKED = {'felt': 2}          # "Mmm... I haven't felt this way in a loo-oong time." (the stretched "long")
+
+
 def pick(line, info):
     """The most expressive take that says the line (Whisper), sounds like him and is not cut off."""
+    if line in PICKED and PICKED[line] < len(info['takes']):
+        return PICKED[line], (0,)
     text, mood = LINES[line]
     loud = '!' in text
     cands = []
@@ -464,6 +485,60 @@ def beats(lengths):
     fight = int(round(intro * b['song.passes'] * 20))
     b['apology.end'] = fight - SHOWTIME - b['resume.total'] - HYPE
     b['apology.wink'] = b['apology.aura'] + min(40, (b['apology.end'] - b['apology.aura']) // 2)
+    # phase three (half health). Up off the sand, the lip wiped, his eyes slide over to the band; a maraca drops in
+    # the silence. "This... is NOT... my style." A beat. "Let me show you how to REALLY play."
+    b['glare.maraca'] = 54
+    b['glare.notstyle'] = 82
+    b['glare.realplay'] = b['glare.notstyle'] + L('notstyle') + 18
+    b['glare.end'] = b['glare.realplay'] + L('realplay') + 12
+    # looming over the singer: "Give me THAT." and the guitar ripped out of his hands on the last word
+    b['snatch.gimme'] = 6
+    b['snatch.grab'] = max(18, b['snatch.gimme'] + L('gimme') - 6)
+    b['snatch.end'] = b['snatch.grab'] + 76         # holds on the band cowering after the rip
+    # in the spotlight: the serenade is the song's first 18 s (guitar and voice), the last chord left ringing
+    ps = json.load(open(os.path.join(ASSETS, 'song/para_siempre.json')))
+    seren = next(s['length'] for s in ps['segments'] if s['id'] == 'serenade')
+    pickup = next(s['length'] for s in ps['segments'] if s['id'] == 'pickup')
+    b['serenade.start'] = 4
+    b['serenade.end'] = b['serenade.start'] + int(math.ceil(seren * 20)) + 12
+    # the ascension (before the song, in the spotlight): bent double, a groan, a worse one, the wings tear out of his
+    # back (ascend.burst: the flash, his new form), the roar
+    b['ascend.groan1'] = 14
+    b['ascend.groan2'] = b['ascend.groan1'] + L('groan1') + 12
+    b['ascend.burst'] = b['ascend.groan2'] + L('groan2') + 2
+    b['ascend.roar'] = b['ascend.burst'] + 8
+    b['ascend.end'] = b['ascend.roar'] + L('ascend') + 34
+    # the guitar down from his chin, the chord dying: "THIS... is more my style. Learn, muchachos."
+    b['verdict.line'] = 10
+    b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
+    # over his shoulder without looking (toss.throw), the singer juggles it and has it (toss.catch); then nothing:
+    # the band look at each other, scared, nobody moves (toss.glance on)
+    b['toss.throw'] = 20
+    b['toss.catch'] = 42
+    b['toss.glance'] = 58
+    b['toss.end'] = b['toss.glance'] + 40
+    # he turns to you, slowly, the power going through him: "Hmmm... I haven't felt this way... in a LOOOOONG
+    # time." and an evil smile, held
+    b['felt.line'] = 14
+    b['felt.smile'] = b['felt.line'] + L('felt') + 2
+    b['felt.end'] = b['felt.smile'] + 40
+    # his car: hoisted over his head, crushed in his hands into a ball, reformed in a flash into a black Skyline
+    # that grows in his hands and is slammed down on its wheels; it revs
+    b['crush.lifted'] = 14
+    b['crush.squeeze'] = 18
+    b['crush.ball'] = 42
+    b['crush.reform'] = 52
+    b['crush.down'] = 66
+    b['crush.rev'] = 76
+    b['crush.end'] = 96
+    # he whirls round on the band: "What are you WAITING for?! GO!!!"
+    b['go.line'] = 8
+    b['go.end'] = b['go.line'] + L('go') + 4
+    # the singer's pickup, a cappella, then the band crashes in and the fire comes back; and at the very end, very
+    # quietly: "Now... let's DANCE."
+    b['dance.drop'] = int(round(pickup * 20))
+    b['dance.line'] = b['dance.drop'] + 44
+    b['dance.end'] = b['dance.line'] + L('dance') + 24
     return b
 
 
