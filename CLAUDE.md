@@ -534,6 +534,12 @@ player and were not exercised headless.
   New: `p3_hurt`, `p3_noise`, `p3_power`, `upgrade`, `qte_strong/weak/crush/slip/quick/slow`, `tango_good/bad`, `duel_good/bad`,
   `p3_sombrero/volcan/calaveras/swing`; `notstyle` is "This is NOT my style... who do you think I AM?!". `SPOKEN` (line -> what
   the TTS is given) for words it misreads; Whisper and the bubble still use `LINES`.
+- **Voice, more human (the user: "awkward, not natural; more emotion, charisma, vocal difference")**: all 128 lines retaken.
+  Lines rewritten as speech (natural phrasing, contractions, a word or two in capitals at most, little sounds: "heh", "ay",
+  "mmm"); every `DIRECTION` starts with `NATURAL` (talk like a real person: pitch rising and falling, pace changing, words
+  leaned into) and gives a vivid emotion; sampling `GEN` temperature 1.0, each take ±0.07 (`voice_modal`); 12 takes a line;
+  `pick` scores pitch range most (to 16 semitones, shrill past 20), then loudness swing, then likeness. `intro` is checked
+  by `lives_ok` (formants of the vowel before the v) instead of a pinned take.
 - **Blush**: `blush` is in `B.pins`; only `chug`, `drink_handle`, `drunk_swig` show it (fading out in `roar`, `enter_car`,
   `drunk_flurry`, `haymaker`).
 - **No hint text**: every boss-fight `displayClientMessage` hint is gone (the `status.papon.*` lang keys are unused now).

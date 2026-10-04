@@ -103,6 +103,9 @@ def clone(refs: dict, lines: list, takes: int = 4) -> dict:
         for k in range(line.get('seed0', 0), line.get('seed0', 0) + takes):
             torch.manual_seed(1000 * k + 7)
             np.random.seed(1000 * k + 7)
+            if 'temperature' in (line.get('gen') or {}):
+                # each take a little warmer or cooler than the next: more variety in the delivery to pick from
+                gen['temperature'] = line['gen']['temperature'] + 0.07 * ((k % 3) - 1)
             wavs, sr = model.generate_voice_clone(text=line['text'], language=line.get('language', 'English'),
                                                   voice_clone_prompt=prompts[line['ref']], **gen)
             wav = np.asarray(wavs[0], dtype=np.float32)

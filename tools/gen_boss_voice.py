@@ -51,15 +51,155 @@ ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
 CACHE = os.path.join(ROOT, 'tools/.cache/voice')
 REFERENCE = os.path.join(ROOT, 'tools/src/voice/reference.mp3')
 RHUBARB = sorted(glob.glob(os.path.join(ROOT, 'tools/.cache/rhubarb/Rhubarb-Lip-Sync-*/rhubarb*')))
-TAKES = 8
+TAKES = 12
 RATE = 50                      # Hz of the env / pitch / accent tracks
 # the Modal profile to run on: PAPON_MODAL_PROFILE, else whichever profile is active (~/.modal.toml)
 MODAL_PROFILE = os.environ.get('PAPON_MODAL_PROFILE')
 # Without the reference recording (it is gitignored: a fresh checkout has none), the clone is taken from his own
 # lines already built: the same voice, so new lines match the old ones. name -> lines, joined with a breath
 REFS_FROM_LINES = {
-    'animated': ['apology', 'charm3'],
-    'excited': ['intro', 'despierten'],
+    # (rewritten 2026-10-04 to sound like a man talking, not reading: natural phrasing, a word or two leaned on, the
+    # little sounds people make; the bubbles show them as written)
+    # ---- the transformation (on the ground)
+    'bleed':      ("Heh... heh heh. You made me bleed, amigo.", 'pained'),
+    'enough':     ("Okay. Okay, okay... enough playing around.", 'smug'),
+    'salt':       ("Just a little bit of salt...", 'warm'),
+    'golden':     ("Mmm! And nice and golden.", 'warm'),
+    # ---- El Coliseo Papa
+    'listos':     ("Are you READY?!", 'shout'),
+    'musica':     ("Music, maestro!", 'shout'),
+    'maestro':    ("Maestro? ...Maestro?!", 'surprised'),
+    'despierten': ("Wake UP, you lazy bums! We have an audience!", 'angry'),
+    'momentito':  ("One moment, amigo. Just one little moment.", 'warm'),
+    'ay':         ("Oh, no. No, no, no!", 'surprised'),
+    'gordo':      ("You too, Gordo! Get UP!", 'angry'),
+    'apology':    ("My apologies, amigo. Such poor hospitality, making my guest wait like that.", 'warm'),
+    'resume':     ("So... where were we?", 'sly'),
+    # ---- the fight (his old lines, in English now)
+    'salud':      ("Cheers, amigo!", 'shout'),
+    'intro':      ("Nobody sees my bald head and LIVES to tell!", 'angry'),
+    'taunt0':     ("I'm going to make tacos out of you, amigo.", 'sly'),
+    'taunt1':     ("My bald head shines brighter than your future!", 'smug'),
+    'taunt2':     ("Come here, you coward!", 'angry'),
+    'taunt3':     ("Ahh, this is pure salsa!", 'sly'),
+    'keys':       ("Now where did I leave my keys? Ah! Here they are!", 'surprised'),
+    'handle':     ("One little sip for the road...", 'sly'),
+    'ram':        ("Out of my WAY!", 'shout'),
+    'again':      ("Again! Again!", 'shout'),
+    'reverse':    ("And now in reverse!", 'shout'),
+    'stumble':    ("Whoa... who moved the floor?", 'drunk'),
+    'stolen':     ("Hey! That's MY van!", 'angry'),
+    'phase':      ("Now I'm really mad!", 'angry'),
+    'death':      ("My hair... my beautiful hair...", 'sad'),
+    'kick':       ("Here it comes!", 'shout'),
+    'bail':       ("This is my stop!", 'shout'),
+    'door':       ("Ooh, mind the door!", 'sly'),
+    'meteor':     ("It's raining potatoes!", 'shout'),
+    'catch':      ("Catch!", 'shout'),
+    'foil':       ("My tinfoil! You animal!", 'angry'),
+    'grab':       ("Gotcha, amigo.", 'sly'),
+    'torch':      ("Nice and golden...", 'warm'),
+    'season':     ("And a pinch of salt!", 'sly'),
+    'toss':       ("On the grill!", 'shout'),
+    'dodge':      ("Ha! You didn't even touch me!", 'smug'),
+    'burrito':    ("One burrito... to go!", 'sly'),
+    'borracho':   ("I'm fine! I'm fine, I'm fine!", 'drunk'),
+    'haymaker':   ("I told you I was fine!", 'drunk'),
+    'brick':      ("You drive. I hit.", 'sly'),
+    'qte0':       ("Your last supper, amigo.", 'sly'),
+    'qte1':       ("Last call! Open wide!", 'shout'),
+    'qte2':       ("Mashed tourist!", 'shout'),
+    'qte_broken': ("Ow! Ow, my back!", 'pained'),
+    'gravity':    ("Everything revolves around the potato!", 'shout'),
+    'echoes':     ("The three chefs!", 'shout'),
+    # ---- the Taco Truck: Papon the Taquero (him in disguise), said as speech.papon.boss2.vendor_*
+    'vendor_order0':     ("Coming right up!", 'warm'),
+    'vendor_order1':     ("It's coming out right now, my friend!", 'warm'),
+    'vendor_order2':     ("But of course, amigo!", 'warm'),
+    'vendor_serve0':     ("Enjoy your meal!", 'warm'),
+    'vendor_serve1':     ("Here you go, amigo!", 'warm'),
+    'vendor_serve2':     ("Enjoy it, my friend!", 'warm'),
+    'vendor_inspect':    ("Ooh, a coupon? Let me see, let me see...", 'warm'),
+    'vendor_suspicious': ("Hmm... this doesn't look right.", 'sly'),
+    'vendor_fraud':      ("A fake coupon?! Fraud! Nobody steals MY tacos!", 'angry'),
+    'vendor_exposed':    ("Heh. Heh heh heh.", 'sly'),
+    'vendor_unmask':     ("You want the truth? Here's the truth!", 'angry'),
+    'vendor_realize':    ("Wait... no, no. Don't look!", 'surprised'),
+    'vendor_rage':       ("What are you LOOKING at?!", 'shout'),
+    # ---- his charm in the coliseum (phase-two taunts and reactions)
+    'charm0':     ("Come on, amigo. Dance with me.", 'sly'),
+    'charm1':     ("Listen to them. They love me!", 'smug'),
+    'charm2':     ("Ay, you're making me sweat, and I'm already baked!", 'warm'),
+    'charm3':     ("Every great potato needs a worthy audience.", 'smug'),
+    'charm4':     ("Don't worry, I'll make this quick. And beautiful.", 'sly'),
+    'charm5':     ("Olé!", 'shout'),
+    'hit0':       ("Ah! Not the face!", 'pained'),
+    'hit1':       ("You'll pay for that. In tacos.", 'angry'),
+    'landed0':    ("Gracias, gracias. You're too kind.", 'smug'),
+    'landed1':    ("And the crowd goes wild!", 'shout'),
+    # phase three: half health, the band's song is not his style; he takes the guitar and shows them
+    'notstyle':   ("This is NOT my style! Who do you think I am?!", 'angry'),
+    'realplay':   ("Let me show you how to really play.", 'sly'),
+    'gimme':      ("Give me that.", 'angry'),
+    'mystyle':    ("Now THAT is more my style. Learn, muchachos.", 'smug'),
+    'go':         ("What are you waiting for?! Go!", 'shout'),
+    'dance':      ("Now... let's dance.", 'cold'),
+    'felt':       ("Mmm... I haven't felt like this in a long time.", 'menace'),
+    # (2026-10-04) the knockback: beaten, getting up; the noise of the band in his ears; the power after the ascension;
+    # the car before he crushes it
+    'p3_hurt':    ("Ugh... okay. That one hurt.", 'pained'),
+    'p3_noise':   ("What... what is that noise?", 'contempt'),
+    'p3_power':   ("Whoa. Whoa, whoa... so much power.", 'surprised'),
+    'upgrade':    ("You know what? It's about time I gave this thing an upgrade.", 'menace'),
+    # the QTEs: his charm while he has you (the squeeze reacts to how you mash)
+    'qte_strong': ("Ay! You're stronger than you look, amigo!", 'surprised'),
+    'qte_weak':   ("Shh, shh... just let it happen.", 'sly'),
+    'qte_crush':  ("Like an avocado!", 'shout'),
+    'qte_slip':   ("You slippery little potato!", 'angry'),
+    'qte_quick':  ("Ooh, quick hands, amigo.", 'smug'),
+    'qte_slow':   ("Too slow, amigo!", 'smug'),
+    'tango_good': ("Ooh, you can dance, amigo!", 'smug'),
+    'tango_bad':  ("Two left feet, amigo. Two left feet.", 'smug'),
+    'duel_good':  ("Not bad, amigo. Not bad at all!", 'surprised'),
+    'duel_bad':   ("Is that a guitar, or a broom?!", 'smug'),
+    # the ascension: in pain, the wings tearing out of his back
+    'groan1':     ("Nnngh... hhhAAAGH... AAAAAGH!", 'pained'),
+    'groan2':     ("Hhhhh... HAAAAAAGH!!!", 'pained'),
+    'ascend':     ("RRRAAAAAAAAAAAGH!!!", 'shout'),
+    # ---- Ascended Papon's fight (phase three): a demigod's moves, his charm, the crowd in the palm of his hand
+    'p3_combo':     ("Feel these guns, amigo!", 'smug'),
+    'p3_flash':     ("Too slow!", 'smug'),
+    'p3_comet':     ("From the heavens, amigo!", 'shout'),
+    'p3_laser':     ("Look into my eyes, amigo.", 'sly'),
+    'p3_solar':     ("Behold! The sun of my ancestors!", 'shout'),
+    'p3_hide':      ("Hide, hide, little potato. The sun sees everything.", 'sly'),
+    'p3_mariachi':  ("Maestro! Something with a little more fire!", 'shout'),
+    'p3_duel':      ("A duel, amigo! Guitar against guitar! Let the crowd decide!", 'shout'),
+    'p3_duel_won':  ("And that, amigo, is how a legend plays.", 'smug'),
+    'p3_duel_lost': ("Impossible... they're cheering for YOU?!", 'surprised'),
+    'p3_squeeze':   ("Come here. Let me squeeze you like an avocado.", 'sly'),
+    'p3_pinata':    ("Who wants candy?!", 'shout'),
+    'p3_braziers':  ("Light up my coliseum!", 'shout'),
+    'p3_nova':      ("Feel the heat of a thousand suns, baked into one potato!", 'shout'),
+    'p3_siesta':    ("Ay... even a god needs a siesta...", 'pained'),
+    'p3_nitro':     ("Get in, amigo! Oh, wait... you're the road.", 'sly'),
+    'p3_tango':     ("Now you dance for me.", 'sly'),
+    'p3_charm0':    ("Louder! I can't hear my fans!", 'shout'),
+    'p3_charm1':    ("They came to see a god tonight, amigo. Not you.", 'smug'),
+    'p3_charm2':    ("Every star needs a little background dancer.", 'sly'),
+    'p3_charm3':    ("Smile for the cameras, amigo. This is your last show.", 'sly'),
+    'p3_charm4':    ("Feel that? That's what perfection feels like.", 'smug'),
+    'p3_charm5':    ("Who's your favorite potato?! Say it!", 'shout'),
+    'p3_hit0':      ("Ay! Careful with the merchandise!", 'pained'),
+    'p3_hit1':      ("You dare touch a god?!", 'angry'),
+    'p3_landed0':   ("Did you see that? Did everybody see that?!", 'shout'),
+    'p3_landed1':   ("Thank you, thank you. I'm here all night.", 'smug'),
+    'p3_low':       ("No, no, no... the show must go on!", 'angry'),
+    # (2026-10-04) his new moves
+    'p3_sombrero':  ("Hats off to the champion... that's me!", 'shout'),
+    'p3_volcan':    ("Even the earth dances for me!", 'shout'),
+    'p3_calaveras': ("My ancestors would love to meet you, amigo.", 'sly'),
+    'p3_swing':     ("Swing... swing... and break!", 'shout'),
 }
 
 # The references: the same man worked up, or animated. The clone copies the delivery of the clip it is
@@ -72,23 +212,43 @@ REFS = {
 }
 
 # A direction for each mood (the Base model takes an instruction prompt too: tested against none, it
-# doubles his pitch range and keeps the voice as close to the reference)
-STAR = 'like a passionate, theatrical Spanish movie star'
+# doubles his pitch range and keeps the voice as close to the reference). Reworked 2026-10-04 (the user: "awkward, not
+# natural; more emotion, more charisma, more vocal difference like how a real person talks"): every direction asks for a
+# real person talking, not a narrator reading: the pitch rising and falling freely, the pace speeding up and slowing down,
+# words leaned into, a breath, a laugh in the voice where it belongs.
+NATURAL = ('Talk like a real person in the moment, never like a narrator reading a line: let your pitch rise and fall '
+           'freely, speed up and slow down, lean into the important words and throw the small ones away, and breathe. ')
+STAR = 'a charismatic, larger-than-life Spanish movie-star villain with a warm Mexican accent'
 DIRECTION = {
-    'shout': ('excited', 'SHOUT with explosive fury, %s: loud, intense, the words in capitals hit hardest.' % STAR),
-    'angry': ('excited', 'Furious and indignant, %s: big emotion, the words in capitals hit hardest.' % STAR),
-    'warm': ('animated', 'Speak %s: smooth, warm and charming, with dramatic pauses at the ellipses.' % STAR),
-    'smug': ('animated', 'Speak %s: smug, self-satisfied and seductive, with dramatic pauses at the ellipses.' % STAR),
-    'sly': ('animated', 'Speak %s: sly, playful and menacing, with dramatic pauses at the ellipses.' % STAR),
-    'pained': ('animated', 'Speak %s, wounded and breathless, with dramatic pauses at the ellipses.' % STAR),
-    'sad': ('animated', 'Speak %s, heartbroken and tragic, almost crying, with long dramatic pauses.' % STAR),
-    'surprised': ('animated', 'Speak %s, in shocked disbelief, with dramatic pauses.' % STAR),
-    'drunk': ('animated', 'Speak %s, drunk and slurring, wobbly and indignant.' % STAR),
-    'cold': ('animated', 'Speak %s: cold, quiet and deadly serious, low and slow, with a long dramatic pause at the ellipsis.' % STAR),
-    'evil': ('animated', 'Speak %s: low, slow and dangerous, savouring every word like a villain who has just remembered his power, with long dramatic pauses at the ellipses, stretching the long vowels.' % STAR),
-    'menace': ('animated', 'Speak %s: low, slow and dangerous, like a villain who has just remembered his power, with a dramatic pause at the ellipsis. Natural word lengths, no stretched vowels.' % STAR),
-    'contempt': ('animated', 'Speak %s: seething with quiet contempt, offended to the core, slow, with dramatic pauses at the ellipses.' % STAR),
+    'shout': ('excited', NATURAL + 'You are %s, and you are ROARING: explosive, raw, the voice cracking with fury and '
+                         'adrenaline, the stressed words hit like punches.' % STAR),
+    'angry': ('excited', NATURAL + 'You are %s, and you are furious and offended: big, hot emotion, the voice climbing as '
+                         'the anger builds, biting the stressed words.' % STAR),
+    'warm': ('animated', NATURAL + 'You are %s: warm, smooth and flirtatious, smiling as you talk, a little chuckle in the '
+                         'voice, savouring the words.' % STAR),
+    'smug': ('animated', NATURAL + 'You are %s: cocky, smug and delighted with yourself, grinning as you speak, a playful '
+                         'lilt that swoops up and down, showing off for a crowd.' % STAR),
+    'sly': ('animated', NATURAL + 'You are %s: sly and teasing, playing with your victim like a cat, a dangerous smile in '
+                        'the voice, dropping low then lifting on the punchline.' % STAR),
+    'pained': ('animated', NATURAL + 'You are %s, hurt and out of breath: winded, gasping between the words, wincing, '
+                           'the voice strained and unsteady, but proud.' % STAR),
+    'sad': ('animated', NATURAL + 'You are %s, heartbroken: the voice trembling and breaking, close to tears, slow, '
+                        'wounded.' % STAR),
+    'surprised': ('animated', NATURAL + 'You are %s, caught off guard: genuinely startled, the pitch jumping up, quick and '
+                              'breathless, disbelieving.' % STAR),
+    'drunk': ('animated', NATURAL + 'You are %s and very drunk: slurring, swaying, the pitch wobbling all over the place, '
+                          'indignant and silly.' % STAR),
+    'cold': ('animated', NATURAL + 'You are %s, suddenly deadly serious: quiet, low and controlled, the menace under '
+                         'the calm.' % STAR),
+    'evil': ('animated', NATURAL + 'You are %s, savouring your power: low, slow and dangerous, a villain who has just '
+                         'remembered what he can do.' % STAR),
+    'menace': ('animated', NATURAL + 'You are %s, savouring your power: low and dangerous, the voice purring with menace '
+                           'and a hint of a smile. Natural word lengths, no stretched vowels.' % STAR),
+    'contempt': ('animated', NATURAL + 'You are %s, seething, insulted to the core: contemptuous, the voice tight and '
+                             'clipped, then flaring up.' % STAR),
 }
+# sampling: a little warmer than the model's default (0.9), and each take a little different (voice_modal varies it)
+GEN = {'temperature': 1.0}
 
 # line -> (text, mood). The text is directed: capitals are stressed, an ellipsis is a pause (one at most, and
 # only where a pause belongs: too many and he reads word by word); the bubble shows it as written. No scream:
@@ -238,7 +398,7 @@ LINES = {
 
 # what the voice model is given to say, where the written line reads two ways ("lives": he said it like "alive")
 SPOKEN = {
-    'intro': "NOBODY sees my bald head and livs to TELL!!!",
+    'intro': "Nobody sees my bald head and livs to tell!",
     'upgrade': "It's about time I gave this thing an upgrade.",     # in capitals it came out "upi-grad"
 }
 
@@ -273,7 +433,7 @@ def signature(line):
     """What a line's takes were made from: if any of it changes, the line is taken again."""
     text, mood = LINES[line]
     ref, direction = DIRECTION[mood]
-    return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction}
+    return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction, 'gen': GEN}
 
 
 def have_ffmpeg():
@@ -326,7 +486,7 @@ def generate(lines, more=False):
     os.makedirs(os.path.join(CACHE, 'takes'), exist_ok=True)
     with modal.enable_output(), voice_modal.app.run():
         # a few containers at once
-        n = min(6, len(batch))
+        n = min(10, len(batch))
         chunks = [batch[i::n] for i in range(n)]
         for result in voice_modal.clone.map([refs] * n, chunks, [TAKES] * n):
             for line, takes in result.items():
@@ -394,8 +554,36 @@ def heard_energy(heard):
 
 
 # takes chosen by ear over the automatic pick: line -> take index
-PICKED = {'p3_duel': 3,
-          'intro': 3}         # "...and LIVES to tell": the short i (F1 about 400 Hz; the old take was "lyves", F1 about 750)       # "A duel, amigo!" (Whisper heard the picked take as "A drill")
+PICKED = {}
+
+
+def lives_ok(path):
+    """intro: "...and LIVES to tell" said with the short i (the vowel before the v: first formant under about 600 Hz), not
+    "lyves" (an open a gliding up: F1 about 750). The v found by Rhubarb (mouth shape G), the vowel the 0.2 s before it."""
+    import librosa
+    y, sr = load_mono(path)
+    y = trim(y, sr)
+    with tempfile.TemporaryDirectory() as tmp:
+        w = os.path.join(tmp, 'a.wav')
+        soundfile.write(w, y, sr, subtype='PCM_16')
+        cues = rhubarb(w, LINES['intro'][0])
+    gs = [c[0] for c in cues if c[1] == 'G']
+    if not gs:
+        return True
+    gt = gs[-1]
+    y = librosa.resample(y, orig_sr=sr, target_sr=10000)
+    f1 = []
+    for c in np.arange(gt - 0.2, gt - 0.02, 0.025):
+        seg = y[int(c * 10000):int((c + 0.03) * 10000)]
+        if len(seg) < 200:
+            continue
+        seg = seg * np.hamming(len(seg))
+        seg = np.append(seg[0], seg[1:] - 0.63 * seg[:-1])
+        r = np.roots(librosa.lpc(seg, order=12))
+        f = sorted(x for x in np.angle(r[np.imag(r) >= 0.01]) * 10000 / (2 * np.pi) if 250 < x < 3500)
+        if f:
+            f1.append(f[0])
+    return not f1 or float(np.median(f1)) < 600       # "A duel, amigo!" (Whisper heard the picked take as "A drill")
 
 
 def pick(line, info):
@@ -416,7 +604,10 @@ def pick(line, info):
         e = t['expr2']
         excl, caps, stretch = heard_energy(t['heard'])
         err = wer(text, t['heard'])
-        score = e['range'] + 0.4 * e['dyn'] + 40 * (t.get('sim') or 0)
+        # (2026-10-04) the liveliest take that still sounds like him: pitch range counts most (a voice that moves), up to
+        # where it turns shrill, then the swing in loudness; how close to his voice only breaks near-ties
+        score = 1.6 * min(e['range'], 16) - 1.5 * max(0.0, e['range'] - 20) + 0.6 * min(e['dyn'], 24) \
+            + 60 * ((t.get('sim') or 0.95) - 0.95)
         # pauses: as many as the text has (its ellipses and full stops inside it), not more; and not word by word
         allowed = text.count('...') + len(re.findall(r'[.!?](?=\s+\S)', text.replace('...', '')))
         score -= 4.0 * max(0, e['pauses'] - allowed)
@@ -426,6 +617,10 @@ def pick(line, info):
             score += 3.0 * min(excl, 3) + 2.0 * min(caps, 3)
         if mood in ('shout', 'angry'):
             score += e['bright'] / 250.0
+        if line == 'intro' and 'lives_ok' not in t:
+            t['lives_ok'] = bool(lives_ok(path))
+        if line == 'intro' and not t['lives_ok']:
+            err = 1.0                                    # "lyves": as good as the wrong words
         if line in NO_CHECK:
             # the scream / a lone word: whatever Whisper made of it, a yell (a stretched vowel), short of words
             err = max(0, len(norm(t['heard'])) - 2) / 4

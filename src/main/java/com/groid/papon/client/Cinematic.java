@@ -877,7 +877,7 @@ public final class Cinematic {
                         bandAt = VoiceLines.beat("ascend.band", crowd + 34);
                 if (t >= cut && t < cut + 22 && cut + 22 < burst - 26) {
                     // the band clutching each other as he groans
-                    return new Shot(stage.add(stageFacing.scale(6.0)).add(stageSide.scale(1.5)).add(0, 1.6, 0), stage.add(0, 1.1, 0), 52, 0, t == cut);
+                    return new Shot(stage.add(stageFacing.scale(8.0)).add(stageSide.scale(1.5)).add(0, 0.6, 0), stage.add(0, 1.4, 0), 52, 0, t == cut);
                 }
                 if (t >= crowd && t < bandAt) {
                     // the stands on their feet, screaming: from the sand, up at them
@@ -887,7 +887,7 @@ public final class Cinematic {
                 }
                 if (t >= bandAt) {
                     // the band backing away from him, then struck dumb
-                    return new Shot(stage.add(stageFacing.scale(5.5)).add(stageSide.scale(-2.0)).add(0, 1.5, 0), stage.add(0, 1.2, 0), 50, 0, t == bandAt);
+                    return new Shot(stage.add(stageFacing.scale(7.5)).add(stageSide.scale(-2.0)).add(0, 0.6, 0), stage.add(0, 1.4, 0), 50, 0, t == bandAt);
                 }
                 if (t < burst - 26) {
                     // bent double in the spotlight, groaning: close on his face, shaking
