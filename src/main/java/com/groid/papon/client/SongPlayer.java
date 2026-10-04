@@ -140,6 +140,7 @@ public final class SongPlayer {
             return;
         }
         if (ending) return;
+        listen(mc, song, boss);
         double endAt = currentAt + current.length() * 20;
         Song.Segment next = choose(song, current, boss);
         if (now >= endAt - next.pre() * 20 - 0.5) begin(mc, next, endAt);
@@ -195,8 +196,42 @@ public final class SongPlayer {
         runStart = 0;
     }
 
+    /** The horn and harmony tracks a tick ago (to hear them come in). */
+    private static float hornWas, harmonyWas;
+    private static long askedAt = Long.MIN_VALUE;
+
+    /**
+     * The moments in the music worth a cut to the band (PaponBossEntity.Cutaway): the trumpets coming in, the coro's
+     * harmonies; and (begin) the violins' big sections, Gordo's breakdown, the strings driving the second verse. The
+     * server decides whether the fight can spare it; this only asks, at most every 8 s.
+     */
+    private static void listen(Minecraft mc, Song song, @Nullable PaponBossEntity boss) {
+        double t = songTime(0);
+        if (Double.isNaN(t)) return;
+        float horn = song.hornAt(t), harmony = song.harmonyAt(t);
+        if (horn >= 0.5F && hornWas < 0.5F) ask(mc, boss, PaponBossEntity.Cutaway.TRUMPETS);
+        else if (harmony >= 0.5F && harmonyWas < 0.3F) ask(mc, boss, PaponBossEntity.Cutaway.CORO);
+        hornWas = horn;
+        harmonyWas = harmony;
+    }
+
+    private static void ask(Minecraft mc, @Nullable PaponBossEntity boss, PaponBossEntity.Cutaway c) {
+        if (boss == null || !boss.inColiseum() || mc.level == null || ending) return;
+        long now = mc.level.getGameTime();
+        if (now - askedAt < 160) return;
+        askedAt = now;
+        com.groid.papon.network.PaponNetwork.cutaway(boss.getId(), c.id());
+    }
+
     private static void begin(Minecraft mc, Song.Segment s, double at) {
         if (s.level().equals("intro")) introPasses++;
+        if (!ending && current != null) {
+            String id = s.id();
+            PaponBossEntity.Cutaway c = id.startsWith("climax") || id.startsWith("chorus") ? PaponBossEntity.Cutaway.VIOLINS
+                    : id.startsWith("breakdown") || id.equals("break") ? PaponBossEntity.Cutaway.GUITARRON
+                    : id.equals("verse2") ? PaponBossEntity.Cutaway.STRINGS : null;
+            if (c != null) ask(mc, boss(mc), c);
+        }
         if (s.id().startsWith("solo") && !ending) {
             // the singer's guitar solo: the server may cut to him for a moment (P2_SOLO)
             PaponBossEntity boss = boss(mc);

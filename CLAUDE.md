@@ -128,6 +128,17 @@ quality throughout."
      (`tools/src/makima_pillow.jpg`), **looks like a natural pillow** (soft, plump, rounded), **slouches against the wall
      when put on a bed**, the player can **hump** it (in hand, and on the bed), and it is **squeezed or folded over**
      depending on how it is used.
+   - **Showtime (2026-10-04, the user's notes after playing v0.9.0, see "Showtime" below):** the crowd must be
+     **heard roaring** as he lands in the coliseum and spins to them; **fireworks in the flag's colours** (the user wrote
+     "red, blue and white like the Mexican flag": built green, white and red, the Mexican flag; say so if asked) at
+     **his crowd-raising moments, on the music**; in phase three's serenade **his mouth must be seen singing** (the
+     guitar was covering it); **more voice lines and variations, above all reactions to what the player does** (e.g.
+     stealing his car); **more 1-2 s cinematic cuts mid-fight like the guitar solo's** (another instrument, ...); the
+     van-to-Skyline transformation shown off in **quick action shots of every angle**, a **new engine roar**, the
+     **purple underglow shot turning on** ("he recycles the old weak minivan for a powerful JDM sports car"). Tone:
+     phase two's entrance is the showman ("here is my awesome stadium, everyone is here for ME"); phase three is
+     "**I am the ascended potato god, it's time to get serious**". The user loved his charisma and charm: push the
+     atmosphere further where it fits.
    - **After his fall:** once Gerbin gives you the pillow you **go back to the Taco Truck**; **Chef Papon is a vendor
      again, friendly, back working in the truck, and his vendor menu gives you free tacos**.
 8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
@@ -212,6 +223,7 @@ player and were not exercised headless.
 | Ascended Papon's moveset (phase three's fight): Puños de Oro, Relámpago Dorado, Cometa de Papa, Ojos de Papa (eye + statue lasers, the Skyline blocks them), El Sol Azteca (hide behind the Skyline), ¡Fuego, Mariachi! (the band's blasts), Duelo de Guitarras, La Piñata, Llamas del Coliseo, La Supernova (+ spent), Nitro (the Skyline), the squeeze (spam QTE) | `boss/PaponBossEntity` (`chooseAscended`, `tickP3Combo..tickP3Nitro`, `tickBandWaves`), `BossState.P3_COMBO..P3_NITRO`, `boss/BeamEntity.java`, `client/BeamRenderer.java`, `client/BossRenderer` (`drawSunStone`, `drawStar`), `client/BossModel` (`shred`), `gen_boss_anims` (`b_a_*`), `gen_props` (`pinata`, `candy`), `gen_extras.sun_stone` |
 | QTEs at 0.8 s, the spam meter (kind 5), the guitar duel (kind 6, guitar-hero on D F J K) | `PaponBossEntity` (`startQte`, `qteResult`), `client/QteClient.java`, `client/GuitarDuel.java`, `client/QteScreen.java`, `network/PaponNetwork.QteResult`, `client/Cinematic` (duel shot) |
 | The body pillow as a soft mesh (squeezed, pressed, folded, slouched), the Makima picture, the hump (in hand and on a bed) | `client/PillowMesh.java`, `client/PillowItemRenderer.java`, `client/PillowLayer.java`, `client/PillowClient.java`, `client/BodyPillowRenderer.java`, `entity/BodyPillowEntity.java`, `item/BodyPillowItem.java`, `gen_extras.panels/pillow` |
+| Showtime (v0.9.1): the crowd heard (pulses, loud roars over his voice), flag fireworks on the beat, the cuts to the band mid-fight, the Skyline reveal (montage, RB26 sounds, the underglow switching on, headlight beams), 52 new lines (reactions to what you do, more charm, the potato god), the serenade's guitar off his mouth | `boss/ColiseumCrowdEntity` (`pulse`, `salvo`), `client/CrowdSounds`, `client/FlagFireworks.java`, `PaponBossEntity` (`Cutaway`, `tickCutaway`, `retort`, `watchPlayers`, `tickP3ShowCar`, `backfire`), `BossState.P2_CUTAWAY/P3_SHOWCAR`, `client/Cinematic` (`cutawayShot`, `showcarShot`), `client/SongPlayer.listen`, `vehicle/CaravanEntity` (`setUnderglow`, `idleFor`), `client/CaravanRenderer` (`underglow`, `headlights`), `client/CaravanSounds`, `tools/gen_skyline_sounds.py`, `command/PaponCommand` (`cutaway`) |
 | Boss polish (v0.10.0): damage windows (armored mid-move, WINDED after), cutscene clock synced from the server + auto-cuts + 80-block range + frozen player, the reworked phase-three build-up (beaten knockback, blurry POV glare, ascension reactions, P3_POWER, band chatter, "upgrade"), four new Ascended moves, La Ola wall, band blasts, salsa ring, monolith shade, harder statues, eye beams from the eyes, K/L squeeze + live meter, QTE player poses, input lockout | `boss/PaponBossEntity` (`armored`, `winds`, `tickWinded`, `DATA_TICKS/METER/ARMOR`, `tickP3Power`, `tickP3Sombrero/Volcan/Calaveras/PinataSwing`, `tickOla`), `client/Cinematic` (`jumped`, `BOSS_RANGE`), `client/BlurFx`, `client/QtePlayerPose`, `client/PropRenderer` (`drawSalsaWave`, `drawBandWave`, `drawRing`), `client/BossRenderer` (`eyePos`, `eyeLightning`), `boss/BeamEntity` (`eye`), `tools/gen_props.py` (`sombrero`, `calavera`, `salsa_wave`) |
 | Phase-two voice: his lines in English in a cloned voice (Qwen3-TTS on Modal), lip-synced, the cutscene timed to them | `tools/gen_boss_voice.py`, `tools/voice_modal.py`, `boss/VoiceLines.java`, `client/BossFace.java`, `client/BossModel.java`, `assets/papon/voice/boss2.json`, `sounds/voice/boss2/` |
 
@@ -528,13 +540,58 @@ player and were not exercised headless.
 - **Dev**: `-Pautoshot=phase3` now ends with a showcase of every move (`AutoShot.ascendedShowcase`: an invulnerable armor
   stand as the target, a spectator camera, then the QTEs on you), shots `papon_u*.png`.
 
+### Showtime (status 2026-10-04, v0.9.1; check with `-Pautoshot=coliseum` and `-Pautoshot=phase3`)
+- **The crowd, heard**: `ColiseumCrowdEntity.DATA_PULSE` ((counter << 6) | loud << 5 | mood) is bumped by every `react` (and
+  `pulse`), so `CrowdSounds` plays a one-shot per reaction, even a roar over a roar (it used to play only on a mood *change*,
+  so his entrance's held ROAR was one quiet sting, and VoiceDuck buried it under "¿ESTÁN LISTOS?"). `crowdRoar` (loud): heard
+  over his voice (duck floor 0.75) and swells the murmur. The entrance (P2_ARRIVE, beats `arrive.*`): a roar on the way down
+  and on the landing, "WELCOME... to MY COLISEUM!!!" (`welcome`, arms spread wide), the roar back (`arrive.roar1`), "ARE YOU
+  READY?!", the louder roar back (`roar2`), then "MUSIC, MAESTRO!". The hype's roars are loud too.
+- **Flag fireworks** (`client/FlagFireworks`): `ColiseumCrowdEntity.salvo(n)` (synced `DATA_SALVO`) = a volley on each of the
+  song's next n beats (`SongPlayer.songTime` + the beat grid; every 9.4 t without a song), launched 16 t early so they burst on
+  the beat: three rockets side by side off the outer wall, green | white | red, round the bowl from the side opposite you; the
+  last is a gold star over the sand. Client-only (rising FIREWORK particles, then `ClientLevel.createFireworks`). The old
+  rocket entities are gone (`fireworks()` = `salvo(8)`). Salvos: the landing, both roars, the raise-the-roof, the OLÉ, the
+  band's first downbeat, the drop of phase three, the stands' chant (`tickArena`), the Skyline's roar, the duel lost.
+- **Cuts to the band mid-fight** (`BossState.P2_CUTAWAY` 36 t, `PaponBossEntity.Cutaway` synced as `DATA_CUTAWAY`): TRUMPETS
+  (the horn track coming in), CORO (the harmonies), VIOLINS (climax/chorus segments), GUITARRON (breakdown/break), STRINGS
+  (verse2), STANDS (the server's own chant). The client asks (`SongPlayer.listen`/`begin` → `PaponNetwork.cutaway`, the Solo
+  packet with a kind); the boss takes it from IDLE if `cutawayCd` (25-35 s) and that kind's minute are up; he grooves
+  (`p2_groove`, `p2_solo` for the strings) and is invulnerable 1.8 s. Two quick shots each (`Cinematic.cutawayShot`).
+  `/papon cutaway <WHO>` forces one.
+- **His reactions** (`retort(kind, cooldown, chance, lines...)`: never the same line twice running, 5 s between any two, a
+  cooldown per kind, dropped if he is talking or in a cutscene; `watchPlayers` every tick/10 t): his van or Skyline stolen
+  (`stolen*`, `sky_stolen*`), run over with it (`runover*`, the third only in the coliseum), the horn (`CaravanEntity.honk` →
+  `heardHonk`), a shield against a heavy hit, arrows (any projectile), a snack / his own tacos (`mytaco`) / a potion, low health,
+  a kill, a totem (`CommonEvents.onTotem`), flying or pillaring 5+ up for 2 s, kiting 20+ away for 4 s, three misses running,
+  a big hit (3%+), the van pocketed (`vangone`), a QTE escape. More variations: `charm6-9`, `landed2-3`, `hit2-3`,
+  `p3_charm6-9` (the god: "Kneel...", "I was a chef. Now... I am a GOD."), `p3_landed2-3`, `p3_hit2-3`.
+- **The potato god** (phase three's tone): after the ascension's roar, "No more games, amigo. Behold... the POTATO GOD."
+  (`p3_god`, beat `ascend.god`, shot from his feet up into his face).
+- **The serenade's mouth**: the requinto (`gen_vendor.P3_GUITAR` [-7, 5, -10.4], rotation Z 86, shown at 1.35x) sits on his right
+  hip with the neck level under his mouth (the potato's mouth is low on him, y 9.3-11, opening to 6.7: the old belly guitar
+  hid it); the hands re-solved (`BossModel.STRUM/FRET_*` = `gen_boss_anims.guitar_poses`, frets 8-11.2 along the neck so the
+  left arm stays at his edge). The sung part is shot on mouth and eyes from a touch above, then close on his lips.
+- **The Skyline reveal** (`P3_CRUSH` → **`P3_SHOWCAR`** → P3_GO; beats `crush.out` ("Out with the OLD...") and `showcar.*`):
+  reformed dark (`CaravanEntity.setUnderglow(false)`; `DATA_GLOW` = off or the game time it came on); the fob chirps, the engine
+  catches (`idleFor`: the engine on with nobody in it) and the lamps come on (headlight cones, `CaravanRenderer.headlights`,
+  blinking on with `engineTicks`); the underglow stutters on front to back over 12 t and flares (`CaravanRenderer.underglow`);
+  the rev (`skyline/rev.ogg`, 4.6 s: blips, flat out with the turbos spooling, the blow-off, the overrun) with flames out of
+  the twin pipes (`backfire`) on its pops; "...and in with the NEW." (`p3_new`); the stands roar, fireworks. Camera:
+  `Cinematic.showcarShot`, nine quick shots (free: placed on purpose round the car's box).
+- **The Skyline's sounds** (`tools/gen_skyline_sounds.py`, imports gen_sounds' helpers; writes only `sounds/skyline/*`): an RB26
+  straight six (even firing, lumpy cam, rasp), idle/drive loops (`CaravanSounds` picks the Skyline's by `isSkyline`, its own
+  pitch curve), start, rev, bov, backfire, chirp, glow. The horn is the van's, a third higher.
+- **Regenerating on Windows**: `PAPON_MODS` must point at a pack instance's mods folder (gen_vendor reads the Dungeons
+  Delight cleaver), e.g. `C:/Users/czadi/curseforge/minecraft/Instances/OG GROID PACK/mods`. The generators re-encode PNGs and
+  `.ogg`s byte-differently on Windows: compare contents and check out the unchanged ones before committing.
 ### Boss polish (status 2026-10-04, v0.10.0: built; check with `./gradlew runClient -Pautoshot=phase3`)
-- **Voice**: `intro` is said from `SPOKEN` text ("livs") and pinned to take 3 (`PICKED`; checked by formants: the vowel's F1
-  about 400 Hz, a short i; the old take's about 750, "lyves"). `felt` is "a LONG time" (mood `menace`: no stretched vowels).
+- **Voice**: `intro` is said from `SPOKEN` text ("livs"), checked by `lives_ok` (the vowel's F1 under 600 Hz: a short i; the
+  old take's was about 750, "lyves"). `felt` is "a LONG time" (mood `menace`: no stretched vowels).
   New: `p3_hurt`, `p3_noise`, `p3_power`, `upgrade`, `qte_strong/weak/crush/slip/quick/slow`, `tango_good/bad`, `duel_good/bad`,
   `p3_sombrero/volcan/calaveras/swing`; `notstyle` is "This is NOT my style... who do you think I AM?!". `SPOKEN` (line -> what
   the TTS is given) for words it misreads; Whisper and the bubble still use `LINES`.
-- **Voice, more human (the user: "awkward, not natural; more emotion, charisma, vocal difference")**: all 128 lines retaken.
+- **Voice, more human (the user: "awkward, not natural; more emotion, charisma, vocal difference")**: all 180 lines retaken (main's 52 new ones included, restyled the same way).
   Lines rewritten as speech (natural phrasing, contractions, a word or two in capitals at most, little sounds: "heh", "ay",
   "mmm"); every `DIRECTION` starts with `NATURAL` (talk like a real person: pitch rising and falling, pace changing, words
   leaned into) and gives a vivid emotion; sampling `GEN` temperature 1.0, each take ±0.07 (`voice_modal`); 12 takes a line;

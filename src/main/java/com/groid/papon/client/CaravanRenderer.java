@@ -60,33 +60,92 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
     @Override
     public void render(CaravanEntity van, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         super.render(van, yaw, partialTick, pose, buffers, light);
-        if (van.isSkyline() && van.squash() > 0.95F) underglow(van, partialTick, pose, buffers);
+        if (van.isSkyline() && van.squash() > 0.95F) {
+            underglow(van, partialTick, pose, buffers);
+            if (van.isEngineOn()) headlights(van, partialTick, pose, buffers);
+        }
     }
 
-    /** The Skyline's purple underglow: a pool of light on the ground under it, brightest under the middle, breathing. */
+    /**
+     * The Skyline's purple underglow: a pool of light on the ground under it, brightest under the middle, breathing.
+     * Switched on (CaravanEntity.setUnderglow) it does not just appear: the tubes stutter on from the front bumper back
+     * to the rear (0.6 s), flash bright as the last one catches, and settle.
+     */
     private static void underglow(CaravanEntity van, float partial, PoseStack pose, MultiBufferSource buffers) {
+        float age = van.underglowAge(partial);
+        if (age < 0) return;
         VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
         pose.pushPose();
         pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-Mth.rotLerp(partial, van.yBodyRotO, van.yBodyRot)));
         org.joml.Matrix4f m = pose.last().pose();
         float pulse = 0.85F + 0.15F * Mth.sin((van.tickCount + partial) * 0.2F);
+        // the switch-on: a stutter sweeping front to back (12 ticks), a flare as it completes, settling by 30
+        float flare = age < 12 ? 0 : Math.max(0, 1 - (age - 12) / 18F);
+        pulse *= 1 + 0.9F * flare;
         float hw = (float) CaravanEntity.HALF_WIDTH + 0.6F, hl = (float) CaravanEntity.HALF_LENGTH + 0.4F;
         int n = 10;
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
+        for (int j = 0; j < n; j++) {
+            // row j from the nose (+Z in this pose) back
+            float row = 1;
+            if (age < 12) {
+                float lit = age / 12F * (n + 2) - j;               // how long this row has had to catch
+                if (lit <= 0) continue;
+                long seed = (long) j * 31 + (long) (age * 2.5F);
+                boolean on = lit > 2.5F || (seed * 2654435761L >>> 7) % 3 != 0;   // flickering as it catches
+                if (!on) continue;
+                row = Math.min(1F, 0.35F + lit * 0.3F);
+            }
+            for (int i = 0; i < n; i++) {
                 float x0 = -hw + 2 * hw * i / n, x1 = -hw + 2 * hw * (i + 1) / n;
-                float z0 = -hl + 2 * hl * j / n, z1 = -hl + 2 * hl * (j + 1) / n;
-                quadGlow(vc, m, x0, z0, x1, z1, hw, hl, pulse);
+                float z0 = hl - 2 * hl * (j + 1) / n, z1 = hl - 2 * hl * j / n;
+                quadGlow(vc, m, x0, z0, x1, z1, hw, hl, pulse * row);
             }
         }
         pose.popPose();
+    }
+
+    /**
+     * The Skyline's headlamps throw light: two pale cones ahead of it while the engine runs (it lives at night in his
+     * coliseum). They stutter on with the engine (two blinks) and settle.
+     */
+    private static void headlights(CaravanEntity van, float partial, PoseStack pose, MultiBufferSource buffers) {
+        int on = van.engineTicks;
+        if (on < 6 && (on == 1 || on == 2 || on == 4)) return;
+        float k = on < 6 ? 0.6F : 1F;
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        pose.pushPose();
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-Mth.rotLerp(partial, van.yBodyRotO, van.yBodyRot)));
+        org.joml.Matrix4f m = pose.last().pose();
+        for (float x : new float[]{-0.78F, 0.78F}) {
+            // (this pose is turned by -yaw, half a turn from the model's: the nose is +Z here)
+            cone(vc, m, x, 0.8F, 2.75F, x * 1.6F, 0.1F, 11.5F, 0.16F, 1.9F, (int) (70 * k));
+        }
+        pose.popPose();
+    }
+
+    /** A cone of light from (x0, y0, z0), radius r0, to (x1, y1, z1), radius r1, fading out along it; both windings. */
+    private static void cone(VertexConsumer vc, org.joml.Matrix4f m, float x0, float y0, float z0, float x1, float y1, float z1,
+                             float r0, float r1, int alpha) {
+        int n = 12;
+        for (int i = 0; i < n; i++) {
+            double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
+            float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0), c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
+            float[][] q = {{x0 + c0 * r0, y0 + s0 * r0, z0, alpha}, {x0 + c1 * r0, y0 + s1 * r0, z0, alpha},
+                    {x1 + c1 * r1, y1 + s1 * r1 * 0.6F, z1, 0}, {x1 + c0 * r1, y1 + s0 * r1 * 0.6F, z1, 0}};
+            for (int w = 0; w < 2; w++) {
+                for (int j = 0; j < 4; j++) {
+                    float[] p = q[w == 0 ? j : 3 - j];
+                    vc.vertex(m, p[0], p[1], p[2]).color(235, 238, 255, (int) p[3]).endVertex();
+                }
+            }
+        }
     }
 
     private static void quadGlow(VertexConsumer vc, org.joml.Matrix4f m, float x0, float z0, float x1, float z1, float hw, float hl, float pulse) {
         float[][] c = {{x0, z0}, {x0, z1}, {x1, z1}, {x1, z0}};
         for (float[] p : c) {
             float d = (float) Math.min(1, Math.hypot(p[0] / hw, p[1] / hl));
-            int a = (int) (150 * pulse * (1 - d * d));
+            int a = (int) Math.min(255, 150 * pulse * (1 - d * d));
             vc.vertex(m, p[0], 0.06F, p[1]).color(170, 70, 255, Math.max(0, a)).endVertex();
         }
     }

@@ -1473,130 +1473,432 @@
       }
     ]
   },
-  "voice.boss2.p3_hurt": {
+  "voice.boss2.welcome": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/p3_hurt"
+        "name": "papon:voice/boss2/welcome"
       }
     ]
   },
-  "voice.boss2.p3_noise": {
+  "voice.boss2.p3_god": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/p3_noise"
+        "name": "papon:voice/boss2/p3_god"
       }
     ]
   },
-  "voice.boss2.p3_power": {
+  "voice.boss2.p3_out": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/p3_power"
+        "name": "papon:voice/boss2/p3_out"
       }
     ]
   },
-  "voice.boss2.upgrade": {
+  "voice.boss2.p3_new": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/upgrade"
+        "name": "papon:voice/boss2/p3_new"
       }
     ]
   },
-  "voice.boss2.qte_strong": {
+  "voice.boss2.stolen1": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/qte_strong"
+        "name": "papon:voice/boss2/stolen1"
       }
     ]
   },
-  "voice.boss2.qte_weak": {
+  "voice.boss2.stolen2": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/qte_weak"
+        "name": "papon:voice/boss2/stolen2"
       }
     ]
   },
-  "voice.boss2.qte_crush": {
+  "voice.boss2.stolen3": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/qte_crush"
+        "name": "papon:voice/boss2/stolen3"
       }
     ]
   },
-  "voice.boss2.qte_slip": {
+  "voice.boss2.sky_stolen0": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/qte_slip"
+        "name": "papon:voice/boss2/sky_stolen0"
       }
     ]
   },
-  "voice.boss2.qte_quick": {
+  "voice.boss2.sky_stolen1": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/qte_quick"
+        "name": "papon:voice/boss2/sky_stolen1"
       }
     ]
   },
-  "voice.boss2.qte_slow": {
+  "voice.boss2.runover0": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/qte_slow"
+        "name": "papon:voice/boss2/runover0"
       }
     ]
   },
-  "voice.boss2.tango_good": {
+  "voice.boss2.runover1": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/tango_good"
+        "name": "papon:voice/boss2/runover1"
       }
     ]
   },
-  "voice.boss2.tango_bad": {
+  "voice.boss2.runover2": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/tango_bad"
+        "name": "papon:voice/boss2/runover2"
       }
     ]
   },
-  "voice.boss2.duel_good": {
+  "voice.boss2.honk0": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/duel_good"
+        "name": "papon:voice/boss2/honk0"
       }
     ]
   },
-  "voice.boss2.duel_bad": {
+  "voice.boss2.honk1": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/duel_bad"
+        "name": "papon:voice/boss2/honk1"
       }
     ]
   },
-  "voice.boss2.p3_sombrero": {
+  "voice.boss2.vangone": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/p3_sombrero"
+        "name": "papon:voice/boss2/vangone"
       }
     ]
   },
-  "voice.boss2.p3_volcan": {
+  "voice.boss2.shield0": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/p3_volcan"
+        "name": "papon:voice/boss2/shield0"
       }
     ]
   },
-  "voice.boss2.p3_calaveras": {
+  "voice.boss2.shield1": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/p3_calaveras"
+        "name": "papon:voice/boss2/shield1"
       }
     ]
   },
-  "voice.boss2.p3_swing": {
+  "voice.boss2.ranged0": {
     "sounds": [
       {
-        "name": "papon:voice/boss2/p3_swing"
+        "name": "papon:voice/boss2/ranged0"
       }
     ]
+  },
+  "voice.boss2.ranged1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/ranged1"
+      }
+    ]
+  },
+  "voice.boss2.snack0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/snack0"
+      }
+    ]
+  },
+  "voice.boss2.snack1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/snack1"
+      }
+    ]
+  },
+  "voice.boss2.mytaco": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/mytaco"
+      }
+    ]
+  },
+  "voice.boss2.potion": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/potion"
+      }
+    ]
+  },
+  "voice.boss2.lowhp0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/lowhp0"
+      }
+    ]
+  },
+  "voice.boss2.lowhp1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/lowhp1"
+      }
+    ]
+  },
+  "voice.boss2.kill0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/kill0"
+      }
+    ]
+  },
+  "voice.boss2.kill1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/kill1"
+      }
+    ]
+  },
+  "voice.boss2.totem": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/totem"
+      }
+    ]
+  },
+  "voice.boss2.high0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/high0"
+      }
+    ]
+  },
+  "voice.boss2.high1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/high1"
+      }
+    ]
+  },
+  "voice.boss2.kite0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/kite0"
+      }
+    ]
+  },
+  "voice.boss2.kite1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/kite1"
+      }
+    ]
+  },
+  "voice.boss2.miss0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/miss0"
+      }
+    ]
+  },
+  "voice.boss2.miss1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/miss1"
+      }
+    ]
+  },
+  "voice.boss2.bighit": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/bighit"
+      }
+    ]
+  },
+  "voice.boss2.qte_escape": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/qte_escape"
+      }
+    ]
+  },
+  "voice.boss2.charm6": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/charm6"
+      }
+    ]
+  },
+  "voice.boss2.charm7": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/charm7"
+      }
+    ]
+  },
+  "voice.boss2.charm8": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/charm8"
+      }
+    ]
+  },
+  "voice.boss2.charm9": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/charm9"
+      }
+    ]
+  },
+  "voice.boss2.landed2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/landed2"
+      }
+    ]
+  },
+  "voice.boss2.landed3": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/landed3"
+      }
+    ]
+  },
+  "voice.boss2.hit2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/hit2"
+      }
+    ]
+  },
+  "voice.boss2.hit3": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/hit3"
+      }
+    ]
+  },
+  "voice.boss2.p3_charm6": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_charm6"
+      }
+    ]
+  },
+  "voice.boss2.p3_charm7": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_charm7"
+      }
+    ]
+  },
+  "voice.boss2.p3_charm8": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_charm8"
+      }
+    ]
+  },
+  "voice.boss2.p3_charm9": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_charm9"
+      }
+    ]
+  },
+  "voice.boss2.p3_landed2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_landed2"
+      }
+    ]
+  },
+  "voice.boss2.p3_landed3": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_landed3"
+      }
+    ]
+  },
+  "voice.boss2.p3_hit2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_hit2"
+      }
+    ]
+  },
+  "voice.boss2.p3_hit3": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_hit3"
+      }
+    ]
+  },
+  "skyline.idle": {
+    "sounds": [
+      {
+        "name": "papon:skyline/idle"
+      }
+    ],
+    "subtitle": "subtitles.papon.skyline.idle"
+  },
+  "skyline.drive": {
+    "sounds": [
+      {
+        "name": "papon:skyline/drive"
+      }
+    ],
+    "subtitle": "subtitles.papon.skyline.drive"
+  },
+  "skyline.start": {
+    "sounds": [
+      {
+        "name": "papon:skyline/start"
+      }
+    ],
+    "subtitle": "subtitles.papon.skyline.start"
+  },
+  "skyline.rev": {
+    "sounds": [
+      {
+        "name": "papon:skyline/rev"
+      }
+    ],
+    "subtitle": "subtitles.papon.skyline.rev"
+  },
+  "skyline.bov": {
+    "sounds": [
+      {
+        "name": "papon:skyline/bov"
+      }
+    ],
+    "subtitle": "subtitles.papon.skyline.bov"
+  },
+  "skyline.backfire": {
+    "sounds": [
+      {
+        "name": "papon:skyline/backfire"
+      }
+    ],
+    "subtitle": "subtitles.papon.skyline.backfire"
+  },
+  "skyline.chirp": {
+    "sounds": [
+      {
+        "name": "papon:skyline/chirp"
+      }
+    ],
+    "subtitle": "subtitles.papon.skyline.chirp"
+  },
+  "skyline.glow": {
+    "sounds": [
+      {
+        "name": "papon:skyline/glow"
+      }
+    ],
+    "subtitle": "subtitles.papon.skyline.glow"
   }
 }

@@ -24,6 +24,15 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> CARAVAN_DOOR_OPEN = sound("caravan.door_open");
     public static final RegistryObject<SoundEvent> CARAVAN_DOOR_CLOSE = sound("caravan.door_close");
     public static final RegistryObject<SoundEvent> CARAVAN_HIT = sound("caravan.hit");
+    // the Skyline (tools/gen_skyline_sounds.py): an RB26, not the van's V6
+    public static final RegistryObject<SoundEvent> SKYLINE_IDLE = sound("skyline.idle");
+    public static final RegistryObject<SoundEvent> SKYLINE_DRIVE = sound("skyline.drive");
+    public static final RegistryObject<SoundEvent> SKYLINE_START = sound("skyline.start");
+    public static final RegistryObject<SoundEvent> SKYLINE_REV = sound("skyline.rev");
+    public static final RegistryObject<SoundEvent> SKYLINE_BOV = sound("skyline.bov");
+    public static final RegistryObject<SoundEvent> SKYLINE_BACKFIRE = sound("skyline.backfire");
+    public static final RegistryObject<SoundEvent> SKYLINE_CHIRP = sound("skyline.chirp");
+    public static final RegistryObject<SoundEvent> SKYLINE_GLOW = sound("skyline.glow");
 
     // the fight
     public static final RegistryObject<SoundEvent> BOSS_MUSIC = sound("music.boss");
