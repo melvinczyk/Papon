@@ -1255,5 +1255,26 @@
         "name": "papon:voice/boss2/felt"
       }
     ]
+  },
+  "voice.boss2.groan1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/groan1"
+      }
+    ]
+  },
+  "voice.boss2.groan2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/groan2"
+      }
+    ]
+  },
+  "voice.boss2.ascend": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/ascend"
+      }
+    ]
   }
 }

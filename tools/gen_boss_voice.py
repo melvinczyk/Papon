@@ -171,9 +171,13 @@ LINES = {
     'go':         ("What are you WAITING for?! GO!!!", 'shout'),
     'dance':      ("Now... let's DANCE.", 'cold'),
     'felt':       ("Hmmm... I haven't felt this way... in a LOOOOONG time.", 'evil'),
+    # the ascension: in pain, the wings tearing out of his back
+    'groan1':     ("Nnngh... hhhAAAGH... AAAAAGH!", 'pained'),
+    'groan2':     ("Hhhhh... HAAAAAAGH!!!", 'pained'),
+    'ascend':     ("RRRAAAAAAAAAAAGH!!!", 'shout'),
 }
 
-NO_CHECK = {'charm5', 'vendor_exposed'}          # Whisper cannot judge a scream or a lone word
+NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend'}          # Whisper cannot judge a scream or a lone word
 
 
 def norm(s):
@@ -497,8 +501,13 @@ def beats(lengths):
     pickup = next(s['length'] for s in ps['segments'] if s['id'] == 'pickup')
     b['serenade.start'] = 4
     b['serenade.end'] = b['serenade.start'] + int(math.ceil(seren * 20)) + 12
-    # he ascends on the last word of his line (15.6 s into the song), and plays the guitar run after it transformed
-    b['serenade.transform'] = b['serenade.start'] + int(round(15.6 * 20))
+    # the ascension (before the song, in the spotlight): bent double, a groan, a worse one, the wings tear out of his
+    # back (ascend.burst: the flash, his new form), the roar
+    b['ascend.groan1'] = 14
+    b['ascend.groan2'] = b['ascend.groan1'] + L('groan1') + 12
+    b['ascend.burst'] = b['ascend.groan2'] + L('groan2') + 2
+    b['ascend.roar'] = b['ascend.burst'] + 8
+    b['ascend.end'] = b['ascend.roar'] + L('ascend') + 34
     # the guitar down from his chin, the chord dying: "THIS... is more my style. Learn, muchachos."
     b['verdict.line'] = 10
     b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
@@ -513,23 +522,23 @@ def beats(lengths):
     b['felt.line'] = 14
     b['felt.smile'] = b['felt.line'] + L('felt') + 2
     b['felt.end'] = b['felt.smile'] + 40
-    # his car: hoisted over his head (to 24), crushed in his hands into a ball (30-70), held up glowing (70-90), and
-    # reformed (90: the flash) into a black Skyline that grows in his hands and is slammed down on its wheels
-    # (110); it revs (128); stood by it: "Now... let's DANCE."
-    b['crush.lifted'] = 24
-    b['crush.squeeze'] = 30
-    b['crush.ball'] = 70
-    b['crush.reform'] = 90
-    b['crush.down'] = 110
-    b['crush.rev'] = 128
-    b['crush.line'] = 146
-    b['crush.end'] = b['crush.line'] + L('dance') + 16
+    # his car: hoisted over his head, crushed in his hands into a ball, reformed in a flash into a black Skyline
+    # that grows in his hands and is slammed down on its wheels; it revs
+    b['crush.lifted'] = 14
+    b['crush.squeeze'] = 18
+    b['crush.ball'] = 42
+    b['crush.reform'] = 52
+    b['crush.down'] = 66
+    b['crush.rev'] = 76
+    b['crush.end'] = 96
     # he whirls round on the band: "What are you WAITING for?! GO!!!"
     b['go.line'] = 8
     b['go.end'] = b['go.line'] + L('go') + 4
-    # the singer's pickup, a cappella, then the band crashes in and the fire comes back
+    # the singer's pickup, a cappella, then the band crashes in and the fire comes back; and at the very end, very
+    # quietly: "Now... let's DANCE."
     b['dance.drop'] = int(round(pickup * 20))
-    b['dance.end'] = b['dance.drop'] + 60
+    b['dance.line'] = b['dance.drop'] + 44
+    b['dance.end'] = b['dance.line'] + L('dance') + 24
     return b
 
 

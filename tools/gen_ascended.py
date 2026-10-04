@@ -208,7 +208,7 @@ def wing_segment(seg, nseg):
 
 
 # segments (width, height) inner to tip, px; the root on his upper back; the rest pose spread like the flag's eagle
-WING_SEGS = [(7, 16), (8, 20), (8, 24), (9, 28)]
+WING_SEGS = [(9, 28), (8, 24), (8, 20), (7, 16)]          # broad by his body, narrowing to the tip
 WING_ROOT = [4.0, 20.0, 8.6]
 WING_REST = [(0, -12, 28), (0, -4, -6), (0, -4, -7), (0, -3, -9)]
 

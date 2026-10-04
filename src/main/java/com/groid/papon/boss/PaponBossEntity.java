@@ -156,6 +156,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation A_P3_FELT = once("p3_felt");
     private static final RawAnimation A_P3_CRUSH = once("p3_crush");
     private static final RawAnimation A_P3_GO = once("p3_go");
+    private static final RawAnimation A_P3_ASCEND = once("p3_ascend");
+    private static final RawAnimation F_WINGS_SPROUT = RawAnimation.begin().thenPlay(ANIM + "a_wings_sprout").thenLoop(ANIM + "a_wings_idle");
     // Ascended Papon's wings (the "form" controller)
     private static final RawAnimation F_WINGS_UNFURL = RawAnimation.begin().thenPlay(ANIM + "a_wings_unfurl").thenLoop(ANIM + "a_wings_idle");
     private static final RawAnimation F_WINGS_IDLE = loop("a_wings_idle");
@@ -906,6 +908,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P3_TO_CAR -> tickP3ToCar(level);
             case P3_CRUSH -> tickP3Crush(level);
             case P3_GO -> tickP3Go(level);
+            case P3_ASCEND -> tickP3Ascend(level);
         }
     }
 
@@ -4027,10 +4030,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             level.playSound(null, getX(), getY() + 8, getZ(), SoundEvents.PISTON_EXTEND, SoundSource.HOSTILE, 2.0F, 0.5F);
             PaponNetwork.shake(level, position(), 48, 0.18F, 6);
         }
-        if (t >= BossState.P3_BLACKOUT.duration) {
-            for (MariachiEntity m : band(level)) m.awe();
-            setBossState(BossState.P3_SERENADE);
-        }
+        if (t >= BossState.P3_BLACKOUT.duration) setBossState(BossState.P3_ASCEND);
     }
 
     /**
@@ -4048,36 +4048,68 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (t == 2) crowd.setMood(CrowdMood.LIGHTERS);
             crowd.setLighters(Mth.clamp((t - 30) / 170F, 0F, 1F));
         }
-        // the ascension: from his first sung word the power builds in him (light, a shudder, lightning round the
-        // bowl); on the last word of the line, a flash, a thunderclap, and he is Ascended Papon, wings unfurling
-        int sing = beat("serenade.start", 4) + 220, up = beat("serenade.transform", 316);
-        if (t > sing && t < up && t % 14 == 0) {
+        if (t >= beat("serenade.end", BossState.P3_SERENADE.duration)) setBossState(BossState.P3_VERDICT);
+    }
+
+    /**
+     * The ascension, in the spotlight before his song: he doubles over, the guitar swinging, and groans (ascend.groan1),
+     * worse (groan2), his back heaving, the light coming out of him in cracks, lightning round the bowl; then the
+     * wings tear out of his back (ascend.burst): a flash, a thunderclap, his new form; and the roar (ascend.roar),
+     * the wings spreading. The band and the stands can only watch.
+     */
+    private void tickP3Ascend(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        int g1 = beat("ascend.groan1", 14), g2 = beat("ascend.groan2", 60), burst = beat("ascend.burst", 100), roar = beat("ascend.roar", 108);
+        if (t == 2) {
+            crowdReact(level, CrowdMood.GASP, 60);
+            for (MariachiEntity m : band(level)) m.scare(random.nextInt(8));
+        }
+        if (t == g1) {
+            sayPlain("groan1", 40);
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.RAVAGER_HURT, SoundSource.HOSTILE, 1.6F, 0.5F);
+        }
+        if (t == g2) {
+            sayPlain("groan2", 40);
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.IRON_GOLEM_DAMAGE, SoundSource.HOSTILE, 1.6F, 0.5F);
+        }
+        if (t < burst && t % 7 == 3) {
+            // his back heaving: a crunch, sparks off it, the shake growing
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.SLIME_BLOCK_BREAK, SoundSource.HOSTILE, 1.0F, 0.5F + t / (float) burst * 0.3F);
+            Fx.spark(level, position().add(0, getBbHeight() * 0.6, 0).add(Vec3.directionFromRotation(0, getYRot()).scale(-0.9)), 4, 0.4, 0.3F, 0xFFE07A);
+            PaponNetwork.shake(level, position(), 48, 0.05F + 0.3F * t / burst, 6);
+        }
+        if (t > g1 && t < burst && t % 18 == 0) {
             double a = random.nextDouble() * Math.PI * 2;
             bolt(level, position().add(Math.cos(a) * (6 + random.nextDouble() * 10), 0, Math.sin(a) * (6 + random.nextDouble() * 10)));
-            PaponNetwork.shake(level, position(), 48, 0.05F + 0.25F * (t - sing) / Math.max(1, up - sing), 8);
         }
-        if (t == up - 30) {
-            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 3.0F, 0.5F);
-            crowdReact(level, CrowdMood.GASP, 40);
-        }
-        if (t == up) {
+        if (t == burst) {
             entityData.set(DATA_FORM, 3);
             refreshDimensions();
             level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.HOSTILE, 4.0F, 0.8F);
-            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 3.0F, 1.2F);
-            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.ENDER_DRAGON_FLAP, SoundSource.HOSTILE, 3.0F, 0.6F);
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.ENDER_DRAGON_FLAP, SoundSource.HOSTILE, 3.0F, 0.5F);
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 2.0F, 0.5F);
             Fx.shock(level, position(), 10F, 0xFFE07A);
-            Fx.spark(level, position().add(0, getBbHeight() * 0.6, 0), 40, 2.0, 0.6F, 0xFFF2C0);
-            PaponNetwork.shake(level, position(), 64, 0.9F, 24);
+            Fx.spark(level, position().add(0, getBbHeight() * 0.6, 0), 50, 2.2, 0.6F, 0xFFF2C0);
+            Fx.chunks(level, position().add(0, getBbHeight() * 0.7, 0), 16, 0.35F, 0xC88A3A, 0.5);
+            PaponNetwork.shake(level, position(), 64, 1.0F, 26);
             for (int i = 0; i < 4; i++) {
                 double a = Math.PI / 2 * i + 0.4;
                 bolt(level, position().add(Math.cos(a) * 5, 0, Math.sin(a) * 5));
             }
-            crowdReact(level, CrowdMood.SWOON, 80);
-            for (MariachiEntity m : band(level)) m.awe();
+            crowdReact(level, CrowdMood.GASP, 40);
             PaponMod.LOG.info("[boss] Ascended Papon");
         }
-        if (t >= beat("serenade.end", BossState.P3_SERENADE.duration)) setBossState(BossState.P3_VERDICT);
+        if (t == roar) {
+            sayPlain("ascend", 50);
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 2.5F, 0.7F);
+            PaponNetwork.shake(level, position(), 64, 0.7F, 30);
+        }
+        if (t == roar + 30) {
+            crowdReact(level, CrowdMood.SWOON, 60);
+            for (MariachiEntity m : band(level)) m.awe();
+        }
+        if (t >= beat("ascend.end", BossState.P3_ASCEND.duration)) setBossState(BossState.P3_SERENADE);
     }
 
     /** Ascended Papon (phase three, from his serenade on): the better potato, white eyes, eagle wings. */
@@ -4160,10 +4192,21 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.P3_GO);
             return;
         }
-        setFlying(false);
         Vec3 side = van.position().add(van.left().scale(CaravanEntity.HALF_WIDTH + 2.2));
         double d = horizontalDist(side);
-        if (d < 1.0 || stateTicks > 300) {
+        if (d > 3) {
+            // a few beats of his new wings: low over the sand straight to it
+            setFlying(true);
+            getNavigation().stop();
+            Vec3 to = new Vec3(side.x, Math.max(side.y, van.getY()) + 1.5, side.z);
+            Vec3 dv = to.subtract(position());
+            double len = dv.length();
+            setDeltaMovement(getDeltaMovement().scale(0.5).add(dv.scale(Math.min(0.75, len * 0.2) / Math.max(1e-3, len)).scale(0.5)));
+            face(van.position());
+            return;
+        }
+        setFlying(false);
+        if (d < 1.2 || stateTicks > 200) {
             getNavigation().stop();
             getMoveControl().setWantedPosition(getX(), getY(), getZ(), 0);
             setDeltaMovement(getDeltaMovement().multiply(0.2, 1, 0.2));
@@ -4196,8 +4239,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.P3_GO);
             return;
         }
-        int lifted = beat("crush.lifted", 24), squeeze = beat("crush.squeeze", 30), ball = beat("crush.ball", 70),
-                reform = beat("crush.reform", 90), down = beat("crush.down", 110);
+        int lifted = beat("crush.lifted", 14), squeeze = beat("crush.squeeze", 18), ball = beat("crush.ball", 42),
+                reform = beat("crush.reform", 52), down = beat("crush.down", 66);
         Vec3 f = Vec3.directionFromRotation(0, getYRot());
         Vec3 over = position().add(0, getBbHeight() + 0.6, 0);
         Vec3 fist = position().add(f.scale(0.6)).add(0, getBbHeight() + 0.2, 0);
@@ -4257,15 +4300,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             van.setYRot(getYRot() + 90F);
             van.setDeltaMovement(Vec3.ZERO);
         }
-        if (t == beat("crush.rev", 128)) {
+        if (t == beat("crush.rev", 76)) {
             level.playSound(null, van.getX(), van.getY(), van.getZ(), ModSounds.CARAVAN_REV.get(), SoundSource.HOSTILE, 2.0F, 1.5F);
             level.playSound(null, van.getX(), van.getY(), van.getZ(), ModSounds.CARAVAN_START.get(), SoundSource.HOSTILE, 1.6F, 1.4F);
             Fx.spark(level, van.position().add(0, 0.2, 0), 24, 1.6, 0.4F, 0xB050FF);
         }
         LivingEntity target = getTarget();
         if (t > down + 6 && target != null) turnToward(target.position(), 4F);
-        if (t == beat("crush.line", 146)) sayPlain("dance", 50);
-        if (t >= beat("crush.end", BossState.P3_CRUSH.duration)) setBossState(BossState.P3_GO);
+        if (t >= beat("crush.end", 96)) setBossState(BossState.P3_GO);
     }
 
     private static net.minecraft.core.BlockPos at(Vec3 v) {
@@ -4303,7 +4345,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         LivingEntity target = getTarget();
         boolean band = inColiseum() && !band(level).isEmpty() && songId == Song.PARA_SIEMPRE;
         int drop = band ? beat("dance.drop", 42) : 4;
-        int end = band ? beat("dance.end", BossState.P3_DANCE.duration) : 40;
+        int line = band ? beat("dance.line", drop + 44) : 20;
+        int end = band ? beat("dance.end", BossState.P3_DANCE.duration) : line + 60;
         if (target != null) turnToward(target.position(), t < drop ? 3F : 8F);
         if (t == drop) {
             entityData.set(DATA_PHASE3, true);
@@ -4322,8 +4365,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Fx.shock(level, position(), 8F, 0xFF2A34);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 3.0F, 0.8F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.BLAZE_SHOOT, SoundSource.HOSTILE, 3.0F, 0.5F);
-            title(level, "title.papon.para_siempre", 40);
         }
+        if (t == line) sayPlain("dance", 50);
+        if (t == line + 20) title(level, "title.papon.para_siempre", 40);
         if (t >= end) {
             if (!isPhaseThree()) {
                 entityData.set(DATA_PHASE3, true);
@@ -6340,7 +6384,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (s == BossState.P2_APOLOGY && ticksInState() > beat("apology.aura", 100) || s == BossState.P2_HYPE) return event.setAndContinue(F_AURA);
         if (!isRisen()) return PlayState.STOP;
         if (isAscended()) {
-            if (s == BossState.P3_SERENADE) return event.setAndContinue(F_WINGS_UNFURL);
+            if (s == BossState.P3_ASCEND) return event.setAndContinue(F_WINGS_SPROUT);
             return event.setAndContinue(isFlying() || s == BossState.P2_DIVE ? F_WINGS_FLY : F_WINGS_IDLE);
         }
         RawAnimation next = switch (s) {
@@ -6453,6 +6497,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P3_TO_CAR -> event.isMoving() ? A_P3_STALK : A_P3_GLARE_HOLD;
             case P3_CRUSH -> A_P3_CRUSH;
             case P3_GO -> A_P3_GO;
+            case P3_ASCEND -> A_P3_ASCEND;
         };
         return event.setAndContinue(next);
     }

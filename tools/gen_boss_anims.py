@@ -2193,6 +2193,20 @@ def f_wings_unfurl():
     return a
 
 
+def f_wings_sprout():
+    """1.4 s (from the moment they tear out of his back): nothing, then the wings burst out folded and grow to full size
+    in a heartbeat, shuddering, and fling open a segment at a time, and beat once."""
+    a = F('a_wings_sprout', 1.4, 'hold')
+    for side in ('r', 'l'):
+        a.scale('wing_' + side, [(0, [0.05, 0.05, 0.05]), (0.12, [0.7, 0.7, 0.7], 'easeOutQuad'), (0.2, [0.6, 0.6, 0.6]),
+                                 (0.32, [1.15, 1.15, 1.15], 'easeOutBack'), (0.5, [1, 1, 1])], 'lin')
+    r0, f0 = FOLDED
+    wing_keys(a, [(0, r0, f0, None), (0.3, [0, 30, -20], [40, 60, 60], 'easeOutQuad'), (0.45, [0, 6, 14], [0, 40, 60], 'easeOutBack'),
+                  (0.6, [0, 2, 10], [0, 0, 30], 'easeOutBack'), (0.75, [0, 0, 8], [0, 0, 0], 'easeOutBack'),
+                  (1.0, [0, -6, -22], [6, 8, 12], 'easeInQuad'), (1.4, [0, 0, 0], [0, 0, 0], 'easeOutQuad')])
+    return a
+
+
 def f_wings_idle():
     """3.0 s loop: open, breathing, the tips stirring."""
     a = F('a_wings_idle', 3.0, True)
@@ -2209,7 +2223,7 @@ def f_wings_fly():
     return a
 
 
-FORM = [f_sprout, f_idle, f_fly, f_attack, f_lift, f_aura, f_wings_unfurl, f_wings_idle, f_wings_fly]
+FORM = [f_sprout, f_idle, f_fly, f_attack, f_lift, f_aura, f_wings_unfurl, f_wings_sprout, f_wings_idle, f_wings_fly]
 
 
 def b_salsa_burst():
@@ -2666,32 +2680,29 @@ def b_p3_felt():
 
 def b_p3_crush():
     """BossState.P3_CRUSH (beats crush.*). Both arms up under the van as it comes up over his head (to
-    crush.lifted); he crushes it between his hands, pressing in, shaking with the effort (crush.squeeze to
-    crush.ball), the ball up in his right fist, glowing (to crush.reform); the flash, and down it comes in both
-    hands to the ground in front of him (crush.down), the slam; he straightens, one hand on his hip; "Now...
-    let's DANCE." (crush.line): the other hand out to you, palm up, two fingers curling: come here."""
-    lifted, sq, ball, ref, down, ln, end = (beat('crush.lifted', 24), beat('crush.squeeze', 30), beat('crush.ball', 70), beat('crush.reform', 90),
-                                            beat('crush.down', 110), beat('crush.line', 146), beat('crush.end', 190))
+    crush.lifted); crushed between his hands, pressing in, shaking with the effort (crush.squeeze to crush.ball);
+    the ball up in his right fist, glowing (to crush.reform); the flash, and down it comes in both hands to the
+    ground in front of him (crush.down), the slam; he straightens, a hand on his hip, and admires it."""
+    lifted, sq, ball, ref, down, end = (beat('crush.lifted', 14), beat('crush.squeeze', 18), beat('crush.ball', 42), beat('crush.reform', 52),
+                                        beat('crush.down', 66), beat('crush.end', 96))
     a = angry(B('p3_crush', end, 'hold'))
-    shake = [(round(sq + 0.1 * i, 2), [-170 + (6 if i % 2 else -6), 0, 24]) for i in range(int((ball - sq) / 0.1))]
-    a.rot('arm_r', [(0, [-20, 0, 20]), (round(lifted * 0.4, 2), [-60, 0, 30], 'easeInOutSine'), (lifted, [-170, 0, 32], 'easeOutQuad'),
+    n = max(1, int((ball - sq) / 0.1))
+    shake = [(round(sq + 0.1 * i, 2), [-170 + (6 if i % 2 else -6), 0, 24]) for i in range(n)]
+    a.rot('arm_r', [(0, [-20, 0, 20]), (round(lifted * 0.5, 2), [-80, 0, 30], 'easeInOutSine'), (lifted, [-170, 0, 32], 'easeOutQuad'),
                     (sq, [-170, 0, 24])] + shake + [(ball, [-176, 0, 10], 'easeOutBack'), (ref, [-176, 0, 10]),
                    (round((ref + down) / 2, 2), [-110, 0, 20], 'easeInOutSine'), (down, [-40, 0, 24], 'easeInQuad'),
-                   (round(down + 0.4, 2), [-14, 0, 20], 'easeOutQuad'), (round(ln - 0.2, 2), [-14, 0, 20]),
-                   (round(ln + 0.4, 2), [-84, -12, 4], 'easeInOutSine')]
-              + [(round(ln + 0.8 + 0.25 * i, 2), [-84 if i % 2 == 0 else -100, -12, 4]) for i in range(5)] + [(end, [-84, -12, 4])], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (lifted, 1.6), (ball, 1.5), (ref, 1.6), (down, 1.6), (round(down + 0.4, 2), 1), (round(ln + 0.4, 2), 1.6), (end, 1.6)])
-    shake_l = [(round(sq + 0.1 * i, 2), [-170 + (-6 if i % 2 else 6), 0, -24]) for i in range(int((ball - sq) / 0.1))]
-    a.rot('arm_l', [(0, [-20, 0, -20]), (round(lifted * 0.4, 2), [-60, 0, -30], 'easeInOutSine'), (lifted, [-170, 0, -32], 'easeOutQuad'),
+                   (round(down + 0.4, 2), [10, 30, 40], 'easeOutQuad'), (end, [10, 30, 40])], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (lifted, 1.6), (ball, 1.5), (ref, 1.6), (down, 1.6), (round(down + 0.4, 2), 1.2), (end, 1.2)])
+    shake_l = [(round(sq + 0.1 * i, 2), [-170 + (-6 if i % 2 else 6), 0, -24]) for i in range(n)]
+    a.rot('arm_l', [(0, [-20, 0, -20]), (round(lifted * 0.5, 2), [-80, 0, -30], 'easeInOutSine'), (lifted, [-170, 0, -32], 'easeOutQuad'),
                     (sq, [-170, 0, -24])] + shake_l + [(ball, [-60, 20, -30], 'easeInOutSine'), (ref, [-60, 20, -30]),
                    (round((ref + down) / 2, 2), [-110, 0, -20], 'easeInOutSine'), (down, [-40, 0, -24], 'easeInQuad'),
-                   (round(down + 0.4, 2), [10, 30, -40], 'easeOutQuad'), (end, [10, 30, -40])], 'lin')
-    stretch(a, 'arm_l', [(0, 1), (lifted, 1.6), (ball, 1.3), (ref, 1.3), (down, 1.6), (round(down + 0.4, 2), 1.2), (end, 1.2)])
+                   (round(down + 0.4, 2), [-14, 0, -20], 'easeOutQuad'), (end, [-14, 0, -20])], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (lifted, 1.6), (ball, 1.3), (ref, 1.3), (down, 1.6), (round(down + 0.4, 2), 1), (end, 1)])
     a.rot('torso', [(0, [0, 0, 0]), (lifted, [-14, 0, 0], 'easeInOutSine'), (sq, [-12, 0, 0]), (ball, [-8, 0, 0]),
-                    (down, [26, 0, 0], 'easeInQuad'), (round(down + 0.5, 2), [-4, 0, 0], 'easeOutQuad'), (ln, [-4, 0, 0]),
-                    (round(ln + 0.4, 2), [8, 0, 0], 'easeInOutSine'), (end, [8, 0, 0])], 'lin')
+                    (down, [26, 0, 0], 'easeInQuad'), (round(down + 0.5, 2), [-6, 0, 0], 'easeOutQuad'), (end, [-6, 8, 0])], 'lin')
     a.scale('body', [(0, [1, 1, 1]), (sq, [1, 1, 1])]
-            + [(round(sq + 0.2 * i, 2), [1.06, 0.96, 1.06] if i % 2 else [1.02, 1.03, 1.02]) for i in range(int((ball - sq) / 0.2))]
+            + [(round(sq + 0.2 * i, 2), [1.06, 0.96, 1.06] if i % 2 else [1.02, 1.03, 1.02]) for i in range(max(1, int((ball - sq) / 0.2)))]
             + [(ball, [1, 1, 1]), (down, [1.12, 0.9, 1.12], 'easeInQuad'), (round(down + 0.4, 2), [1, 1.02, 1], 'easeOutBack'), (end, [1.02, 1.02, 1.02])], 'lin')
     a.pos('root', [(0, [0, 0, 0]), (down, [0, -1.6, 0], 'easeInQuad'), (round(down + 0.5, 2), [0, 0, 0], 'easeOutQuad'), (end, [0, 0, 0])], 'lin')
     a.sound(round(lifted * 0.5, 2), 'lift').sound(sq, 'grunt').sound(ball, 'roar_small').sound(down, 'slam')
@@ -2717,30 +2728,74 @@ def b_p3_go():
 def b_p3_dance():
     """BossState.P3_DANCE (beats dance.*). Turned to you while the singer sings the pickup, head on one side,
     listening; the band crashes in (dance.drop) and it goes through him: chest out, arms back, head back, the fire
-    roaring up round the bowl; he rolls his shoulders, cracks his neck, and drops into his stance."""
-    drop, end = beat('dance.drop', 42), beat('dance.end', 102)
+    roaring up round the bowl; he rolls his shoulders, cracks his neck one way and the other; and at the very
+    end, very quietly, "Now... let's DANCE." (dance.line): down into his stance, the left hand behind his back,
+    the right held out to you, palm up, two fingers curling: come here."""
+    drop, ln, end = beat('dance.drop', 42), beat('dance.line', 86), beat('dance.end', 150)
     a = B('p3_dance', end, 'hold')
     d1, d2 = round(drop + 0.3, 2), round(drop + 0.9, 2)
     c1, c2 = round(d2 + 0.35, 2), round(d2 + 0.7, 2)
     a.rot('torso', [(0, [0, 0, 8]), (round(drop - 0.1, 2), [0, 0, 8]), (d1, [-26, 0, 0], 'easeOutBack'), (d2, [-6, 0, 0], 'easeInOutSine'),
                     (round(c1 - 0.05, 2), [-4, 0, 0]), (c1, [-4, 0, 14], 'easeOutQuad'), (round(c1 + 0.15, 2), [-4, 0, 0]),
-                    (c2, [-4, 0, -14], 'easeOutQuad'), (round(c2 + 0.15, 2), [-2, 0, 0]), (round(c2 + 0.6, 2), [12, 0, 0], 'easeInOutSine'),
+                    (c2, [-4, 0, -14], 'easeOutQuad'), (round(c2 + 0.15, 2), [-2, 0, 0]), (ln, [2, 0, 0]), (round(ln + 0.6, 2), [12, 0, 0], 'easeInOutSine'),
                     (end, [12, 0, 0])], 'lin')
-    for arm, sgn in (('arm_r', 1), ('arm_l', -1)):
-        a.rot(arm, [(0, [-6, 0, 16 * sgn]), (round(drop - 0.1, 2), [-6, 0, 16 * sgn]), (d1, [30, 0, 50 * sgn], 'easeOutBack'),
-                    (d2, [-10, 0, 22 * sgn], 'easeInOutSine'), (round(c2 + 0.6, 2), [-100, -20 * sgn, 30 * sgn], 'easeInOutSine'),
-                    (end, [-100, -20 * sgn, 30 * sgn])], 'lin')
-        stretch(a, arm, [(0, 1), (round(c2 + 0.2, 2), 1), (round(c2 + 0.6, 2), 1.2), (end, 1.2)])
-    a.pos('root', [(0, [0, 0, 0]), (round(c2 + 0.2, 2), [0, 0, 0]), (round(c2 + 0.6, 2), [0, -1.4, 0], 'easeInOutSine'), (end, [0, -1.4, 0])], 'lin')
+    a.rot('arm_r', [(0, [-6, 0, 16]), (round(drop - 0.1, 2), [-6, 0, 16]), (d1, [30, 0, 50], 'easeOutBack'), (d2, [-10, 0, 22], 'easeInOutSine'),
+                    (ln, [-10, 0, 22]), (round(ln + 0.6, 2), [-84, -12, 4], 'easeInOutSine')]
+          + [(round(ln + 1.0 + 0.25 * i, 2), [-84 if i % 2 == 0 else -100, -12, 4]) for i in range(5)]
+          + [(end, [-84, -12, 4])], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (ln, 1), (round(ln + 0.6, 2), 1.6), (end, 1.6)])
+    a.rot('arm_l', [(0, [-6, 0, -16]), (round(drop - 0.1, 2), [-6, 0, -16]), (d1, [30, 0, -50], 'easeOutBack'), (d2, [-10, 0, -22], 'easeInOutSine'),
+                    (ln, [-10, 0, -22]), (round(ln + 0.6, 2), [30, 30, -10], 'easeInOutSine'), (end, [30, 30, -10])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (ln, [0, 0, 0]), (round(ln + 0.6, 2), [0, -1.4, 0], 'easeInOutSine'), (end, [0, -1.4, 0])], 'lin')
+    for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 4 * sgn]), (ln, [0, 0, 4 * sgn]), (round(ln + 0.6, 2), [-14 if sgn > 0 else 10, 0, 12 * sgn], 'easeInOutSine'),
+                    (end, [-14 if sgn > 0 else 10, 0, 12 * sgn])], 'lin')
     a.scale('body', [(0, [1, 1, 1]), (round(drop - 0.1, 2), [1, 1, 1]), (d1, [1.12, 1.1, 1.12], 'easeOutBack'), (d2, [1.03, 1.03, 1.03]),
                      (end, [1.03, 1.03, 1.03])], 'lin')
-    angry(a, d2)
-    a.sound(d1, 'roar_small').sound(c1, 'crack').sound(c2, 'crack').sound(round(c2 + 0.6, 2), 'grunt')
+    angry(a, ln)
+    a.sound(d1, 'roar_small').sound(c1, 'crack').sound(c2, 'crack').sound(round(ln + 0.6, 2), 'grunt')
+    return a
+
+
+def b_p3_ascend():
+    """BossState.P3_ASCEND (beats ascend.*). In the spotlight, the requinto slung on his belly: he doubles over,
+    hands on his knees, groaning (groan1), his back heaving (the body swelling and shuddering), worse (groan2), a
+    hand clawing at his back; then the wings tear out of it (ascend.burst): thrown upright, arms flung back, chest
+    out; the roar (ascend.roar), head back, arms wide; and he settles, his hands finding the guitar's strings."""
+    g1, g2, burst, roar, end = beat('ascend.groan1', 14), beat('ascend.groan2', 60), beat('ascend.burst', 100), beat('ascend.roar', 108), beat('ascend.end', 150)
+    st = gp('strum')
+    a = B('p3_ascend', end, 'hold')
+    guitar_slung(a)
+    pre = round(burst - 0.3, 2)
+    heave = [(round(0.3 + 0.35 * i, 2), [1.05, 0.95, 1.05] if i % 2 else [0.98, 1.04, 0.98]) for i in range(int((pre - 0.3) / 0.35))]
+    a.scale('body', [(0, [1, 1, 1])] + heave + [(pre, [1.1, 0.9, 1.1]), (burst, [0.92, 1.12, 0.92], 'easeOutExpo'),
+                                                (round(burst + 0.4, 2), [1.04, 1.04, 1.04]), (roar, [1.06, 1.08, 1.06]), (end, [1.03, 1.03, 1.03])], 'lin')
+    shudder = [(round(g1 + 0.1 * i, 2), [34, 0, 3 if i % 2 else -3]) for i in range(int((pre - g1) / 0.1))]
+    a.rot('torso', [(0, [0, 0, 0]), (g1, [32, 0, 0], 'easeOutQuad')] + shudder
+          + [(burst, [-24, 0, 0], 'easeOutExpo'), (round(burst + 0.3, 2), [-16, 0, 0]), (roar, [-30, 0, 0], 'easeOutBack'),
+             (round(roar + 1.2, 2), [-26, 0, 0]), (end, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (g1, [0, -2, 0], 'easeOutQuad'), (pre, [0, -2.4, 0]), (burst, [0, 0.6, 0], 'easeOutExpo'), (end, [0, 0, 0])], 'lin')
+    claw = round((g2 + pre) / 2, 2)
+    a.rot('arm_r', [(0, [-14, 0, 20]), (g1, [-50, -20, 10], 'easeOutQuad'), (g2, [-46, -20, 10]), (claw, [-170, 30, 30], 'easeInOutSine'),
+                    (pre, [-160, 40, 30]), (burst, [30, 0, 70], 'easeOutExpo'), (roar, [-60, 0, 100], 'easeOutBack'), (round(roar + 1.2, 2), [-60, 0, 100]),
+                    (end, st[:3], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (g1, 1.3), (claw, 1.6), (pre, 1.6), (burst, 1.3), (roar, 1.6), (round(roar + 1.2, 2), 1.6), (end, st[3])])
+    md = gp('mid')
+    a.rot('arm_l', [(0, md[:3]), (g1, [-50, 20, -10], 'easeOutQuad'), (pre, [-50, 20, -10]), (burst, [30, 0, -70], 'easeOutExpo'),
+                    (roar, [-60, 0, -100], 'easeOutBack'), (round(roar + 1.2, 2), [-60, 0, -100]), (end, md[:3], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, md[3]), (g1, 1.3), (pre, 1.3), (burst, 1.3), (roar, 1.6), (round(roar + 1.2, 2), 1.6), (end, md[3])])
+    for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 0]), (g1, [-20, 0, 12 * sgn], 'easeOutQuad'), (pre, [-20, 0, 12 * sgn]), (burst, [0, 0, 16 * sgn], 'easeOutExpo'),
+                    (end, [0, 0, 6 * sgn])], 'lin')
+    for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 0, 0]), (g1, [0, -0.6, 0]), (burst, [0, 1.0, 0]), (end, [0, -0.6, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, 0]), (g1, [0, 0, 16 * sgn]), (burst, [0, 0, -10 * sgn]), (end, [0, 0, 16 * sgn])], 'lin')
+    a.sound(g1, 'grunt').sound(g2, 'grunt').sound(burst, 'rip').sound(roar, 'roar')
     return a
 
 
 PHASE_THREE = [b_p3_knockback, b_p3_glare, b_p3_glare_hold, b_p3_stalk, b_p3_snatch, b_p3_carry, b_p3_carry_hold, b_p3_blackout,
-               b_p3_serenade, b_p3_verdict, b_p3_toss, b_p3_dance, b_p3_felt, b_p3_crush, b_p3_go]
+               b_p3_serenade, b_p3_verdict, b_p3_toss, b_p3_dance, b_p3_felt, b_p3_crush, b_p3_go, b_p3_ascend]
 
 
 BOSS = [b_leap_out, b_chug, b_roar, b_idle, b_walk, b_walk_keys, b_run, b_swipe, b_slam, b_breath, b_throw,

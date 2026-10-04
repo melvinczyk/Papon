@@ -204,11 +204,11 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         float t = boss.ticksInState() + partialTick;
         if (s == BossState.P2_SEASON && t > 72) return Math.max(0, 1F - Math.abs(t - 82) / 12F);
         if (s == BossState.P2_SCREAM && t > 12) return t < 22 ? (t - 12) / 10F : t < 50 ? 1F : Math.max(0, 1F - (t - 50) / 14F);
-        if (s == BossState.P3_SERENADE) {
-            // the ascension building as he sings, bursting at the transformation, fading after
-            float sing = com.groid.papon.boss.VoiceLines.beat("serenade.start", 4) + 220, up = com.groid.papon.boss.VoiceLines.beat("serenade.transform", 316);
-            if (t > sing && t < up) return 0.15F + 0.6F * (t - sing) / (up - sing);
-            if (t >= up) return Math.max(0, 1F - (t - up) / 30F);
+        if (s == BossState.P3_ASCEND) {
+            // the ascension: light cracking out of him as he groans, bursting with the wings, fading after the roar
+            float burst = com.groid.papon.boss.VoiceLines.beat("ascend.burst", 100);
+            if (t < burst) return 0.1F + 0.7F * t / burst;
+            return Math.max(0.2F, 1F - (t - burst) / 40F);
         }
         return 0;
     }
