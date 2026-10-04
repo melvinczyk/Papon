@@ -486,6 +486,7 @@ public final class AutoShot {
         if (k == 240) run("papon bossstate ARENA_FRYER");
         if (s == BossState.ARENA_FRYER && t == 20) shot(mc, "a06_fryer_warn");
         if (k == 300) shot(mc, "a07_fryer_oil");
+        if (k == 380) shot(mc, "a07c_fryer_still_oil");
         if (k == 304) {
             tpLook(c.add(3, 3, 6), c.add(0, 0, -6));
             shot(mc, "a07b_fryer_low");
@@ -493,8 +494,10 @@ public final class AutoShot {
         if (k == 420) run("papon bossstate P2_MASHER");
         if (s == BossState.P2_MASHER) {
             if (t == 40) shot(mc, "a08_masher_looms");
-            if (t == 75) shot(mc, "a09_masher_holes");
-            if (t == 88) shot(mc, "a10_masher_slam");
+            if (t == 50) shot(mc, "a09_masher_slam1");
+            if (t == 70) shot(mc, "a09b_masher_moved_holes");
+            if (t == 82) shot(mc, "a10_masher_slam2");
+            if (t == 112) shot(mc, "a10b_masher_slam3");
         }
         if (k == 556) {
             run("gamemode survival");
@@ -514,12 +517,26 @@ public final class AutoShot {
         }
         if (s == BossState.SALSA_BURST && t == 12) shot(mc, "a14_salsa_burst");
         if (k == 700) {
+            // on the sand (a creative player does not count as anyone in it: the coliseum would come down)
             mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
-            run("kill @e[type=papon:papon_boss]");
+            run("gamemode survival", "effect give @s minecraft:resistance 600 4 true");
+            tpLook(c.add(4, 0, 17), c.add(0, 0, -4));
         }
-        if (k == 760) PaponMod.LOG.info("[arena] portals after his fall: {}", mc.level.getEntitiesOfClass(com.groid.papon.boss.ArenaPortalEntity.class,
+        if (k == 760 || k == 790 || k == 820 || k == 920 || k == 950) tpLook(c.add(4, 0, 17), c.add(0, 0, -4));
+        if (k == 706) run("papon bossstate ARENA_OLA");
+        if (s == BossState.ARENA_OLA && t == 30) shot(mc, "a15_ola_cast");
+        if (k == 750) shot(mc, "a16_ola_warn");
+        if (k == 770) shot(mc, "a17_ola_wave1");
+        if (k == 820) shot(mc, "a18_ola_wave2");
+        if (k == 900) run("papon bossstate ARENA_STAMPEDE");
+        if (s == BossState.ARENA_STAMPEDE && t == 20) shot(mc, "a19_stampede_cast");
+        if (k == 930) shot(mc, "a20_stampede_warn");
+        if (k == 950) shot(mc, "a21_stampede_roll");
+        if (k == 985) shot(mc, "a22_stampede_volley2");
+        if (k == 1040) run("kill @e[type=papon:papon_boss]");
+        if (k == 1100) PaponMod.LOG.info("[arena] portals after his fall: {}", mc.level.getEntitiesOfClass(com.groid.papon.boss.ArenaPortalEntity.class,
                 mc.player.getBoundingBox().inflate(512)).size());
-        if (k == 780) mc.stop();
+        if (k == 1120) mc.stop();
     }
 
     @Nullable private static com.groid.papon.boss.VoiceLines.Line lastLine;

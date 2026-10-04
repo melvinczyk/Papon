@@ -149,6 +149,12 @@ public final class ClientEvents {
         if (Cinematic.hidden(event.getEntity())) event.setCanceled(true);
     }
 
+    /** The same for GeckoLib-drawn entities (the van, the Taco Truck crowd, Gerbin): they do not fire the event above. */
+    @SubscribeEvent
+    public static void onRenderGeo(software.bernie.geckolib.event.GeoRenderEvent.Entity.Pre event) {
+        if (event.getEntity() != null && Cinematic.hidden(event.getEntity())) event.setCanceled(true);
+    }
+
     /** No on-fire (or in-wall, underwater) overlay over a cutscene shot: the camera is not in your eyes. */
     @SubscribeEvent
     public static void onScreenEffect(net.minecraftforge.client.event.RenderBlockScreenEffectEvent event) {
