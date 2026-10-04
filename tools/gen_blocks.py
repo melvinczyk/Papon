@@ -17,6 +17,8 @@ import random
 
 from PIL import Image
 
+import gen_flag
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
 
@@ -256,30 +258,6 @@ def dark(rng):
     return im
 
 
-def drape(rng, color, emblem=False):
-    """Hanging cloth in the flag's colours: vertical folds; the white one carries a golden Papon."""
-    im = Image.new('RGBA', (16, 16))
-    for y in range(16):
-        for x in range(16):
-            fold = 0.9 + 0.12 * abs(((x + 2) % 6) - 3) / 3
-            im.putpixel((x, y), shade(color, fold * (1 + rng.uniform(-0.015, 0.015))))
-    if emblem:
-        g, gd = (236, 184, 56), (176, 122, 30)
-        for y in range(16):
-            for x in range(16):
-                if ((x - 7.5) / 5.2) ** 2 + ((y - 8.5) / 6.2) ** 2 <= 1:
-                    im.putpixel((x, y), shade(g, 1 + rng.uniform(-0.03, 0.03)))
-        for x, y in ((5, 6), (6, 6), (9, 6), (10, 6)):         # brows
-            im.putpixel((x, y), shade(gd, 0.7))
-        for x, y in ((5, 8), (10, 8)):                          # eyes
-            im.putpixel((x, y), (40, 28, 18, 255))
-        for x in range(6, 10):                                  # the mouth bar
-            im.putpixel((x, 11), shade(gd, 0.8))
-        for x, y in ((7, 1), (8, 1), (6, 2), (9, 2)):           # a little crown of fries
-            im.putpixel((x, y), (250, 214, 90, 255))
-    return im
-
-
 def brazier(rng):
     """Bronze, hammered."""
     im = Image.new('RGBA', (16, 16))
@@ -335,9 +313,10 @@ def arena():
                                      'elements': [{'from': [0, 0, 0], 'to': [16, 12, 16], 'faces': {
                                          d: {'texture': '#oil', 'cullface': d} if d != 'up' else {'texture': '#oil'}
                                          for d in ('down', 'up', 'north', 'south', 'west', 'east')}}]})
-    for i, (name, col) in enumerate((('green', (32, 122, 64)), ('white', (238, 234, 222)), ('red', (196, 40, 44)))):
-        write('arena_drape_' + name, drape(random.Random(20 + i), col))
-    write('arena_drape_emblem', drape(random.Random(23), (238, 234, 222), emblem=True))
+    # the stripes and the emblem in La Bandera Papa's own colours and face (tools/gen_flag.py)
+    for i, (name, col) in enumerate((('green', gen_flag.GREEN), ('white', gen_flag.WHITE), ('red', gen_flag.RED))):
+        write('arena_drape_' + name, gen_flag.drape(random.Random(20 + i), col))
+    write('arena_drape_emblem', gen_flag.drape(random.Random(23), gen_flag.WHITE, gen_flag.emblem(16)))
     write_tex('arena_column_side', column_side(random.Random(16)))
     write_tex('arena_column_end', column_end(random.Random(17)))
     write_model('arena_column', {'parent': 'minecraft:block/cube_column',
@@ -365,9 +344,81 @@ def arena():
                      'coals': 'papon:block/arena_coals'},
         'elements': [box([4, 0, 4], [12, 1, 12]), box([7, 1, 7], [9, 7, 9]), box([3, 7, 3], [13, 9, 13]),
                      box([1, 9, 1], [15, 13, 15], top=c)]})
+    # a stretch of wall with a flag on it: the wall's ashlar (the cloth is drawn by client/ArenaFlagRenderer)
+    write_model('arena_flag', {'parent': 'minecraft:block/cube_all', 'textures': {'all': 'papon:block/arena_bricks'}})
+    write_json('blockstates/arena_flag.json', {'variants': {'': {'model': 'papon:block/arena_flag'}}})
+    stage_lamp()
     # invisible: a model with nothing in it (the block only keeps players in the arena)
     write_json('models/block/arena_barrier.json', {'textures': {'particle': 'papon:block/arena_stone'}})
     write_json('blockstates/arena_barrier.json', {'variants': {'': {'model': 'papon:block/arena_barrier'}}})
+
+
+def lamp_metal(rng):
+    """Black stage-lamp enamel, scuffed."""
+    im = Image.new('RGBA', (16, 16))
+    for y in range(16):
+        for x in range(16):
+            im.putpixel((x, y), shade((44, 42, 48), 1 + rng.uniform(-0.08, 0.08)))
+    for _ in range(6):
+        im.putpixel((rng.randrange(16), rng.randrange(16)), shade((92, 90, 98), 1.0))
+    for x in range(16):
+        im.putpixel((x, 0), shade((70, 68, 76), 1.0))
+    return im
+
+
+def lamp_lens(lit):
+    """The lens: a fresnel of rings, dark glass when off, blazing warm white when on."""
+    im = Image.new('RGBA', (16, 16))
+    for y in range(16):
+        for x in range(16):
+            r = math.hypot(x - 7.5, y - 7.5)
+            if r > 7.6:
+                im.putpixel((x, y), shade((44, 42, 48), 1.0))
+                continue
+            ring = 1.0 + (0.12 if int(r) % 2 == 0 else -0.04)
+            if lit:
+                k = max(0.0, 1 - r / 9.0)
+                c = (255, int(214 + 40 * k), int(150 + 100 * k))
+            else:
+                c = (70, 74, 84)
+            im.putpixel((x, y), shade(c, ring if not lit else 1.0 - (0.04 if int(r) % 2 else 0)))
+    return im
+
+
+def stage_lamp():
+    """The band stand's floodlight (block/StageLampBlock): a cross-footed stand, a pole, a yoke, a can
+    with the lens on its north face (the blockstate turns it to FACING), a pull chain on its side."""
+    write_tex('stage_lamp_metal', lamp_metal(random.Random(41)))
+    write_tex('stage_lamp_lens', lamp_lens(False))
+    write_tex('stage_lamp_lens_on', lamp_lens(True))
+    m = '#metal'
+
+    def el(fr, to, lens=None, rot=None):
+        faces = {d: {'texture': m} for d in ('down', 'up', 'north', 'south', 'east', 'west')}
+        if lens:
+            faces['north'] = {'texture': lens}
+        e = {'from': fr, 'to': to, 'faces': faces}
+        if rot:
+            e['rotation'] = rot
+        return e
+    tilt = {'origin': [8, 26, 8], 'axis': 'x', 'angle': 22.5}
+    for name, lens in (('stage_lamp', 'papon:block/stage_lamp_lens'), ('stage_lamp_on', 'papon:block/stage_lamp_lens_on')):
+        write_json('models/block/%s.json' % name, {
+            'parent': 'minecraft:block/block', 'ambientocclusion': False,
+            'textures': {'particle': 'papon:block/stage_lamp_metal', 'metal': 'papon:block/stage_lamp_metal', 'lens': lens},
+            'elements': [
+                el([1, 0, 7], [15, 1.5, 9]), el([7, 0, 1], [9, 1.5, 15]),            # the cross foot
+                el([7.25, 1.5, 7.25], [8.75, 22, 8.75]),                              # the pole
+                el([3, 21, 7], [13, 22.5, 9]),                                        # the yoke
+                el([3, 22.5, 7.5], [4, 28, 8.5]), el([12, 22.5, 7.5], [13, 28, 8.5]),
+                el([4, 22, 4], [12, 30, 13], lens='#lens', rot=tilt),                 # the can
+                el([3.5, 21.5, 3.5], [12.5, 30.5, 4], rot=tilt),                      # the hood round the lens
+                el([12, 24, 9], [12.5, 24.5, 9.5], rot=tilt),                         # the pull chain
+                el([12.05, 18, 9.05], [12.45, 24, 9.45]),
+            ]})
+    write_json('blockstates/stage_lamp.json', {'variants': {
+        'facing=%s,lit=%s' % (f, l): {'model': 'papon:block/stage_lamp' + ('_on' if l == 'true' else ''), 'y': y}
+        for f, y in (('north', 0), ('east', 90), ('south', 180), ('west', 270)) for l in ('false', 'true')}})
 
 
 if __name__ == '__main__':

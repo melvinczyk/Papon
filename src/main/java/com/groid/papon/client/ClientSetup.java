@@ -78,6 +78,8 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.PAPON_ECHO.get(), EchoRenderer::new);
         event.registerEntityRenderer(ModEntities.MARIACHI.get(), MariachiRenderer::new);
         event.registerEntityRenderer(ModEntities.COLISEUM_CROWD.get(), ColiseumCrowdRenderer::new);
+        event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.ARENA_FLAG.get(), ArenaFlagRenderer::new);
+        event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.STAGE_LAMP.get(), StageLampRenderer::new);
     }
 
     private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,

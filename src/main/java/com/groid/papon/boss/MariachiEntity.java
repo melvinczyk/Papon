@@ -27,7 +27,7 @@ import software.bernie.geckolib.core.object.PlayState;
  * them). He never leaves his place on the stage.
  *
  * The band sleeps until the boss comes over and brings his spatula down on the singer's head
- * ({@link #whack}): the singer goes up in the air out of his chair and, back on his feet, dresses
+ * ({@link #whack}): the singer goes up in the air off the floor and, back on his feet, dresses
  * under protest; the bang wakes the rest ({@link #wake}), and each, at his own pace, gets up, puts
  * his jacket and sombrero on (the singer his aviators too), picks his instrument up and waits (the
  * guitarron sits straight back down and sleeps until his chair is kicked, {@link #kick}).
@@ -52,7 +52,7 @@ public class MariachiEntity extends TacoNpc {
         setNoAi(false);
     }
 
-    /** A band member at his place, asleep in his chair. */
+    /** A band member at his place, asleep sitting on the stage floor (Gordo, the guitarron: in his chair). */
     public static MariachiEntity spawn(ServerLevel level, BandRole role, Vec3 at, float yaw) {
         MariachiEntity m = new MariachiEntity(com.groid.papon.registry.ModEntities.MARIACHI.get(), level);
         m.entityData.set(DATA_ROLE, role.ordinal());
@@ -231,9 +231,13 @@ public class MariachiEntity extends TacoNpc {
         return ANIMS.computeIfAbsent(name, n -> RawAnimation.begin().thenLoop("animation.mariachi." + n));
     }
 
-    private static final RawAnimation STARTLE = once("startle"), GETUP = once("getup"), RESLEEP = once("resleep"),
-            JACKET = once("jacket"), HAT = once("hat"), SHADES = once("shades"), COUNT = once("count"), BOW = once("bow"),
-            WHACKED = once("whacked"), JACKET_SLOW = once("jacket_slow"), HAT_SLOW = once("hat_slow");
+    private static final RawAnimation RESLEEP = once("resleep"), HAT = once("hat"), SHADES = once("shades"), COUNT = once("count"),
+            BOW = once("bow"), HAT_SLOW = once("hat_slow");
+
+    /** Gordo has the only chair; everyone else sleeps (and wakes, and dresses) sitting on the stage floor. */
+    private String chair(String name) {
+        return getRole().dozer() ? name : name + "_floor";
+    }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -244,11 +248,11 @@ public class MariachiEntity extends TacoNpc {
         BandRole role = getRole();
         String kind = role.animKind();
         RawAnimation next = switch (getBandState()) {
-            case SLEEP -> role.dozer() && kicked ? SLEEPS[1] : SLEEPS[(role.ordinal() + (role.dozer() ? 1 : 0)) % 3];
-            case STARTLE -> STARTLE;
-            case GETUP -> GETUP;
+            case SLEEP -> role.dozer() ? SLEEPS[1] : loop(chair("sleep_" + "abc".charAt(role.ordinal() % 3)));
+            case STARTLE -> once(chair("startle"));
+            case GETUP -> once(chair("getup"));
             case RESLEEP -> RESLEEP;
-            case JACKET -> JACKET;
+            case JACKET -> once(chair("jacket"));
             case HAT -> HAT;
             case SHADES -> SHADES;
             case GRAB -> once("grab_" + kind);
@@ -256,8 +260,8 @@ public class MariachiEntity extends TacoNpc {
             case COUNT -> COUNT;
             case PLAY -> loop("play_" + (role.singer() ? "singer" : kind));
             case BOW -> BOW;
-            case WHACKED -> WHACKED;
-            case JACKET_SLOW -> JACKET_SLOW;
+            case WHACKED -> once(chair("whacked"));
+            case JACKET_SLOW -> once(chair("jacket_slow"));
             case HAT_SLOW -> HAT_SLOW;
         };
         return event.setAndContinue(next);

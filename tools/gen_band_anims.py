@@ -6,7 +6,7 @@ body back; arm_r Z > 0 / arm_l Z < 0 raise an arm outward; arm_r Y < 0 / arm_l Y
 The arms are split (gen_vendor.rig_hands): reaches stretch `arm_*_mesh` and slide `hand_*`.
 
 Every animation says outright what is shown: the suit pieces they put on (`jacket`, sleeves,
-`sombrero`, `shades`) or their places off them (`jacket_chair`, `sombrero_floor`), each instrument in
+`sombrero`, `shades`) or their places off them (`jacket_chair` / `jacket_floor`, `sombrero_floor`), each instrument in
 hand or on the floor (the renderer hides every instrument but the member's own), the eyelids.
 
 The playing loops are only the pose and a gentle sway: client/MariachiModel lays the music over them
@@ -16,6 +16,11 @@ strums, the bowing, and the singer's lips (Rhubarb shapes), brows (his pitch) an
 Hand poses on the instruments (the bowing arm, the trumpet valves, the requinto, the coro's hand
 mic) are solved on the rig by band_ik.py; the play loops key them, and they are written to
 assets/papon/song/band_poses.json for MariachiModel to blend between in time with the music.
+
+Only Gordo (the guitarron, the dozer) has a chair. Everyone else sleeps sitting on the stage floor, his
+jacket folded behind him (`jacket_floor`): the animations that start in the chair are written twice,
+as themselves and as `<name>_floor` (FLOOR_ROOT/FLOOR_LEG_*, the jacket picked up off the floor);
+boss/MariachiEntity picks the floor ones for everyone but Gordo.
 
 Lengths of one-shots = BandState durations in Java:
   startle 1.0, getup 3.0, resleep 2.0, jacket 2.5, hat 1.5, shades 1.0, grab_* 1.5, count 4.0
@@ -37,6 +42,9 @@ SHOWN, HIDDEN = [1, 1, 1], [0, 0, 0]
 
 DRESSED = ['jacket', 'sleeve_r', 'sleeve_l', 'sombrero']
 UNDRESSED = ['jacket_chair', 'sombrero_floor']
+# where the jacket waits while he sleeps: on the chair's back, or (ON_FLOOR) folded on the floor behind him
+JACKET_OFF = 'jacket_chair'
+ON_FLOOR = False
 GUITARS = ['guitar', 'vihuela', 'guitarron', 'requinto']
 HELD = GUITARS + ['trumpet', 'violin', 'bow', 'maraca', 'hand_mic']
 FLOOR = ['guitar_floor', 'vihuela_floor', 'guitarron_floor', 'trumpet_floor', 'violin_floor', 'requinto_floor',
@@ -46,6 +54,10 @@ POSES = band_ik.all_poses()
 SEAT_ROOT = [0, 3, 0]
 SEAT_LEG_R = [-80, 8, 0]
 SEAT_LEG_L = [-80, -8, 0]
+# sitting on the stage floor, legs out in front (the crowd's seated pose, client/ColiseumCrowdRenderer)
+FLOOR_ROOT = [0, -4, 0]
+FLOOR_LEG_R = [-88, 8, 0]
+FLOOR_LEG_L = [-88, -8, 0]
 BAR = 1.882          # a bar of the song (127.5 bpm)
 
 
@@ -96,7 +108,8 @@ def show(a, bones, on, t=0):
 def state(a, dressed, held, shades=None, lids=False):
     """What is on and what is off for the whole animation (keys a bone only if the animation has not)."""
     show(a, DRESSED, dressed)
-    show(a, UNDRESSED, not dressed)
+    show(a, [JACKET_OFF, 'sombrero_floor'], not dressed)
+    show(a, ['jacket_floor' if JACKET_OFF == 'jacket_chair' else 'jacket_chair'], False)
     show(a, HELD, held)
     show(a, FLOOR, not held)
     show(a, ['shades'], dressed if shades is None else shades)
@@ -228,7 +241,7 @@ def resleep():
 def jacket():
     """2.5 s. Turns round to the chair, takes his jacket off its back, shrugs it on, tugs the lapels straight."""
     a = state(M('jacket', 2.5, 'hold'), False, False)
-    a.vis('jacket_chair', True, [(0.6, False)])
+    a.vis(JACKET_OFF, True, [(0.6, False)])
     a.scale('jacket', [(0, HIDDEN), (1.0 - EPS, HIDDEN), (1.0, [1.25, 0.5, 1.25]), (1.25, [0.96, 1.06, 0.96], 'easeOutBack'),
                        (1.4, SHOWN), (2.5, SHOWN)], 'lin')
     for s in ('sleeve_r', 'sleeve_l'):
@@ -242,7 +255,8 @@ def jacket():
                     (2.5, [0, 0, 8 * s])], 'lin')
     a.scale('body', [(0, [1, 1, 1]), (1.0, [1, 1, 1]), (1.1, [1.06, 0.92, 1.06], 'easeOutQuad'), (1.3, [0.98, 1.04, 0.98]),
                      (1.5, [1, 1, 1])], 'lin')
-    a.rot('torso', [(0, [0, 0, 0]), (1.65, [0, 0, 0]), (1.75, [-6, 0, 0]), (1.95, [-6, 0, 0]), (2.2, [0, 0, 0])])
+    bend = [(0.45, [44, 0, 0], 'easeInOutSine'), (0.65, [46, 0, 0]), (1.0, [0, 0, 0], 'easeInOutSine')] if ON_FLOOR else []
+    a.rot('torso', [(0, [0, 0, 0])] + bend + [(1.65, [0, 0, 0]), (1.75, [-6, 0, 0]), (1.95, [-6, 0, 0]), (2.2, [0, 0, 0])])
     a.sound(0.6, 'cloth').sound(1.05, 'cloth').sound(1.7, 'flex')
     return a
 
@@ -500,14 +514,15 @@ def jacket_slow():
     (it trails along the ground), shoves an arm in, then the other, with a roll of the eyes, and gives
     the lapels one tug: fine. Whatever."""
     a = state(M('jacket_slow', 4.5, 'hold'), False, False)
-    a.vis('jacket_chair', True, [(1.5, False)])
+    a.vis(JACKET_OFF, True, [(1.5, False)])
     a.scale('jacket', [(0, HIDDEN), (2.3 - EPS, HIDDEN), (2.3, [1.2, 0.6, 1.2]), (2.7, [0.97, 1.04, 0.97], 'easeOutBack'), (3.0, SHOWN), (4.5, SHOWN)], 'lin')
     a.scale('sleeve_r', [(0, HIDDEN), (2.3 - EPS, HIDDEN), (2.3, [1.2, 0.3, 1.2]), (2.7, SHOWN, 'easeOutBack'), (4.5, SHOWN)], 'lin')
     a.scale('sleeve_l', [(0, HIDDEN), (3.0 - EPS, HIDDEN), (3.0, [1.2, 0.3, 1.2]), (3.4, SHOWN, 'easeOutBack'), (4.5, SHOWN)], 'lin')
     # the sigh: up, and all the way down
     a.scale('body', [(0, [1, 1, 1]), (0.5, [1.04, 1.06, 1.04], 'easeInOutSine'), (1.1, [1.03, 0.9, 1.03], 'easeInOutSine'), (1.4, [1, 0.94, 1]),
                      (3.8, [1, 0.96, 1]), (4.1, [1.02, 1.02, 1.02], 'easeOutQuad'), (4.5, [1, 1, 1])])
-    a.rot('torso', [(0, [0, 0, 0]), (0.5, [-6, 0, 0]), (1.1, [14, 0, 0], 'easeInOutSine'), (1.4, [10, 0, 0]), (3.8, [8, 0, 0]),
+    dip = [(1.45, [40, 0, 0], 'easeInOutSine'), (1.6, [42, 0, 0]), (2.0, [10, 0, 0], 'easeInOutSine')] if ON_FLOOR else [(1.4, [10, 0, 0])]
+    a.rot('torso', [(0, [0, 0, 0]), (0.5, [-6, 0, 0]), (1.1, [14, 0, 0], 'easeInOutSine')] + dip + [(3.8, [8, 0, 0]),
                     (4.1, [-4, 0, 0]), (4.5, [0, 0, 0])])
     a.rot('root', [(0, [0, 0, 0]), (1.1, [0, 0, 0]), (1.45, [0, 150, 0], 'easeInOutSine'), (1.6, [0, 150, 0]), (2.0, [0, 0, 0], 'easeInOutSine'), (4.5, [0, 0, 0])], 'lin')
     a.rot('arm_r', [(0, [0, 0, 6]), (1.1, [10, 0, 4]), (1.45, [-60, 0, 8], 'easeInOutSine'), (1.6, [-66, 0, 8]), (2.0, [20, 0, 20]),
@@ -555,10 +570,29 @@ ALL = [sleep_a, sleep_b, sleep_c, startle, getup, resleep, jacket, hat, shades,
        lambda: play('coro'), bow, whacked, jacket_slow, hat_slow]
 
 
+# the ones that start in a chair: written again sitting on the floor (everyone but Gordo)
+FROM_CHAIR = [sleep_a, sleep_b, sleep_c, startle, getup, jacket, whacked, jacket_slow]
+
+
+def floor_variants():
+    """The FROM_CHAIR animations as `<name>_floor`: sat on the stage, the jacket folded behind him."""
+    global SEAT_ROOT, SEAT_LEG_R, SEAT_LEG_L, JACKET_OFF, ON_FLOOR
+    saved = SEAT_ROOT, SEAT_LEG_R, SEAT_LEG_L, JACKET_OFF, ON_FLOOR
+    SEAT_ROOT, SEAT_LEG_R, SEAT_LEG_L, JACKET_OFF, ON_FLOOR = FLOOR_ROOT, FLOOR_LEG_R, FLOOR_LEG_L, 'jacket_floor', True
+    try:
+        out = []
+        for fn in FROM_CHAIR:
+            a = fn()
+            a.name += '_floor'
+            out.append(a)
+        return out
+    finally:
+        SEAT_ROOT, SEAT_LEG_R, SEAT_LEG_L, JACKET_OFF, ON_FLOOR = saved
+
+
 def main():
     data = {'format_version': '1.8.0', 'animations': {}}
-    for fn in ALL:
-        a = fn()
+    for a in [fn() for fn in ALL] + floor_variants():
         data['animations']['animation.mariachi.' + a.name] = guard_brows(a.compile())
     with open(OUT, 'w', newline='\n') as f:
         json.dump(data, f, indent='\t')

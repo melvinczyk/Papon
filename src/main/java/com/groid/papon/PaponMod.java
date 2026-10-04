@@ -6,6 +6,7 @@ import com.groid.papon.network.PaponNetwork;
 import com.groid.papon.registry.ModSounds;
 import com.groid.papon.vehicle.CaravanEntity;
 import com.groid.papon.entity.npc.TacoNpc;
+import com.groid.papon.registry.ModBlockEntities;
 import com.groid.papon.registry.ModBlocks;
 import com.groid.papon.registry.ModEffects;
 import com.groid.papon.registry.ModEntities;
@@ -31,6 +32,7 @@ public class PaponMod {
     public PaponMod() {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         ModBlocks.REGISTRY.register(bus);
+        ModBlockEntities.REGISTRY.register(bus);
         ModEntities.REGISTRY.register(bus);
         ModItems.REGISTRY.register(bus);
         ModParticles.REGISTRY.register(bus);
