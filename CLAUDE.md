@@ -591,12 +591,13 @@ player and were not exercised headless.
   New: `p3_hurt`, `p3_noise`, `p3_power`, `upgrade`, `qte_strong/weak/crush/slip/quick/slow`, `tango_good/bad`, `duel_good/bad`,
   `p3_sombrero/volcan/calaveras/swing`; `notstyle` is "This is NOT my style... who do you think I AM?!". `SPOKEN` (line -> what
   the TTS is given) for words it misreads; Whisper and the bubble still use `LINES`.
-- **Voice, more human (the user: "awkward, not natural; more emotion, charisma, vocal difference")**: all 180 lines retaken (main's 52 new ones included, restyled the same way).
-  Lines rewritten as speech (natural phrasing, contractions, a word or two in capitals at most, little sounds: "heh", "ay",
-  "mmm"); every `DIRECTION` starts with `NATURAL` (talk like a real person: pitch rising and falling, pace changing, words
-  leaned into) and gives a vivid emotion; sampling `GEN` temperature 1.0, each take ±0.07 (`voice_modal`); 12 takes a line;
-  `pick` scores pitch range most (to 16 semitones, shrill past 20), then loudness swing, then likeness. `intro` is checked
-  by `lives_ok` (formants of the vowel before the v) instead of a pinned take.
+- **Voice, more human (the user: "awkward, not natural; more emotion, charisma, vocal difference"; then: only this
+  session's new lines)**: the 21 lines in `FRESH` (the phase-three build-up, the QTE reactions, the new moves, intro, felt,
+  notstyle) are written as speech (natural phrasing, contractions, a word or two in capitals at most, "ugh", "whoa") and taken
+  with the new `DIRECTION`s (each starts with `NATURAL`: pitch rising and falling, pace changing, words leaned into; a vivid
+  emotion), sampling `GEN` temperature 1.0 (each take ±0.07, `voice_modal`), 12 takes, and a picker that scores pitch range
+  most. Every other line keeps its text, `OLD_DIRECTION`, old pick and its built audio (`build` skips it). `intro` is checked
+  by `lives_ok` (the vowel's F1 under 600 Hz: a short i).
 - **Blush**: `blush` is in `B.pins`; only `chug`, `drink_handle`, `drunk_swig` show it (fading out in `roar`, `enter_car`,
   `drunk_flurry`, `haymaker`).
 - **No hint text**: every boss-fight `displayClientMessage` hint is gone (the `status.papon.*` lang keys are unused now).
