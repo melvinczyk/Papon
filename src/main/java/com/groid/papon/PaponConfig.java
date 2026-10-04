@@ -77,9 +77,10 @@ public final class PaponConfig {
                         "armor (drunken attacks, Habanero, the burrito, the gravity spud). Independent of damageMultiplier.")
                 .defineInRange("trueDamageMultiplier", 1.0, 0.0, 10.0);
         BURST_CAP = b.comment("His composure: the most of his maximum health he can lose in a burst (it drains 2.5% a tick, so",
-                        "0.04 lets about 2% a second through). Past it, hits glance off: big damage does not skip his mechanics.",
-                        "Staggered or stumbling he can lose two and a half times as much. 1.0 turns it off.")
-                .defineInRange("burstCapFraction", 0.04, 0.001, 1.0);
+                        "0.08 lets about 4% a second through). Past it, hits glance off: big damage does not skip his mechanics.",
+                        "In his open windows (winded after a big move, staggered, stumbling, spent) he can lose three times as much.",
+                        "1.0 turns it off. (Renamed from burstCapFraction in 0.10.0: the old, much tighter 0.04 is dropped.)")
+                .defineInRange("composureFraction", 0.08, 0.001, 1.0);
         ARMOR_PIERCE = b.comment("His heavy hits also take this share of your maximum health, through armor (more in phase two):",
                         "no amount of armor lets you stand and trade with him. 0 turns it off.")
                 .defineInRange("armorPierceFraction", 0.06, 0.0, 1.0);

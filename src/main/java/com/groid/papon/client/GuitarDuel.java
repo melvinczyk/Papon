@@ -20,8 +20,8 @@ import java.util.List;
  * Duelo de Guitarras (phase three): the challenger's screen becomes a guitar-hero fretboard while Ascended Papon shreds
  * in front of them. Four lanes on D F J K; the gems are charted on the beat of the song the band is playing (the song's
  * own beat grid, cut into triplets: it is in 6/8), with the melody's notes, streams, trills and chords, getting denser as
- * it goes; they fall in 0.8 s. A hit is within 75 ms of its note (35 ms: perfect). The rock meter climbs on hits and drops
- * hard on misses; empty, and it is over. Survive the chart with 85% of the notes hit and you win. Timed on the real clock
+ * it goes; they fall in 0.85 s. A hit is within 85 ms of its note (40 ms: perfect). The rock meter climbs on hits and drops
+ * on misses; empty, and it is over. Survive the chart with 82% of the notes hit and you win. Timed on the real clock
  * from the moment it starts, lined up with the song where it was then (SongPlayer), so it plays to the music.
  */
 final class GuitarDuel {
@@ -30,9 +30,10 @@ final class GuitarDuel {
     private static final int[] COLORS = {0xFF3CD25A, 0xFFE8403A, 0xFFF2D23C, 0xFF3C8CF0};
     /** Seconds of countdown before the first gem can reach the line. */
     private static final double LEAD = 2.2;
-    private static final double FALL = 0.8;
-    private static final double GOOD = 0.075, PERFECT = 0.035;
-    private static final float PASS = 0.85F;
+    // (2026-10-04, a touch easier: the gems fall a little slower, the windows a little wider, the bar to pass a little lower)
+    private static final double FALL = 0.85;
+    private static final double GOOD = 0.085, PERFECT = 0.04;
+    private static final float PASS = 0.82F;
 
     private record Note(double t, int lane) {}
 
@@ -128,6 +129,11 @@ final class GuitarDuel {
         return over;
     }
 
+    /** The rock meter, 0..1 (the server hears how it is going: client/QteClient). */
+    float meter() {
+        return Mth.clamp(meter, 0F, 1F);
+    }
+
     /** Every client tick: notes that went past the line unhit are misses; the meter, the end. */
     void tick() {
         if (over) return;
@@ -150,7 +156,7 @@ final class GuitarDuel {
     private void miss() {
         misses++;
         combo = 0;
-        meter -= 0.07F;
+        meter -= 0.06F;
         shake = 1F;
         judge = "miss";
         judgeTime = 0;
@@ -175,6 +181,8 @@ final class GuitarDuel {
         if (lane < 0 || over) return;
         held[lane] = true;
         double t = now();
+        // still counting in: what you were pressing before it started is not a note (nor a bum one)
+        if (t < LEAD - 0.35) return;
         int best = -1;
         double bestD = GOOD;
         for (int i = next; i < notes.size() && notes.get(i).t < t + GOOD; i++) {
@@ -187,7 +195,7 @@ final class GuitarDuel {
         }
         if (best < 0) {
             // nothing there: a bum note, and the meter knows it
-            meter -= 0.03F;
+            meter -= 0.02F;
             combo = 0;
             shake = 0.5F;
             judge = "bum";
@@ -197,6 +205,7 @@ final class GuitarDuel {
         }
         hit[best] = true;
         hits++;
+        QtePlayerPose.strum();
         combo++;
         this.best = Math.max(this.best, combo);
         boolean perfect = bestD <= PERFECT;

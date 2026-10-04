@@ -242,6 +242,11 @@ public class MariachiEntity extends TacoNpc {
         Speech.say(this, ChatFormatting.GOLD, "speech.papon.band." + line, false, false, ticks);
     }
 
+    /** A line of his own in a bubble (phase three's cutscene: the band's scared asides). */
+    public void blurt(String line, int ticks) {
+        say(line, ticks);
+    }
+
     // ------------------------------------------------------------------ ticking
 
     @Override

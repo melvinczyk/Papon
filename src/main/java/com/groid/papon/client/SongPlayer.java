@@ -86,7 +86,10 @@ public final class SongPlayer {
             return;
         }
         PaponBossEntity boss = boss(mc);
-        if (boss != null && boss.getBossState().bandStopped()) {
+        boolean dazed = boss != null && dazed(boss);
+        // knocked flat, the band plays on, muffled in his ears (it stops dead when they see him staring at them)
+        muffleWant = dazed ? 0.3F : 1F;
+        if (boss != null && boss.getBossState().bandStopped() && !dazed) {
             phaseThree(mc, boss);
             return;
         }
@@ -143,6 +146,15 @@ public final class SongPlayer {
         if (now >= endAt - next.pre() * 20 - 0.5) begin(mc, next, endAt);
     }
 
+    private static float muffleWant = 1F, muffle = 1F;
+
+    /** Phase three's knockback, and his swimming vision after it until the band sees him staring. */
+    private static boolean dazed(PaponBossEntity boss) {
+        BossState st = boss.getBossState();
+        return st == BossState.P3_KNOCKBACK
+                || st == BossState.P3_GLARE && boss.ticksInState() < com.groid.papon.boss.VoiceLines.beat("glare.scare", 114);
+    }
+
     /** Passes of the intro before the song moves on: phase two's guitar intro covers his apology; phase three's pickup plays once. */
     private static int passes(Song song) {
         return song == Song.get() ? Song.introPasses() : 1;
@@ -173,7 +185,7 @@ public final class SongPlayer {
         }
         if (current != null && current.id().equals("serenade")) return;      // the last chord rings on under his lines
         if (playing != null && !playing.fading) {
-            if (st == BossState.P3_KNOCKBACK) playing.windDown();
+            if (st == BossState.P3_KNOCKBACK || st == BossState.P3_GLARE) playing.windDown();
             else playing.fadeOut();
         }
         playing = null;
@@ -309,6 +321,7 @@ public final class SongPlayer {
         private float level = 1F;
 
         private int winding = -1;
+        private int winding0;
 
         Segment(Song.Segment s) {
             super(SoundEvent.createVariableRangeEvent(PaponMod.id((song != null ? song.sounds : "music.song.") + s.id())), SoundSource.RECORDS,
@@ -353,7 +366,12 @@ public final class SongPlayer {
                     return;
                 }
             }
-            volume = Math.max(0.001F, 0.95F * level * VoiceDuck.get());     // under him while he talks
+            muffle += (muffleWant - muffle) * 0.08F;
+            if (winding < 0) {
+                // muffled: down, and a slow wobble in the pitch, as if through his ringing ears
+                pitch = 1F - (1F - muffle) * (0.04F + 0.03F * net.minecraft.util.Mth.sin(winding0++ * 0.12F));
+            }
+            volume = Math.max(0.001F, 0.95F * level * VoiceDuck.get() * muffle);     // under him while he talks
         }
     }
 }

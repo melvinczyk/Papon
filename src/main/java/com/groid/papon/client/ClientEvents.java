@@ -23,9 +23,14 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.START) {
+            freeze();
+            return;
+        }
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.isPaused()) return;
+        CullingCompat.tick();
         ScreenShake.tick();
         Cinematic.tick();
         SongPlayer.tick();
@@ -95,6 +100,20 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onHand(RenderHandEvent event) {
         if (Cinematic.isActive()) event.setCanceled(true);
+    }
+
+    /**
+     * Through a cutscene you stand still: no input (onMovement) and no momentum either (the user: a jump or a sprint into
+     * one carried on through it). Your fall is left alone, so you still land.
+     */
+    private static void freeze() {
+        Minecraft mc = Minecraft.getInstance();
+        var p = mc.player;
+        if (p == null || mc.isPaused() || !Cinematic.isActive() || Cinematic.qteActive() || p.isPassenger()) return;
+        var v = p.getDeltaMovement();
+        p.setDeltaMovement(0, p.getAbilities().flying ? 0 : Math.min(0, v.y), 0);
+        p.setSprinting(false);
+        if (p.isFallFlying()) p.stopFallFlying();
     }
 
     @SubscribeEvent

@@ -1900,5 +1900,131 @@
       }
     ],
     "subtitle": "subtitles.papon.skyline.glow"
+  },
+  "voice.boss2.p3_hurt": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_hurt"
+      }
+    ]
+  },
+  "voice.boss2.p3_noise": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_noise"
+      }
+    ]
+  },
+  "voice.boss2.p3_power": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_power"
+      }
+    ]
+  },
+  "voice.boss2.upgrade": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/upgrade"
+      }
+    ]
+  },
+  "voice.boss2.qte_strong": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/qte_strong"
+      }
+    ]
+  },
+  "voice.boss2.qte_weak": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/qte_weak"
+      }
+    ]
+  },
+  "voice.boss2.qte_crush": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/qte_crush"
+      }
+    ]
+  },
+  "voice.boss2.qte_slip": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/qte_slip"
+      }
+    ]
+  },
+  "voice.boss2.qte_quick": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/qte_quick"
+      }
+    ]
+  },
+  "voice.boss2.qte_slow": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/qte_slow"
+      }
+    ]
+  },
+  "voice.boss2.tango_good": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/tango_good"
+      }
+    ]
+  },
+  "voice.boss2.tango_bad": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/tango_bad"
+      }
+    ]
+  },
+  "voice.boss2.duel_good": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/duel_good"
+      }
+    ]
+  },
+  "voice.boss2.duel_bad": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/duel_bad"
+      }
+    ]
+  },
+  "voice.boss2.p3_sombrero": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_sombrero"
+      }
+    ]
+  },
+  "voice.boss2.p3_volcan": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_volcan"
+      }
+    ]
+  },
+  "voice.boss2.p3_calaveras": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_calaveras"
+      }
+    ]
+  },
+  "voice.boss2.p3_swing": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p3_swing"
+      }
+    ]
   }
 }

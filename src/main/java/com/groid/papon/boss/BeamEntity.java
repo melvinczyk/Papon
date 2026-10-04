@@ -32,6 +32,11 @@ public class BeamEntity extends Entity {
     /** 0 aiming (a thin line), 1 firing. */
     private static final EntityDataAccessor<Integer> MODE = SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.INT);
 
+    /** A beam out of a boss's eye: his entity id (or -1) and which eye (1 right, -1 left). The client starts it at the eye as
+     *  drawn (client/BossRenderer), not where the server thinks his eye is. */
+    private static final EntityDataAccessor<Integer> ANCHOR = SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> SIDE = SynchedEntityData.defineId(BeamEntity.class, EntityDataSerializers.INT);
+
     public static final int AIM = 0, FIRE = 1;
 
     private int life = 400;
@@ -66,6 +71,21 @@ public class BeamEntity extends Entity {
         entityData.set(TY, (float) to.y);
         entityData.set(TZ, (float) to.z);
         setPos(from.x, from.y, from.z);
+    }
+
+    /** Out of {@code boss}'s eye ({@code side} 1 right, -1 left). */
+    public BeamEntity eye(Entity boss, int side) {
+        entityData.set(ANCHOR, boss.getId());
+        entityData.set(SIDE, side);
+        return this;
+    }
+
+    public int anchor() {
+        return entityData.get(ANCHOR);
+    }
+
+    public int side() {
+        return entityData.get(SIDE);
     }
 
     public void setMode(int mode) {
@@ -107,6 +127,8 @@ public class BeamEntity extends Entity {
         entityData.define(WIDTH, 0.5F);
         entityData.define(COLOR, 0xFFFFFF);
         entityData.define(MODE, AIM);
+        entityData.define(ANCHOR, -1);
+        entityData.define(SIDE, 0);
     }
 
     @Override

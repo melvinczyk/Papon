@@ -28,6 +28,7 @@ import org.joml.Matrix4f;
  */
 public class PropRenderer extends EntityRenderer<BossProp> {
     private static final ResourceLocation MASH = PaponMod.id("textures/entity/mash_wave.png");
+    private static final ResourceLocation SALSA = PaponMod.id("textures/entity/salsa_wave.png");
 
     public PropRenderer(EntityRendererProvider.Context ctx) {
         super(ctx);
@@ -44,6 +45,18 @@ public class PropRenderer extends EntityRenderer<BossProp> {
         }
         if (k == BossProp.Kind.MASHER) {
             drawMasher(p, pose, buffers, light, age);
+            return;
+        }
+        if (k == BossProp.Kind.SALSA_RING) {
+            drawRing(p, pose, buffers, light, SALSA, 1.8F);
+            return;
+        }
+        if (k == BossProp.Kind.BAND_WAVE) {
+            drawBandWave(p, pose, buffers, age);
+            return;
+        }
+        if (k == BossProp.Kind.SALSA_WAVE) {
+            drawSalsaWave(p, pose, buffers, light, age);
             return;
         }
         pose.pushPose();
@@ -114,8 +127,18 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 lit = LightTexture.FULL_BRIGHT;
             }
             case PINATA -> {
-                // the piñata, swinging gently on its rope (the rope up out of sight is drawn as a line)
+                // the piñata, swinging gently on its rope (the rope up out of sight is drawn as a line); swung like a wrecking
+                // ball (La Piñata, reworked) it hangs along its rope, tilted by the swing (pitch = the angle, yaw = the plane)
                 stack = new ItemStack(ModItems.FX_PINATA.get());
+                float swing = p.getViewXRot(partialTick);
+                if (Math.abs(swing) > 0.5F) {
+                    double py = Math.toRadians(p.getViewYRot(partialTick));
+                    // the swing's plane is the yaw's facing f; the tilt is about f x up, so the rope leans back toward its anchor
+                    float kx = (float) -Math.cos(py), kz = (float) -Math.sin(py);
+                    pose.translate(0, 5.7, 0);
+                    pose.mulPose(new org.joml.Quaternionf().rotateAxis((float) Math.toRadians(swing), kx, 0, kz));
+                    pose.translate(0, -5.7, 0);
+                }
                 pose.translate(0, 1.6, 0);
                 pose.mulPose(Axis.YP.rotationDegrees(age * 1.5F));
                 pose.mulPose(Axis.ZP.rotationDegrees(Mth.sin(age * 0.12F) * 8F));
@@ -165,6 +188,37 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 pose.mulPose(Axis.ZP.rotationDegrees(Mth.sin(age * 0.04F) * 10F));
                 float s = 26F * in * pulse;
                 pose.scale(s, s, s);
+            }
+            case MONOLITH -> {
+                // a giant potato stood on end, pushing up out of the sand (and sinking back)
+                stack = new ItemStack(ModItems.FX_GIANT_SPUD.get());
+                float up = Mth.clamp(age / 20F, 0F, 1F);
+                up = up * up * (3 - 2 * up);
+                pose.translate(Mth.sin(age * 3.1F) * 0.03F * (1 - up), -5.2F * (1 - up) + 2.6F, 0);
+                pose.mulPose(Axis.ZP.rotationDegrees(90F));
+                pose.mulPose(Axis.XP.rotationDegrees(p.getId() * 37F % 360F));
+                pose.scale(5.2F, 3.0F, 3.0F);
+            }
+            case SOMBRERO -> {
+                // spun flat like a saw blade, wobbling as it goes, the brim catching the light
+                stack = new ItemStack(ModItems.FX_SOMBRERO.get());
+                pose.translate(0, 0.1, 0);
+                pose.mulPose(Axis.YP.rotationDegrees(age * 47F));
+                pose.mulPose(Axis.XP.rotationDegrees(Mth.sin(age * 0.31F) * 7F));
+                pose.scale(4.2F, 4.2F, 4.2F);
+                lit = LightTexture.FULL_BRIGHT;
+            }
+            case CALAVERA -> {
+                // a sugar skull, its face where it is going (or bobbing round you while it circles), eyes aglow
+                stack = new ItemStack(ModItems.FX_CALAVERA.get());
+                net.minecraft.world.phys.Vec3 v = p.getDeltaMovement();
+                float yawT = v.horizontalDistanceSqr() > 1e-4 ? (float) (Mth.atan2(v.x, v.z) * Mth.RAD_TO_DEG) : -p.getYRot();
+                pose.translate(0, 0.4 + Mth.sin(age * 0.25F + p.getId()) * 0.12F, 0);
+                pose.mulPose(Axis.YP.rotationDegrees(yawT + 180F));
+                pose.mulPose(Axis.ZP.rotationDegrees(Mth.sin(age * 0.17F + p.getId()) * 10F));
+                pose.scale(2.3F, 2.3F, 2.3F);
+                lit = LightTexture.FULL_BRIGHT;
+                drawGlow(pose, buffers, 0F, 0.62F, 240, 74, 160, 0.45F + 0.2F * Mth.sin(age * 0.5F));       // a pink halo round it
             }
             default -> {
                 pose.popPose();
@@ -280,11 +334,174 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 .normal(n, nx, 0, nz).endVertex();
     }
 
+    /** A soft glow round a prop (additive, a flat disc turned to the camera), in the prop's pose space. */
+    private static void drawGlow(PoseStack pose, MultiBufferSource buffers, float y, float rad, int r, int g, int b, float k) {
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        pose.pushPose();
+        pose.translate(0, y, 0);
+        pose.mulPose(Minecraft.getInstance().getEntityRenderDispatcher().cameraOrientation());
+        Matrix4f m = pose.last().pose();
+        int a = (int) (200 * Mth.clamp(k, 0, 1));
+        int seg = 14;
+        for (int i = 0; i < seg; i++) {
+            float a0 = (float) (Math.PI * 2 * i / seg), a1 = (float) (Math.PI * 2 * (i + 1) / seg);
+            vc.vertex(m, 0, 0, 0).color(r, g, b, a).endVertex();
+            vc.vertex(m, Mth.cos(a0) * rad, Mth.sin(a0) * rad, 0).color(r, g, b, 0).endVertex();
+            vc.vertex(m, Mth.cos(a1) * rad, Mth.sin(a1) * rad, 0).color(r, g, b, 0).endVertex();
+            vc.vertex(m, 0, 0, 0).color(r, g, b, a).endVertex();
+        }
+        pose.popPose();
+    }
+
+    /**
+     * ¡Fuego, Mariachi!: the band's blast rolling out across the sand, an arc of a ring, glowing. A trumpet's is a wall of
+     * gold along the ground, staves of light running through it and a white-hot leading edge (jump it); a violin's a crimson
+     * ribbon slashing through at head height (duck it). Additive: it blazes in his night.
+     */
+    private static void drawBandWave(BossProp p, PoseStack pose, MultiBufferSource buffers, float age) {
+        float r = p.radius();
+        if (r <= 0.2F) return;
+        boolean horn = p.delay() == 0;
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        Matrix4f m = pose.last().pose();
+        double heading = Math.toRadians(p.getYRot()), span = Math.toRadians(70);
+        int segs = Math.max(12, (int) (r * span * 2 / 0.5));
+        float fade = Mth.clamp((62F - r) / 10F, 0F, 1F);
+        int cr = horn ? 255 : 255, cg = horn ? 206 : 70, cb = horn ? 74 : 112;
+        float y0 = horn ? 0.02F : 1.5F, y1 = horn ? 0.95F : 2.4F, ym = (y0 + y1) / 2;
+        float pulse = 0.85F + 0.15F * Mth.sin(age * 1.7F);
+        for (int i = 0; i < segs; i++) {
+            double a0 = heading - span + span * 2 * i / segs, a1 = heading - span + span * 2 * (i + 1) / segs;
+            // the ends of the arc fade out
+            float e0 = edge(i, segs), e1 = edge(i + 1, segs);
+            for (float dr : new float[]{0F, -0.35F, -0.7F}) {
+                float rr = r + dr;
+                float k = (dr == 0F ? 1F : dr > -0.5F ? 0.55F : 0.25F) * fade * pulse;
+                float x0 = (float) Math.cos(a0) * rr, z0 = (float) Math.sin(a0) * rr, x1 = (float) Math.cos(a1) * rr, z1 = (float) Math.sin(a1) * rr;
+                int ab = (int) (220 * k * e0), ab1 = (int) (220 * k * e1);
+                if (horn) {
+                    // bright at the ground, gone at the top
+                    quad2(vc, m, x0, y0, z0, x1, y0, z1, x1, y1, z1, x0, y1, z0, cr, cg, cb, ab, ab1, 0, 0);
+                } else {
+                    // a ribbon: bright in the middle, gone at both edges
+                    quad2(vc, m, x0, y0, z0, x1, y0, z1, x1, ym, z1, x0, ym, z0, cr, cg, cb, 0, 0, ab1, ab);
+                    quad2(vc, m, x0, ym, z0, x1, ym, z1, x1, y1, z1, x0, y1, z0, cr, cg, cb, ab, ab1, 0, 0);
+                }
+            }
+            // the white-hot leading edge, and (the trumpet's) three staves of light
+            float x0 = (float) Math.cos(a0) * r, z0 = (float) Math.sin(a0) * r, x1 = (float) Math.cos(a1) * r, z1 = (float) Math.sin(a1) * r;
+            float[] lines = horn ? new float[]{0.22F, 0.45F, 0.68F} : new float[]{ym};
+            for (float ly : lines) {
+                int a = (int) (240 * fade * e0);
+                quad2(vc, m, x0, ly - 0.04F, z0, x1, ly - 0.04F, z1, x1, ly + 0.04F, z1, x0, ly + 0.04F, z0, 255, 250, 230, a, a, a, a);
+            }
+        }
+    }
+
+    private static float edge(int i, int n) {
+        float k = Math.min(i, n - i) / (float) Math.max(1, n / 6);
+        return Mth.clamp(k, 0F, 1F);
+    }
+
+    /** One quad, both windings, a colour per corner's alpha (the lightning render type culls back faces). */
+    private static void quad2(VertexConsumer vc, Matrix4f m, float x0, float y0, float z0, float x1, float y1, float z1, float x2, float y2,
+                              float z2, float x3, float y3, float z3, int r, int g, int b, int a0, int a1, int a2, int a3) {
+        vc.vertex(m, x0, y0, z0).color(r, g, b, a0).endVertex();
+        vc.vertex(m, x1, y1, z1).color(r, g, b, a1).endVertex();
+        vc.vertex(m, x2, y2, z2).color(r, g, b, a2).endVertex();
+        vc.vertex(m, x3, y3, z3).color(r, g, b, a3).endVertex();
+        vc.vertex(m, x3, y3, z3).color(r, g, b, a3).endVertex();
+        vc.vertex(m, x2, y2, z2).color(r, g, b, a2).endVertex();
+        vc.vertex(m, x1, y1, z1).color(r, g, b, a1).endVertex();
+        vc.vertex(m, x0, y0, z0).color(r, g, b, a0).endVertex();
+    }
+
+    /** The salsa wave's cross-section (along its travel, height): up its back to the crest, the lip curling over, the hollow under it. */
+    private static final float[][] CURL = {{-2.6F, 0F}, {-1.8F, 1.1F}, {-1.0F, 2.3F}, {-0.2F, 3.2F}, {0.6F, 3.5F}, {1.3F, 3.2F},
+            {1.7F, 2.6F}, {1.5F, 2.0F}, {1.0F, 1.9F}, {0.7F, 1.2F}, {0.9F, 0F}};
+
+    /**
+     * ¡La Ola!: a wall of salsa three and a half blocks high rolling across the sand, its lip curling over and slopping,
+     * chunks of tomato and onion in it (tools/gen_props.salsa_wave), the wall trembling as it goes. Its one gap (the way
+     * through) is a low slop you can step through.
+     */
+    private static void drawSalsaWave(BossProp p, PoseStack pose, MultiBufferSource buffers, int light, float age) {
+        float half = p.radius();
+        if (half <= 0.5F) return;
+        double yaw = Math.toRadians(p.getYRot());
+        float dx = (float) Math.cos(yaw), dz = (float) Math.sin(yaw);
+        float ax = -dz, az = dx;
+        double gap = p.gap();
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(SALSA));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        int lit = Math.max(light, LightTexture.pack(10, 12));
+        float step = 0.75F;
+        int cols = (int) Math.ceil(half * 2 / step);
+        for (int c = 0; c < cols; c++) {
+            float s0 = -half + c * step, s1 = Math.min(half, s0 + step);
+            float h0 = height(s0, gap, age), h1 = height(s1, gap, age);
+            for (int i = 0; i < CURL.length - 1; i++) {
+                float[] pA = CURL[i], pB = CURL[i + 1];
+                float v0 = i / (float) (CURL.length - 1), v1 = (i + 1) / (float) (CURL.length - 1);
+                float u0 = s0 / 2F, u1 = s1 / 2F;
+                // the wall's corners: along (u), across (s), up (h)
+                float[] a = at(pA, s0, h0, dx, dz, ax, az), b = at(pA, s1, h1, dx, dz, ax, az);
+                float[] cc = at(pB, s1, h1, dx, dz, ax, az), d = at(pB, s0, h0, dx, dz, ax, az);
+                vtx(vc, m, n, a, u0, v0, lit);
+                vtx(vc, m, n, b, u1, v0, lit);
+                vtx(vc, m, n, cc, u1, v1, lit);
+                vtx(vc, m, n, d, u0, v1, lit);
+            }
+        }
+    }
+
+    /** How tall the salsa is {@code s} across the wave: full but for the gap (a slop), the crest rippling as it rolls. */
+    private static float height(float s, double gap, float age) {
+        float k = 1F + 0.07F * Mth.sin(s * 0.9F + age * 0.45F) + 0.04F * Mth.sin(s * 2.3F - age * 0.7F);
+        double g = Math.abs(s - gap);
+        if (g < 2.2) k *= (float) Mth.lerp(Mth.clamp((g - 1.6) / 0.6, 0, 1), 0.12, 1.0);
+        return k;
+    }
+
+    private static float[] at(float[] prof, float s, float hk, float dx, float dz, float ax, float az) {
+        float u = prof[0] * (0.6F + 0.4F * hk), y = prof[1] * hk;
+        return new float[]{dx * u + ax * s, y, dz * u + az * s};
+    }
+
+    private static void vtx(VertexConsumer vc, Matrix4f m, Matrix3f n, float[] p, float u, float v, int light) {
+        vc.vertex(m, p[0], p[1], p[2]).color(255, 255, 255, 255).uv(u, v).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light)
+                .normal(n, 0, 1, 0).endVertex();
+    }
+
+    /** A ring wall of the synced radius ({@link #drawMash}'s shape), in {@code tex}, {@code height} high. */
+    private static void drawRing(BossProp p, PoseStack pose, MultiBufferSource buffers, int light, ResourceLocation tex, float height) {
+        float r = p.radius();
+        if (r <= 0.1F) return;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(tex));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        int segs = Math.max(16, (int) (r * 5));
+        for (int i = 0; i < segs; i++) {
+            double a0 = Math.PI * 2 * i / segs, a1 = Math.PI * 2 * (i + 1) / segs;
+            float x0 = (float) Math.cos(a0) * r, z0 = (float) Math.sin(a0) * r;
+            float x1 = (float) Math.cos(a1) * r, z1 = (float) Math.sin(a1) * r;
+            float bump0 = height + 0.3F * Mth.sin(i * 1.7F), bump1 = height + 0.3F * Mth.sin((i + 1) * 1.7F);
+            float u0 = (i % 4) / 4F, u1 = u0 + 0.25F;
+            float nx = (float) Math.cos((a0 + a1) / 2), nz = (float) Math.sin((a0 + a1) / 2);
+            vert(vc, m, n, x0, 0, z0, u0, 1, light, nx, nz);
+            vert(vc, m, n, x1, 0, z1, u1, 1, light, nx, nz);
+            vert(vc, m, n, x1, bump1, z1, u1, 0, light, nx, nz);
+            vert(vc, m, n, x0, bump0, z0, u0, 0, light, nx, nz);
+        }
+    }
+
     /** The mash wave is a ring far wider than its entity: draw it whenever it is near enough to see. */
     @Override
     public boolean shouldRender(BossProp p, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
         if (p.kind() == BossProp.Kind.GIANT_SPUD || p.kind() == BossProp.Kind.MASHER) return p.distanceToSqr(x, y, z) < 192 * 192;
-        if (p.kind() == BossProp.Kind.MASH) return p.distanceToSqr(x, y, z) < 96 * 96;
+        if (p.kind() == BossProp.Kind.MASH || p.kind() == BossProp.Kind.SALSA_RING || p.kind() == BossProp.Kind.BAND_WAVE
+                || p.kind() == BossProp.Kind.SALSA_WAVE || p.kind() == BossProp.Kind.SOMBRERO) return p.distanceToSqr(x, y, z) < 128 * 128;
         return super.shouldRender(p, frustum, x, y, z);
     }
 

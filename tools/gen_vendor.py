@@ -868,58 +868,115 @@ def aura():
 
 
 def foil_potato():
-    """papon:foil_potato, the shields that circle him in phase two: a baked potato in crumpled foil,
-    opened at the top where the potato and a pat of butter show. 64 x 32."""
+    """papon:foil_potato, the shields that circle him in phase two: a baked potato in crinkled foil, round like a real
+    one (layered slabs into an oval), the foil's twisted ends, the top torn open into petals curled back and the potato
+    split inside: fluffy, a melting pat of butter, sour cream and chives. Shiny foil: lit tops, creased facets, glints.
+    64 x 64 (rebuilt 2026-10-04: the user found the old box ugly)."""
     from geo_util import Packer as _P
-    p = Painter(64, 32, 99)
-    pk = _P(64, 32)
-    foil, foil_dk, foil_hi = (196, 200, 208), (140, 144, 152), (240, 242, 246)
+    p = Painter(64, 64, 99)
+    pk = _P(64, 64)
+    foil, foil_dk, foil_hi, foil_glint = (190, 195, 204), (118, 124, 136), (232, 236, 242), (255, 255, 255)
 
-    def box(origin, size, color, extra=None, noise=0.06):
+    def crinkle(r, k):
+        """A face of crinkled foil: shaded by which way it faces (k), creases and facets, a glint or two."""
+        x0, y0, x1, y1 = (int(n) for n in r)
+        for x in range(x0, max(x1, x0 + 1)):
+            for y in range(y0, max(y1, y0 + 1)):
+                base = tuple(min(255, int(c * k)) for c in foil)
+                v = p.rng.random()
+                if v < 0.16:
+                    base = tuple(int(c * k) for c in foil_dk)
+                elif v < 0.34:
+                    base = tuple(min(255, int(c * k)) for c in foil_hi)
+                p.put(x, y, base, 0.03)
+        # diagonal creases and the light catching their ridges
+        w, h = max(1, x1 - x0), max(1, y1 - y0)
+        for _ in range(max(1, (w * h) // 14)):
+            cx, cy = x0 + p.rng.randrange(w), y0 + p.rng.randrange(h)
+            d = p.rng.choice((1, -1))
+            for i in range(p.rng.randint(2, 4)):
+                xx, yy = cx + i, cy + i * d
+                if x0 <= xx < x1 and y0 <= yy < y1:
+                    p.put(xx, yy, tuple(int(c * k * 0.82) for c in foil_dk))
+                if x0 <= xx < x1 and y0 <= yy - d < y1:
+                    p.put(xx, yy - d, tuple(min(255, int(c * min(1.15, k * 1.1))) for c in foil_hi))
+        if w * h > 12 and k >= 1.0:
+            gx, gy = x0 + p.rng.randrange(w), y0 + p.rng.randrange(h)
+            p.put(gx, gy, foil_glint)
+
+    def box(origin, size, color=None, paint=None, rot=None, pivot=None, noise=0.06):
         u, v = pk.take(*size)
         f = faces(u, v, *size)
-        for r in f.values():
-            p.fill(r, color, noise)
-        if extra:
-            extra({k: f[v_] for k, v_ in SIDE.items()})
-        return cube(origin, size, (u, v))
+        for side, r in f.items():
+            if paint == 'foil':
+                crinkle(r, {'up': 1.12, 'down': 0.72, 'north': 0.95, 'south': 0.95, 'east': 0.88, 'west': 0.88}[side])
+            elif paint:
+                paint(side, r)
+            else:
+                p.fill(r, color, noise)
+        c = cube(origin, size, (u, v))
+        if rot:
+            c['rotation'] = rot
+            c['pivot'] = pivot or [origin[0] + size[0] / 2, origin[1], origin[2] + size[2] / 2]
+        return c
 
-    def crumple(f):
-        for r in f.values():
-            x0, y0, x1, y1 = (int(n) for n in r)
-            for x in range(x0, max(x1, x0 + 1)):
-                for y in range(y0, max(y1, y0 + 1)):
-                    k = p.rng.random()
-                    if k < 0.18:
-                        p.put(x, y, foil_dk, 0.05)
-                    elif k < 0.3:
-                        p.put(x, y, foil_hi, 0.03)
+    def flesh(side, r):
+        if side == 'up':
+            p.fill(r, (246, 234, 196), 0.05, spots=((232, 214, 168), 0.25))
+        else:
+            p.fill(r, (156, 104, 58), 0.08, spots=((120, 78, 40), 0.2))      # the skin at the split's edge
+
+    def cream(side, r):
+        p.fill(r, (250, 250, 244), 0.03, spots=((70, 150, 60), 0.18 if side == 'up' else 0.06))   # sour cream, chives
+
+    def butter(side, r):
+        p.fill(r, (252, 222, 96) if side == 'up' else (240, 196, 70), 0.04)
+
+    body = [
+        # the oval, slab by slab (a real potato's roundness, not a box)
+        box([-5, 0, -3], [10, 1, 6], paint='foil'),
+        box([-6.5, 1, -4], [13, 1, 8], paint='foil'),
+        box([-7, 2, -4.5], [14, 3, 9], paint='foil'),
+        box([-6.5, 5, -4], [13, 1, 8], paint='foil'),
+        # the twisted ends: pinched, then a twist at an angle
+        box([7, 2.5, -1.5], [1.5, 2, 3], paint='foil'),
+        box([8.5, 3, -0.75], [1.5, 1, 1.5], paint='foil', rot=[0, 0, 20], pivot=[8.5, 3.5, 0]),
+        box([-8.5, 2.5, -1.5], [1.5, 2, 3], paint='foil'),
+        box([-10, 3, -0.75], [1.5, 1, 1.5], paint='foil', rot=[0, 0, -20], pivot=[-8.5, 3.5, 0]),
+    ]
+    # the torn opening: petals of foil curled back all round the split
+    petals = []
+    # (x, z, w, d, rx, rz); geometry signs (by the Blockbench import, X mirrored): +rx leans a petal's top to -Z, +rz to +X
+    for x, z, w, d, rx, rz in [(-5, -4, 10, 1, 38, 0), (-5, 3, 10, 1, -38, 0), (-6.5, -2.5, 1, 5, 0, -34), (5.5, -2.5, 1, 5, 0, 34),
+                               (-4.5, -4.3, 3, 1, 58, 0), (1.5, 3.3, 3, 1, -54, 0)]:
+        # each hinged on its inner edge, at the rim
+        px = x + w / 2 if not rz else (x + w if rz < 0 else x)
+        pz = z + d / 2 if not rx else (z + d if rx > 0 else z)
+        petals.append(box([x, 6, z], [w, 1.6, d], paint='foil', rot=[rx, 0, rz], pivot=[px, 6, pz]))
+    potato = [
+        box([-5, 5.6, -3], [10, 1, 6], paint=flesh),                       # the split, fluffy, the skin round it
+        box([-4, 6.4, -2], [8, 0.6, 4], (244, 230, 188), noise=0.06),      # piled up in the middle
+        box([-1.5, 6.9, -1.5], [3, 0.8, 3], paint=butter),                 # butter, melting
+        box([-1, 7.6, -1], [2, 0.4, 2], paint=butter),
+        box([1.6, 6.9, -0.8], [2.4, 1, 2], paint=cream),                   # sour cream and chives
+    ]
     bones = [
         bone('root', [0, 0, 0]),
-        bone('foil', [0, 4, 0], 'root', [
-            box([-5, 0, -3.5], [10, 6, 7], foil, crumple),
-            box([-6, 1, -2.5], [1, 4, 5], foil, crumple),                    # the crimped ends
-            box([5, 1, -2.5], [1, 4, 5], foil, crumple),
-            box([-4, 6, -3.5], [8, 1, 1], foil_hi, crumple),                # the torn edges of the opening
-            box([-4, 6, 2.5], [8, 1, 1], foil_hi, crumple),
-        ]),
-        bone('potato', [0, 6, 0], 'foil', [
-            box([-4, 5.5, -2.5], [8, 1, 5], (176, 126, 70)),                # skin showing through
-            box([-3, 6.5, -1.5], [6, 0.5, 3], (246, 236, 200)),             # the fluffy inside, split
-            box([-1, 6.8, -1], [2, 1, 2], (250, 226, 120)),                 # butter
-        ]),
+        bone('foil', [0, 4, 0], 'root', body + petals),
+        bone('potato', [0, 6, 0], 'foil', potato),
     ]
-    geo = write_geo('foil_potato', bones, 64, 32, bounds=(1.5, 1.5, 0.5))
+    geo = write_geo('foil_potato', bones, 64, 64, bounds=(1.5, 1.5, 0.5))
     import json
     anim = {'format_version': '1.8.0', 'animations': {'animation.foil_potato.idle': {
         'loop': True, 'animation_length': 2.0, 'bones': {
-            'foil': {'rotation': {'0.0': {'vector': [0, 0, -8]}, '1.0': {'vector': [0, 0, 8]}, '2.0': {'vector': [0, 0, -8]}}},
-            'potato': {'position': {'0.0': {'vector': [0, 0, 0]}, '1.0': {'vector': [0, 0.4, 0]}, '2.0': {'vector': [0, 0, 0]}}}}}}}
+            'foil': {'rotation': {'0.0': {'vector': [4, 0, -6]}, '1.0': {'vector': [-4, 0, 6]}, '2.0': {'vector': [4, 0, -6]}},
+                     'position': {'0.0': {'vector': [0, 0, 0]}, '1.0': {'vector': [0, 0.6, 0]}, '2.0': {'vector': [0, 0, 0]}}},
+            'potato': {'scale': {'0.0': {'vector': [1, 1, 1]}, '0.5': {'vector': [1.03, 1.06, 1.03]}, '1.0': {'vector': [1, 1, 1]},
+                                 '2.0': {'vector': [1, 1, 1]}}}}}}}
     apath = os.path.join(ASSETS, 'animations/entity/foil_potato.animation.json')
     with open(apath, 'w', newline='\n') as f:
         json.dump(anim, f, indent='\t')
     return [geo, p.save(os.path.join(ASSETS, 'textures/entity/foil_potato.png'))]
-
 
 if __name__ == '__main__':
     for fn in (vendor, customer_papon, papon_boss, aura, foil_potato):

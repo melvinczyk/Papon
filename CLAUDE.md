@@ -108,6 +108,21 @@ quality throughout."
      duel**: QTE mechanics, **like Guitar Hero, hard, for pro gamers**). **QTEs harder and faster, a 0.8 s window**, and a
      new **spam QTE** (spam keys very fast). The **over-the-top attacks and the QTEs take a percentage of your health**
      (not all attacks). **New voice lines** for his charisma, charm and crowd control.
+   - **Boss polish (2026-10-04, v0.10.0, the user's list; see "Boss polish" below):** "lives" said right (not "lyves");
+     the **drunk blush only while he drinks**; **no hint text over the hotbar** ("beat his mechanics", "get off the road"...);
+     **no Kenney-looking particles** (vanilla or the pack's only); **he can be damaged without doing every mechanic**: set
+     **windows where he is invincible** (mid big move) **and where he takes damage** (winded after it); **better foil
+     potatoes**; **cutscenes that do not glitch in production** (frames missing, the camera stuck on the singer at "let's
+     dance"), **the player frozen** (no momentum) in them; phase three's build-up **longer and more dramatic**: he is beaten
+     and weak getting up, **his POV blurry**, zooming in on the band, they get scared, "**This is NOT my style... who do you
+     think I AM?!**"; **crowd and band reactions to the ascension**, **he stumbles before he plays**; **he is the main focus
+     of his solo**; "**a LONG time**" not "loooong"; the band **scared, whispering, in their own shot** after he gives the
+     guitar back; "**It's about time I gave this thing an UPGRADE**" at the car; **"Now, let's dance" on his face**; **lightning
+     round both eyes**. Phase three's fight: **more epic Mexican/potato attacks**, the **piñata harder**, **the car not the way
+     out** (it holds too few, it can glitch), **harder arena attacks** (the statues' lasers were easy), **eye lasers from his
+     eyes**, the **mariachi attack flashy** (not particles), **La Ola a real wave of salsa**. QTEs: **1 s per key**, the
+     **squeeze mashes K and L** (always), **keys swallowed just before and after** a QTE and the duel, the **duel a touch
+     easier**, **more charismatic lines** in them, **the player's body acting them out** (crushed per how well you mash).
    - **The pillow:** the player **hugs the Makima pillow "sensually"** (an animation), can **lick it**, and can **put
      it on a bed and sleep next to it on their side**. (2026-10-04) The pillow uses **the user's Makima picture**
      (`tools/src/makima_pillow.jpg`), **looks like a natural pillow** (soft, plump, rounded), **slouches against the wall
@@ -209,6 +224,7 @@ player and were not exercised headless.
 | QTEs at 0.8 s, the spam meter (kind 5), the guitar duel (kind 6, guitar-hero on D F J K) | `PaponBossEntity` (`startQte`, `qteResult`), `client/QteClient.java`, `client/GuitarDuel.java`, `client/QteScreen.java`, `network/PaponNetwork.QteResult`, `client/Cinematic` (duel shot) |
 | The body pillow as a soft mesh (squeezed, pressed, folded, slouched), the Makima picture, the hump (in hand and on a bed) | `client/PillowMesh.java`, `client/PillowItemRenderer.java`, `client/PillowLayer.java`, `client/PillowClient.java`, `client/BodyPillowRenderer.java`, `entity/BodyPillowEntity.java`, `item/BodyPillowItem.java`, `gen_extras.panels/pillow` |
 | Showtime (v0.9.1): the crowd heard (pulses, loud roars over his voice), flag fireworks on the beat, the cuts to the band mid-fight, the Skyline reveal (montage, RB26 sounds, the underglow switching on, headlight beams), 52 new lines (reactions to what you do, more charm, the potato god), the serenade's guitar off his mouth | `boss/ColiseumCrowdEntity` (`pulse`, `salvo`), `client/CrowdSounds`, `client/FlagFireworks.java`, `PaponBossEntity` (`Cutaway`, `tickCutaway`, `retort`, `watchPlayers`, `tickP3ShowCar`, `backfire`), `BossState.P2_CUTAWAY/P3_SHOWCAR`, `client/Cinematic` (`cutawayShot`, `showcarShot`), `client/SongPlayer.listen`, `vehicle/CaravanEntity` (`setUnderglow`, `idleFor`), `client/CaravanRenderer` (`underglow`, `headlights`), `client/CaravanSounds`, `tools/gen_skyline_sounds.py`, `command/PaponCommand` (`cutaway`) |
+| Boss polish (v0.10.0): damage windows (armored mid-move, WINDED after), cutscene clock synced from the server + auto-cuts + 80-block range + frozen player, the reworked phase-three build-up (beaten knockback, blurry POV glare, ascension reactions, P3_POWER, band chatter, "upgrade"), four new Ascended moves, La Ola wall, band blasts, salsa ring, monolith shade, harder statues, eye beams from the eyes, K/L squeeze + live meter, QTE player poses, input lockout | `boss/PaponBossEntity` (`armored`, `winds`, `tickWinded`, `DATA_TICKS/METER/ARMOR`, `tickP3Power`, `tickP3Sombrero/Volcan/Calaveras/PinataSwing`, `tickOla`), `client/Cinematic` (`jumped`, `BOSS_RANGE`), `client/BlurFx`, `client/QtePlayerPose`, `client/PropRenderer` (`drawSalsaWave`, `drawBandWave`, `drawRing`), `client/BossRenderer` (`eyePos`, `eyeLightning`), `boss/BeamEntity` (`eye`), `tools/gen_props.py` (`sombrero`, `calavera`, `salsa_wave`) |
 | Phase-two voice: his lines in English in a cloned voice (Qwen3-TTS on Modal), lip-synced, the cutscene timed to them | `tools/gen_boss_voice.py`, `tools/voice_modal.py`, `boss/VoiceLines.java`, `client/BossFace.java`, `client/BossModel.java`, `assets/papon/voice/boss2.json`, `sounds/voice/boss2/` |
 
 ### The boss fight (status 2026-10-02: built; tested headless and with the autoshot client)
@@ -569,6 +585,74 @@ player and were not exercised headless.
 - **Regenerating on Windows**: `PAPON_MODS` must point at a pack instance's mods folder (gen_vendor reads the Dungeons
   Delight cleaver), e.g. `C:/Users/czadi/curseforge/minecraft/Instances/OG GROID PACK/mods`. The generators re-encode PNGs and
   `.ogg`s byte-differently on Windows: compare contents and check out the unchanged ones before committing.
+### Boss polish (status 2026-10-04, v0.10.0: built; check with `./gradlew runClient -Pautoshot=phase3`)
+- **Voice**: `intro` is said from `SPOKEN` text ("livs"), checked by `lives_ok` (the vowel's F1 under 600 Hz: a short i; the
+  old take's was about 750, "lyves"). `felt` is "a LONG time" (mood `menace`: no stretched vowels).
+  New: `p3_hurt`, `p3_noise`, `p3_power`, `upgrade`, `qte_strong/weak/crush/slip/quick/slow`, `tango_good/bad`, `duel_good/bad`,
+  `p3_sombrero/volcan/calaveras/swing`; `notstyle` is "This is NOT my style... who do you think I AM?!". `SPOKEN` (line -> what
+  the TTS is given) for words it misreads; Whisper and the bubble still use `LINES`.
+- **Voice, more human (the user: "awkward, not natural; more emotion, charisma, vocal difference"; then: only this
+  session's new lines)**: the 21 lines in `FRESH` (the phase-three build-up, the QTE reactions, the new moves, intro, felt,
+  notstyle) are written as speech (natural phrasing, contractions, a word or two in capitals at most, "ugh", "whoa") and taken
+  with the new `DIRECTION`s (each starts with `NATURAL`: pitch rising and falling, pace changing, words leaned into; a vivid
+  emotion), sampling `GEN` temperature 1.0 (each take ±0.07, `voice_modal`), 12 takes, and a picker that scores pitch range
+  most. Every other line keeps its text, `OLD_DIRECTION`, old pick and its built audio (`build` skips it). `intro` is checked
+  by `lives_ok` (the vowel's F1 under 600 Hz: a short i).
+- **Blush**: `blush` is in `B.pins`; only `chug`, `drink_handle`, `drunk_swig` show it (fading out in `roar`, `enter_car`,
+  `drunk_flurry`, `haymaker`).
+- **No hint text**: every boss-fight `displayClientMessage` hint is gone (the `status.papon.*` lang keys are unused now).
+- **Particles**: `gen_particles.py` takes smoke (campfire), dust (poof), slash (sweep), hit (explosion), shock and the warning
+  rings (sonic boom) and the glow disc (firework flash) from vanilla's jar (`$PAPON_MC_JAR`, default the CurseForge 1.20.1
+  jar); fire, flames, blasts, flash, sparks, chunks, sigil, cross, scorch and splat stay the pack's pixel art.
+- **Damage windows**: `armored(state)`: the arena attacks, the meteors, the charge and Ascended's channelled moves (laser, sun,
+  band, braziers, nova, comet, flash, sombrero, volcano, skulls, piñata) clang off (`armorClang`, a gold shimmer:
+  `DATA_ARMOR` -> `BossRenderer.getRenderColor` + wax-off motes). Ending one (`winds`) goes to `WINDED` (50 t, `winded`
+  anim): x1.5 damage, composure x3. Softer defences: composure config renamed `composureFraction` (0.08, old 0.04 dropped),
+  evade 12%/18%, guard at 12% recent damage (cooldown 16/12 s), foils take 40% off (was 67%), the salsa burst needs 6 melee
+  hits in 2.5 s and lets the hit land.
+- **Entity Culling** (tr7zw, in the pack, `tickCulling` on): it hid and stopped ticking entities the cutscene camera had
+  just cut away from, so shots lost the boss and his client clock stalled. `client/CullingCompat` whitelists every `papon:`
+  entity at runtime (`addDynamicEntityWhitelist`, and its `entityWhitelist`/`tickCullWhitelists`), by reflection.
+- **Cutscene robustness** (production: frames missing): `DATA_TICKS` syncs the server's `stateTicks` (every tick in
+  cutscenes) and the client follows it if it drifts > 2 ticks; `Cinematic.moveCamera` cuts by itself when a shot jumps
+  (> 4 blocks or > 57 degrees) so a skipped `t == n` never swoops; the boss's cutscene reaches 80 blocks in his coliseum
+  (`BOSS_RANGE`; it was 40, and the band stand is further than that from the south end); `ClientEvents.freeze` zeroes the
+  player's momentum (not their fall) through any cutscene.
+- **Phase three's build-up** (beats in `gen_boss_voice.beats`: `knock.*`, `glare.*`, `ascend.cut/crowd/band`, `power.*`,
+  `toss.talk1/2`, `crush.upgrade`): knockback ~7.5 s (flat out, an arm gives way, onto a knee, "that one... HURT", spits
+  blood, up swaying), the band playing on muffled (`SongPlayer.dazed`: volume 30%, pitch wobble) → P3_GLARE through his eyes
+  (`pov`, `BlurFx` radius 9: vanilla's blur post shader via `GameRenderer.loadEffect` by reflection), "What... is that...
+  NOISE?", the head drags to the band and the blur pulls into focus as the FOV zooms 74 -> 22 on them; they see him
+  (`glare.scare`: `MariachiEntity.stop/scare`, the record winds down), then his face: "not my style... who do you think I
+  AM?!". The ascension cuts to the band (`ascend.cut`), the stands on their feet (`ascend.crowd`, fireworks) and the band
+  backing off (`ascend.band`, blurts); `P3_POWER` (appended state): he staggers under the power, looks at his hands, "Whoa,
+  WHOA... so much POWER.", grins → the serenade (its shots are all him now but one glance at the stands). After the toss the
+  band whisper (`MariachiEntity.blurt`: `speech.papon.band.p3_*`) in a tight two-shot (`Cinematic.role`). At the van:
+  "It's about time I gave this thing an UPGRADE." before it is lifted. "Now... let's DANCE." (dance.line = drop + 34) is
+  on his face.
+- **His eyes**: lightning all round both (`BossRenderer.eyeLightning`, a glow under the arcs); eye beams carry `BeamEntity.eye`
+  (boss id + side) and are drawn from the eye bones' tracked world positions (`BossRenderer.eyePos`); the server's
+  `eyePos` uses the bones' pivots at render scale.
+- **New Ascended moves** (all armored, all wind him): `P3_SOMBRERO` (2-3 `SOMBRERO` props ricocheting off the sand's edge,
+  homing a little, 15% a hit), `P3_VOLCAN` (dive into the middle; six cracks; geysers = vertical `BeamEntity`s out and back
+  in, 14% + launched; then the crater spits `METEOR`s), `P3_CALAVERAS` (sugar skulls `CALAVERA` rise round you, circle, dive
+  one every 0.45 s down a pink line, 10%), `P3_PINATA_SWING` replaces the piñata in the deck (a 20-block pendulum swinging
+  through the sand in turning planes, 20% + fling, candy dropping off it; smashed into a 5-arm spiral of candy).
+  `P3_SOLAR`: four potato `MONOLITH`s rise for shade (`behindMonolith`); the car is no longer a shelter (nobody is safe
+  inside it). The statues' beams rake the sand from both ends inward (`laserPhase`), 6%, fire trails; his eye beams chase at
+  0.5 b/t. Nitro is drawn less (0.5).
+- **¡La Ola!**: a `SALSA_WAVE` prop per wave (`PropRenderer.drawSalsaWave`: a 3.5-block curling wall, `salsa_wave.png`) with
+  one gap (`BossProp.gap`, shown green in the warning): too tall to jump, get to the gap. The salsa burst throws a
+  `SALSA_RING`. **¡Fuego, Mariachi!**: each blast is a `BAND_WAVE` prop (a glowing gold wall with staves of light, or a
+  crimson ribbon at head height, notes riding it), fire out of the trumpets' bells, crescents off the bows.
+- **QTEs**: `QTE_WINDOW` 20 (1 s). The squeeze (kind 5) is K and L, always (`QteClient.spamPair` 0); its meter goes to the
+  server 5x a second (`PaponNetwork.QteMeter` -> `qteMeter`, synced `DATA_METER`) and he answers it (`qte_strong`,
+  `qte_weak`; `qte_crush` / `qte_slip` at the end); the sequence QTEs get `qte_quick` halfway, `qte_slow` on a miss; the tango
+  `tango_good/bad`; the duel `duel_good/bad` from its rock meter. QTE lines only wait for the last to finish (`voiceEnd`).
+  `QtePlayerPose` draws the held player itself (the renderer's model and layers, by reflection `f_115291_`): squeeze, tango,
+  struggle, limp, and your air guitar in the duel. Input: the QTE screen stays up 12 t after the end and then
+  `KeyMapping.releaseAll()`; the duel ignores presses in its first 0.5 s and through the count-in. Duel: gems fall in 0.85 s,
+  ±85 ms good, ±40 ms perfect, pass at 82%, miss -0.06, bum note -0.02.
 
 ### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
 - **From the kneel on he talks in English, in a cloned voice** (the user's reference: Spanish-accented English,

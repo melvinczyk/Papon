@@ -67,7 +67,22 @@ public class BossProp extends Entity {
         /** La Piñata (phase three): hangs over the sand on its rope (radius = how far down it has come) until he kicks it open. */
         PINATA,
         /** A candy bomb out of the piñata: on an arc onto its warning, where it goes off. */
-        CANDY
+        CANDY,
+        // ---- 2026-10-04 (appended: the ordinal is synced). All moved by the boss each tick.
+        /** El Sombrero Asesino: a giant sombrero spinning flat like a saw blade, ricocheting round the sand. */
+        SOMBRERO,
+        /** Las Calaveras: a sugar-skull potato, risen out of the sand; it circles you, then dives at you. */
+        CALAVERA,
+        /** ¡Fuego, Mariachi!: a blast off the band rolling across the sand, an arc of a ring: radius = {@link #radius()}, its
+         *  heading the yaw, which (the delay slot) 0 a trumpet's (low: jump it) or 1 a violin's (head high: duck it). */
+        BAND_WAVE,
+        /** ¡La Ola!: a wall of salsa curling over as it rolls across the sand: half its length = radius, travelling along its
+         *  yaw; the delay slot is where its gap is (see {@link #gap}). */
+        SALSA_WAVE,
+        /** The salsa burst: a ring of salsa thrown out round him (radius synced, like the mash wave). */
+        SALSA_RING,
+        /** El Sol Azteca: a giant potato stood on end, risen out of the sand: the only shade from his sun. */
+        MONOLITH
     }
 
     /** GUITAR: the pull down on its arc each tick. */
@@ -271,8 +286,27 @@ public class BossProp extends Entity {
                             0x4A4440, 0.7F, 20, 0), getX() - v.x * 1.6, getY() - v.y * 1.6 + 0.4, getZ() - v.z * 1.6, 0, 0.01, 0);
                 }
             }
+            case BAND_WAVE -> {
+                // notes riding the blast
+                if (tickCount % 2 == 0) {
+                    double a = Math.toRadians(getYRot()) + (random.nextDouble() - 0.5) * Math.toRadians(140);   // yaw = its heading, a maths angle (x, z)
+                    double r = radius();
+                    boolean horn = delay() == 0;
+                    level().addParticle(net.minecraft.core.particles.ParticleTypes.NOTE, getX() + Math.cos(a) * r, getY() + (horn ? 0.6 : 2.1),
+                            getZ() + Math.sin(a) * r, random.nextFloat(), 0, 0);
+                }
+            }
             default -> {}
         }
+    }
+
+    /** SALSA_WAVE: where its gap is, across it from its middle (blocks). */
+    public double gap() {
+        return (delay() - 1000) / 10.0;
+    }
+
+    public void setGap(double across) {
+        entityData.set(DATA_DELAY, 1000 + (int) Math.round(across * 10));
     }
 
     // ---- the cleaver: out on a curve, then home to his hand

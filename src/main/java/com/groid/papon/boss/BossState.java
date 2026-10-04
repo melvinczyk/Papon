@@ -246,7 +246,20 @@ public enum BossState {
      * the purple underglow flickers on front to back, the rev and the backfire, the blow-off, the eagle on the hood,
      * from over the roof; then him by it: "...and in with the NEW." (beats showcar.*)
      */
-    P3_SHOWCAR(170);
+    P3_SHOWCAR(170),
+    // ---- 2026-10-04 (appended: the ordinal is synced)
+    /** Winded after a big move he channelled (untouchable while he cast it): down on the sand, panting, and open (x1.5). */
+    WINDED(50),
+    /** El Sombrero Asesino: giant sombreros spun off his head like saw blades, ricocheting round the sand. */
+    P3_SOMBRERO(170),
+    /** El Volcán: down into the middle of the sand; it cracks, salsa erupts along the cracks in waves, rocks rain. */
+    P3_VOLCAN(180),
+    /** Las Calaveras: sugar-skull potatoes rise round you, circle, and dive at you one after another. */
+    P3_CALAVERAS(180),
+    /** Phase three's cutscene: just ascended, the power staggers him (a beat before his serenade). */
+    P3_POWER(80),
+    /** La Piñata (reworked): swung on its rope like a wrecking ball through the sand, then smashed into a spiral of candy. */
+    P3_PINATA_SWING(220);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;
@@ -279,7 +292,7 @@ public enum BossState {
 
     /** The phase-three cutscene, the knockback to "let's dance". */
     public boolean phaseThree() {
-        return ordinal() >= P3_KNOCKBACK.ordinal() && ordinal() <= P3_ASCEND.ordinal() || this == P3_SHOWCAR;
+        return ordinal() >= P3_KNOCKBACK.ordinal() && ordinal() <= P3_ASCEND.ordinal() || this == P3_SHOWCAR || this == P3_POWER;
     }
 
     /** Through phase three's cutscene, before the band takes the song back: the stands' own song is off. */
