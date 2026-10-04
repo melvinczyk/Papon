@@ -75,7 +75,14 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     private GeoBone root, torso, body, armR, armL, legR, legL, browR, browL, mouthIn, jersey;
     /** The flag stick's far tip (baked model units): where the cloth hangs from. */
     private final Vector3f flagTip = new Vector3f();
-    private VertexConsumer flagVc;
+    /**
+     * The fans' little flags, drawn after all the fans: the cutout buffer and the cloth's are both immediate
+     * buffers, and asking for one ends the other's batch, so writing to both in turn would draw every fan with the
+     * flag's texture (the whole crowd green). Each flag's pose is kept and they go down in a second pass.
+     */
+    private record FlagDraw(Matrix4f pose, Matrix3f normal, int light, float time, float phase, float amp, int nx, int ny) {}
+
+    private final List<FlagDraw> flagDraws = new java.util.ArrayList<>();
     private float flagTime, flagPhase, flagAmp;
     private final GeoBone[] hats = new GeoBone[HATS.length];
     private final GeoBone[] props = new GeoBone[PROPS.length];
@@ -530,10 +537,11 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 .stream().findFirst().orElse(null);
         if (boss != null) look = boss.getPosition(partial).add(0, 1.5, 0);
         if (mood == CrowdMood.HUSH) look = at.add(0, 1, -Coliseum.B + 3);
+        float night = NightLight.night(partial);
         lightersNow = crowd.lighters();         // up through a roar too (their fists are up anyway)
         flames.clear();
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutout(TEX));
-        flagVc = buffers.getBuffer(FlagCloth.renderType());
+        flagDraws.clear();
         // a few seats' light a frame
         for (int k = 0; k < 24 && lights.length > 0; k++) {
             lightCursor = (lightCursor + 1) % lights.length;
@@ -575,10 +583,24 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             float[] skin = SKINS[(int) (rnd(seed, 8) * SKINS.length) % SKINS.length];
             int lt = lights[i] < 0 ? light : lights[i];
             wantFlame = lightersNow > 0 && lighter(seed);
+            if (night > 0.2F) {
+                // phase three's night: the stands are not lost in it; a fan with a lighter up is lit by his flame
+                lt = net.minecraft.client.renderer.LightTexture.pack(Math.max(wantFlame ? 13 : 9, net.minecraft.client.renderer.LightTexture.block(lt)),
+                        net.minecraft.client.renderer.LightTexture.sky(lt));
+            }
             flameAt = null;
             for (GeoBone b : model.topLevelBones()) drawBone(ps, b, vc, lt, skin, near);
             if (wantFlame && flameAt != null) flames.add(flameAt);
             ps.popPose();
+        }
+        if (!flagDraws.isEmpty()) {
+            VertexConsumer flagVc = buffers.getBuffer(FlagCloth.renderType());
+            PoseStack fp = new PoseStack();
+            for (FlagDraw d : flagDraws) {
+                fp.last().pose().set(d.pose());
+                fp.last().normal().set(d.normal());
+                FlagCloth.draw(fp, flagVc, 0.7F, 0.4F, d.light(), d.time(), d.phase(), d.amp(), true, d.nx(), d.ny());
+            }
         }
         if (!flames.isEmpty()) drawFlames(buffers.getBuffer(RenderType.lightning()), t);
     }
@@ -692,7 +714,8 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             ps.translate(flagTip.x(), flagTip.y(), flagTip.z());
             ps.mulPose(Axis.YP.rotationDegrees(-90));
             ps.mulPose(Axis.ZP.rotationDegrees(180));
-            FlagCloth.draw(ps, flagVc, 0.7F, 0.4F, light, flagTime, flagPhase, flagAmp, true, near ? 7 : 4, near ? 3 : 2);
+            flagDraws.add(new FlagDraw(new Matrix4f(ps.last().pose()), new Matrix3f(ps.last().normal()), light, flagTime, flagPhase, flagAmp,
+                    near ? 7 : 4, near ? 3 : 2));
             ps.popPose();
         }
         for (GeoBone child : bone.getChildBones()) drawBone(ps, child, vc, light, skin, near);

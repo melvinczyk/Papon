@@ -475,14 +475,14 @@ def beats(lengths):
     b['apology.wink'] = b['apology.aura'] + min(40, (b['apology.end'] - b['apology.aura']) // 2)
     # phase three (half health). Up off the sand, the lip wiped, his eyes slide over to the band; a maraca drops in
     # the silence. "This... is NOT... my style." A beat. "Let me show you how to REALLY play."
-    b['glare.maraca'] = 26
-    b['glare.notstyle'] = 40
+    b['glare.maraca'] = 54
+    b['glare.notstyle'] = 82
     b['glare.realplay'] = b['glare.notstyle'] + L('notstyle') + 18
     b['glare.end'] = b['glare.realplay'] + L('realplay') + 12
     # looming over the singer: "Give me THAT." and the guitar ripped out of his hands on the last word
     b['snatch.gimme'] = 6
     b['snatch.grab'] = max(18, b['snatch.gimme'] + L('gimme') - 6)
-    b['snatch.end'] = b['snatch.grab'] + 34
+    b['snatch.end'] = b['snatch.grab'] + 76         # holds on the band cowering after the rip
     # in the spotlight: the serenade is the song's first 18 s (guitar and voice), the last chord left ringing
     ps = json.load(open(os.path.join(ASSETS, 'song/para_siempre.json')))
     seren = next(s['length'] for s in ps['segments'] if s['id'] == 'serenade')
@@ -494,14 +494,14 @@ def beats(lengths):
     b['verdict.end'] = b['verdict.line'] + L('mystyle') + 10
     # over his shoulder without looking (6), the singer juggles it and has it (26); then nothing: the band look at
     # each other, scared, nobody moves (toss.glance on), and only then does he whirl round on them: "...GO!!!"
-    b['toss.throw'] = 6
-    b['toss.catch'] = 26
-    b['toss.glance'] = 40
-    b['toss.go'] = 104
+    b['toss.throw'] = 20
+    b['toss.catch'] = 42
+    b['toss.glance'] = 58
+    b['toss.go'] = 122
     b['toss.end'] = b['toss.go'] + L('go') + 2
     # the singer's pickup, a cappella, then the band crashes in; once the fire is back: "Now... let's DANCE."
     b['dance.drop'] = int(round(pickup * 20))
-    b['dance.line'] = b['dance.drop'] + 34
+    b['dance.line'] = b['dance.drop'] + 56
     b['dance.end'] = b['dance.line'] + L('dance') + 24
     return b
 

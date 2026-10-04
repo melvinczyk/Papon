@@ -188,7 +188,8 @@ public final class Cinematic {
      */
     private static Shot unblock(Minecraft mc, Shot s, PaponBossEntity subject) {
         int state = subject.getBossState().ordinal();
-        if (unblockState != state) {
+        if (unblockState != state || s.cut()) {
+            // a new shot: look again from its own angle
             unblockState = state;
             unblockPick = 0;
         }
@@ -198,18 +199,35 @@ public final class Cinematic {
         Vec3 mirrored = s.eye().subtract(right.scale(2 * side));
         Vec3[] options = {s.eye(), mirrored, s.eye().add(0, 3, 0), mirrored.add(0, 3, 0), s.eye().add(0, 6, 0)};
         for (int i = unblockPick; i < options.length; i++) {
-            if (clear(mc, s.lookAt(), options[i], subject)) {
+            if (clearWithMargin(mc, s.lookAt(), options[i], subject)) {
                 boolean changed = i != unblockPick;
                 unblockPick = i;
                 return i == 0 ? s : new Shot(options[i], s.lookAt(), s.fov(), s.roll(), s.cut() || changed);
             }
         }
-        Vec3 eye = options[Math.min(unblockPick, options.length - 1)];
+        // round the subject at the same distance and height, a twelfth of a turn at a time, then nearer
+        Vec3 rel = s.eye().subtract(s.lookAt());
+        for (double scale : new double[]{1.0, 0.75, 0.55}) {
+            for (int k = 1; k < 12; k++) {
+                double a = Math.toRadians(30 * ((k + 1) / 2) * (k % 2 == 0 ? -1 : 1));
+                Vec3 r = new Vec3(rel.x * Math.cos(a) - rel.z * Math.sin(a), rel.y, rel.x * Math.sin(a) + rel.z * Math.cos(a)).scale(scale);
+                Vec3 eye = s.lookAt().add(r);
+                if (clearWithMargin(mc, s.lookAt(), eye, subject)) return new Shot(eye, s.lookAt(), s.fov(), s.roll(), s.cut());
+            }
+        }
+        // nothing clear: just in front of whatever is in the way (never inside it), however close that is
+        Vec3 eye = options[0];
         Vec3 hit = firstHit(mc, s.lookAt(), eye, subject);
         Vec3 back = eye.subtract(s.lookAt()).normalize();
-        Vec3 in = hit.subtract(back.scale(0.4));
-        if (in.distanceTo(s.lookAt()) < 2.5) in = s.lookAt().add(back.scale(2.5));
+        Vec3 in = hit.subtract(back.scale(0.5));
+        if (in.distanceTo(s.lookAt()) < 0.8) in = s.lookAt().add(back.scale(0.8));
         return new Shot(in, s.lookAt(), s.fov(), s.roll(), s.cut());
+    }
+
+    /** Clear from the subject to the eye, and half a block past it (the near plane must not dip into a wall). */
+    private static boolean clearWithMargin(Minecraft mc, Vec3 from, Vec3 eye, Entity subject) {
+        Vec3 past = eye.add(eye.subtract(from).normalize().scale(0.5));
+        return clear(mc, from, past, subject);
     }
 
     private static Vec3 toVan(com.groid.papon.vehicle.CaravanEntity van, Vec3 p) {
@@ -642,8 +660,9 @@ public final class Cinematic {
             case P3_GLARE -> {
                 int ns = VoiceLines.beat("glare.notstyle", 40), rp = VoiceLines.beat("glare.realplay", 100);
                 if (t < 22) return new Shot(face.add(f.scale(4.4)).add(right.scale(1.0)).add(0, -0.4, 0), face, 46, 0, t == 0);
-                if (t < 34) return new Shot(face.add(f.scale(2.9)).add(0, -0.3, 0), face.add(0, -0.2, 0), 22, 0, t == 22);    // his eyes
-                if (t < ns) return new Shot(singerFace.add(stageFacing.scale(3.6)).add(stageSide.scale(0.5)), singerFace, 34, 0, t == 34);
+                int eyes = Math.max(40, ns - 30);
+                if (t < eyes) return new Shot(face.add(f.scale(2.9)).add(0, -0.3, 0), face.add(0, -0.2, 0), 22, 0, t == 22);    // his eyes
+                if (t < ns) return new Shot(singerFace.add(stageFacing.scale(3.6)).add(stageSide.scale(0.5)), singerFace, 34, 0, t == eyes);
                 if (t < rp) {
                     double k = Math.min(1, (t - ns) / (double) Math.max(20, rp - ns));
                     return new Shot(face.add(f.scale(4.4 - 1.0 * k)).add(right.scale(0.5)).add(0, -0.35, 0), face, 40 - (float) k * 6, 0, t == ns);
@@ -770,15 +789,15 @@ public final class Cinematic {
                 }
                 int drop = VoiceLines.beat("dance.drop", 42), line = VoiceLines.beat("dance.line", 76);
                 if (t < drop) return new Shot(singerFace.add(stageFacing.scale(3.6 - t * 0.015)).add(stageSide.scale(-0.7)), singerFace, 44, 0, t == 0);
-                if (t < drop + 22) {
+                if (t < drop + 36) {
                     // the band crashes in and the fire comes back round the whole bowl: high, behind the band, out over it
-                    double k = Math.min(1, (t - drop) / 22.0);
+                    double k = Math.min(1, (t - drop) / 36.0);
                     Vec3 eye = stage.subtract(stageFacing.scale(4 + 2 * k)).add(0, 9 + 3 * k, 0);
                     return new Shot(eye, center.add(0, 2, 0), 76, t < drop + 6 ? (float) Math.sin(t * 2.6) * 4F : 0, t == drop);
                 }
                 if (t < line - 6) {
                     // it goes through him: his face, low, the crimson fire behind
-                    return new Shot(face.add(f.scale(4.8)).add(right.scale(-1.0)).add(0, -1.0, 0), face, 52, 0, t == drop + 22);
+                    return new Shot(face.add(f.scale(4.8)).add(right.scale(-1.0)).add(0, -1.0, 0), face, 52, 0, t == drop + 36);
                 }
                 // "Now... let's DANCE.": close, and closer
                 double k = Math.min(1, (t - (line - 6)) / 50.0);

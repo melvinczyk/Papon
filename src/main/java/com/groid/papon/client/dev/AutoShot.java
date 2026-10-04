@@ -794,19 +794,19 @@ public final class AutoShot {
         if (k > 60 && !com.groid.papon.client.Cinematic.isActive() && !s.phaseThree()) lookAt(mc, b);
         String n = switch (s) {
             case P3_KNOCKBACK -> t == 8 ? "t01_flung" : t == 15 ? "t02_impact" : t == 26 ? "t03_down" : t == 44 ? "t04_rising" : null;
-            case P3_GLARE -> t == 10 ? "t05_wipe" : t == 28 ? "t06_eyes" : t == 38 ? "t07_singer_sweats" : t == 60 ? "t08_not_my_style"
+            case P3_GLARE -> t == 10 ? "t05_wipe" : t == 36 ? "t06_eyes" : t == 66 ? "t07_singer_sweats" : t == 102 ? "t08_not_my_style"
                     : t == com.groid.papon.boss.VoiceLines.beat("glare.realplay", 100) + 30 ? "t09_really_play" : null;
             case P3_STALK -> t == 20 ? "t10_stalk" : t == 60 ? "t10b_stalk" : null;
             case P3_SNATCH -> t == 10 ? "t11_looming" : t == com.groid.papon.boss.VoiceLines.beat("snatch.grab", 22) + 3 ? "t12_rip"
-                    : t == com.groid.papon.boss.VoiceLines.beat("snatch.grab", 22) + 22 ? "t13_band_cowers" : null;
+                    : t == com.groid.papon.boss.VoiceLines.beat("snatch.grab", 22) + 50 ? "t13_band_cowers" : null;
             case P3_RETURN -> t == 30 ? "t14_lights_out" : t == 90 ? "t15_lights_out2" : null;
             case P3_BLACKOUT -> t == 22 ? "t16_black" : t == 34 ? "t17_spotlight" : t == 48 ? "t18_spot_on_him" : null;
             case P3_SERENADE -> t == 40 ? "t19_orbit" : t == 120 ? "t20_fingers" : t == 200 ? "t21_lighters" : t == 240 ? "t22_sings"
                     : t == 300 ? "t23_sings_close" : t == 372 ? "t24_last_chord" : null;
             case P3_VERDICT -> t == 30 ? "t25_more_my_style" : t == 70 ? "t26_learn" : null;
-            case P3_TOSS -> t == 14 ? "t27_toss" : t == 24 ? "t28_flight" : t == 28 ? "t29_catch" : t == 60 ? "t29b_band_glances"
+            case P3_TOSS -> t == 12 ? "t27_toss" : t == 30 ? "t28_flight" : t == 46 ? "t29_catch" : t == 76 ? "t29b_band_glances"
                     : t == com.groid.papon.boss.VoiceLines.beat("toss.go", 104) - 8 ? "t29c_he_waits" : t == com.groid.papon.boss.VoiceLines.beat("toss.go", 104) + 8 ? "t30_go" : null;
-            case P3_DANCE -> t == 20 ? "t31_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 8 ? "t32_fire_back"
+            case P3_DANCE -> t == 20 ? "t31_pickup" : t == com.groid.papon.boss.VoiceLines.beat("dance.drop", 42) + 20 ? "t32_fire_back"
                     : t == com.groid.papon.boss.VoiceLines.beat("dance.line", 76) + 26 ? "t33_lets_dance" : null;
             default -> null;
         };
