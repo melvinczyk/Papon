@@ -147,6 +147,7 @@ public final class ClientEvents {
         int w = event.getWindow().getGuiScaledWidth();
         int h = event.getWindow().getGuiScaledHeight();
         float pt = event.getPartialTick();
+        if (!Cinematic.isActive()) PotatoSplat.render(g, w, h, pt);
         float v = Cinematic.vignette(pt);
         if (v > 0) {
             Minecraft mc0 = Minecraft.getInstance();

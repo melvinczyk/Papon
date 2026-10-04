@@ -22,7 +22,8 @@ import java.util.Comparator;
  *
  * The song is cut into bar-aligned segments (tools/gen_song.py, {@link Song}), each tagged low, mid
  * or high. It starts on the downbeat the server set when the singer counted in
- * ({@link MariachiEntity#songStart()}), plays the guitar intro twice (the close-up, his apology), and
+ * ({@link MariachiEntity#songStart()}), plays the guitar intro three times (the close-up, his apology, the
+ * crowd worked up), and
  * from then on, at the end of every segment, picks the next: the next one in the song while that
  * suits the fight, otherwise the nearest one that does: the climax when he is on his last legs or
  * doing his worst, the breakdown or a guitar break while he is staggered, and so on round and
@@ -124,6 +125,11 @@ public final class SongPlayer {
 
     private static void begin(Minecraft mc, Song.Segment s, double at) {
         if (s.id().equals("intro")) introPasses++;
+        if (s.id().startsWith("solo") && !ending) {
+            // the singer's guitar solo: the server may cut to him for a moment (P2_SOLO)
+            PaponBossEntity boss = boss(mc);
+            if (boss != null && boss.inColiseum()) com.groid.papon.network.PaponNetwork.solo(boss.getId());
+        }
         current = s;
         currentAt = at;
         playing = new Segment(s);

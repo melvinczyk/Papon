@@ -152,6 +152,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation A_P2_GROOVE = loop("p2_groove");
     private static final RawAnimation A_P2_APOLOGY = once("p2_apology");
     private static final RawAnimation A_P2_RESUME = once("p2_resume");
+    private static final RawAnimation A_P2_HYPE = once("p2_hype");
+    private static final RawAnimation A_P2_SOLO = once("p2_solo");
     private static final RawAnimation A_FLY = loop("fly");
     private static final RawAnimation A_BARRAGE = once("p2_barrage");
     private static final RawAnimation A_METEOR = once("p2_meteor");
@@ -296,6 +298,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int songStart;
     /** The mariachi whose chair he is off to kick (entity id), or -1. */
     private int kickWho = -1;
+    /** Waiting on the band, he paces the front of the stand: which end he is headed for. */
+    private int paceSide = 1;
+    /** A guitar solo has started (a client heard it): ticks left to stop and listen; the cooldown after. */
+    private int soloDue;
+    private int soloCd = 400;
+    /** The side of the stands he works first in the hype (+1 east, -1 west). */
+    private int hypeSide = 1;
     /** Seconds (x20 ticks) until the stands get going on their own again. */
     private int crowdCd = 12;
     /** An old save's potato dome, to be taken down on the first tick. */
@@ -610,6 +619,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         ServerLevel level = (ServerLevel) level();
         stateTicks++;
         tickCooldowns();
+        if (soloDue > 0) soloDue--;
+        if (soloCd > 0) soloCd--;
         tickShockwave(level);
         LivingEntity target = pickTarget(level);
         record(target);
@@ -668,6 +679,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_SHOWTIME -> tickShowtime(level);
             case P2_APOLOGY -> tickApology(level);
             case P2_RESUME -> tickResume(level);
+            case P2_HYPE -> tickHype(level);
+            case P2_SOLO -> tickSolo(level);
             case P2_BARRAGE -> tickBarrage(level, target);
             case P2_METEOR -> tickMeteor(level, target);
             case VAN_GRAB -> tickVanGrab(level, target);
@@ -845,6 +858,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (phaseDue) {
             phaseDue = false;
             setBossState(BossState.P2_KNEEL);
+            return;
+        }
+        if (soloDue > 0 && inColiseum()) {
+            soloDue = 0;
+            setBossState(BossState.P2_SOLO);
             return;
         }
         if (isRisen() && arena == null && !arenaFailed && arenaRetryCd <= 0 && target != null && noTargetTicks == 0) {
@@ -2787,6 +2805,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
         }
         if (s.cutscene() || s == BossState.DEATH) return;
+        ColiseumCrowdEntity crowd = crowd(level);
+        if (crowd != null) crowd.pelt(level, arena);
         if (tickCount % 20 == 0 && --crowdCd <= 0) {
             // the stands get going on their own: a chant, the wave, clapping along
             crowdCd = 18 + random.nextInt(14);
@@ -2892,53 +2912,86 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t >= BossState.P2_NOTICE.duration) setBossState(BossState.P2_MARCH);
     }
 
-    /** Storms over to the band stand. */
+    /** Where he stands to whack the singer: on the sand just off the stage, in front of him. */
+    private Vec3 wakeSpot() {
+        MariachiEntity singer = singer((ServerLevel) level());
+        if (singer == null || arena == null) return standFront();
+        Vec3 out = Vec3.directionFromRotation(0, singer.getYRot());
+        Vec3 at = singer.position().add(out.scale(2.6));
+        return new Vec3(at.x, arena.floorY(), at.z);
+    }
+
+    /**
+     * Strides straight over to the singer, sleeping in the front row: one steady walk (steered at
+     * the spot every tick, no path stops), slowing for the last step so he arrives already winding
+     * up, and goes straight into the whack.
+     */
     private void tickMarch(ServerLevel level) {
-        Vec3 to = standFront();
+        Vec3 to = wakeSpot();
         double d = horizontalDist(to);
-        if (d < 1.2 || stateTicks > 160) {
-            if (d >= 1.2) setPos(to.x, to.y, to.z);
+        if (d < 0.5 || stateTicks > 200) {
             getNavigation().stop();
+            getMoveControl().setWantedPosition(getX(), getY(), getZ(), 0);
+            setDeltaMovement(getDeltaMovement().multiply(0.3, 1, 0.3));
             setBossState(BossState.P2_WAKE);
             return;
         }
-        if (stateTicks % 10 == 1) getNavigation().moveTo(to.x, to.y, to.z, 1.5);
-        if (stateTicks % 8 == 0) level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 1.0F, 1.2F);
+        getNavigation().stop();
+        getMoveControl().setWantedPosition(to.x, to.y, to.z, d > 2.5 ? 1.15 : 0.6 + d * 0.2);
+        MariachiEntity singer = singer(level);
+        if (d < 4 && singer != null) turnToward(singer.position(), 12F);
+        if (stateTicks % 7 == 0) level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 1.0F, 1.2F);
     }
 
     /**
-     * Out come the comal and the spatula: three clangs right over their heads (0.85 / 1.6 / 2.1 s)
-     * and "¡¡DESPIERTEN, FLOJOS!!". They jolt awake at the first.
+     * The whack (3.5 s): the big spatula up behind his head as he plants his feet (0-0.6 s), and down
+     * on the sleeping singer's head (0.7 s): BONK. The singer goes up in the air out of his chair;
+     * the bang jolts the rest of the band awake; a beat of shocked silence from the stands, then
+     * they fall about laughing. "¡¡DESPIERTEN, FLOJOS!!" at the band (1.2 s), and he rests the
+     * spatula on his shoulder, satisfied.
      */
     private void tickWake(ServerLevel level) {
         int t = stateTicks;
-        face(standFront().add(0, 0, -6));
-        if (t == 17 || t == 32 || t == 42) {
-            Vec3 at = position().add(Vec3.directionFromRotation(0, getYRot()).scale(1.4)).add(0, 2.6, 0);
-            level.playSound(null, at.x, at.y, at.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 2.0F, 1.3F);
-            level.playSound(null, at.x, at.y, at.z, SoundEvents.BELL_BLOCK, SoundSource.HOSTILE, 2.0F, 0.8F);
-            Fx.spark(level, at, 10, 0.4, 0.3F, 0xFFD27A);
-            PaponNetwork.shake(level, at, 20, 0.25F, 8);
+        MariachiEntity singer = singer(level);
+        getNavigation().stop();
+        if (singer != null) face(singer.position());
+        if (t == 14) {
+            Vec3 at = singer != null ? singer.position().add(0, singer.getBbHeight() * 0.95, 0)
+                    : position().add(Vec3.directionFromRotation(0, getYRot()).scale(2.4)).add(0, 2.6, 0);
+            if (singer != null) singer.whack();
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 1.4F, 1.7F);
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.HOSTILE, 2.5F, 0.6F);
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_JUMP, SoundSource.HOSTILE, 2.0F, 0.6F);
+            Fx.spark(level, at, 14, 0.5, 0.35F, 0xFFD27A);
+            Fx.hit(level, at, 1.4F, Fx.WHITE);
+            PaponNetwork.shake(level, at, 20, 0.35F, 8);
+            crowdReact(level, CrowdMood.GASP, 18);
         }
         if (t == 17) {
-            for (MariachiEntity m : band(level)) m.wake(m.getRole().dozer() ? 0 : random.nextInt(34));
-            crowdReact(level, CrowdMood.GASP, 16);
+            for (MariachiEntity m : band(level)) {
+                if (!m.getRole().singer()) m.wake(m.getRole().dozer() ? 0 : random.nextInt(30));
+            }
         }
-        if (t == 20) sayPlain("despierten", 50);
-        if (t >= BossState.P2_WAKE.duration) setBossState(BossState.P2_WAIT);
+        if (t == 24) {
+            sayPlain("despierten", 50);
+            crowdReact(level, CrowdMood.ROAR, 36);
+        }
+        if (t >= BossState.P2_WAKE.duration) {
+            paceSide = random.nextBoolean() ? 1 : -1;
+            setBossState(BossState.P2_WAIT);
+        }
     }
 
     /**
-     * Waits on them, tapping his foot (and with a finger up to you: "Un momentito..."); the
-     * guitarron has gone straight back to sleep, so he goes and kicks his chair. When they are
-     * all ready the singer counts them in.
+     * Waits on them: he paces the front of the stand from end to end, stopping at each end to tap
+     * his foot at them (and with a finger up to you: "Un momentito..."); the guitarron has gone
+     * straight back to sleep, so he goes and kicks his chair. When they are all ready the singer
+     * counts them in.
      */
     private void tickWait(ServerLevel level) {
         int t = stateTicks;
         LivingEntity target = getTarget();
         List<MariachiEntity> band = band(level);
-        if (t >= 16 && t < 40 && target != null) turnToward(target.position(), 12F);
-        else if (kickWho < 0) turnToward(standFront().add(0, 0, -6), 8F);
         if (t == 22) say("momentito", 40);
         for (MariachiEntity m : band) {
             if (m.dozing() && kickWho < 0 && t > 40) {
@@ -2959,13 +3012,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     setBossState(BossState.P2_KICK);
                     return;
                 }
-                if (t % 10 == 1) getNavigation().moveTo(to.x, to.y, to.z, 1.3);
+                getNavigation().stop();
+                getMoveControl().setWantedPosition(to.x, to.y, to.z, 1.0);
                 return;
             }
-        }
-        if (horizontalDist(standFront()) > 1.5 && t % 10 == 1) {
-            Vec3 f = standFront();
-            getNavigation().moveTo(f.x, f.y, f.z, 1.1);
         }
         boolean ready = !band.isEmpty();
         for (MariachiEntity m : band) ready &= m.getBandState() == BandState.READY;
@@ -2974,7 +3024,27 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             for (MariachiEntity m : band) if (!m.getBandState().ready()) m.setBandState(BandState.READY);
             ready = true;
         }
-        if (ready && horizontalDist(standFront()) < 2.5) setBossState(BossState.P2_COUNT);
+        Vec3 front = standFront();
+        if (ready) {
+            if (horizontalDist(front) < 1.2) {
+                setBossState(BossState.P2_COUNT);
+                return;
+            }
+            getNavigation().stop();
+            getMoveControl().setWantedPosition(front.x, front.y, front.z, 0.9);
+            return;
+        }
+        // pacing: to one end, a foot-tapping stop, back to the other
+        Vec3 end = front.add(paceSide * 3.2, 0, 0);
+        if (horizontalDist(end) < 0.6) {
+            getNavigation().stop();
+            if (t >= 16 && t < 40 && target != null) turnToward(target.position(), 12F);
+            else turnToward(standFront().add(0, 0, -6), 8F);
+            if (t % 50 == 49) paceSide = -paceSide;
+        } else {
+            getNavigation().stop();
+            getMoveControl().setWantedPosition(end.x, end.y, end.z, 0.55);
+        }
     }
 
     /** The chair: a boot to it and the guitarron is up, for good this time. */
@@ -3081,20 +3151,114 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t >= BossState.P2_APOLOGY.duration) setBossState(BossState.P2_RESUME);
     }
 
-    /** "...Now. Where were we?": he squares up, and the moment the singer starts singing, the fight is on. */
+    /** Server ticks until the singer's first word (the song's intro passes), from the downbeat. */
+    private int ticksToSinging(ServerLevel level) {
+        Song song = Song.get();
+        long now = level.getGameTime() & 0x7FFFFFFF;
+        long start = songStart & 0x7FFFFFFFL;
+        long since = (now - start) & 0x7FFFFFFFL;
+        if (since >= (1L << 30)) since = 0;
+        int fight = song != null ? song.fightStartTicks() : 300;
+        return (int) (fight - since);
+    }
+
+    /** "...Now. Where were we?": he turns back round to you and cracks his knuckles; the hype takes it from there. */
     private void tickResume(ServerLevel level) {
         int t = stateTicks;
         LivingEntity target = getTarget();
         if (target != null) turnToward(target.position(), 10F);
         if (t == 2) sayPlain("resume", 50);
-        Song song = Song.get();
-        long now = level.getGameTime() & 0x7FFFFFFF;
-        long start = songStart & 0x7FFFFFFFL;
-        long since = (now - start) & 0x7FFFFFFFL;
-        int fight = song != null ? song.fightStartTicks() : 300;
-        if ((since >= fight && since < (1L << 30)) || t > 200) {
-            crowdReact(level, CrowdMood.ROAR, 60);
+        if (ticksToSinging(level) <= BossState.P2_HYPE_LENGTH || t > 300) {
+            hypeSide = arena != null && getX() > arena.centerVec().x ? 1 : -1;
+            setBossState(BossState.P2_HYPE);
+        }
+    }
+
+    /** Where in the stands he plays to: the long side he is nearer to, up in the rows. */
+    private Vec3 stands(int side) {
+        Vec3 c = arena != null ? arena.centerVec() : position();
+        return c.add(side * (Coliseum.A + 8), 6, 0);
+    }
+
+    /**
+     * Before the singing (8 s, ending exactly on the first sung word): he turns to the stands on his
+     * side, a hand cupped to his ear: "¡NO LOS OIGO!" (1.0 s) and they roar; not good enough, he
+     * shakes his head and turns to the other side: "¡MÁS FUERTE!" (3.4) and they roar louder; then
+     * raise-the-roof on the beat with the whole bowl chanting his name (4.0-6.0), gold sparks off him
+     * with every pump; round to you, finger out: "¡TÚ!" (6.4); fists together, down into his stance,
+     * and as the place erupts (7.6: fireworks, the ground shaking) the singer comes in and the fight is on.
+     */
+    private void tickHype(ServerLevel level) {
+        int left = ticksToSinging(level);
+        int t = BossState.P2_HYPE_LENGTH - Math.max(0, left);
+        LivingEntity target = getTarget();
+        getNavigation().stop();
+        if (isFlying()) setDeltaMovement(getDeltaMovement().scale(0.5));
+        if (t < 44) turnToward(stands(hypeSide), 9F);
+        else if (t < 120) turnToward(stands(-hypeSide), 7F);
+        else if (target != null) turnToward(target.position(), 12F);
+        if (t == 18) say("no_los_oigo", 36);
+        if (t == 32) {
+            crowdReact(level, CrowdMood.ROAR, 26);
+            PaponNetwork.shake(level, position(), 48, 0.2F, 14);
+        }
+        if (t == 66) say("mas_fuerte", 34);
+        if (t == 74) {
+            crowdReact(level, CrowdMood.ROAR, 10);
+            PaponNetwork.shake(level, position(), 48, 0.3F, 16);
+        }
+        if (t == 80) crowdReact(level, CrowdMood.CHANT, 50);
+        if (t >= 80 && t < 120 && (t - 80) % 10 == 0) {
+            // raise the roof, on the beat
+            Fx.spark(level, position().add(0, getBbHeight() + 0.4, 0), 10, 0.5, 0.3F, 0xFFE07A);
+            level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.HOSTILE, 1.4F, 0.7F);
+            PaponNetwork.shake(level, position(), 48, 0.15F, 6);
+        }
+        if (t == 128) {
+            say("tu", 34);
+            crowdReact(level, CrowdMood.GASP, 10);
+        }
+        if (t == 138) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.ANVIL_PLACE, SoundSource.HOSTILE, 1.4F, 0.6F);
+        if (t == 150) {
+            crowdReact(level, CrowdMood.ROAR, 70);
+            fireworks(level);
+            PaponNetwork.shake(level, position(), 48, 0.7F, 24);
+            Fx.shock(level, position(), 7F, 0xFFE07A);
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 3.0F, 0.9F);
+        }
+        if (left <= 0 || stateTicks > BossState.P2_HYPE_LENGTH + 120) {
+            crowdMood(level, CrowdMood.CHEER);
             finishCutscene(level);
+        }
+    }
+
+    /** A client heard the band go into a guitar solo: if the fight can spare it, he stops for a moment to listen. */
+    public void soloHeard() {
+        BossState s = getBossState();
+        if (!inColiseum() || !bandWoken || soloCd > 0 || s.cutscene() || s == BossState.DEATH || s.qte()) return;
+        soloDue = 60;
+    }
+
+    /**
+     * The singer's guitar solo (3 s): the camera cuts to him; the boss stops where he is, turns to
+     * the stand, and air-guitars along with his eyes shut; the stands swoon. Then straight back to it.
+     */
+    private void tickSolo(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        if (isFlying()) setDeltaMovement(getDeltaMovement().scale(0.4));
+        else setDeltaMovement(getDeltaMovement().multiply(0.3, 1, 0.3));
+        MariachiEntity singer = singer(level);
+        if (singer != null) turnToward(singer.position(), 10F);
+        if (t == 4) {
+            say("solo", 40);
+            crowdReact(level, CrowdMood.SWOON, 50);
+        }
+        if (t >= BossState.P2_SOLO.duration) {
+            soloCd = 900;
+            think = 4;
+            crowdReact(level, CrowdMood.ROAR, 20);
+            setBossState(BossState.IDLE);
         }
     }
 
@@ -4503,7 +4667,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
             if (deathTime == 60) for (MariachiEntity m : band(level)) m.bow();
             if (deathTime >= BossState.DEATH.duration) {
+                List<ServerPlayer> fighters = new ArrayList<>(bossEvent.getPlayers());
+                for (ServerPlayer p : level.players()) {
+                    if (!fighters.contains(p) && !p.isSpectator() && p.distanceToSqr(this) < 64 * 64) fighters.add(p);
+                }
                 leaveArena(level);
+                com.groid.papon.entity.npc.GerbinEntity.reward(level, home != null ? home : position(), fighters);
                 Fx.flash(level, position().add(0, 1, 0), 2.5F);
                 Fx.smoke(level, position().add(0, 1, 0), 6, 0.8, 1.4F, 0xEDE6DA);
                 Fx.chunks(level, position().add(0, 1, 0), 16, 0.35F, Fx.POTATO, 0.6);
@@ -4581,7 +4750,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private PlayState animateForm(AnimationState<PaponBossEntity> event) {
         BossState s = getBossState();
         if (s == BossState.P2_SCREAM) return event.setAndContinue(F_SPROUT);
-        if (s == BossState.P2_APOLOGY && ticksInState() > 100) return event.setAndContinue(F_AURA);
+        if (s == BossState.P2_APOLOGY && ticksInState() > 100 || s == BossState.P2_HYPE) return event.setAndContinue(F_AURA);
         if (!isRisen()) return PlayState.STOP;
         RawAnimation next = switch (s) {
             case VAN_GRAB, VAN_THROW, P2_METEOR -> F_LIFT;
@@ -4644,6 +4813,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_SHOWTIME -> A_P2_GROOVE;
             case P2_APOLOGY -> A_P2_APOLOGY;
             case P2_RESUME -> A_P2_RESUME;
+            case P2_HYPE -> A_P2_HYPE;
+            case P2_SOLO -> A_P2_SOLO;
             case P2_BARRAGE -> A_BARRAGE;
             case P2_METEOR -> A_METEOR;
             case VAN_GRAB -> A_FLY;

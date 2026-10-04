@@ -124,6 +124,9 @@ public final class SoundCues {
             case "violin_tune" -> { sound = SoundEvent.createVariableRangeEvent(com.groid.papon.PaponMod.id("band.tune")); volume = 0.7F; }
             case "strum" -> { sound = SoundEvents.NOTE_BLOCK_GUITAR.value(); volume = 0.9F; pitch = 0.8F; }
             case "snap" -> { sound = SoundEvents.NOTE_BLOCK_HAT.value(); volume = 1.2F; pitch = 1.8F; }
+            case "maraca" -> { sound = SoundEvents.SAND_STEP; volume = 0.8F; pitch = 1.8F; }
+            case "bonk" -> { sound = SoundEvents.NOTE_BLOCK_BASEDRUM.value(); volume = 1.6F; pitch = 0.6F; }
+            case "grumble" -> { sound = SoundEvents.VILLAGER_NO; volume = 0.9F; pitch = 0.7F; }
             default -> { return; }
         }
         e.level().playLocalSound(e.getX(), e.getY(), e.getZ(), sound, SoundSource.NEUTRAL, volume,

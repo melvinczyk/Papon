@@ -63,8 +63,7 @@ public final class ClientSetup {
         customer(event, ModEntities.REVIEWBRAH.get(), Customer.REVIEWBRAH);
         customer(event, ModEntities.CUSTOMER_PAPON.get(), Customer.PAPON);
         // Gerbin the dishwasher: a chort at 1.25x; his name tag is vanilla's, his bubble sits above it
-        event.registerEntityRenderer(ModEntities.GERBIN.get(),
-                ctx -> new CrowdRenderer<>(ctx, new CrowdModel<>("gerbin", "gerbin", true), 1.25F, 0.4F, 0.6F));
+        event.registerEntityRenderer(ModEntities.GERBIN.get(), GerbinRenderer::new);
         event.registerEntityRenderer(ModEntities.PAPON_BOSS.get(), BossRenderer::new);
         event.registerEntityRenderer(ModEntities.CARAVAN.get(), CaravanRenderer::new);
         event.registerEntityRenderer(ModEntities.FOIL_POTATO.get(), FoilPotatoRenderer::new);
@@ -72,6 +71,8 @@ public final class ClientSetup {
                 ctx -> new TumbleRenderer<>(ctx, () -> new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.TEQUILA.get()), 1.1F, 24F));
         event.registerEntityRenderer(ModEntities.POTATO_SHOT.get(),
                 ctx -> new TumbleRenderer<>(ctx, () -> new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_SPUD.get()), 0.7F, 40F));
+        event.registerEntityRenderer(ModEntities.CROWD_POTATO.get(),
+                ctx -> new TumbleRenderer<>(ctx, () -> new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.POTATO), 0.9F, 18F));
         event.registerEntityRenderer(ModEntities.BOSS_PROP.get(), PropRenderer::new);
         event.registerEntityRenderer(ModEntities.PAPON_ECHO.get(), EchoRenderer::new);
         event.registerEntityRenderer(ModEntities.MARIACHI.get(), MariachiRenderer::new);

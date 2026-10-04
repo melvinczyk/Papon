@@ -290,6 +290,35 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         }
     }
 
+    /**
+     * A fan throwing a potato at you (ColiseumCrowdEntity.pelt): the right arm back over his head
+     * through the wind-up, whipped forward as it leaves his hand, a lean into it, a shout; then back
+     * to whatever the rest of the stands are doing.
+     */
+    private static void throwPose(Pose p, float tf) {
+        float w = ColiseumCrowdEntity.WINDUP;
+        float x, torso, back;
+        if (tf < w) {
+            float k = tf / w;
+            x = Mth.lerp(k * k, p.armRX, -205);
+            torso = -10 * k;
+            back = 1;
+        } else {
+            float k = Math.min(1F, (tf - w) / 3F);
+            x = Mth.lerp(k, -205, -45);
+            torso = Mth.lerp(k, -10, 14);
+            back = 1 - Mth.clamp((tf - w - 4) / 6F, 0, 1);
+        }
+        p.armRX = Mth.lerp(back, p.armRX, x);
+        p.armRY = Mth.lerp(back, p.armRY, 0);
+        p.armRZ = Mth.lerp(back, p.armRZ, 14);
+        p.torsoX = Mth.lerp(back, p.torsoX, torso);
+        p.mouth = Mth.lerp(back, p.mouth, 2.4F);
+        p.brow = Mth.lerp(back, p.brow, -0.6F);
+        if (p.rootY < -1) p.rootY = Mth.lerp(back, p.rootY, 0);     // on his feet to throw
+        if (p.leg < -40) p.leg = Mth.lerp(back, p.leg, 0);
+    }
+
     // ------------------------------------------------------------------ drawing
 
     @Override
@@ -339,6 +368,8 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             } else {
                 pose.set(pb, pb, 1);
             }
+            int tt = crowd.throwTicks(i);
+            if (tt >= 0) throwPose(pose, tt + partial);
             float turn = 0;
             if (look != null) {
                 float want = (float) (Mth.atan2(look.z - wz, look.x - wx) * Mth.RAD_TO_DEG) - 90F;

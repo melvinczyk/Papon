@@ -37,6 +37,10 @@ public final class ModItems {
     public static final RegistryObject<Item> CARAVAN_KEYS = REGISTRY.register("caravan_keys",
             () -> new CaravanKeysItem(new Item.Properties().rarity(Rarity.RARE).fireResistant()));
 
+    /** Gerbin's present to whoever beats Chef Papon. */
+    public static final RegistryObject<Item> BODY_PILLOW = REGISTRY.register("body_pillow",
+            () -> new com.groid.papon.item.BodyPillowItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
+
     // models for the boss fight's props (client/PropRenderer, TumbleRenderer); not in any tab
     public static final RegistryObject<Item> FX_SPUD = prop("fx_spud");
     public static final RegistryObject<Item> FX_METEOR = prop("fx_meteor");

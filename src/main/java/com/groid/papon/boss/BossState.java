@@ -23,13 +23,17 @@ package com.groid.papon.boss;
  *                                                              bakes golden, the scream, and up into El Coliseo Papa,
  *                                                              built in the sky while he knelt; he flies from here on)
  * P2_ARRIVE --> P2_NOTICE --> P2_MARCH --> P2_WAKE --> P2_WAIT [<--> P2_KICK] --> P2_COUNT --> P2_SHOWTIME
- *           --> P2_APOLOGY --> P2_RESUME --> IDLE
+ *           --> P2_APOLOGY --> P2_RESUME --> P2_HYPE --> IDLE
  *                                                             (in the coliseum: "¡Música, maestro!", but the band is
- *                                                              asleep; he storms over, clangs his comal, waits on them,
- *                                                              kicks the guitarron's chair; the singer counts them in;
- *                                                              the guitar intro, his apology and his aura; "where were
- *                                                              we?", and the fight is on when the singing starts.
- *                                                              With no coliseum: P2_ARRIVE --> IDLE)
+ *                                                              asleep; he strides straight over and brings his spatula
+ *                                                              down on the singer's head (up he goes), the bang wakes
+ *                                                              the rest; he paces while they dress, kicks the
+ *                                                              guitarron's chair; the singer counts them in; the guitar
+ *                                                              intro, his apology and his aura; "where were we?"; he
+ *                                                              works the stands into a roar, and the fight is on the
+ *                                                              moment the singing starts. With no coliseum: P2_ARRIVE --> IDLE)
+ * IDLE --> P2_SOLO --> IDLE                                   (the singer's guitar solo: the camera on him a moment,
+ *                                                              the boss stops to air-guitar along)
  * IDLE --> GRAB [--> GRAB_COMBO [--> CHARGE_WINDUP]] --> IDLE  (grabs you: blowtorch, salt, the throw)
  * IDLE --> P2_BARRAGE | P2_METEOR | P2_DIVE --> IDLE          (phase two: hands, meteors, dive bombs)
  * IDLE --> VAN_GRAB --> VAN_THROW --> IDLE                    (phase two: flies to the van, throws it)
@@ -128,7 +132,13 @@ public enum BossState {
     P2_COUNT(80),
     P2_SHOWTIME(70),
     P2_APOLOGY(178),
-    P2_RESUME(0);
+    P2_RESUME(0),
+    /** Working the stands up, timed to end on the first sung word (P2_HYPE_LENGTH long when on time). */
+    P2_HYPE(0),
+    P2_SOLO(60);
+
+    /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
+    public static final int P2_HYPE_LENGTH = 160;
 
     public final int duration;
 
@@ -151,15 +161,15 @@ public enum BossState {
         return this == P2_KNEEL || this == P2_TALK || this == P2_SEASON || this == P2_SCREAM;
     }
 
-    /** Any part of the phase-two cutscene (he cannot be hurt). */
+    /** Any part of the phase-two cutscene (he cannot be hurt), and the guitar solo's moment. */
     public boolean cutscene() {
-        return silent() || this == P2_ARRIVE || coliseum();
+        return silent() || this == P2_ARRIVE || coliseum() || this == P2_SOLO;
     }
 
     /** The coliseum's own beats: the band, the count-in, the apology. */
     public boolean coliseum() {
         return this == P2_NOTICE || this == P2_MARCH || this == P2_WAKE || this == P2_WAIT || this == P2_KICK || this == P2_COUNT
-                || this == P2_SHOWTIME || this == P2_APOLOGY || this == P2_RESUME;
+                || this == P2_SHOWTIME || this == P2_APOLOGY || this == P2_RESUME || this == P2_HYPE;
     }
 
     /** He cannot be stopped: no knockback, no stagger, half damage (drawn with a red edge). */

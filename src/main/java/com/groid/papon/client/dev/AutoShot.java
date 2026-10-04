@@ -2,6 +2,7 @@ package com.groid.papon.client.dev;
 
 import com.groid.papon.PaponMod;
 import com.groid.papon.boss.BossState;
+import com.groid.papon.boss.Coliseum;
 import com.groid.papon.boss.PaponBossEntity;
 import com.groid.papon.entity.npc.GerbinEntity;
 import com.groid.papon.entity.npc.TacoVendorEntity;
@@ -297,7 +298,7 @@ public final class AutoShot {
                     "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "kill @e[type=papon:mariachi]",
                     "kill @e[type=papon:coliseum_crowd]", "tp @s 4000 200 4000");
             case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
-            case 100 -> run("execute at @s rotated 0 0 run papon boss");
+            case 100 -> run("execute at @s rotated 0 0 run papon boss", "execute at @s run summon papon:gerbin ~4 ~ ~-3");
             case 220 -> run("papon bossstate IDLE", MID, "papon bossstate P2_KNEEL");
             default -> {}
         }
@@ -314,18 +315,23 @@ public final class AutoShot {
             case P2_SCREAM -> t == 60 ? "c00_scream_white" : null;
             case P2_ARRIVE -> t == 12 ? "c01_crane_high" : t == 30 ? "c02_crane_down" : t == 52 ? "c03_landed_crowd" : t == 88 ? "c04_musica" : null;
             case P2_NOTICE -> t == 12 ? "c05_band_asleep" : t == 40 ? "c06_maestro" : null;
-            case P2_MARCH -> t == 20 ? "c07_march" : null;
-            case P2_WAKE -> t == 18 ? "c08_clang" : t == 32 ? "c09_clang2" : t == 56 ? "c10_startled" : null;
+            case P2_MARCH -> t == 20 ? "c07_march" : t == 45 ? "c07b_march" : null;
+            case P2_WAKE -> t == 8 ? "c08_windup" : t == 15 ? "c08b_whack" : t == 20 ? "c09_singer_up" : t == 27 ? "c09b_singer_top" : t == 42 ? "c10_band_wakes" : t == 62 ? "c10b_satisfied" : null;
             case P2_WAIT -> t == 30 ? "c11_wait" : t == 110 ? "c12_band_dressing" : t == 190 ? "c13_band_dressing2" : t == 250 ? "c13b_wait" : null;
             case P2_KICK -> t == 13 ? "c14_kick" : null;
             case P2_COUNT -> t == 6 ? "c15_count_uno" : t == 44 ? "c16_count_tres" : t == 76 ? "c17_downbeat" : null;
             case P2_SHOWTIME -> t == 8 ? "c18_guitar_close" : t == 40 ? "c19_guitar_tilt" : t == 66 ? "c20_singer_aura" : null;
             case P2_APOLOGY -> t == 30 ? "c21_walk_over" : t == 80 ? "c22_apology" : t == 135 ? "c23_aura_farm" : t == 172 ? "c24_aura_farm2" : null;
-            case P2_RESUME -> t == 10 ? "c25_where_were_we" : t == 32 ? "c26_whip" : null;
+            case P2_RESUME -> t == 10 ? "c25_where_were_we" : null;
+            case P2_HYPE -> t == 14 ? "c26_hype_ear" : t == 30 ? "c26b_hype_roar" : t == 60 ? "c27_hype_turn" : t == 72 ? "c27b_mas_fuerte" : t == 92 ? "c28_raise_roof"
+                    : t == 112 ? "c28b_raise_roof" : t == 132 ? "c29_tu" : t == 151 ? "c29b_erupt" : null;
+            case P2_SOLO -> t == 10 ? "s1_solo_hands" : t == 36 ? "s2_solo_face" : t == 52 ? "s3_solo_reverse" : null;
             default -> null;
         };
         if (n != null) once(mc, n);
         if (s == BossState.IDLE && b.isPhaseTwo() && colMark < 0 && taken.contains("c25_where_were_we")) colMark = tick;
+        // the band, member by member, while they play (from the front, a few blocks off)
+        if (colMark > 0) bandShots(mc, b, tick - colMark);
         if (colMark > 0) {
             int k = tick - colMark;
             // the band playing, the singer up close, the stands, the fight, from outside
@@ -353,24 +359,70 @@ public final class AutoShot {
             if (k == 122) tpLook(b.position().add(0, 1, 6), b.position().add(-18, 9, 16));
             if (k == 132) shot(mc, "c42_stands_south");
             if (k == 134) PaponMod.LOG.info("[autoshot] stands fps {}", mc.getFps());
-            if (k == 270) run("gamemode spectator");
-            if (k == 274) tpLook(b.position().add(0, 50, 75), b.position());
-            if (k == 290) shot(mc, "c45_outside_high");
-            if (k == 292) tpLook(b.position().add(-75, 14, 10), b.position().add(0, 10, 0));
-            if (k == 306) shot(mc, "c46_outside_side");
-            if (k == 308) PaponMod.LOG.info("[autoshot] outside fps {}", mc.getFps());
-            if (k == 310) tpLook(b.position().add(0, 3, 15), b.position().add(0, 2, -30));
-            if (k == 324) shot(mc, "c47_whole_bowl");
-            if (k == 326) {
+            if (k == 470) run("gamemode spectator");
+            if (k == 474) tpLook(b.position().add(0, 50, 75), b.position());
+            if (k == 490) shot(mc, "c45_outside_high");
+            if (k == 492) tpLook(b.position().add(0, 3, 15), b.position().add(0, 2, -30));
+            if (k == 506) shot(mc, "c47_whole_bowl");
+            if (k == 508) {
                 PaponBossEntity.devFrozen = false;
                 run("gamemode survival");
-                tpLook(b.position().add(0, 1, 8), b.position().add(0, 2, 0));
+                // on the sand by the stands: the fans let fly
+                tpLook(b.position().add(Coliseum.A - 3, 0.2, 0), b.position().add(Coliseum.A + 6, 4, 0));
             }
-            if (k == 360) shot(mc, "c43_fight");
-            if (k == 380) run("kill @e[type=papon:papon_boss]");
-            if (k == 440) once(mc, "c48_his_fall");
-            if (k == 520) once(mc, "c49_back_down");
-            if (k == 540) mc.stop();
+            if (k == 530) shot(mc, "p1_pelted");
+            if (k == 546) shot(mc, "p2_pelted");
+            if (k == 562) shot(mc, "p3_pelted");
+            if (k == 566) tpLook(b.position().add(0, 1, 8), b.position().add(0, 2, 0));
+            if (k == 600) run("papon bossstate P2_SOLO");
+            if (k == 700) shot(mc, "c43_fight");
+            if (k == 720) run("kill @e[type=papon:papon_boss]");
+            if (k == 780) once(mc, "c48_his_fall");
+            if (k == 860) once(mc, "c49_back_down");
+            if (k > 870) {
+                // Gerbin comes over with the pillow
+                var g = nearest(mc, com.groid.papon.entity.npc.GerbinEntity.class);
+                if (g != null) {
+                    lookAt(mc, g);
+                    var gs = g.getGerbinState();
+                    if (gs == com.groid.papon.entity.npc.GerbinState.DELIVER && g.ticksInState() == 30) once(mc, "g1_gerbin_carry");
+                    if (gs == com.groid.papon.entity.npc.GerbinState.GIVE && g.ticksInState() == 16) once(mc, "g2_gerbin_give");
+                    if (gs == com.groid.papon.entity.npc.GerbinState.GIVE && g.ticksInState() == 40) once(mc, "g3_gerbin_given");
+                }
+                if (taken.contains("g3_gerbin_given") && doneAt < 0) doneAt = k;
+                if (doneAt > 0 && k == doneAt + 20) {
+                    PaponMod.LOG.info("[autoshot] pillows held: {}", mc.player.getInventory().countItem(com.groid.papon.registry.ModItems.BODY_PILLOW.get()));
+                    run("item replace entity @s weapon.mainhand with papon:body_pillow", "effect give @s papon:splattered 5 0");
+                }
+                if (doneAt > 0 && k == doneAt + 40) once(mc, "g4_pillow_in_hand");
+                if (doneAt > 0 && k == doneAt + 50 || k > 2400) mc.stop();
+            }
+        }
+    }
+
+    /**
+     * Band close-ups while they play (devFrozen keeps him out of the way): the coro (they come in
+     * with the harmonies about 8.6 s into the first verse), the trumpets (their part from 11.5 s),
+     * the violins; each from in front of the member, at his eye level.
+     */
+    private static void bandShots(Minecraft mc, PaponBossEntity b, int k) {
+        java.util.List<com.groid.papon.boss.MariachiEntity> band = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class,
+                b.getBoundingBox().inflate(80), m -> true);
+        java.util.function.Function<com.groid.papon.boss.BandRole, com.groid.papon.boss.MariachiEntity> who =
+                r -> band.stream().filter(m -> m.getRole() == r).findFirst().orElse(null);
+        String[] names = {"b1_coro", "b2_trumpets", "b3_violins", "b4_coro_wide"};
+        com.groid.papon.boss.BandRole[] roles = {com.groid.papon.boss.BandRole.CORO_2, com.groid.papon.boss.BandRole.TRUMPET_2,
+                com.groid.papon.boss.BandRole.VIOLIN_2, com.groid.papon.boss.BandRole.CORO_1};
+        int[] at = {176, 250, 330, 410};
+        double[] back = {3.2, 4.2, 4.6, 6.5};
+        for (int i = 0; i < at.length; i++) {
+            var m = who.apply(roles[i]);
+            if (m == null) continue;
+            Vec3 f = Vec3.directionFromRotation(0, m.getYRot());
+            Vec3 side = new Vec3(-f.z, 0, f.x);
+            Vec3 eye = m.position().add(0, m.getBbHeight() * 0.62, 0);
+            if (k == at[i]) tpLook(eye.add(f.scale(back[i])).add(side.scale(i == 2 ? -1.6 : 0.6)).add(0, -1.62, 0), eye);
+            if (k == at[i] + 8 || k == at[i] + 20 || k == at[i] + 32) shot(mc, names[i] + "_" + (k - at[i]));
         }
     }
 
