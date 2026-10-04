@@ -21,7 +21,8 @@ Lengths of one-shots = BandState durations in Java:
   startle 1.0, getup 3.0, resleep 2.0, jacket 2.5, hat 1.5, shades 1.0, grab_* 1.5, count 4.0
   (the singer: "uno" 0.2, "dos" 1.15, "uno, dos, tres" 2.1 / 2.55 / 3.05, the downbeat at 4.0),
   bow 2.5, whacked 2.5 (the singer, hit on the head: up in the air 0-0.9), jacket_slow 4.5,
-  hat_slow 2.5; loops: sleep_a/b/c 3.0, ready_* 2.0, play_* 1.88 (a bar of the song)
+  hat_slow 2.5, robbed 2.0, catch 1.5; loops: sleep_a/b/c 3.0, ready_* 2.0, play_* 1.88 (a bar of the song),
+  scared 1.0, awed 3.48 (two bars of Para Siempre)
 """
 import json
 import os
@@ -29,6 +30,7 @@ import os
 from gen_anims import guard_brows, EPS, Anim
 from gen_boss_anims import stretch as boss_stretch
 import band_ik
+from gen_npc_anims import osc
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'src/main/resources/assets/papon/animations/entity/mariachi.animation.json')
@@ -548,11 +550,94 @@ def hat_slow():
     return a
 
 
+# ===================================================================== phase three
+
+def scared():
+    """1.0 s loop. Cowering from the boss: down low, shoulders up, the forearms over the head, the instrument
+    hugged in (whatever is strapped on stays where it is), trembling; brows up, mouth open."""
+    a = state(M('scared', 1.0, True), True, True)
+    a.pos('root', [(0, [0, -1.6, 0])], 'lin')
+    a.rot('torso', osc(0, 1.0, 0.05, [24, 0, -1.5], [24, 0, 1.5]), 'lin')
+    a.rot('arm_r', [(0, [-150, -40, 10])], 'lin')
+    a.rot('arm_l', [(0, [-150, 40, -10])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.2)])
+    stretch(a, 'arm_l', [(0, 1.2)])
+    a.rot('leg_r', [(0, [-30, 0, 8])], 'lin')
+    a.rot('leg_l', [(0, [-30, 0, -8])], 'lin')
+    a.scale('body', osc(0, 1.0, 0.1, [1.0, 0.94, 1.0], [1.02, 0.92, 1.02]), 'lin')
+    for b, s_ in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(b, [(0, [0, 1.1, 0])], 'lin')
+        a.rot(b, [(0, [0, 0, -14 * s_])], 'lin')
+    mouth(a, [(0, 1.2), (0.5, 1.5), (1.0, 1.2)])
+    return a
+
+
+def robbed():
+    """2.0 s (the singer). His requinto torn out of his hands: spun half round by it (0-0.4), stumbles; looks down
+    at his empty hands, held out (0.6-1.3), then up at the boss, and down he goes into a cower."""
+    a = state(M('robbed', 2.0, 'hold'), True, True, shades=True)     # the renderer leaves his requinto off
+    a.scale('requinto', [(0, HIDDEN)], 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (0.1, [0, -70, -6], 'easeOutQuad'), (0.4, [0, 20, 4], 'easeOutBack'), (0.6, [0, 0, 0]), (2.0, [0, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.1, [0, 0.8, 0]), (0.4, [0, 0, 1.0]), (1.4, [0, 0, 1.0]), (1.8, [0, -1.6, 1.0], 'easeInOutSine'), (2.0, [0, -1.6, 1.0])], 'lin')
+    for arm, sgn in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, REQ['strum']['rot'] if sgn > 0 else REQ['low']['rot']), (0.1, [-120, 0, 40 * sgn], 'easeOutQuad'),
+                    (0.4, [-40, 0, 30 * sgn]), (0.6, [-64, 20 * sgn, 10 * sgn], 'easeInOutSine'), (1.3, [-66, 22 * sgn, 10 * sgn]),
+                    (1.7, [-150, -40 * sgn, 10 * sgn], 'easeInOutSine'), (2.0, [-150, -40 * sgn, 10 * sgn])], 'lin')
+    stretch(a, 'arm_r', [(0, REQ['strum']['k']), (0.4, 1.0), (0.6, 1.1), (1.3, 1.1), (1.7, 1.2), (2.0, 1.2)])
+    stretch(a, 'arm_l', [(0, REQ['low']['k']), (0.4, 1.0), (0.6, 1.1), (1.3, 1.1), (1.7, 1.2), (2.0, 1.2)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.1, [-12, 0, 0]), (0.4, [10, 0, 0]), (0.6, [22, 0, 0], 'easeInOutSine'), (1.3, [22, 0, 0]),
+                    (1.45, [-6, 0, 0], 'easeOutQuad'), (1.8, [24, 0, 0], 'easeInOutSine'), (2.0, [24, 0, 0])], 'lin')
+    for b, s_ in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(b, [(0, [0, 0, 0]), (0.1, [0, 1.4, 0]), (2.0, [0, 1.1, 0])], 'lin')
+        a.rot(b, [(0, [0, 0, 0]), (0.6, [0, 0, -14 * s_]), (2.0, [0, 0, -14 * s_])], 'lin')
+    mouth(a, [(0, 0), (0.1, 2.4, 'easeOutQuad'), (0.5, 1.0), (1.45, 2.6, 'easeOutQuad'), (2.0, 1.2)])
+    a.sound(0.1, 'yelp').sound(1.45, 'gasp')
+    return a
+
+
+def awed():
+    """3.48 s loop (two bars of Para Siempre). The boss is playing in the spotlight and they forget to be
+    scared: up out of the crouch, hands clasped under the chin, swaying with it; brows up, mouths a little open."""
+    L = 3.48
+    a = state(M('awed', L, True), True, True)
+    a.rot('torso', [(0, [6, 0, -4]), (L / 2, [6, 0, 4]), (L, [6, 0, -4])])
+    a.rot('root', [(0, [0, -4, 0]), (L / 2, [0, 4, 0]), (L, [0, -4, 0])])
+    a.rot('arm_r', [(0, [-100, -46, 0])], 'lin')
+    a.rot('arm_l', [(0, [-100, 46, 0])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.15)])
+    stretch(a, 'arm_l', [(0, 1.15)])
+    for b, s_ in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(b, [(0, [0, 0.8, 0])], 'lin')
+        a.rot(b, [(0, [0, 0, -10 * s_])], 'lin')
+    mouth(a, [(0, 0.5)])
+    return a
+
+
+def catch():
+    """1.5 s (the singer). The requinto comes spinning back at him: hands up, a fumble (it bounces off his
+    palms, 0.1-0.5, the prop entity is it), a lunge, and he has it hugged to his chest (0.7); a relieved breath
+    and into his playing position."""
+    a = state(M('catch', 1.5, 'hold'), True, True, shades=True)
+    a.rot('arm_r', [(0, [-150, -20, 20]), (0.15, [-120, -30, 30], 'easeOutQuad'), (0.3, [-160, 0, 10]), (0.45, [-100, -40, 30]),
+                    (0.7, [-80, -50, 0], 'easeOutQuad'), (1.1, [-80, -50, 0]), (1.4, REQ['strum']['rot'], 'easeInOutSine'), (1.5, REQ['strum']['rot'])], 'lin')
+    a.rot('arm_l', [(0, [-150, 20, -20]), (0.15, [-170, 10, -10], 'easeOutQuad'), (0.3, [-110, 30, -30]), (0.45, [-150, 20, -10]),
+                    (0.7, [-80, 50, 0], 'easeOutQuad'), (1.1, [-80, 50, 0]), (1.4, REQ['low']['rot'], 'easeInOutSine'), (1.5, REQ['low']['rot'])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.3), (0.7, 1.2), (1.1, 1.2), (1.4, REQ['strum']['k']), (1.5, REQ['strum']['k'])])
+    stretch(a, 'arm_l', [(0, 1.3), (0.7, 1.2), (1.1, 1.2), (1.4, REQ['low']['k']), (1.5, REQ['low']['k'])])
+    a.pos('root', [(0, [0, 0, 0]), (0.5, [0, 0, -1.2], 'easeOutQuad'), (0.7, [0, -0.8, -1.2]), (1.1, [0, 0, 0], 'easeInOutSine'), (1.5, [0, 0, 0])], 'lin')
+    a.rot('torso', [(0, [-10, 0, 0]), (0.3, [-14, 0, 6]), (0.5, [18, 0, -4], 'easeOutQuad'), (0.7, [24, 0, 0]), (0.9, [10, 0, 0]),
+                    (1.1, [-6, 0, 0], 'easeInOutSine'), (1.5, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.9, [1, 1, 1]), (1.0, [1.04, 1.05, 1.04]), (1.3, [1, 0.97, 1]), (1.5, [1, 1, 1])], 'lin')
+    mouth(a, [(0, 1.6), (0.3, 2.2), (0.7, 0.4), (1.0, 1.0), (1.3, 0), (1.5, 0)])
+    a.sound(0.15, 'bump').sound(0.4, 'bump').sound(0.7, 'strum').sound(1.0, 'sigh')
+    return a
+
+
 ALL = [sleep_a, sleep_b, sleep_c, startle, getup, resleep, jacket, hat, shades,
        lambda: grab('guitar'), lambda: grab('violin'), lambda: grab('trumpet'), lambda: grab('coro'),
        lambda: ready('guitar'), lambda: ready('violin'), lambda: ready('trumpet'), lambda: ready('coro'),
        count, lambda: play('guitar'), lambda: play('singer'), lambda: play('violin'), lambda: play('trumpet'),
-       lambda: play('coro'), bow, whacked, jacket_slow, hat_slow]
+       lambda: play('coro'), bow, whacked, jacket_slow, hat_slow, scared, robbed, awed, catch]
 
 
 def main():

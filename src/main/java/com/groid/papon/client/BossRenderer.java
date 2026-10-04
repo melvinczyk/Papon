@@ -178,10 +178,85 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
 
     @Override
     public void render(PaponBossEntity entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
-        super.render(entity, yaw, partialTick, pose, buffers, keyLight(entity, light));
+        float spot = spot(entity, partialTick);
+        super.render(entity, yaw, partialTick, pose, buffers, spot > 0.5F ? net.minecraft.client.renderer.LightTexture.FULL_BRIGHT : keyLight(entity, light));
+        if (spot > 0) drawSpotlight(entity, pose, buffers, spot, partialTick);
         float k = rays(entity, partialTick);
         if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
         SpeechBubble.render(entity, entity.getSpeech(), 0.4F, pose, buffers, light, entityRenderDispatcher);
+    }
+
+    /**
+     * How bright his spotlight is (phase three, in his coliseum): it slams on in the blackout (a stutter as the
+     * lamp catches), and stays on him for the rest of the fight.
+     */
+    static float spot(PaponBossEntity b, float partial) {
+        if (!b.inColiseum() || !b.spotlit()) return 0;
+        if (b.getBossState() == BossState.P3_BLACKOUT) {
+            int t = b.ticksInState();
+            if (t < 30) return 0;
+            return t == 31 || t == 33 ? 0.25F : 1F;           // the lamp catching
+        }
+        return 1F;
+    }
+
+    /**
+     * The spotlight: a beam straight down on him out of the dark from high over the sand (two cones, a soft wide
+     * one round a brighter core, brightest where it meets the ground), the pool of light on the sand under him,
+     * and dust turning in it. Additive, so it only shows against the dark.
+     */
+    private static void drawSpotlight(PaponBossEntity b, PoseStack pose, MultiBufferSource buffers, float k, float partial) {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        net.minecraft.world.phys.Vec3 at = b.getPosition(partial);
+        var hit = mc.level.clip(new net.minecraft.world.level.ClipContext(at.add(0, 0.5, 0), at.add(0, -30, 0),
+                net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, null));
+        float ground = hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? 0F : (float) (hit.getLocation().y - at.y) + 0.03F;
+        float top = ground + 30F;
+        float scale = b.isRisen() ? 1.15F : 1F;
+        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        org.joml.Matrix4f m = pose.last().pose();
+        float flick = 0.94F + 0.06F * net.minecraft.util.Mth.sin((b.tickCount + partial) * 0.9F);
+        cone(vc, m, top, ground, 0.5F, 3.4F * scale, 255, 240, 214, (int) (52 * k * flick));
+        cone(vc, m, top, ground, 0.25F, 1.9F * scale, 255, 248, 230, (int) (70 * k * flick));
+        // the pool on the sand
+        int n = 32;
+        float r = 3.6F * scale;
+        for (int i = 0; i < n; i++) {
+            float a0 = (float) (Math.PI * 2 * i / n), a1 = (float) (Math.PI * 2 * (i + 1) / n);
+            int c = (int) (150 * k * flick);
+            vc.vertex(m, 0, ground, 0).color(255, 246, 225, c).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a0) * r * 0.55F, ground, net.minecraft.util.Mth.sin(a0) * r * 0.55F).color(255, 240, 214, c * 2 / 3).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a1) * r * 0.55F, ground, net.minecraft.util.Mth.sin(a1) * r * 0.55F).color(255, 240, 214, c * 2 / 3).endVertex();
+            vc.vertex(m, 0, ground, 0).color(255, 246, 225, c).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a0) * r * 0.55F, ground, net.minecraft.util.Mth.sin(a0) * r * 0.55F).color(255, 240, 214, c * 2 / 3).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a0) * r, ground, net.minecraft.util.Mth.sin(a0) * r).color(255, 230, 200, 0).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a1) * r, ground, net.minecraft.util.Mth.sin(a1) * r).color(255, 230, 200, 0).endVertex();
+            vc.vertex(m, net.minecraft.util.Mth.cos(a1) * r * 0.55F, ground, net.minecraft.util.Mth.sin(a1) * r * 0.55F).color(255, 240, 214, c * 2 / 3).endVertex();
+        }
+    }
+
+    /** One cone of the beam: from a small ring at the lamp down to {@code r1} at the ground, fading out toward the lamp. Both sides. */
+    private static void cone(VertexConsumer vc, org.joml.Matrix4f m, float top, float bottom, float r0, float r1, int cr, int cg, int cb, int alpha) {
+        int n = 28;
+        for (int i = 0; i < n; i++) {
+            float a0 = (float) (Math.PI * 2 * i / n), a1 = (float) (Math.PI * 2 * (i + 1) / n);
+            float c0 = net.minecraft.util.Mth.cos(a0), s0 = net.minecraft.util.Mth.sin(a0), c1 = net.minecraft.util.Mth.cos(a1), s1 = net.minecraft.util.Mth.sin(a1);
+            float mid = bottom + (top - bottom) * 0.35F;
+            float rm = r1 + (r0 - r1) * 0.35F;
+            for (int side = 0; side < 2; side++) {
+                float[][] ring = side == 0 ? new float[][]{{c0, s0}, {c1, s1}} : new float[][]{{c1, s1}, {c0, s0}};
+                // the lower part, bright at the ground
+                vc.vertex(m, ring[0][0] * r1, bottom, ring[0][1] * r1).color(cr, cg, cb, alpha).endVertex();
+                vc.vertex(m, ring[1][0] * r1, bottom, ring[1][1] * r1).color(cr, cg, cb, alpha).endVertex();
+                vc.vertex(m, ring[1][0] * rm, mid, ring[1][1] * rm).color(cr, cg, cb, alpha * 3 / 5).endVertex();
+                vc.vertex(m, ring[0][0] * rm, mid, ring[0][1] * rm).color(cr, cg, cb, alpha * 3 / 5).endVertex();
+                // the upper part, fading into the dark at the lamp
+                vc.vertex(m, ring[0][0] * rm, mid, ring[0][1] * rm).color(cr, cg, cb, alpha * 3 / 5).endVertex();
+                vc.vertex(m, ring[1][0] * rm, mid, ring[1][1] * rm).color(cr, cg, cb, alpha * 3 / 5).endVertex();
+                vc.vertex(m, ring[1][0] * r0, top, ring[1][1] * r0).color(cr, cg, cb, alpha / 6).endVertex();
+                vc.vertex(m, ring[0][0] * r0, top, ring[0][1] * r0).color(cr, cg, cb, alpha / 6).endVertex();
+            }
+        }
     }
 
     /**

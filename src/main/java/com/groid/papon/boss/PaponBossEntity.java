@@ -723,6 +723,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         super.tick();
         if (level().isClientSide) {
             clientStateTicks++;
+            if (inColiseum() && spotlit() && (getBossState() != BossState.P3_BLACKOUT || ticksInState() >= 30)) {
+                // dust turning in his spotlight
+                for (int i = 0; i < 2; i++) {
+                    double a = random.nextDouble() * Math.PI * 2, r = Math.sqrt(random.nextDouble()) * 2.6;
+                    level().addParticle(net.minecraft.core.particles.ParticleTypes.WHITE_ASH, getX() + Math.cos(a) * r,
+                            getY() + random.nextDouble() * 9, getZ() + Math.sin(a) * r, 0, -0.01, 0);
+                }
+            }
             if (isBaked() && tickCount % 14 == 0) {
                 // fresh out of the oven: a wisp of steam off the top of him
                 level().addParticle(new com.groid.papon.fx.FxOptions(com.groid.papon.registry.ModParticles.SMOKE.get(), -1, 0.5F, 1.8F,
