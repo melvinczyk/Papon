@@ -85,7 +85,7 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         float hw = (float) CaravanEntity.HALF_WIDTH + 0.6F, hl = (float) CaravanEntity.HALF_LENGTH + 0.4F;
         int n = 10;
         for (int j = 0; j < n; j++) {
-            // row j from the front (model -Z) back
+            // row j from the nose (+Z in this pose) back
             float row = 1;
             if (age < 12) {
                 float lit = age / 12F * (n + 2) - j;               // how long this row has had to catch
@@ -97,7 +97,7 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
             }
             for (int i = 0; i < n; i++) {
                 float x0 = -hw + 2 * hw * i / n, x1 = -hw + 2 * hw * (i + 1) / n;
-                float z0 = -hl + 2 * hl * j / n, z1 = -hl + 2 * hl * (j + 1) / n;
+                float z0 = hl - 2 * hl * (j + 1) / n, z1 = hl - 2 * hl * j / n;
                 quadGlow(vc, m, x0, z0, x1, z1, hw, hl, pulse * row);
             }
         }
@@ -117,7 +117,8 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-Mth.rotLerp(partial, van.yBodyRotO, van.yBodyRot)));
         org.joml.Matrix4f m = pose.last().pose();
         for (float x : new float[]{-0.78F, 0.78F}) {
-            cone(vc, m, x, 0.8F, -2.75F, x * 1.6F, 0.1F, -11.5F, 0.16F, 1.9F, (int) (70 * k));
+            // (this pose is turned by -yaw, half a turn from the model's: the nose is +Z here)
+            cone(vc, m, x, 0.8F, 2.75F, x * 1.6F, 0.1F, 11.5F, 0.16F, 1.9F, (int) (70 * k));
         }
         pose.popPose();
     }

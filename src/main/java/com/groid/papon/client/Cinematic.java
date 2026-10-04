@@ -959,11 +959,41 @@ public final class Cinematic {
                 Vec3 eye = ctr.add(out.scale(a - 7)).add(along.scale(-6 + 5 * k)).add(0, 1.2, 0);
                 return new Shot(eye, ctr.add(out.scale(a + 9)).add(along.scale(2 + 4 * k)).add(0, 9, 0), 72, 0, cut, true);
             }
-            Vec3 eye = ctr.add(out.scale(a + 15)).add(along.scale(4 - 6 * k)).add(0, 17, 0);
-            return new Shot(eye, b.position().add(0, b.getBbHeight() * 0.5, 0), 70, 0, cut, true);
+            Vec3 eye = ctr.add(out.scale(a + 11)).add(along.scale(4 - 6 * k)).add(0, 15, 0);
+            return new Shot(eye, b.position().add(0, b.getBbHeight() * 0.5, 0), 70, 0, cut);
         }
+        Shot sh = bandCut(c, second, k, cut, band, sf, ss);
+        return sh == null ? null : new Shot(clearOfBand(sh.eye(), band), sh.lookAt(), sh.fov(), sh.roll(), sh.cut(), sh.free());
+    }
+
+    /** A camera inside one of the band (they stand close on the stage): up over his head instead. */
+    private static Vec3 clearOfBand(Vec3 eye, java.util.List<com.groid.papon.boss.MariachiEntity> band) {
+        for (int pass = 0; pass < 2; pass++) {
+            for (com.groid.papon.boss.MariachiEntity m : band) {
+                net.minecraft.world.phys.AABB box = m.getBoundingBox().inflate(0.45, 0.2, 0.45);
+                if (box.contains(eye)) eye = new Vec3(eye.x, box.maxY + 0.35, eye.z);
+            }
+        }
+        return eye;
+    }
+
+    @Nullable
+    private static Shot bandCut(PaponBossEntity.Cutaway c, boolean second, double k, boolean cut,
+                                java.util.List<com.groid.papon.boss.MariachiEntity> band, Vec3 sf, Vec3 ss) {
         com.groid.papon.boss.MariachiEntity m1 = member(band, c, 0), m2 = member(band, c, 1), m3 = member(band, c, 2);
         if (m1 == null) return null;
+        if (c == PaponBossEntity.Cutaway.VIOLINS) {
+            // the front-most fiddler for the close-up (the others stand behind him)
+            com.groid.papon.boss.MariachiEntity front = m1;
+            for (com.groid.papon.boss.MariachiEntity m : new com.groid.papon.boss.MariachiEntity[]{m2, m3}) {
+                if (m != null && m.position().dot(sf) > front.position().dot(sf)) front = m;
+            }
+            if (!second) {
+                Vec3 f = Vec3.directionFromRotation(0, front.getYRot());
+                Vec3 belly = front.position().add(f.scale(0.7)).add(0, front.getBbHeight() * 0.42, 0);
+                return new Shot(belly.add(sf.scale(2.1)).add(ss.scale(-0.9 + 0.8 * k)).add(0, 0.45, 0), belly.add(0, 0.15, 0), 46, 0, cut);
+            }
+        }
         Vec3 f1 = Vec3.directionFromRotation(0, m1.getYRot());
         Vec3 s1 = new Vec3(-f1.z, 0, f1.x);
         Vec3 face1 = m1.position().add(0, m1.getBbHeight() * 0.72, 0);
@@ -972,15 +1002,15 @@ public final class Cinematic {
             case TRUMPETS -> {
                 Vec3 mid = m3 != null ? m1.position().lerp(m3.position(), 0.5) : m1.position();
                 if (!second) {
-                    // low, in front, looking up at the horns as they come up
-                    Vec3 at = mid.add(0, m1.getBbHeight() * 0.85, 0);
-                    return new Shot(mid.add(sf.scale(3.6 - 0.8 * k)).add(0, 0.3, 0), at, 58 - (float) k * 6, 0, cut);
+                    // over the heads of the fiddles in front of them, pushing in on the horns as they come up
+                    Vec3 at = mid.add(0, m1.getBbHeight() * 0.8, 0);
+                    return new Shot(mid.add(sf.scale(3.4 - 0.8 * k)).add(0, m1.getBbHeight() + 1.0, 0), at, 54 - (float) k * 6, 0, cut);
                 }
                 // along the row from the end, the bells in a line
                 Vec3 end = m3 != null ? m3.position() : m1.position();
                 Vec3 dir = end.subtract(m1.position()).multiply(1, 0, 1);
                 dir = dir.lengthSqr() < 1e-3 ? ss : dir.normalize();
-                Vec3 eye = m1.position().subtract(dir.scale(2.6)).add(sf.scale(1.4 + 0.4 * k)).add(0, m1.getBbHeight() * 0.9, 0);
+                Vec3 eye = m1.position().subtract(dir.scale(2.4)).add(sf.scale(1.2 + 0.4 * k)).add(0, m1.getBbHeight() * 1.05, 0);
                 return new Shot(eye, end.add(0, m1.getBbHeight() * 0.8, 0), 50, 0, cut);
             }
             case VIOLINS -> {
@@ -995,7 +1025,7 @@ public final class Cinematic {
             case GUITARRON -> {
                 if (!second) {
                     // from the floor, up the big guitarron to him
-                    return new Shot(m1.position().add(f1.scale(2.4)).add(s1.scale(0.9)).add(0, 0.25, 0), belly1.lerp(face1, 0.3 * k), 60, 0, cut);
+                    return new Shot(m1.position().add(f1.scale(2.4)).add(s1.scale(-0.9)).add(0, 0.25, 0), belly1.lerp(face1, 0.3 * k), 60, 0, cut);
                 }
                 return new Shot(face1.add(f1.scale(2.6 - 0.5 * k)).add(s1.scale(-0.6)).add(0, -0.1, 0), face1, 44, 0, cut);
             }
@@ -1098,7 +1128,7 @@ public final class Cinematic {
         Vec3 across = new Vec3(-away.z, 0, away.x);
         double k = Math.min(1, (t - line + 4) / 60.0);
         Vec3 look = b.position().add(0, h * 0.5, 0).lerp(cp.add(0, 0.6, 0), 0.4);
-        return new Shot(cp.add(away.scale(5.6 - 0.8 * k)).add(across.scale(3.2)).add(0, 0.5, 0), look, 60 - (float) k * 6, 0, t == line - 4, true);
+        return new Shot(cp.add(away.scale(4.4 - 0.7 * k)).add(across.scale(2.6)).add(0, 0.45, 0), look, 58 - (float) k * 6, 0, t == line - 4, true);
     }
 
     /** Client ticks to the singer's first word, from the band's synced downbeat. */

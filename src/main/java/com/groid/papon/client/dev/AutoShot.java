@@ -427,10 +427,12 @@ public final class AutoShot {
             if (k == 562) shot(mc, "p3_pelted");
             if (k == 566) tpLook(b.position().add(0, 1, 8), b.position().add(0, 2, 0));
             if (k == 600) run("papon bossstate P2_SOLO");
-            // the cuts to the band, one of each
+            // the cuts to the band, one of each (a spectator meanwhile, so no QTE grabs you between them)
+            if (k == 670) run("gamemode spectator");
             for (int i = 0; i < PaponBossEntity.Cutaway.values().length; i++) {
-                if (k == 680 + 50 * i) run("papon cutaway " + PaponBossEntity.Cutaway.values()[i].name());
+                if (k == 680 + 50 * i) run("papon bossstate IDLE", "papon cutaway " + PaponBossEntity.Cutaway.values()[i].name());
             }
+            if (k == 990) run("gamemode survival");
             if (k == 1000) shot(mc, "c43_fight");
             if (k == 1020) run("kill @e[type=papon:papon_boss]");
             if (k == 1080) once(mc, "c48_his_fall");
