@@ -26,6 +26,15 @@ public class PillowItemRenderer extends BlockEntityWithoutLevelRenderer {
         boolean firstPerson = ctx == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || ctx == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
         if (firstPerson && mc.player != null && PillowClient.using(mc.player, stack)) {
             shape = PillowClient.shape(mc.player, mc.getFrameTime(), true);
+            if (PillowClient.mode(mc.player, stack) == PillowClient.Mode.HUMP && PillowClient.humpPose != null) {
+                // bent over in front of you, in the frame the hand transform set up (not the item's display transform)
+                ps.pushPose();
+                ps.last().pose().set(PillowClient.humpPose);
+                ps.last().normal().set(PillowClient.humpNormal);
+                PillowMesh.render(ps, buffers, light, shape);
+                ps.popPose();
+                return;
+            }
         }
         ps.pushPose();
         ps.translate(0.5, 0.5, 0.5);

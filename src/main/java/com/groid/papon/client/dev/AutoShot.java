@@ -480,14 +480,17 @@ public final class AutoShot {
             case 195 -> shot(mc, "pl03_lick");
             case 200 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
             case 205 -> run("tp @s ~ ~ ~ 0 70");
-            case 225 -> shot(mc, "pl04_hump_front");
-            case 228 -> shot(mc, "pl05_hump_front2");
-            case 232 -> {
-                opts.setCameraType(CameraType.THIRD_PERSON_BACK);
-                run("tp @s ~ ~ ~ 0 -10");
+            // the hump from a camera of its own (she is bent over in front of him, her back to him): the side, behind, the front
+            case 222 -> playerCamera(mc, new Vec3(2.8, -1.15, 0.0));
+            case 230 -> shot(mc, "pl04_hump_side");
+            case 232 -> playerCamera(mc, new Vec3(-0.4, -0.5, -2.6));
+            case 240 -> shot(mc, "pl05_hump_behind");
+            case 242 -> playerCamera(mc, new Vec3(1.8, -0.9, 2.2));
+            case 249 -> shot(mc, "pl06_hump_front");
+            case 251 -> {
+                mc.setCameraEntity(mc.player);
+                opts.hideGui = false;
             }
-            case 236 -> run("tp @s ~ ~ ~ 0 70");
-            case 250 -> shot(mc, "pl06_hump_back");
             // first person
             case 255 -> {
                 opts.setCameraType(CameraType.FIRST_PERSON);
@@ -873,6 +876,30 @@ public final class AutoShot {
         bedCam.yHeadRotO = yaw;
         mc.setCameraEntity(bedCam);
         mc.options.setCameraType(CameraType.FIRST_PERSON);
+    }
+
+    /** The client-only camera at {@code off} from the player (yaw 0: facing south), looking at their hips. */
+    private static void playerCamera(Minecraft mc, Vec3 off) {
+        if (bedCam == null) {
+            bedCam = new net.minecraft.world.entity.decoration.ArmorStand(mc.level, 0, 0, 0);
+            bedCam.setInvisible(true);
+        }
+        Vec3 c = mc.player.position().add(0, 0.8, 0);
+        Vec3 at = mc.player.position().add(off);
+        Vec3 d = c.subtract(at.add(0, bedCam.getEyeHeight(), 0));
+        float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
+        bedCam.moveTo(at.x, at.y, at.z, yaw, pitch);
+        bedCam.xo = at.x;
+        bedCam.yo = at.y;
+        bedCam.zo = at.z;
+        bedCam.yRotO = yaw;
+        bedCam.xRotO = pitch;
+        bedCam.setYHeadRot(yaw);
+        bedCam.yHeadRotO = yaw;
+        mc.setCameraEntity(bedCam);
+        mc.options.setCameraType(CameraType.FIRST_PERSON);
+        mc.options.hideGui = true;            // no hand drawn from a camera that is not you
     }
 
     private static void sleepBeside(Minecraft mc) {

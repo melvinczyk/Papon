@@ -8994,6 +8994,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     if (!fighters.contains(p) && !p.isSpectator() && p.distanceToSqr(this) < 64 * 64) fighters.add(p);
                 }
                 leaveArena(level);
+                // the Skyline he made out of his van stays where it is: its fob, tied to it, for whoever beat him
+                CaravanEntity car = van(level);
+                if ((car != null && car.isSkyline()) || isAscended()) {
+                    ItemStack fob = new ItemStack(com.groid.papon.registry.ModItems.SKYLINE_FOB.get());
+                    if (car != null && car.isSkyline()) fob.getOrCreateTag().putUUID("Van", car.getUUID());
+                    spawnAtLocation(fob);
+                }
                 // back behind his counter, a changed Papon; then Gerbin's presents (and everyone back to the truck)
                 if (truck != null && portalAt != null) com.groid.papon.entity.npc.TacoVendorEntity.reform(level, portalAt, truck);
                 com.groid.papon.entity.npc.GerbinEntity.reward(level, home != null ? home : position(), fighters);

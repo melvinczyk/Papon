@@ -8,6 +8,7 @@ Writes, under src/main/resources/assets/papon/:
   textures/particle/snooze.png + particles/snooze.json                       the sleeping "Z"
   textures/item/tequila.png + models/item/tequila.json                       3D bottle (also the molotov)
   textures/item/caravan_keys.png + models/item/caravan_keys.json             flat icon
+  textures/item/skyline_fob.png + models/item/skyline_fob.json               3D key fob (the Skyline's)
 """
 import json
 import os
@@ -307,6 +308,146 @@ def keys_icon():
     return im
 
 
+# ---------------------------------------------------------------- the Skyline's key fob
+def skyline_fob_texture():
+    """32x32 (model UVs are half these pixels). Regions: the shell's front 0..8 x 0..15, its sides 8..10 x 0..15, its
+    ends 10..18 x 0..4, the back 10..18 x 4..19 (the badge), the buttons 18..24 x 0..11 (lock, unlock, the boot), the
+    panic button 24..27 x 0..3, the chrome trim 28..30 x 0..16, the blade 0..4 x 16..24, the ring 4..8 x 16..18, the
+    tag 8..16 x 16..26, the potato charm 16..20 x 16..20, the LED 20..22 x 16..17."""
+    im = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    px = im.load()
+    black = (20, 20, 24)
+    # the shell: gloss black, a soft highlight running down the left, rubber grip dots low on it
+    for y in range(0, 15):
+        for x in range(0, 8):
+            k = 1.0 + 0.9 * max(0, 1 - abs(x - 1.5) / 1.6) * (1 - y / 22)
+            c = shade(black, k)
+            if 11 <= y <= 13 and (x + y) % 2 == 0 and 1 <= x <= 6:
+                c = shade(black, 1.6)
+            px[x, y] = c
+    for y in range(0, 15):
+        for x in range(8, 10):
+            px[x, y] = shade(black, 1.3 if x == 8 else 0.85)
+    for y in range(0, 4):
+        for x in range(10, 18):
+            px[x, y] = shade(black, 1.2 if y < 2 else 0.9)
+    # the back: a round red and chrome badge with an R in it
+    for y in range(4, 19):
+        for x in range(10, 18):
+            px[x, y] = shade(black, 0.95 + 0.15 * ((x + y) % 2))
+    cx, cy = 14, 9
+    for y in range(5, 14):
+        for x in range(10, 18):
+            d = ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) ** 0.5
+            if d < 3.4:
+                px[x, y] = (196, 30, 36, 255) if d < 2.5 else (214, 220, 228, 255)
+    for x, y in ((13, 7), (13, 8), (13, 9), (13, 10), (14, 7), (15, 8), (14, 9), (15, 10)):
+        px[x, y] = (240, 242, 248, 255)
+    # the buttons: brushed silver with a dark icon each (a padlock shut, a padlock open, the boot)
+    silver = (176, 182, 192)
+    for b in range(3):
+        y0 = b * 4
+        for y in range(y0, y0 + 3):
+            for x in range(18, 24):
+                px[x, y] = shade(silver, 1.15 if y == y0 else (0.85 if y == y0 + 2 else 1.0))
+        if b == 0:
+            icon = [(20, y0 + 1), (21, y0 + 1), (22, y0 + 1), (20, y0), (22, y0)]
+        elif b == 1:
+            icon = [(20, y0 + 1), (21, y0 + 1), (22, y0 + 1), (20, y0)]
+        else:
+            icon = [(19, y0 + 1), (20, y0 + 1), (21, y0 + 1), (22, y0 + 1), (21, y0)]
+        for x, y in icon:
+            px[x, y] = (40, 40, 46, 255)
+    for y in range(0, 3):
+        for x in range(24, 27):
+            px[x, y] = shade((206, 32, 36), 1.15 if y == 0 else 1.0)
+    # chrome: bright, with a dark reflection running through it
+    for y in range(0, 16):
+        for x in range(28, 30):
+            v = 0.62 + 0.5 * abs(((y * 0.35) % 2) - 1)
+            px[x, y] = shade((214, 220, 230), v * (1.1 if x == 28 else 0.95))
+    # the blade: steel, its cut along one edge
+    for y in range(16, 24):
+        for x in range(0, 4):
+            c = shade((190, 196, 204), 1.12 if x == 0 else 1.0)
+            if (x == 3 and y % 2 == 0) or (x == 1 and y > 17):
+                c = shade((150, 156, 166), 1.0)
+            px[x, y] = c
+    for y in range(16, 18):
+        for x in range(4, 8):
+            px[x, y] = shade((220, 224, 232), 1.1 if y == 16 else 0.9)
+    # the tag: purple acrylic (the underglow's colour) with a gold potato on it
+    for y in range(16, 26):
+        for x in range(8, 16):
+            px[x, y] = shade((126, 52, 214), 1.15 if y == 16 or x == 8 else 1.0)
+    for x, y in ((11, 19), (12, 19), (10, 20), (11, 20), (12, 20), (13, 20), (10, 21), (11, 21), (12, 21), (13, 21),
+                 (11, 22), (12, 22), (12, 23)):
+        px[x, y] = (246, 202, 72, 255)
+    px[11, 20] = (120, 80, 30, 255)
+    px[12, 21] = (120, 80, 30, 255)
+    # the potato charm
+    for y in range(16, 20):
+        for x in range(16, 20):
+            px[x, y] = shade((176, 128, 66), 1.1 if (x + y) % 3 else 0.85)
+    px[17, 17] = (90, 60, 28, 255)
+    px[20, 16] = (210, 120, 255, 255)
+    px[21, 16] = (244, 200, 255, 255)
+    return im
+
+
+def skyline_fob_model():
+    def f(u0, v0, u1, v1):
+        return {'uv': [u0 / 2, v0 / 2, u1 / 2, v1 / 2], 'texture': '#0'}
+
+    def box(name, a, b, front, side=None, end=None, back=None):
+        side = side or front
+        end = end or side
+        return {'name': name, 'from': a, 'to': b, 'faces': {
+            'south': front, 'north': back or front, 'east': side, 'west': side, 'up': end, 'down': end}}
+
+    chrome = f(28, 0, 30, 16)
+    ring = f(4, 16, 8, 18)
+    return {
+        'credit': 'Generated by tools/gen_items.py',
+        'textures': {'0': 'papon:item/skyline_fob', 'particle': 'papon:item/skyline_fob'},
+        'elements': [
+            # the shell, rounded off with narrower caps top and bottom, a chrome band down each side
+            box('shell', [6, 4, 7], [10, 11.5, 9], f(0, 0, 8, 15), f(8, 0, 10, 15), f(10, 0, 18, 4), f(10, 4, 18, 19)),
+            box('cap_top', [6.4, 11.5, 7.3], [9.6, 12.1, 8.7], f(0, 0, 8, 1), f(8, 0, 10, 1), f(10, 0, 18, 4)),
+            box('cap_bottom', [6.4, 3.4, 7.3], [9.6, 4, 8.7], f(0, 14, 8, 15), f(8, 14, 10, 15), f(10, 0, 18, 4)),
+            box('trim_left', [5.8, 4.6, 7.55], [6, 10.9, 8.45], chrome),
+            box('trim_right', [10, 4.6, 7.55], [10.2, 10.9, 8.45], chrome),
+            # the buttons (lock, unlock, the boot, panic) and the LED that blinks when it chirps
+            box('btn_lock', [6.7, 9.2, 9], [9.3, 10.6, 9.35], f(18, 0, 24, 3), f(18, 0, 19, 3)),
+            box('btn_unlock', [6.7, 7.4, 9], [9.3, 8.8, 9.35], f(18, 4, 24, 7), f(18, 4, 19, 7)),
+            box('btn_trunk', [6.7, 5.4, 9], [8.1, 6.9, 9.35], f(18, 8, 24, 11), f(18, 8, 19, 11)),
+            box('btn_panic', [8.3, 5.4, 9], [9.3, 6.9, 9.35], f(24, 0, 27, 3)),
+            box('led', [7.6, 10.95, 9], [8.4, 11.25, 9.2], f(20, 16, 22, 17)),
+            # the blade, flipped out
+            box('blade', [7.45, -0.5, 7.7], [8.55, 3.4, 8.3], f(0, 16, 4, 24), f(0, 16, 1, 24), f(0, 16, 2, 17)),
+            # the ring, the purple tag and a little potato on it
+            box('ring_post', [7.5, 12.1, 7.6], [8.5, 12.8, 8.4], chrome),
+            box('ring_bottom', [5.6, 12.8, 7.8], [10.4, 13.3, 8.2], ring),
+            box('ring_left', [5.6, 13.3, 7.8], [6.1, 17.2, 8.2], ring),
+            box('ring_right', [9.9, 13.3, 7.8], [10.4, 17.2, 8.2], ring),
+            box('ring_top', [5.6, 17.2, 7.8], [10.4, 17.7, 8.2], ring),
+            box('tag', [10.4, 13.6, 7.92], [14, 17.6, 8.08], f(8, 16, 16, 26), f(8, 16, 9, 26)),
+            box('charm', [3.4, 13.4, 7.2], [5.6, 15.6, 8.8], f(16, 16, 20, 20)),
+        ],
+        'display': {
+            'gui': {'rotation': [15, -25, 0], 'translation': [0, -1, 0], 'scale': [0.85, 0.85, 0.85]},
+            'ground': {'translation': [0, 2, 0], 'scale': [0.5, 0.5, 0.5]},
+            'fixed': {'translation': [0, -1, 0], 'scale': [0.9, 0.9, 0.9]},
+            'head': {'translation': [0, 14, 0]},
+            # held up between the fingers, the buttons toward whoever presses them
+            'thirdperson_righthand': {'rotation': [0, 180, 0], 'translation': [0, 2.5, 1.5], 'scale': [0.5, 0.5, 0.5]},
+            'thirdperson_lefthand': {'rotation': [0, 180, 0], 'translation': [0, 2.5, 1.5], 'scale': [0.5, 0.5, 0.5]},
+            'firstperson_righthand': {'rotation': [0, 160, -8], 'translation': [0, 3, 1], 'scale': [0.6, 0.6, 0.6]},
+            'firstperson_lefthand': {'rotation': [0, 200, 8], 'translation': [0, 3, 1], 'scale': [0.6, 0.6, 0.6]},
+        },
+    }
+
+
 # ---------------------------------------------------------------- snooze particle
 SNOOZE = [
     "WWWWWWW.",
@@ -403,6 +544,8 @@ def main():
     print(save(keys_icon(), 'textures/item/caravan_keys.png'))
     print(save_json({'parent': 'minecraft:item/generated', 'textures': {'layer0': 'papon:item/caravan_keys'}},
                     'models/item/caravan_keys.json'))
+    print(save(skyline_fob_texture(), 'textures/item/skyline_fob.png'))
+    print(save_json(skyline_fob_model(), 'models/item/skyline_fob.json'))
 
 
 if __name__ == '__main__':

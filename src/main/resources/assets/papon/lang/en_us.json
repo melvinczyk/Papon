@@ -604,5 +604,12 @@
   "speech.papon.boss2.p3_sombrero": "Hats off to the champion... that's me!",
   "speech.papon.boss2.p3_volcan": "Even the earth dances for me!",
   "speech.papon.boss2.p3_calaveras": "My ancestors would love to meet you, amigo.",
-  "speech.papon.boss2.p3_swing": "Swing... swing... and break!"
+  "speech.papon.boss2.p3_swing": "Swing... swing... and break!",
+  "item.papon.skyline_fob": "Skyline Key Fob",
+  "item.papon.skyline_fob.tooltip": "Recycled out of an old weak minivan. RB26, twin turbos, purple underglow.",
+  "item.papon.skyline_fob.tooltip2": "Use on the ground to park it. Sneak-use on it to pocket it. Press it to start the engine from afar.",
+  "message.papon.fob_no_car": "*chirp* ...your Skyline is not out. Use the fob on the ground to bring it.",
+  "message.papon.fob_out_of_range": "*chirp* ...the Skyline is too far away to hear it.",
+  "message.papon.fob_start": "*chirp chirp* The Skyline's engine catches.",
+  "message.papon.fob_off": "*chirp* The Skyline's engine shuts down."
 }
