@@ -1343,6 +1343,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                  P2_SNARE, P2_GRAVITY, BRICK, VAN_HOP -> true;
             default -> false;
         };
+        if (s == BossState.P3_KNOCKBACK) {
+            // phase three from the top, as if a hit had just taken him to half health
+            setHealth(Math.min(getHealth(), getMaxHealth() * PHASE_THREE_AT - 1));
+            entityData.set(DATA_PHASE3, false);
+            p3From = target != null ? target.position() : null;
+            phaseThreeDue = true;
+            setBossState(BossState.IDLE);
+            return;
+        }
         if (startable && target != null) startAttack(s, target);
         else setBossState(s);
     }
@@ -4847,8 +4856,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int qteWindow = QTE_WINDOW;
 
     /** Ticks a step of the tango gets: a beat of the song (and a little for the network). */
-    private static int tangoBeat() {
-        Song song = Song.get();
+    private int tangoBeat() {
+        Song song = Song.get(songId);           // phase three dances to Para Siempre
         if (song == null || song.beats.length < 2) return 12;
         double beat = (song.beats[song.beats.length - 1] - song.beats[0]) / (song.beats.length - 1);
         return (int) Math.round(beat * 20) + 3;
