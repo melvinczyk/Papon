@@ -433,7 +433,7 @@ public final class Cinematic {
             }
             case P2_WAKE -> {
                 Vec3 head = singer != null ? singer.position().add(0, singer.getBbHeight() * 0.9, 0) : stage.add(0, 2, 0);
-                if (t < 12) return new Shot(b.position().subtract(f.scale(3.6)).add(right.scale(1.9)).add(0, 3.8, 0), head, 54, 0, t == 0);
+                if (t < 12) return new Shot(b.position().subtract(f.scale(5.6)).add(right.scale(3.6)).add(0, b.getBbHeight() + 1.4, 0), head, 56, 0, t == 0);
                 if (t < 34) {
                     Vec3 mid = b.position().lerp(singer != null ? singer.position() : stage, 0.5);
                     Vec3 side = new Vec3(-f.z, 0, f.x);
@@ -441,7 +441,9 @@ public final class Cinematic {
                     return new Shot(mid.add(side.scale(7.2 - push * 1.2)).add(0, 1.9, 0), mid.add(0, 2.3 + push * 0.4, 0), 54,
                             t >= 14 && t < 18 ? (float) Math.sin(t * 2.5) * 3F : 0, t == 12);
                 }
-                if (t < 56) return new Shot(stage.add(stageFacing.scale(10.0)).add(0, 2.4, 0), stage.add(0, 1.2, 0), 58, 0, t == 34);
+                // the band jolting awake: from out front and off to the side, high, clear of him
+                if (t < 56) return new Shot(stage.add(stageFacing.scale(7.0)).add(stageSide.scale(right.dot(stageSide) > 0 ? -7.5 : 7.5)).add(0, 4.2, 0),
+                        stage.add(0, 1.2, 0), 60, 0, t == 34);
                 return new Shot(face.add(f.scale(4.0)).add(right.scale(0.8)).add(0, -0.3, 0), face, 46, 0, t == 56);
             }
             case P2_WAIT -> {
@@ -462,13 +464,16 @@ public final class Cinematic {
             }
             case P2_SHOWTIME -> {
                 if (singer == null) return null;
-                Vec3 guitar = singer.position().add(stageFacing.scale(0.9)).add(stageSide.scale(-0.2)).add(0, 0.6, 0);
+                // the requinto: low on his right, under the microphone
+                Vec3 guitar = singer.position().add(stageFacing.scale(0.85)).add(stageSide.scale(-0.4)).add(0, 0.3, 0);
                 Vec3 sf = singer.position().add(0, singer.getBbHeight() * 0.7, 0);
+                // from the side away from the boss (he stands off to one side of the stand)
+                double away = b.position().subtract(singer.position()).dot(stageSide) > 0 ? -1 : 1;
                 double k = t < 34 ? 0 : Math.min(1, (t - 34) / 30.0);
                 k = k * k * (3 - 2 * k);
                 Vec3 look = guitar.lerp(sf, k);
-                Vec3 eye = guitar.add(stageFacing.scale(2.9 - Math.min(1, t / 30.0) * 0.7)).add(stageSide.scale(1.3)).add(0, 0.5, 0)
-                        .lerp(sf.add(stageFacing.scale(3.0)).add(stageSide.scale(1.0)).add(0, -0.4, 0), k);
+                Vec3 eye = guitar.add(stageFacing.scale(2.4 - Math.min(1, t / 30.0) * 0.6)).add(stageSide.scale(1.3 * away)).add(0, 0.5, 0)
+                        .lerp(sf.add(stageFacing.scale(3.0)).add(stageSide.scale(1.0 * away)).add(0, -0.4, 0), k);
                 return new Shot(eye, look, 46, 0, t == 0);
             }
             case P2_APOLOGY -> {

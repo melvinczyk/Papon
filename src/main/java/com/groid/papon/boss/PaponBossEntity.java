@@ -3026,12 +3026,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         Vec3 front = standFront();
         if (ready) {
-            if (horizontalDist(front) < 1.2) {
+            // off to the side of the stand for the count, so nobody's view of the band is him
+            Vec3 aside = front.add(paceSide * 4.5, 0, -1.5);
+            if (horizontalDist(aside) < 1.2) {
                 setBossState(BossState.P2_COUNT);
                 return;
             }
             getNavigation().stop();
-            getMoveControl().setWantedPosition(front.x, front.y, front.z, 0.9);
+            getMoveControl().setWantedPosition(aside.x, aside.y, aside.z, 0.9);
             return;
         }
         // pacing: to one end, a foot-tapping stop, back to the other
