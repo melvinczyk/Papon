@@ -247,9 +247,12 @@ player and were not exercised headless.
   pitched by speed; the van shows a km/h readout instead of mount hearts.
 
 ### Phase two (status 2026-10-03: built; checked with `./gradlew runClient -Pautoshot=phase2`)
-- Trigger: health ≤ 75% (`PHASE_TWO_AT`) sets `phaseDue`; from IDLE: P2_KNEEL 80t (DATA_PHASE2 on, coughs blood
-  at t24/40/56, the camera becomes his eyes from t28 with a red pulsing vignette, his head comes up to you
-  from t56) → P2_TALK 70t ("Okay... enough playing around.", in English) → P2_SEASON 100t (a giant salt
+- Trigger: health ≤ 75% (`PHASE_TWO_AT`) sets `phaseDue`; from IDLE: P2_KNEEL 120t (DATA_PHASE2 on, coughs blood
+  onto the ground at t24/40/56, the camera becomes his eyes from t28 with a red pulsing vignette, looking down at
+  it; t60-72 his left hand comes up in front of his eyes: bleeding too (`hand_blood` bone on `hand_l`, pinned in
+  `B.pins`, shown in p2_kneel/p2_talk; drips t76/84/92), the camera pushes in on it; from t96 his head comes up
+  to you). Every other living thing within 10 blocks of him is not rendered from the kneel to the scream
+  (`Cinematic.hidden`, `ClientEvents.onRenderLiving`; not the van, not you in his POV) → P2_TALK 70t ("Okay... enough playing around.", in English) → P2_SEASON 100t (a giant salt
   shaker `giant_shaker` off the root over his head, salt t24-64, it bursts t66, form 1 = baked texture at
   t80 with a flash; the aura is `BossRenderer`'s energy-swirl layer) → P2_SCREAM 70t (form 2 at t15: wings,
   crown, butter; the dome is planned at t1 and built 700 blocks a tick; white-out t56-70; everyone within
@@ -276,8 +279,9 @@ player and were not exercised headless.
 - The dome is gone: see "El Coliseo Papa" below. (Old saves with a dome tear it down on load.)
 
 ### El Coliseo Papa (status 2026-10-03: built; checked with `./gradlew runClient -Pautoshot=coliseum`)
-- **The building** (`boss/Coliseum`): planned when he kneels (P2_KNEEL t1), built 450 blocks a tick (~40k
-  blocks) while the cutscene runs, finished by the scream. Floor at build limit − 40 (needs ≥ 12 over the
+- **The building** (`boss/Coliseum`): planned when he kneels (P2_KNEEL t1) but **not built until the white-out**
+  at the end of the scream (`scream.end` − 13; its shadow must not fall on the cutscene): `startBuild`, then 3200
+  blocks a tick (~40k blocks, ~13 ticks), `enterArena` finishes any rest. `Coliseum.started()`; a loaded one counts as started. Floor at build limit − 40 (needs ≥ 12 over the
   highest terrain, or phase two stays on the ground with the old quick arrive). Every ring is an **offset
   of the sand's ellipse** (`offset(x,z)`: the d with (x/(A+d))² + (z/(B+d))² = 1; A 29, B 21), so rows keep a
   constant depth. Layout by d: sand (< 0; kerb, a ring, the golden Papon mosaic) · podium 0-2 (6 high,
@@ -394,9 +398,11 @@ player and were not exercised headless.
 
 ### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
 - **From the kneel on he talks in English, in a cloned voice** (the user's reference: Spanish-accented English,
-  Antonio Banderas charm; `tools/src/voice/reference.mp3`, gitignored). Phase one keeps the Spanish Rocko TTS
-  (`gen_voice.py`). `PaponBossEntity.speak`: in phase two any line with a recording is said as
-  `speech.papon.boss2.<line>` / sound `voice.boss2.<line>`, its bubble held as long as it plays.
+  Antonio Banderas charm; `tools/src/voice/reference.mp3`, gitignored). **Phase one and the Taco Truck use it too
+  now** (2026-10-03): `PaponBossEntity.speak` says any line with a recording as `speech.papon.boss2.<line>` / sound
+  `voice.boss2.<line>`, its bubble held as long as it plays; the vendor's lines are `vendor_*` in `LINES`
+  (`TacoVendorEntity.line`; the unmasking lines moved to EXPOSED t36 / UNMASK t18 to fit the English lengths).
+  The Rocko TTS (`gen_voice.py`) is only the fallback for a line with no recording.
 - **Generating** (`python3.11 tools/gen_boss_voice.py`; `--build` rebuilds from cached takes, `--redo a,b` retakes,
   `--more a,b` adds takes): Modal profile **melvinczyk** (`python3.11 -m modal token new --profile melvinczyk`),
   app `papon-voice` (L40S, volume `papon-voice-cache` for the weights). Qwen3-TTS-12Hz-1.7B-Base clones in ICL
@@ -488,10 +494,21 @@ player and were not exercised headless.
   heavy hits also deal `armorPierceFraction` of max health through armor, SALSA_BURST when one player lands 4 melee
   hits in 2.5 s, TO_VAN/DRINK_HANDLE are unstoppable with a shove, speed 0.42, context-aware picker (`context`:
   shields, flyers, melee pressure, kiting, low health, overpowered → more QTEs), no breather after a landed hit in p2.
-- **Arena attacks** (phase two, in the coliseum): `ARENA_FRYER` (boss/Freidora: hot sand → frying oil in a pattern,
-  1.5 s + 5.5 s, `FryingOilBlock`/`HotSandBlock`, `Coliseum.restoreFloor` after a reload), `ARENA_HECKLE` (the stands
-  lob PRODUCE props for 7 s), `P2_MASHER` (boss/Masher: a lattice plate prop, only the holes are safe),
+- **Arena attacks** (phase two, in the coliseum; base weight 2.0 in the picker): `ARENA_FRYER` (boss/Freidora: hot
+  sand → frying oil in a pattern, 1.5 s + 10 s, **two blocks deep** (the top layer has no collision when oil is
+  under it), every pool **at least 2 wide** (cells kept only inside a fully open 2x2), `FryingOilBlock`: 8% on the
+  way in + **1.25% of max health every tick** through armor, x1.5 for the fire-immune / Fire Resistance (stripped
+  while in it), the boil throws you up every 16 t (the way out); `Coliseum.restoreFloor` clears both layers after a
+  reload), `ARENA_HECKLE` (the stands lob PRODUCE props for 7 s), `P2_MASHER` (boss/Masher, 130 t: **three slams**
+  at `MASHER_SLAMS` t50/82/112; between them the holes move: `Masher.VARIANTS` grid layouts (half-cell slides,
+  synced in the prop's delay slot) + a 12-30° turn; 30% of max health through armor per slam, slowed, no stun),
+  `ARENA_OLA` (¡La Ola!: three salsa walls across the sand, 0.8 b/t, the long way, the short way, back; 1.2 s warn
+  line; grounded = 18% + 2 Habanero + shove; jump them), `ARENA_STAMPEDE` (¡Estampida!: 3 volleys of 5 `ROLLER`
+  props from alternating long sides, lanes shifted each volley, 1.1 s lane warning, 0.6 b/t, 22% + fling),
   `P2_GRAVITY` rebuilt as El Gran Meteoro (180 t, arena-sized spud, pull, distance-scaled impact, jumpable rings).
+- **The van in phase two** is a spice: no forced TO_VAN (only phase one goes for it whenever `vanCd` is up); TO_VAN,
+  VAN_GRAB, BRICK, PUNT_RUN are picker options (weight 0.5), at most one every `VAN_GAP` (25 s), never "overdue";
+  3 manoeuvres a drive; `vanCd` after a drive 2x the config (36 s); VAN_GRAB cooldown 30 s. Risen damage x1.35.
 - **QTEs**: kinds 3 ¡Apaga el Fuego! (mash one key 14x, 9 t each; bottle hold) and 4 El Tango del Papa (arrow keys on
   the song's beat, coliseum only; suplex hold); `qteBase()` maps them onto the three hold/fail animations.
 

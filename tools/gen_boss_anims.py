@@ -2261,7 +2261,39 @@ def b_p2_masher():
     return a
 
 
-HARDENING = [b_salsa_burst, b_arena_fryer, b_arena_heckle, b_p2_masher]
+def b_arena_ola():
+    """1.8 s (BossState.ARENA_OLA, 36 t: ¡La Ola!). Both arms up to the stands (0.3 s), swinging them side to
+    side with his whole body to start the wave going round (0.3-1.2 s), then a big sweep down at you (1.4 s)."""
+    a = angry(B('arena_ola', 1.8, 'hold'))
+    a.rot('root', [(0, [0, 0, 0]), (0.3, [0, 0, 0]), (0.55, [0, 30, 0], 'easeInOutSine'), (0.85, [0, -30, 0], 'easeInOutSine'),
+                   (1.1, [0, 20, 0], 'easeInOutSine'), (1.4, [0, 0, 0], 'easeOutBack'), (1.8, [0, 0, 0])], 'lin')
+    for arm, sg in (('arm_r', 1), ('arm_l', -1)):
+        a.rot(arm, [(0, [-20, 0, 24 * sg]), (0.3, [-170, 0, 20 * sg], 'easeOutBack'), (0.55, [-160, 0, 45 * sg], 'easeInOutSine'),
+                    (0.85, [-160, 0, 5 * sg], 'easeInOutSine'), (1.1, [-165, 0, 40 * sg], 'easeInOutSine'),
+                    (1.4, [-80, -20 * sg, 30 * sg], 'easeOutQuad'), (1.8, [-70, -20 * sg, 30 * sg])], 'lin')
+        stretch(a, arm, [(0, 1), (0.3, 1.5), (1.1, 1.5), (1.4, 1.6), (1.8, 1.3)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.3, [-14, 0, 0]), (1.1, [-14, 0, 0]), (1.4, [16, 0, 0], 'easeOutQuad'), (1.8, [4, 0, 0])], 'lin')
+    a.sound(0.3, 'hype').sound(1.4, 'grunt')
+    return a
+
+
+def b_arena_stampede():
+    """1.8 s (BossState.ARENA_STAMPEDE, 36 t: ¡Estampida!). Two fingers to his mouth, a whistle to the stands
+    (0.2-0.6 s), then both arms flung out to the long sides of the sand where the potatoes come from (0.8 s)."""
+    a = angry(B('arena_stampede', 1.8, 'hold'))
+    a.rot('arm_r', [(0, [-20, 0, 24]), (0.2, [-125, -45, 0], 'easeOutQuad'), (0.6, [-125, -45, 0]),
+                    (0.8, [-90, 0, 85], 'easeOutBack'), (1.4, [-90, 0, 85]), (1.8, [-20, 0, 24], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.2, 1.4), (0.6, 1.4), (0.8, 1.6), (1.4, 1.6), (1.8, 1)])
+    a.rot('arm_l', [(0, [-20, 0, -24]), (0.6, [-30, 0, -30]), (0.8, [-90, 0, -85], 'easeOutBack'), (1.4, [-90, 0, -85]),
+                    (1.8, [-20, 0, -24], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (0.6, 1), (0.8, 1.6), (1.4, 1.6), (1.8, 1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.2, [-8, 0, 0]), (0.6, [-12, 0, 0]), (0.8, [6, 0, 0], 'easeOutQuad'), (1.8, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.25, [1, 1, 1]), (0.5, [1.06, 0.96, 1.06]), (0.6, [1, 1, 1])], 'lin')
+    a.sound(0.8, 'hype')
+    return a
+
+
+HARDENING = [b_salsa_burst, b_arena_fryer, b_arena_heckle, b_p2_masher, b_arena_ola, b_arena_stampede]
 
 
 BOSS = [b_leap_out, b_chug, b_roar, b_idle, b_walk, b_walk_keys, b_run, b_swipe, b_slam, b_breath, b_throw,

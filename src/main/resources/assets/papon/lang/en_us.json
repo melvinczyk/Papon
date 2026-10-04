@@ -327,7 +327,7 @@
   "qte.papon.title.4": "EL TANGO DEL PAPA",
   "qte.papon.how.3": "MASH IT! The hot sauce is coming!",
   "qte.papon.how.4": "Step on the beat!",
-  "status.papon.masher": "EL MACHACADOR! Stand under a hole (the green squares)!",
+  "status.papon.masher": "EL MACHACADOR! Stand under a hole (the green squares): they MOVE between slams!",
   "speech.papon.band.ouch": "¡¡AY!! ¿¡Qué te pasa!?",
   "speech.papon.band.ya_voy": "Ya voy, ya voy... ¡qué genio!",
   "speech.papon.band.sigh": "*suspiro* Siempre lo mismo con este señor...",
@@ -442,5 +442,7 @@
   "speech.papon.boss2.hit0": "AH!!! Not the FACE!",
   "speech.papon.boss2.hit1": "You will PAY for that, in TACOS.",
   "speech.papon.boss2.landed0": "Gracias, gracias. You are TOO kind.",
-  "speech.papon.boss2.landed1": "And the crowd goes WILD!!!"
+  "speech.papon.boss2.landed1": "And the crowd goes WILD!!!",
+  "status.papon.ola": "¡LA OLA! The salsa is coming: JUMP it!",
+  "status.papon.stampede": "¡ESTAMPIDA! Stand in the gaps between the potatoes!"
 }

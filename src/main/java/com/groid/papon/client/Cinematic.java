@@ -63,11 +63,10 @@ public final class Cinematic {
     /**
      * Whether {@code e} is kept out of the shot: through his phase-two cutscene on the ground (kneel to
      * scream) every other mob within 10 blocks of him disappears so nothing stands between the camera and
-     * him (not the van, a set piece; not you in his point of view, where you are what he sees).
+     * him, the van included (not you in his point of view, where you are what he sees).
      */
     public static boolean hidden(Entity e) {
         if (!active || !(subject instanceof PaponBossEntity b) || e == b || !b.getBossState().silent()) return false;
-        if (e instanceof com.groid.papon.vehicle.CaravanEntity) return false;
         if (e instanceof net.minecraft.world.entity.player.Player && povActive()) return false;
         return e.distanceToSqr(b) <= 10 * 10;
     }
@@ -347,7 +346,8 @@ public final class Cinematic {
                 // front of them (3.0-3.6 s): bleeding too; held on it, closer, trembling (to 4.8 s); then up to you
                 Vec3 eye = b.position().add(f.scale(1.05)).add(0, 1.35, 0);
                 Vec3 down = b.position().add(f.scale(2.4)).add(0, 0.05, 0);
-                Vec3 hand = b.position().add(f.scale(1.75)).add(right.scale(-0.3)).add(0, 0.85, 0);
+                Vec3 drawn = BossRenderer.handPos(b);       // where it really is, once it is drawn (from 2.8 s)
+                Vec3 hand = drawn != null ? drawn : b.position().add(f.scale(1.75)).add(right.scale(-0.3)).add(0, 0.85, 0);
                 Vec3 you = mc.player.getEyePosition();
                 Vec3 look;
                 float fov = 62;
