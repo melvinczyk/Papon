@@ -5,17 +5,14 @@ import com.groid.papon.boss.PaponBossEntity;
 import com.groid.papon.network.PaponNetwork;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
@@ -23,8 +20,9 @@ import org.lwjgl.glfw.GLFW;
 /**
  * The QTE on the held player's screen: one key at a time in a big keycap, a bar running out under
  * it (a second), the keys still to come as dots. Press the right one in time and the next comes up;
- * the wrong one, or too late, and it is over. While it runs, the presses are swallowed (no inventory
- * opening, no mod hotkeys firing), and the camera is on him in slow motion (Cinematic).
+ * the wrong one, or too late, and it is over. While it runs a blank {@link QteScreen} is up, so the keys
+ * go to it and never to a keybind (no map on J, no inventory, no mod hotkeys), and the camera is on
+ * him in slow motion (Cinematic).
  */
 @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID, value = Dist.CLIENT)
 public final class QteClient {
@@ -99,12 +97,16 @@ public final class QteClient {
         flashTicks++;
         if (endTicks > 0) endTicks--;
         Minecraft mc = Minecraft.getInstance();
-        if (!active) return;
+        if (!active) {
+            if (mc.screen instanceof QteScreen) mc.setScreen(null);
+            return;
+        }
         if (mc.level == null || mc.player == null || !(mc.level.getEntity(bossId) instanceof PaponBossEntity boss)
                 || boss.getBossState() == com.groid.papon.boss.BossState.DEATH || (locked && stepTicks++ > 60)) {
             active = false;
             return;
         }
+        if (mc.screen == null) mc.setScreen(new QteScreen());
         // slow motion: a slow heartbeat under it all
         if (++beat % 16 == 0) {
             mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
@@ -123,21 +125,12 @@ public final class QteClient {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onKey(InputEvent.Key event) {
-        if (!active || Minecraft.getInstance().screen != null) return;
-        int key = event.getKey();
-        if (event.getAction() != GLFW.GLFW_PRESS) {
-            swallow();
-            return;
-        }
-        if (key == GLFW.GLFW_KEY_ESCAPE || key == GLFW.GLFW_KEY_F1 || key == GLFW.GLFW_KEY_F2 || key == GLFW.GLFW_KEY_F3
+    /** A key pressed while the QTE's screen is up (the only way presses reach the QTE). */
+    static void press(int key) {
+        if (!active) return;
+        if (key == GLFW.GLFW_KEY_F1 || key == GLFW.GLFW_KEY_F2 || key == GLFW.GLFW_KEY_F3
                 || (key >= GLFW.GLFW_KEY_LEFT_SHIFT && key <= GLFW.GLFW_KEY_RIGHT_SUPER)) return;
-        if (grace > 0) {
-            // still the fight's presses: they do not count
-            swallow();
-            return;
-        }
+        if (grace > 0) return;                       // still the fight's presses: they do not count
         if (!locked && step < keys.length) {
             boolean ok = key == keys[step];
             PaponNetwork.qteInput(bossId, step, ok);
@@ -153,17 +146,6 @@ public final class QteClient {
                 locked = true;
             }
         }
-        swallow();
-    }
-
-    /** Nothing else gets the key: no inventory, no hotbar, no mod hotkeys. */
-    private static void swallow() {
-        for (KeyMapping m : Minecraft.getInstance().options.keyMappings) {
-            while (m.consumeClick()) {
-                // drained
-            }
-        }
-        KeyMapping.releaseAll();
     }
 
     @SubscribeEvent
@@ -197,6 +179,11 @@ public final class QteClient {
         g.pose().scale(1.5F, 1.5F, 1);
         g.drawString(font, title, -font.width(title) / 2, 0, 0xFFFFFF, true);
         g.pose().popPose();
+        if (kind >= 3) {
+            // what to do: mash the one key / dance on the beat
+            Component how = Component.translatable("qte.papon.how." + kind).withStyle(ChatFormatting.YELLOW);
+            g.drawString(font, how, cx - font.width(how) / 2, cy - 32, 0xFFFFFF, true);
+        }
         if (step < keys.length) {
             // the keycap: grows in, shakes as time runs out, flashes on a press
             float left = 1F - Mth.clamp((stepTicks + pt) / window, 0, 1);
@@ -210,7 +197,13 @@ public final class QteClient {
             g.fill(x0 - 2, y0 - 2, x0 + sz + 2, y0 + sz + 2, edge);
             g.fill(x0, y0, x0 + sz, y0 + sz, 0xE0201812);
             g.fill(x0 + 2, y0 + sz - 5, x0 + sz - 2, y0 + sz - 2, 0xFF3A2C20);
-            String name = InputConstants.Type.KEYSYM.getOrCreate(keys[step]).getDisplayName().getString().toUpperCase();
+            String name = switch (keys[step]) {
+                case GLFW.GLFW_KEY_UP -> "\u2191";
+                case GLFW.GLFW_KEY_DOWN -> "\u2193";
+                case GLFW.GLFW_KEY_LEFT -> "\u2190";
+                case GLFW.GLFW_KEY_RIGHT -> "\u2192";
+                default -> InputConstants.Type.KEYSYM.getOrCreate(keys[step]).getDisplayName().getString().toUpperCase();
+            };
             g.pose().pushPose();
             g.pose().translate(cx + jx, cy, 0);
             g.pose().scale(2.4F * (0.7F + 0.3F * pop), 2.4F * (0.7F + 0.3F * pop), 1);

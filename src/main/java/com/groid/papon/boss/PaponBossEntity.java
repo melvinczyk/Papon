@@ -163,6 +163,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation A_GRAB_COMBO = once("grab_combo");
     private static final RawAnimation A_GUARD = once("guard");
     private static final RawAnimation A_RIPOSTE = once("riposte");
+    private static final RawAnimation A_SALSA_BURST = once("salsa_burst");
+    private static final RawAnimation A_ARENA_FRYER = once("arena_fryer");
+    private static final RawAnimation A_ARENA_HECKLE = once("arena_heckle");
+    private static final RawAnimation A_P2_MASHER = once("p2_masher");
     private static final RawAnimation A_EVADE = once("evade");
     private static final RawAnimation A_CLEAVER_TOSS = once("cleaver_toss");
     private static final RawAnimation A_BURRITO_TOSS = once("burrito_toss");
@@ -200,7 +204,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     private int stateTicks;
     private int speechTicks;
+    private static final String VOICE2 = "speech.papon.boss2.";
+    /** Ticks before he may make another remark in the fight (see quip). */
+    private int quipCd;
+    /** tickCount from which he may start a fight line again (the last one is over, plus a breath). */
+    private int voiceFree;
+    /** Client: the phase-two line he is saying (lip sync) and the tick it started. */
+    @Nullable private VoiceLines.Line talk;
+    private int talkStart;
     @Nullable private Vec3 home;
+    /** Where the portal back into his coliseum opens (the truck window), and the way it faces; its entity. */
+    @Nullable private Vec3 portalAt;
+    private float portalYaw;
+    @Nullable private java.util.UUID portalId;
     @Nullable private Vec3 leapFrom;
     @Nullable private Vec3 leapTo;
     @Nullable private UUID vanId;
@@ -328,6 +344,22 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int guardBlocks;
     /** His recent losses, as a share of his health, decaying: a burst of damage puts the comal up. */
     private float recentHurt;
+    /** His composure: health lost lately (drains 2.5% a tick); past PaponConfig.BURST_CAP hits glance off. */
+    private float burst;
+    /** Hits that glanced off his composure lately (decays): the sign of someone overpowered (more QTEs). */
+    private float capHits;
+    private int composureMsgCd;
+    /** Per attacker, the ticks of their last melee hits on him: four in 2.5 s and he bursts (SALSA_BURST). */
+    private final java.util.Map<java.util.UUID, java.util.ArrayDeque<Integer>> pressure = new java.util.HashMap<>();
+    private int saltBurstCd;
+    /** The arena turned on you: the fryer open in the sand, and the stands throwing things. */
+    @Nullable private Freidora freidora;
+    private int fryerCd = 200, heckleCd = 160, heckleTicks, masherCd = 300;
+    @Nullable private java.util.UUID masherId;
+    private boolean floorChecked;
+    private int shoveCd;
+    /** Ticks the current target has stayed out of reach (kiting with a bow, flying about). */
+    private int farTicks;
     private int evadeCd = 40;
     private int cleaverCd = 60;
     private int burritoCd = 140;
@@ -387,7 +419,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 800.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.35)
+                .add(Attributes.MOVEMENT_SPEED, 0.42)
                 .add(Attributes.ATTACK_DAMAGE, 14.0)
                 .add(Attributes.ARMOR, 10.0)
                 .add(Attributes.ARMOR_TOUGHNESS, 4.0)
@@ -411,6 +443,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     public int qteKind() {
         return entityData.get(DATA_QTE);
+    }
+
+    /**
+     * The hold the QTE uses: 0 La Última Cena (the cleaver), 1 Last Call (the bottle), 2 La Papa Suplex. The
+     * newer ones borrow them: 3 ¡Apaga el Fuego! (mash a key while he pours hot sauce, the bottle's hold) and
+     * 4 El Tango del Papa (arrow keys on the song's beat while he dances you round, the suplex's).
+     */
+    public int qteBase() {
+        int k = qteKind();
+        return k == 3 ? 1 : k == 4 ? 2 : Mth.clamp(k, 0, 2);
     }
 
     /** The entity id of whoever he holds, or -1. */
@@ -484,7 +526,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (s == BossState.IDLE && attack(old)) {
             misses = swingHit ? 0 : misses + 1;
-            think = isPhaseTwo() ? 2 : 4;      // a breath between attacks (none in a frenzy: see choose)
+            // a breath between attacks (none in a frenzy: see choose); in phase two none after one that landed: he presses
+            think = isPhaseTwo() ? (swingHit ? 0 : 2) : 4;
         }
         boolean air = isRisen() && isFlying() && airborne(s);
         if (s != BossState.LEAP && s != BossState.LEAP_OUT && s != BossState.AIR_SPIKE && !air) {
@@ -532,6 +575,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /** Set up by TacoBoss: where he jumps from and to, his arena and his van. */
     public void begin(Vec3 from, Vec3 to, @Nullable CaravanEntity van) {
+        portalAt = from;                            // the window he jumped out of: the way back into his coliseum
+        portalYaw = (float) (Mth.atan2(to.z - from.z, to.x - from.x) * Mth.RAD_TO_DEG) - 90F;
         leapFrom = from;
         leapTo = to;
         home = to;
@@ -542,6 +587,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** /papon boss: no window to jump out of, straight to the bottle. */
     public void beginHere(@Nullable CaravanEntity van) {
         home = position();
+        portalAt = position().add(Vec3.directionFromRotation(0, getYRot()).scale(-4));
+        portalYaw = getYRot();
         vanId = van == null ? null : van.getUUID();
         setBossState(BossState.CHUG);
     }
@@ -551,7 +598,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         super.onSyncedDataUpdated(key);
         if (level().isClientSide) {
             if (DATA_STATE.equals(key)) clientStateTicks = 0;
-            if (DATA_SPEECH.equals(key)) babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech());
+            if (DATA_SPEECH.equals(key)) {
+                String sp = getSpeech();
+                babbleTicks = sp.isEmpty() || Speech.voiced(sp) ? 0 : Speech.babbleLength(sp);
+                // a line in his phase-two voice: the lip sync starts now, with the sound (sent the same tick)
+                if (sp.startsWith(VOICE2)) {
+                    talk = VoiceLines.line(sp.substring(VOICE2.length()));
+                    talkStart = tickCount;
+                }
+            }
         }
         if (DATA_FORM.equals(key)) refreshDimensions();
     }
@@ -565,17 +620,58 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     @Override
     public void setSpeech(String encoded, int ticks) {
-        entityData.set(DATA_SPEECH, encoded);
+        entityData.set(DATA_SPEECH, encoded, true);      // forced: the same line again restarts the lip sync
         speechTicks = ticks;
     }
 
     private void say(String line, int ticks) {
-        Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.boss." + line, true, true, ticks);
+        speak(line, ticks, true);
     }
 
     /** A line with no translation under it (it is already in English, or a scream). */
     private void sayPlain(String line, int ticks) {
-        Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.boss." + line, true, false, ticks);
+        speak(line, ticks, false);
+    }
+
+    /**
+     * From the moment he kneels he talks in his own voice (gen_boss_voice.py: English, lip-synced by
+     * client/BossFace): a line recorded for it is said as speech.papon.boss2.*, its bubble held for as
+     * long as it plays. Before that, and for anything not recorded, his old Spanish line.
+     */
+    private void speak(String line, int ticks, boolean gloss) {
+        VoiceLines.Line v = isPhaseTwo() ? VoiceLines.line(line) : null;
+        // in the fight a line waits for the last one to finish and settle (the cutscenes are timed by hand)
+        BossState st = getBossState();
+        boolean scripted = st.cutscene() || st.intro() || st == BossState.DEATH || st == BossState.PHASE;
+        if (!scripted && tickCount < voiceFree) return;
+        voiceFree = tickCount + (v != null ? v.ticks() : ticks) + 30;
+        if (v != null) {
+            Speech.say(this, ChatFormatting.DARK_RED, VOICE2 + line, true, false, Math.max(ticks, v.ticks() + 12));
+            quipCd = Math.max(quipCd, v.ticks() + 60);
+            return;
+        }
+        Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.boss." + line, true, gloss, ticks);
+    }
+
+    /** A moment of the phase-two cutscene, timed to his lines (VoiceLines.beat; {@code fallback} with no voice). */
+    private static int beat(String key, int fallback) {
+        return VoiceLines.beat(key, fallback);
+    }
+
+    /** A remark in the fight (phase two, never over another line or in a cutscene), now and then. */
+    private void quip(String line, float chance) {
+        if (!isPhaseTwo() || quipCd > 0 || speechTicks > 0 || getBossState().cutscene() || random.nextFloat() >= chance) return;
+        say(line, 40);
+    }
+
+    /** Client: the phase-two line he is saying and how far into it he is (seconds), or null. */
+    @Nullable
+    public VoiceLines.Line talking() {
+        return talk;
+    }
+
+    public double talkTime(float partial) {
+        return (tickCount - talkStart + partial) / 20.0;
     }
 
     // ------------------------------------------------------------------ ticking
@@ -601,6 +697,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         if (speechTicks > 0 && --speechTicks == 0) entityData.set(DATA_SPEECH, "");
+        if (quipCd > 0) quipCd--;
         bossEvent.setProgress(Mth.clamp(getHealth() / getMaxHealth(), 0F, 1F));
         if (tickCount % 10 == 0) updateBossBarPlayers();
     }
@@ -708,6 +805,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P2_TOT -> tickTot(level, target);
             case P2_SNARE -> tickSnare(level, target);
             case P2_GRAVITY -> tickGravity(level, target);
+            case SALSA_BURST -> tickSalsaBurst(level);
+            case ARENA_FRYER -> tickArenaFryer(level, target);
+            case ARENA_HECKLE -> tickArenaHeckle(level, target);
+            case P2_MASHER -> tickMasher(level, target);
         }
     }
 
@@ -748,6 +849,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         snareCd--;
         gravityCd--;
         recentHurt *= 0.94F;
+        burst *= 0.975F;
+        capHits *= 0.995F;
+        composureMsgCd--;
+        saltBurstCd--;
+        fryerCd--;
+        masherCd--;
+        heckleCd--;
+        shoveCd--;
         if (getBossState() != BossState.DRIVING && getBossState() != BossState.EXIT_STUMBLE) vanCd--;
         think--;
     }
@@ -886,7 +995,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         getLookControl().setLookAt(target, 30, 30);
         double d = distanceTo(target);
-        if (tickCount % 200 == 0 && random.nextInt(3) == 0) say("taunt" + random.nextInt(4), 50);
+        farTicks = d > 9 ? farTicks + 1 : 0;
+        if (tickCount % 200 == 0 && random.nextInt(3) == 0) say(taunt(), 50);
         if (think > 0) {
             if (isRisen()) hover(target);
             else chase(target, d);
@@ -923,13 +1033,20 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
      * stops pausing and charges (twice).
      */
     @Nullable
+    /** One of his taunts; in phase two mostly the new, charming ones. */
+    private String taunt() {
+        if (isPhaseTwo() && random.nextInt(10) < 7) return "charm" + random.nextInt(6);
+        return "taunt" + random.nextInt(4);
+    }
+
     private BossState choose(ServerLevel level, LivingEntity target, double d) {
+        ctxTarget = target;
         if (misses >= FRENZY) {
             misses = 0;
             think = 0;
             if (drunkCd <= 0 && d < 10) return BossState.DRUNK_SWIG;          // a miss streak makes him drink
             chargesLeft = isPhaseTwo() ? 2 : 1;
-            say("taunt" + random.nextInt(4), 40);
+            say(taunt(), 40);
             return BossState.CHARGE_WINDUP;
         }
         double dy = target.getY() - getY();
@@ -989,6 +1106,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (d >= 6 && totCd <= 0) options.add(BossState.P2_TOT);
             if (snareCd <= 0) options.add(BossState.P2_SNARE);
             if (gravityCd <= 0) options.add(BossState.P2_GRAVITY);
+            if (inColiseum() && arena != null) {
+                if (fryerCd <= 0 && freidora == null) options.add(BossState.ARENA_FRYER);
+                if (heckleCd <= 0 && heckleTicks <= 0) options.add(BossState.ARENA_HECKLE);
+                if (masherCd <= 0) options.add(BossState.P2_MASHER);
+            }
         }
         return pickWeighted(options);
     }
@@ -1005,12 +1127,40 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return false;
     }
 
+    @Nullable private LivingEntity ctxTarget;
+
+    /**
+     * How much more he likes an attack for what the target is doing: a raised shield gets the grabs and the
+     * shield-breakers; someone in the air gets the guns, the leap and the cleavers; someone hitting him point
+     * blank gets the close punishes and the blink away; someone kiting him gets the gap closers; someone
+     * nearly dead, or overpowered (hits glancing off his composure, a wall of armor), gets the QTE.
+     */
+    private float context(BossState s) {
+        LivingEntity t = ctxTarget;
+        if (t == null) return 1F;
+        float k = 1F;
+        boolean blocking = t instanceof Player p && p.isBlocking();
+        boolean airborne = t instanceof Player p && (p.isFallFlying() || p.getAbilities().flying)
+                || (!t.onGround() && t.getY() - groundY(t.position()) > 3);
+        boolean grabby = s == BossState.GRAB || s == BossState.QTE_GRAB;
+        if (blocking && (grabby || s == BossState.HAYMAKER || s == BossState.SWIPE || s == BossState.COMAL_SLAM)) k *= 3F;
+        if (airborne && (s == BossState.GATLING || s == BossState.LEAP || s == BossState.P2_DIVE || s == BossState.CLEAVER_TOSS
+                || s == BossState.THROW || s == BossState.BLINK)) k *= 3F;
+        if (underPressure(t) && (grabby || s == BossState.UPPERCUT || s == BossState.DRUNK_SWIG || s == BossState.BREATH
+                || s == BossState.P2_BARRAGE || s == BossState.BLINK || s == BossState.P2_MASH)) k *= 2F;
+        if (farTicks > 100 && (s == BossState.CHARGE_WINDUP || s == BossState.DASH_COMBO || s == BossState.BLINK || s == BossState.LEAP
+                || s == BossState.P2_DIVE || s == BossState.BURRITO_TOSS || s == BossState.P2_GRAVITY)) k *= 2F;
+        boolean overpowered = capHits > 2.5F || t.getArmorValue() >= 20;
+        if (s == BossState.QTE_GRAB && (overpowered || t.getHealth() < t.getMaxHealth() * 0.35F)) k *= 3F;
+        return k;
+    }
+
     /** How much he likes each attack when it is on offer (before how long it has been). */
     private static float baseWeight(BossState s) {
         return switch (s) {
             case SWIPE, UPPERCUT, THROW -> 0.6F;                         // the cheap ones: short cooldowns, they would crowd out the rest
             case LEAP -> 0.7F;
-            case QTE_GRAB, CLEAVER_TOSS, HAYMAKER, BURRITO_TOSS, P2_GRAVITY, P2_METEOR -> 1.6F;   // the signature moves
+            case QTE_GRAB, CLEAVER_TOSS, HAYMAKER, BURRITO_TOSS, P2_GRAVITY, P2_METEOR, ARENA_FRYER, ARENA_HECKLE, P2_MASHER -> 1.6F;   // the signature moves
             default -> 1.0F;
         };
     }
@@ -1042,7 +1192,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         for (int i = 0; i < w.length; i++) {
             BossState s = fresh.get(i);
             int since = tickCount - lastUsed.getOrDefault(s, fightStart);
-            w[i] = baseWeight(s) * (1F + Math.min(since, 900) / 200F);
+            w[i] = baseWeight(s) * context(s) * (1F + Math.min(since, 900) / 200F);
             total += w[i];
         }
         float r = random.nextFloat() * total;
@@ -1087,16 +1237,20 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case HAYMAKER -> haymakerCd = p2 ? 200 : 260;
             case COMAL_SLAM -> comalCd = 320;
             case QTE_GRAB -> {
-                qteCd = p2 ? 400 : 500;
+                qteCd = (p2 ? 260 : 340) / (capHits > 2.5F || target.getArmorValue() >= 20 ? 2 : 1);
                 // they take turns: La Última Cena, Last Call, La Papa Suplex, and round again
+                if (nextQte == 4 && !inColiseum()) nextQte = 0;
                 entityData.set(DATA_QTE, nextQte);
-                nextQte = (nextQte + 1) % 3;
+                nextQte = (nextQte + 1) % 5;
             }
             case P2_FRY_VOLLEY -> fryCd = 160;
             case P2_MASH -> mashCd = 240;
             case P2_TOT -> totCd = 180;
             case P2_SNARE -> snareCd = 300;
             case P2_GRAVITY -> gravityCd = 700;
+            case ARENA_FRYER -> fryerCd = 420;
+            case ARENA_HECKLE -> heckleCd = 520;
+            case P2_MASHER -> masherCd = 760;
             case BRICK -> {
                 brickCd = p2 ? 560 : 700;
                 forBrick = true;
@@ -1158,7 +1312,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         if (getNavigation().isDone() || tickCount % 6 == 0) {
-            getNavigation().moveTo(target, isPhaseTwo() ? (d > 8 ? 1.6 : 1.4) : (d > 8 ? 1.4 : 1.25));
+            getNavigation().moveTo(target, isPhaseTwo() ? (d > 8 ? 1.75 : 1.5) : (d > 8 ? 1.55 : 1.35));
         }
     }
 
@@ -1728,9 +1882,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         boolean hit = e.hurt(source(type), damage * dmg());
         if (hit) swingHit = true;
+        // a heavy hit also takes a share of your maximum health through armor: no amount of armor lets you trade with him
+        if (hit && heavy && e.isAlive()) {
+            Mechanics.trueHit(e, PaponConfig.ARMOR_PIERCE.get().floatValue() * (isPhaseTwo() ? 1.35F : 1F), this, true);
+        }
         if (hit && e instanceof Player && crowdRoarCd <= 0 && level() instanceof ServerLevel level) {
             crowdRoarCd = 50;
             crowdReact(level, e.isAlive() ? CrowdMood.ROAR : CrowdMood.CHANT, e.isAlive() ? 40 : 200);
+            if (e.isAlive() && inColiseum()) quip("landed" + random.nextInt(2), 0.3F);
         }
         return hit;
     }
@@ -1833,6 +1992,38 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     // ------------------------------------------------------------------ the van
 
+    /** A hit that glanced off his composure: a clank and gold sparks, and now and then a word to the one hitting. */
+    private void composure(@Nullable Entity attacker) {
+        if (!(level() instanceof ServerLevel level)) return;
+        Vec3 at = position().add(0, getBbHeight() * 0.6, 0);
+        Fx.spark(level, at, 5, 0.5, 0.3F, 0xFFE07A);
+        level.playSound(null, at.x, at.y, at.z, SoundEvents.SHIELD_BLOCK, SoundSource.HOSTILE, 1.0F, 1.8F);
+        if (composureMsgCd <= 0 && attacker instanceof ServerPlayer sp) {
+            composureMsgCd = 80;
+            sp.displayClientMessage(Component.translatable("status.papon.composure").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), true);
+        }
+    }
+
+    /** Counts {@code p}'s melee hit; true when it is the fourth in 2.5 s and he can burst now. */
+    private boolean pressed(Player p, BossState s) {
+        java.util.ArrayDeque<Integer> q = pressure.computeIfAbsent(p.getUUID(), k -> new java.util.ArrayDeque<>());
+        q.addLast(tickCount);
+        while (!q.isEmpty() && tickCount - q.peekFirst() > 50) q.pollFirst();
+        boolean free = s == BossState.IDLE || s == BossState.SWIPE || s == BossState.SWIPE_OVERHEAD || s == BossState.UPPERCUT
+                || s == BossState.RIPOSTE || s == BossState.EVADE || s == BossState.TO_VAN || s == BossState.DRINK_HANDLE
+                || s == BossState.THROW || s == BossState.BREATH || s == BossState.GATLING || s == BossState.CLEAVER_TOSS;
+        return q.size() >= 4 && saltBurstCd <= 0 && free && !isFlying();
+    }
+
+    /** The current target has been hitting him in melee lately (two or more hits in 3 s). */
+    private boolean underPressure(LivingEntity target) {
+        java.util.ArrayDeque<Integer> q = pressure.get(target.getUUID());
+        if (q == null) return false;
+        int n = 0;
+        for (int t : q) if (tickCount - t < 60) n++;
+        return n >= 2;
+    }
+
     private void tickToVan(ServerLevel level, @Nullable LivingEntity target) {
         CaravanEntity van = van(level);
         if (van == null || van.isVehicle() || stateTicks > 260 || (forBrick && van.isBricked())) {
@@ -1863,16 +2054,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
             return;
         }
+        // a sprint to the door (he cannot be stopped on the way: half damage, no knockback), shoving anyone in his way
+        shoveNear(level);
         if (horizontalDist(door) < 4) {
-            getMoveControl().setWantedPosition(door.x, door.y, door.z, isPhaseTwo() ? 1.4 : 1.15);
-        } else if (getNavigation().isDone() || tickCount % 10 == 0) {
-            getNavigation().moveTo(door.x, door.y, door.z, isPhaseTwo() ? 1.4 : 1.15);
+            getMoveControl().setWantedPosition(door.x, door.y, door.z, isPhaseTwo() ? 2.0 : 1.75);
+        } else if (getNavigation().isDone() || tickCount % 6 == 0) {
+            getNavigation().moveTo(door.x, door.y, door.z, isPhaseTwo() ? 2.0 : 1.75);
         }
     }
 
     private void tickDrinkHandle(ServerLevel level, @Nullable LivingEntity target) {
         getNavigation().stop();
         if (target != null) face(target.position());
+        shoveNear(level);
         if (stateTicks == 46) {
             Vec3 back = position().subtract(getLookAngle().scale(1.5)).add(0, 0.5, 0);
             Fx.chunks(level, back, 8, 0.18F, 0xD8EEE6, 0.35);
@@ -1887,6 +2081,63 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 vanCd = 100;
                 setBossState(BossState.IDLE);
             }
+        }
+    }
+
+    /**
+     * On his way to the van and downing the handle he is not open: anyone who gets within reach is backhanded
+     * away (and takes a share of their health through armor), once a second.
+     */
+    private void shoveNear(ServerLevel level) {
+        if (shoveCd > 0) return;
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(2.6), this::hittable)) {
+            if (!(e instanceof Player)) continue;
+            shoveCd = 20;
+            face(e.position());
+            Vec3 away = e.position().subtract(position()).multiply(1, 0, 1).normalize();
+            e.setDeltaMovement(away.scale(1.3).add(0, 0.45, 0));
+            e.hurtMarked = true;
+            strike(e, 5F, ModDamage.SPATULA, true);
+            level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.HOSTILE, 1.4F, 0.7F);
+            Fx.spark(level, e.position().add(0, 1, 0), 6, 0.3, 0.3F, 0xFFD27A);
+        }
+    }
+
+    /**
+     * Face-tanked (four melee hits from one player in 2.5 s): he balls up, shaking (0.45 s), and bursts in a
+     * blast of habanero salsa: everyone within 6.5 blocks thrown off him, a share of their health through
+     * armor, a Habanero stack. Not fire: fire immunity does not help.
+     */
+    private void tickSalsaBurst(ServerLevel level) {
+        int t = stateTicks;
+        getNavigation().stop();
+        if (t == 1) level.playSound(null, getX(), getY(), getZ(), SoundEvents.CREEPER_PRIMED, SoundSource.HOSTILE, 2.0F, 0.6F);
+        if (t < 10 && t % 2 == 0) Fx.spark(level, position().add(0, getBbHeight() * 0.5, 0), 6, 0.6, 0.3F, 0xE0301C);
+        if (t == 10) {
+            Vec3 c = position().add(0, getBbHeight() * 0.45, 0);
+            Fx.blast(level, c, 2.6F);
+            Fx.shock(level, position(), 7F, 0xD8261A);
+            for (int i = 0; i < 14; i++) {
+                double a = Math.PI * 2 * i / 14;
+                Vec3 at = position().add(Math.cos(a) * (2 + random.nextDouble() * 4), 0, Math.sin(a) * (2 + random.nextDouble() * 4));
+                Fx.splat(level, new Vec3(at.x, groundY(at), at.z), 0.6F, 0xB81C14, 120);
+            }
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 2.0F, 0.8F);
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 2.0F, 0.5F);
+            PaponNetwork.shake(level, position(), 18, 0.7F, 16);
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(6.5), this::hittable)) {
+                Vec3 away = e.position().subtract(position()).multiply(1, 0, 1).normalize();
+                e.setDeltaMovement(away.scale(1.8).add(0, 0.7, 0));
+                e.hurtMarked = true;
+                strike(e, 6F, ModDamage.SPATULA, false);
+                Mechanics.trueHit(e, isPhaseTwo() ? 0.14F : 0.10F, this, true);
+                Mechanics.heat(e, 1, this);
+            }
+            pressure.clear();
+        }
+        if (t >= BossState.SALSA_BURST.duration) {
+            think = 6;
+            setBossState(BossState.IDLE);
         }
     }
 
@@ -2418,7 +2669,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             lift += w * 1.6;
             out -= w * 0.9;
         } else if (s == BossState.QTE_FAIL) {
-            int kind = qteKind();
+            int kind = qteBase();
             if (kind == 2) {                                  // the suplex: up over his head, then down behind him
                 double up = Mth.clamp(t / 18.0, 0, 1);
                 double over = Mth.clamp((t - 18) / 6.0, 0, 1);
@@ -2572,11 +2823,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t >= BossState.P2_KNEEL.duration) setBossState(BossState.P2_TALK);
     }
 
-    /** Wipes it off, chuckles: "Okay... enough playing around." Gets up, cracks his neck. */
+    /**
+     * Still on one knee, he chuckles at the blood, wipes it off: "Heh... heh heh. You made me... BLEED,
+     * amigo." Then up he gets on "Okay... OKAY. Enough... playing around." and cracks his neck. Timed
+     * to the lines (beats talk.*).
+     */
     private void tickTalk(ServerLevel level) {
         int t = stateTicks;
-        if (t == 4) sayPlain("enough", 70);
-        if (t >= BossState.P2_TALK.duration) setBossState(BossState.P2_SEASON);
+        if (t == beat("talk.bleed", -1)) sayPlain("bleed", 70);
+        if (t == beat("talk.enough", 4)) sayPlain("enough", 70);
+        if (t >= beat("talk.end", BossState.P2_TALK.duration)) setBossState(BossState.P2_SEASON);
     }
 
     /**
@@ -2588,7 +2844,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         LivingEntity target = getTarget();
         if (target != null) turnToward(target.position(), 3F);
-        if (t == 4) say("salt", 50);
+        if (t == beat("season.salt", 4)) say("salt", 50);
         if (t == 18) level.playSound(null, getX(), getY() + 4, getZ(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.HOSTILE, 2.0F, 0.6F);
         Vec3 shaker = position().add(0, getBbHeight() + 1.2, 0);
         if (t >= 24 && t <= 64) {
@@ -2617,8 +2873,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.LAVA_EXTINGUISH, SoundSource.HOSTILE, 2.0F, 0.8F);
             PaponNetwork.shake(level, position(), 24, 0.5F, 20);
         }
-        if (t == 84) say("golden", 50);
-        if (t >= BossState.P2_SEASON.duration) setBossState(BossState.P2_SCREAM);
+        if (t == beat("season.golden", 84)) say("golden", 50);
+        if (t >= beat("season.end", BossState.P2_SEASON.duration)) setBossState(BossState.P2_SCREAM);
     }
 
     /**
@@ -2648,7 +2904,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             bolt(level, position().add(Math.cos(a) * r, 0, Math.sin(a) * r));
         }
         if (t > 15 && t < 60 && t % 8 == 0) Fx.shock(level, position(), (float) (2 + (t - 15) / 4.0), 0xFFE07A);
-        if (t >= BossState.P2_SCREAM.duration) {
+        if (t >= beat("scream.end", BossState.P2_SCREAM.duration)) {
             enterArena(level);
             setBossState(BossState.P2_ARRIVE);
         }
@@ -2739,6 +2995,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         entityData.set(DATA_ARENA, false);
         CaravanEntity van = van(level);
         if (van != null) van.setFloor(null);
+        d.retire(level);
+        closePortal(level);
+        if (freidora != null) freidora.close(level);
+        freidora = null;
+        heckleTicks = 0;
         d.teardown(level);
         d.sendEveryoneHome(level);
         home = d.ground;
@@ -2787,6 +3048,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             oldDome = null;
         }
         if (arena == null) return;
+        arena.keepAlive(level);                         // spawns refused around it from the first block
+        if (!floorChecked && arena.built() && freidora == null) {
+            floorChecked = true;
+            arena.restoreFloor(level);
+        }
         if (!arena.built()) {
             arena.buildStep(level);
             return;
@@ -2794,15 +3060,21 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         CaravanEntity van = van(level);
         if (van != null) van.setFloor(arena.contains(van.position()) ? arena.floorY() : null);
         BossState s = getBossState();
+        if (inColiseum()) {
+            containArena(level, van, s);
+            if (s != BossState.DEATH) keepPortal(level);
+            if (freidora != null && !freidora.tick(level)) freidora = null;
+            if (heckleTicks > 0) tickHeckleBarrage(level);
+        }
         boolean anyone = false;
+        AABB pull = arena.bounds().inflate(48, 64, 48);
         for (ServerPlayer p : level.players()) {
-            if (p.isSpectator() || !p.isAlive() || !arena.contains(p.position())) continue;
+            if (p.isSpectator() || !p.isAlive() || !pull.contains(p.position())) continue;
             anyone = true;
-            if (!p.isCreative() && !arena.inArena(p.position()) && p.getY() > arena.floorY() + 2) {
-                // up in the stands (a pearl, a pillar): back down on the sand
-                Vec3 to = arena.clamp(p.position(), 3, 0, 0);
-                Coliseum.send(level, p, new Vec3(to.x, arena.floorY(), to.z));
-            }
+            if (!inColiseum() || p.isCreative() || arena.inArena(p.position()) || holds(p)) continue;
+            // in the stands, over the wall, fallen off or flown out over the top (pearls, elytra, pillars): back on the sand
+            Vec3 to = arena.clamp(p.position(), 3, 0, 0);
+            Coliseum.send(level, p, new Vec3(to.x, arena.floorY(), to.z));
         }
         if (s.cutscene() || s == BossState.DEATH) return;
         ColiseumCrowdEntity crowd = crowd(level);
@@ -2826,6 +3098,58 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             arenaLonely = 0;
             arenaRetryCd = 600;
         }
+    }
+
+    /**
+     * Nothing gets in or out: he and his van are kept on the sand (the van could be driven or launched over
+     * the podium and drop out of the sky), and any mob that does not belong (Coliseum.belongs: spawns,
+     * flyers) is gone in a puff of smoke. Spawns are refused outright by Coliseum.Gate.
+     */
+    private void containArena(ServerLevel level, @Nullable CaravanEntity van, BossState s) {
+        boolean scripted = s == BossState.P2_ARRIVE && !bandWoken;          // he is lowered in by hand then
+        if (!scripted && !isPassenger() && outOfArena(position())) {
+            Vec3 to = arena.clamp(position(), 3, 0, Coliseum.HEIGHT - 6);
+            setPos(to.x, Math.max(to.y, arena.floorY()), to.z);
+            setDeltaMovement(Vec3.ZERO);
+            getNavigation().stop();
+        }
+        if (van != null && outOfArena(van.position())) {
+            Vec3 to = arena.clamp(van.position(), 5, 0, 0);
+            van.teleportTo(to.x, arena.floorY() + 0.1, to.z);
+            van.setDeltaMovement(Vec3.ZERO);
+            van.fallDistance = 0;
+        }
+        if (tickCount % 10 == 0) {
+            for (Entity e : level.getEntities((Entity) null, arena.bounds().inflate(32), e -> !Coliseum.belongs(e))) {
+                Fx.smoke(level, e.position().add(0, e.getBbHeight() / 2, 0), 2, 0.3, 0.8F, 0xEDEDED);
+                e.discard();
+            }
+        }
+    }
+
+    /** The portal in the truck window stays open while the coliseum does, and sends you to the middle of the sand. */
+    private void keepPortal(ServerLevel level) {
+        if (portalAt == null) return;
+        ArenaPortalEntity p = portalId != null && level.getEntity(portalId) instanceof ArenaPortalEntity e && e.isAlive() ? e : null;
+        if (p == null) {
+            p = new ArenaPortalEntity(com.groid.papon.registry.ModEntities.ARENA_PORTAL.get(), level);
+            p.moveTo(portalAt.x, portalAt.y, portalAt.z, portalYaw, 0);
+            level.addFreshEntity(p);
+            portalId = p.getUUID();
+            level.playSound(null, portalAt.x, portalAt.y + 1, portalAt.z, SoundEvents.END_PORTAL_SPAWN, SoundSource.BLOCKS, 0.6F, 1.6F);
+        }
+        Vec3 c = arena.centerVec();
+        p.hold(new Vec3(c.x, arena.floorY(), c.z));
+    }
+
+    private void closePortal(ServerLevel level) {
+        if (portalId != null && level.getEntity(portalId) instanceof ArenaPortalEntity e) e.discard();
+        portalId = null;
+    }
+
+    /** Off the sand: past the podium wall, below the floor, or up over the top of the barrier. */
+    private boolean outOfArena(Vec3 p) {
+        return !arena.inArena(p) || p.y < arena.floorY() - 1.5;
     }
 
     /** The stand's front, where he stands to have words with the band. */
@@ -2868,22 +3192,23 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (t == 2) crowdReact(level, CrowdMood.ROAR, 90);
         if (t == 40) title(level, "title.papon.coliseum", 34);
-        if (t == 46) {
+        int musica = beat("arrive.musica", 74);
+        if (t == beat("arrive.listos", 46)) {
             say("listos", 40);
             crowdReact(level, CrowdMood.ROAR, 40);
         }
-        if (t > 36 && t < 70) turnToward(c.add(Math.sin(t * 0.09) * 20, 0, Math.cos(t * 0.09) * 20), 8F);
+        if (t > 36 && t < musica - 4) turnToward(c.add(Math.sin(t * 0.09) * 20, 0, Math.cos(t * 0.09) * 20), 8F);
         if (bandWoken) {
             if (t >= 60) finishCutscene(level);
             return;
         }
-        if (t >= 70) turnToward(standFront().add(0, 0, -6), 12F);
-        if (t == 74) {
+        if (t >= musica - 4) turnToward(standFront().add(0, 0, -6), 12F);
+        if (t == musica) {
             say("musica", 40);
             level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.NOTE_BLOCK_HAT.value(), SoundSource.HOSTILE, 2.0F, 1.6F);
         }
-        if (t == 86) crowdMood(level, CrowdMood.HUSH);
-        if (t >= BossState.P2_ARRIVE.duration) setBossState(BossState.P2_NOTICE);
+        if (t == beat("arrive.hush", 86)) crowdMood(level, CrowdMood.HUSH);
+        if (t >= beat("arrive.end", BossState.P2_ARRIVE.duration)) setBossState(BossState.P2_NOTICE);
     }
 
     private void title(ServerLevel level, String key, int stay) {
@@ -2902,14 +3227,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** "...¿Maestro?": the band is asleep. He holds the point, looks round at them, back at you, and fumes. */
     private void tickNotice(ServerLevel level) {
         int t = stateTicks;
-        if (t >= 18 && t < 30) turnToward(standFront().add(0, 0, -6), 10F);
-        if (t >= 30 && t < 42 && getTarget() != null) turnToward(getTarget().position(), 14F);
-        if (t == 34) say("maestro", 30);
-        if (t == 48) {
+        int fume = beat("notice.fume", 48);
+        if (t >= 18 && t < fume - 18) turnToward(standFront().add(0, 0, -6), 10F);
+        if (t >= fume - 18 && t < fume - 6 && getTarget() != null) turnToward(getTarget().position(), 14F);
+        if (t == beat("notice.maestro", 34)) say("maestro", 30);
+        if (t == fume) {
             Fx.smoke(level, position().add(0, getBbHeight() + 0.3, 0), 3, 0.3, 0.8F, 0xEDEDED);
             level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 1.5F, 0.6F);
         }
-        if (t >= BossState.P2_NOTICE.duration) setBossState(BossState.P2_MARCH);
+        if (t >= beat("notice.end", BossState.P2_NOTICE.duration)) setBossState(BossState.P2_MARCH);
     }
 
     /** Where he stands to whack the singer: on the sand just off the stage, in front of him. */
@@ -2972,11 +3298,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 if (!m.getRole().singer()) m.wake(m.getRole().dozer() ? 0 : random.nextInt(30));
             }
         }
-        if (t == 24) {
-            sayPlain("despierten", 50);
-            crowdReact(level, CrowdMood.ROAR, 36);
-        }
-        if (t >= BossState.P2_WAKE.duration) {
+        if (t == 30) crowdReact(level, CrowdMood.ROAR, 30);
+        if (t == Math.max(26, beat("wake.line", 42))) sayPlain("despierten", 50);
+        if (t >= Math.max(70, beat("wake.end", BossState.P2_WAKE.duration))) {
             paceSide = random.nextBoolean() ? 1 : -1;
             setBossState(BossState.P2_WAIT);
         }
@@ -2992,9 +3316,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         LivingEntity target = getTarget();
         List<MariachiEntity> band = band(level);
-        if (t == 22) say("momentito", 40);
+        if (t == beat("wait.momentito", 22)) say("momentito", 40);
         for (MariachiEntity m : band) {
-            if (m.dozing() && kickWho < 0 && t > 40) {
+            if (m.dozing() && kickWho < 0 && t > beat("wait.ay", 40)) {
                 kickWho = m.getId();
                 say("ay", 20);
             }
@@ -3054,17 +3378,17 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         Entity e = level.getEntity(kickWho);
         if (e != null) face(e.position());
-        if (t == 2) sayPlain("gordo", 30);
-        if (t == 12 && e instanceof MariachiEntity m) {
+        if (t == beat("kick.gordo", 2)) sayPlain("gordo", 30);
+        if (t == beat("kick.boot", 12) && e instanceof MariachiEntity m) {
             m.kick();
             level.playSound(null, m.getX(), m.getY(), m.getZ(), SoundEvents.ZOMBIE_ATTACK_WOODEN_DOOR, SoundSource.HOSTILE, 1.5F, 1.2F);
             Fx.dust(level, m.position(), 1.0, 4);
             crowdReact(level, CrowdMood.ROAR, 25);
         }
-        if (t >= BossState.P2_KICK.duration) {
+        if (t >= beat("kick.end", BossState.P2_KICK.duration)) {
             kickWho = -1;
             setBossState(BossState.P2_WAIT);
-            stateTicks = 41;
+            stateTicks = beat("wait.ay", 40) + 1;
         }
     }
 
@@ -3130,6 +3454,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
      */
     private void tickApology(ServerLevel level) {
         int t = stateTicks;
+        int aura = beat("apology.aura", 110);
         LivingEntity target = getTarget();
         if (target != null) {
             double d = horizontalDist(target.position());
@@ -3138,19 +3463,33 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             } else {
                 getNavigation().stop();
             }
-            if (t < 110) turnToward(target.position(), 8F);
+            if (t < aura) turnToward(target.position(), 8F);
             else turnToward(target.position().add(Vec3.directionFromRotation(0, getYRot() + 90).scale(6)), 2.5F);
         }
-        if (t == 30) sayPlain("apology", 100);
-        if (t == 110) {
+        if (t == beat("apology.line", 30)) sayPlain("apology", 100);
+        if (t == aura) {
             crowdReact(level, CrowdMood.SWOON, 90);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 2.0F, 0.7F);
         }
-        if (t > 110 && t % 6 == 0) {
+        if (t > aura && t % 6 == 0) {
             double a = t * 0.4;
             Fx.glint(level, position().add(Math.cos(a) * 1.4, 0.4 + (t % 30) / 30.0 * getBbHeight(), Math.sin(a) * 1.4), 0.5F, 0xFFE8A0);
         }
-        if (t >= BossState.P2_APOLOGY.duration) setBossState(BossState.P2_RESUME);
+        // the aura farm lasts until "Now... where... were we?" would end right on the singer's first word
+        if (t >= beat("apology.end", BossState.P2_APOLOGY.duration) || (t > aura && songSince(level) >= songFight() - beat("resume.total", 0)))
+            setBossState(BossState.P2_RESUME);
+    }
+
+    /** Ticks since the band's downbeat. */
+    private long songSince(ServerLevel level) {
+        long now = level.getGameTime() & 0x7FFFFFFF;
+        return (now - (songStart & 0x7FFFFFFFL)) & 0x7FFFFFFFL;
+    }
+
+    /** Ticks from the downbeat to the first sung word: the fight. */
+    private static int songFight() {
+        Song song = Song.get();
+        return song != null ? song.fightStartTicks() : 300;
     }
 
     /** Server ticks until the singer's first word (the song's intro passes), from the downbeat. */
@@ -3169,7 +3508,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         LivingEntity target = getTarget();
         if (target != null) turnToward(target.position(), 10F);
-        if (t == 2) sayPlain("resume", 50);
+        if (t == beat("resume.line", 2)) sayPlain("resume", 50);
         if (ticksToSinging(level) <= BossState.P2_HYPE_LENGTH || t > 300) {
             hypeSide = arena != null && getX() > arena.centerVec().x ? 1 : -1;
             setBossState(BossState.P2_HYPE);
@@ -3184,11 +3523,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /**
      * Before the singing (8 s, ending exactly on the first sung word): he turns to the stands on his
-     * side, a hand cupped to his ear: "¡NO LOS OIGO!" (1.0 s) and they roar; not good enough, he
-     * shakes his head and turns to the other side: "¡MÁS FUERTE!" (3.4) and they roar louder; then
-     * raise-the-roof on the beat with the whole bowl chanting his name (4.0-6.0), gold sparks off him
-     * with every pump; round to you, finger out: "¡TÚ!" (6.4); fists together, down into his stance,
-     * and as the place erupts (7.6: fireworks, the ground shaking) the singer comes in and the fight is on.
+     * side, a hand cupped to his ear: "Listen to them... They LOVE me." (0.5 s) and they roar; not loud
+     * enough, he shakes his head and turns to the other side, the other ear, and they roar louder;
+     * then raise-the-roof on the beat with the whole bowl chanting his name (4.0-6.0), gold sparks off
+     * him with every pump, "And the crowd... goes WILD!!!"; round to you, finger out (6.4); fists
+     * together, down into his stance, "OLÉ!!!" as the place erupts (7.5: fireworks, the ground
+     * shaking), and the singer comes in: the fight is on. His lines are his recorded voice (boss2).
      */
     private void tickHype(ServerLevel level) {
         int left = ticksToSinging(level);
@@ -3199,16 +3539,21 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t < 44) turnToward(stands(hypeSide), 9F);
         else if (t < 120) turnToward(stands(-hypeSide), 7F);
         else if (target != null) turnToward(target.position(), 12F);
-        if (t == 18) say("no_los_oigo", 36);
+        // his own voice (recorded lines): "Listen to them... They LOVE me." with a hand to his ear
+        if (t == 10) say("charm1", 60);
         if (t == 32) {
             crowdReact(level, CrowdMood.ROAR, 26);
             PaponNetwork.shake(level, position(), 48, 0.2F, 14);
         }
-        if (t == 66) say("mas_fuerte", 34);
+        if (t == 60) {
+            crowdReact(level, CrowdMood.ROAR, 12);
+            PaponNetwork.shake(level, position(), 48, 0.25F, 12);
+        }
         if (t == 74) {
             crowdReact(level, CrowdMood.ROAR, 10);
             PaponNetwork.shake(level, position(), 48, 0.3F, 16);
         }
+        if (t == 78) say("landed1", 70);           // "And the crowd... goes WILD!!!" over the raise-the-roof
         if (t == 80) crowdReact(level, CrowdMood.CHANT, 50);
         if (t >= 80 && t < 120 && (t - 80) % 10 == 0) {
             // raise the roof, on the beat
@@ -3216,11 +3561,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.NOTE_BLOCK_BASEDRUM.value(), SoundSource.HOSTILE, 1.4F, 0.7F);
             PaponNetwork.shake(level, position(), 48, 0.15F, 6);
         }
-        if (t == 128) {
-            say("tu", 34);
-            crowdReact(level, CrowdMood.GASP, 10);
-        }
+        if (t == 128) crowdReact(level, CrowdMood.GASP, 10);      // the finger, at you
         if (t == 138) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.ANVIL_PLACE, SoundSource.HOSTILE, 1.4F, 0.6F);
+        if (t == 148) say("charm5", 44);           // "OLÉ!!!"
         if (t == 150) {
             crowdReact(level, CrowdMood.ROAR, 70);
             fireworks(level);
@@ -3253,7 +3596,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         MariachiEntity singer = singer(level);
         if (singer != null) turnToward(singer.position(), 10F);
         if (t == 4) {
-            say("solo", 40);
+            say("charm5", 40);                     // "OLÉ!!!"
             crowdReact(level, CrowdMood.SWOON, 50);
         }
         if (t >= BossState.P2_SOLO.duration) {
@@ -4001,7 +4344,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.IDLE);
             think = 16;                          // he lunged at nothing: a moment to punish him
             qteCd = Math.min(qteCd, 160);        // and he tries it again soon; the same one comes round next
-            nextQte = (nextQte + 2) % 3;
+            nextQte = (nextQte + 4) % 5;
         }
     }
 
@@ -4012,6 +4355,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             org.lwjgl.glfw.GLFW.GLFW_KEY_R, org.lwjgl.glfw.GLFW.GLFW_KEY_Y};
     /** Ticks for each key (1.5 s). */
     public static final int QTE_WINDOW = 30;
+    /** The tango's steps: the arrow keys. */
+    private static final int[] TANGO_KEYS = {org.lwjgl.glfw.GLFW.GLFW_KEY_UP, org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN,
+            org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT};
+    /** This QTE's ticks per key. */
+    private int qteWindow = QTE_WINDOW;
+
+    /** Ticks a step of the tango gets: a beat of the song (and a little for the network). */
+    private static int tangoBeat() {
+        Song song = Song.get();
+        if (song == null || song.beats.length < 2) return 12;
+        double beat = (song.beats[song.beats.length - 1] - song.beats[0]) / (song.beats.length - 1);
+        return (int) Math.round(beat * 20) + 3;
+    }
     /** Ticks at the start when presses do not count (you were mid-fight, mashing keys); the first key's clock starts after. */
     public static final int QTE_GRACE = 12;
 
@@ -4019,21 +4375,37 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int kind = entityData.get(DATA_QTE);
         hold(e);
         setDeltaMovement(Vec3.ZERO);
-        int n = kind == 0 ? 3 : kind == 1 ? 4 : 5;
+        int n = switch (kind) {
+            case 0 -> 3;
+            case 1 -> 4;
+            case 3 -> 14;              // mash it
+            case 4 -> 7;               // the tango: seven steps
+            default -> 5;
+        };
+        qteWindow = kind == 3 ? 9 : kind == 4 ? tangoBeat() : QTE_WINDOW;
         qteKeys = new int[n];
+        int mash = QTE_KEYS[random.nextInt(QTE_KEYS.length)];
         for (int i = 0; i < n; i++) {
             int k;
-            do {
-                k = QTE_KEYS[random.nextInt(QTE_KEYS.length)];
-            } while (i > 0 && k == qteKeys[i - 1]);
+            if (kind == 3) {
+                k = mash;
+            } else if (kind == 4) {
+                do {
+                    k = TANGO_KEYS[random.nextInt(TANGO_KEYS.length)];
+                } while (i > 0 && k == qteKeys[i - 1]);
+            } else {
+                do {
+                    k = QTE_KEYS[random.nextInt(QTE_KEYS.length)];
+                } while (i > 0 && k == qteKeys[i - 1]);
+            }
             qteKeys[i] = k;
         }
         qteStep = 0;
         qteResolved = false;
-        say("qte" + kind, 60);
+        say(kind <= 2 ? "qte" + kind : kind == 3 ? "qte1" : "charm0", 60);
         level.playSound(null, getX(), getY(), getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.HOSTILE, 1.6F, 0.5F);
         if (e instanceof ServerPlayer sp) {
-            PaponNetwork.qteStart(sp, getId(), kind, qteKeys, QTE_WINDOW);
+            PaponNetwork.qteStart(sp, getId(), kind, qteKeys, qteWindow);
             PaponNetwork.shake(sp, 0.5F, 10);
         }
         setBossState(BossState.QTE_HOLD);
@@ -4086,7 +4458,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         // the whole sequence plus some slack for the network; anyone who is not a player just fails
-        int limit = 20 + QTE_GRACE + qteKeys.length * (QTE_WINDOW + 8);
+        int limit = 20 + QTE_GRACE + qteKeys.length * (qteWindow + 8);
         if (stateTicks > limit || (!(v instanceof Player) && stateTicks > 50)) endQte(false, false);
     }
 
@@ -4095,9 +4467,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         LivingEntity v = held(level);
         getNavigation().stop();
         setDeltaMovement(0, getDeltaMovement().y, 0);
-        int kind = qteKind();
+        int kind = qteBase();
         if (t == 24 && v != null) {
-            Mechanics.trueHit(v, kind == 0 ? 0.35F : kind == 1 ? 0.25F : 0.40F, this, true);
+            Mechanics.trueHit(v, qteKind() == 3 ? 0.30F : qteKind() == 4 ? 0.45F : kind == 0 ? 0.35F : kind == 1 ? 0.25F : 0.40F, this, true);
             swingHit = true;
             Vec3 at = v.position().add(0, v.getBbHeight() * 0.5, 0);
             switch (kind) {
@@ -4315,69 +4687,319 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
      * everyone toward the circle under it (1.0-4.0 s: walk out against it); then it comes down (4.2 s)
      * on everything inside the circle: two fifths of your health through anything.
      */
+    /**
+     * El Gran Meteoro (9 s): he rises over the middle of the sand, arms up, and calls down a potato almost as
+     * big as his coliseum. It swells in high overhead (2 s), blazing, and looms lower and lower while
+     * everything on the sand is dragged toward the middle, harder the closer you are (sprint for the wall);
+     * the sky goes blood-orange. At 7 s he brings his arms down: it falls (0.5 s). The impact is worst under
+     * it (nearly half your health, through armor), less the further out, and three shockwave rings race out
+     * to the walls: jump them.
+     */
     private void tickGravity(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
-        if (isFlying()) hover(target);
         if (t == 1) {
             Vec3 c = arena != null && arena.built() ? arena.centerVec() : (target != null ? target.position() : position());
             spudFloor = new Vec3(c.x, groundY(c), c.z);
-            BossProp spud = BossProp.create(level, BossProp.Kind.GIANT_SPUD, this, spudFloor.add(0, 9, 0)).life(BossState.P2_GRAVITY.duration + 4);
+            BossProp spud = BossProp.create(level, BossProp.Kind.GIANT_SPUD, this, spudFloor.add(0, METEOR_HIGH, 0))
+                    .life(BossState.P2_GRAVITY.duration + 4);
             level.addFreshEntity(spud);
             spudId = spud.getUUID();
-            com.groid.papon.fx.Fx.sigil(level, spudFloor, 6F, 0xF2C24E, 84);
+            com.groid.papon.fx.Fx.sigil(level, spudFloor, 16F, 0xF2C24E, 150);
             say("gravity", 50);
-            level.playSound(null, spudFloor.x, spudFloor.y + 9, spudFloor.z, SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 3.0F, 0.5F);
+            crowdReact(level, CrowdMood.GASP, 60);
+            level.playSound(null, spudFloor.x, spudFloor.y + 20, spudFloor.z, SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 4.0F, 0.4F);
+            level.playSound(null, spudFloor.x, spudFloor.y + 20, spudFloor.z, SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 3.0F, 0.5F);
         }
         if (spudFloor == null) {
             setBossState(BossState.IDLE);
             return;
         }
-        if (t >= 20 && t < 80) {
-            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(26, 8, 26), this::hittable)) {
-                Vec3 to = spudFloor.subtract(e.position()).multiply(1, 0, 1);
-                double d = to.length();
-                if (d < 0.5) continue;
-                double pull = Math.min(0.11, 0.05 + 1.2 / Math.max(d, 1) * 0.05);
-                e.setDeltaMovement(e.getDeltaMovement().add(to.normalize().scale(pull)));
+        // he holds it up from over the middle of the sand
+        setFlying(true);
+        Vec3 perch = spudFloor.add(0, 6, 0).add(Vec3.directionFromRotation(0, getYRot()).scale(-3));
+        Vec3 to = perch.subtract(position());
+        setDeltaMovement(to.lengthSqr() > 0.04 ? to.scale(0.12) : Vec3.ZERO);
+        if (target != null) turnToward(target.position(), 4F);
+        Entity spud = spudId == null ? null : level.getEntity(spudId);
+        if (spud != null && t < METEOR_FALL) {
+            // looming lower and lower
+            double k = Mth.clamp((t - 40) / (double) (METEOR_FALL - 40), 0, 1);
+            spud.setPos(spudFloor.x, spudFloor.y + METEOR_HIGH - (METEOR_HIGH - METEOR_LOW) * k * k, spudFloor.z);
+        }
+        if (t >= 30 && t < METEOR_FALL + 10) {
+            double reach = arena != null ? Coliseum.A + 6 : 34;
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(reach, 12, reach), this::hittable)) {
+                Vec3 in = spudFloor.subtract(e.position()).multiply(1, 0, 1);
+                double d = in.length();
+                if (d < 0.6) continue;
+                // gentle at the wall, a current in the middle: sprinting outward holds you near the edge, not near him
+                double pull = 0.05 + 0.13 * Math.max(0, 1 - d / reach) * Math.min(1, (t - 30) / 30.0);
+                e.setDeltaMovement(e.getDeltaMovement().add(in.normalize().scale(pull)));
                 e.hurtMarked = true;
             }
-            if (t % 10 == 0) com.groid.papon.fx.Fx.shock(level, spudFloor.add(0, 0.1, 0), 6F, 0xF2C24E);
+            if (t % 8 == 0) com.groid.papon.fx.Fx.shock(level, spudFloor.add(0, 0.1, 0), 10F + (t % 24), 0xF2C24E);
+            if (t % 3 == 0) {
+                // dust streaming in from the walls
+                double a = random.nextDouble() * Math.PI * 2;
+                double r = 14 + random.nextDouble() * 12;
+                com.groid.papon.fx.Fx.dust(level, spudFloor.add(Math.cos(a) * r, 0.2, Math.sin(a) * r), 1.5, 3);
+            }
+            if (t % 14 == 0) {
+                double a = random.nextDouble() * Math.PI * 2;
+                bolt(level, spudFloor.add(Math.cos(a) * (Coliseum.B - 2), 0, Math.sin(a) * (Coliseum.B - 2)));
+            }
+            if (t % 20 == 0) level.playSound(null, spudFloor.x, spudFloor.y + 10, spudFloor.z, SoundEvents.ELYTRA_FLYING, SoundSource.HOSTILE, 2.5F, 0.4F);
         }
-        Entity spud = spudId == null ? null : level.getEntity(spudId);
-        if (spud != null && t >= 80 && t <= 84) {
-            double k = (t - 80) / 4.0;
-            spud.setPos(spudFloor.x, spudFloor.y + 9 - 8.4 * k * k, spudFloor.z);
-        }
-        if (t == 84) {
-            if (spud != null) spud.discard();
-            com.groid.papon.fx.Fx.blast(level, spudFloor.add(0, 0.5, 0), 3.5F);
-            com.groid.papon.fx.Fx.land(level, spudFloor, 7F);
-            com.groid.papon.fx.Fx.chunks(level, spudFloor.add(0, 1, 0), 24, 0.45F, 0xD9AA51, 0.8);
-            PaponNetwork.shake(level, spudFloor, 30, 1.0F, 26);
-            level.playSound(null, spudFloor.x, spudFloor.y, spudFloor.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 3.0F, 0.5F);
-            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(6, 4, 6), this::hittable)) {
-                if (Math.sqrt(e.distanceToSqr(spudFloor.x, e.getY(), spudFloor.z)) > 6 + e.getBbWidth() / 2) continue;
-                if (Mechanics.trueHit(e, 0.4F, this, true)) {
-                    swingHit = true;
-                    Vec3 away = e.position().subtract(spudFloor).multiply(1, 0, 1).normalize();
-                    e.setDeltaMovement(away.scale(1.6).add(0, 0.8, 0));
-                    e.hurtMarked = true;
-                }
+        if (t == METEOR_FALL - 6) {
+            for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(spudFloor, spudFloor).inflate(48), this::hittable)) {
+                p.displayClientMessage(Component.translatable("status.papon.meteor").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), true);
             }
         }
+        if (spud != null && t >= METEOR_FALL && t <= METEOR_FALL + 10) {
+            double k = (t - METEOR_FALL) / 10.0;
+            spud.setPos(spudFloor.x, spudFloor.y + METEOR_LOW - (METEOR_LOW - 3) * k * k, spudFloor.z);
+        }
+        if (t == METEOR_FALL + 10) {
+            com.groid.papon.fx.Fx.flash(level, spudFloor.add(0, 3, 0), 8F);
+            com.groid.papon.fx.Fx.blast(level, spudFloor.add(0, 1, 0), 7F);
+            com.groid.papon.fx.Fx.land(level, spudFloor, 18F);
+            com.groid.papon.fx.Fx.chunks(level, spudFloor.add(0, 3, 0), 70, 0.9F, 0xD9AA51, 1.6);
+            com.groid.papon.fx.Fx.smoke(level, spudFloor.add(0, 2, 0), 12, 4, 3F, 0xEDE6DA);
+            PaponNetwork.shake(level, spudFloor, 72, 1.6F, 44);
+            level.playSound(null, spudFloor.x, spudFloor.y, spudFloor.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 4.0F, 0.4F);
+            level.playSound(null, spudFloor.x, spudFloor.y, spudFloor.z, SoundEvents.DRAGON_FIREBALL_EXPLODE, SoundSource.HOSTILE, 4.0F, 0.5F);
+            level.playSound(null, spudFloor.x, spudFloor.y, spudFloor.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 3.0F, 0.6F);
+            crowdReact(level, CrowdMood.ROAR, 80);
+            for (int i = 0; i < 6; i++) {
+                double a = Math.PI * 2 * i / 6;
+                bolt(level, spudFloor.add(Math.cos(a) * 9, 0, Math.sin(a) * 9));
+            }
+            // the whole sand goes up: blasts, mash and dust in rings out to the walls
+            for (int ring = 0; ring < 3; ring++) {
+                double r = 5 + ring * 7;
+                int n = 8 + ring * 6;
+                for (int i = 0; i < n; i++) {
+                    double a = Math.PI * 2 * i / n + ring * 0.3;
+                    Vec3 at = spudFloor.add(Math.cos(a) * r * 1.3, 0.3, Math.sin(a) * r);
+                    com.groid.papon.fx.Fx.blast(level, at, 2.5F - ring * 0.5F);
+                    com.groid.papon.fx.Fx.chunks(level, at.add(0, 0.5, 0), 4, 0.5F, 0xD9AA51, 0.9);
+                    com.groid.papon.fx.Fx.dust(level, at, 2.5, 5);
+                }
+            }
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(40, 10, 40), this::hittable)) {
+                double d = Math.sqrt(e.distanceToSqr(spudFloor.x, e.getY(), spudFloor.z));
+                float frac = d < 10 ? 0.45F : d < 18 ? 0.25F : e.onGround() ? 0.10F : 0F;
+                if (frac > 0 && Mechanics.trueHit(e, frac, this, true)) {
+                    swingHit = true;
+                    Vec3 away = e.position().subtract(spudFloor).multiply(1, 0, 1).normalize();
+                    e.setDeltaMovement(away.scale(d < 10 ? 2.0 : 1.2).add(0, d < 10 ? 1.0 : 0.6, 0));
+                    e.hurtMarked = true;
+                    if (d < 10) Mechanics.stun(e);
+                }
+            }
+            if (spud != null) spud.discard();
+            meteorRings.clear();
+            for (int i = 0; i < 3; i++) meteorRings.add(new double[]{-i * 7.0});
+        }
+        if (t > METEOR_FALL + 10 && !meteorRings.isEmpty()) tickMeteorRings(level);
         if (t >= BossState.P2_GRAVITY.duration) {
             spudFloor = null;
+            meteorRings.clear();
+            setFlying(isRisen());
             setBossState(BossState.IDLE);
         }
     }
 
+    private static final int METEOR_HIGH = 44, METEOR_LOW = 20, METEOR_FALL = 140;
+    /** The shockwave rings after the impact: each its radius (starting below 0 to stagger them). */
+    private final List<double[]> meteorRings = new java.util.ArrayList<>();
+    private final java.util.Set<java.util.UUID> ringHit = new java.util.HashSet<>();
+
+    /** Three rings racing out across the sand to the walls: anyone standing where one passes is hit. */
+    private void tickMeteorRings(ServerLevel level) {
+        for (double[] r : meteorRings) {
+            double was = r[0];
+            r[0] += 1.4;
+            if (r[0] <= 0 || was > Coliseum.A + 2) continue;
+            if (was <= 0) ringHit.clear();
+            com.groid.papon.fx.Fx.shock(level, spudFloor.add(0, 0.15, 0), (float) r[0], 0xFFD27A);
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(spudFloor, spudFloor).inflate(r[0] + 1, 3, r[0] + 1), this::hittable)) {
+                double d = Math.sqrt(e.distanceToSqr(spudFloor.x, e.getY(), spudFloor.z));
+                if (d < was - 0.8 || d > r[0] + 0.8 || !e.onGround() || !ringHit.add(e.getUUID())) continue;
+                if (Mechanics.trueHit(e, 0.08F, this, true)) {
+                    Vec3 away = e.position().subtract(spudFloor).multiply(1, 0, 1).normalize();
+                    e.setDeltaMovement(away.scale(0.9).add(0, 0.55, 0));
+                    e.hurtMarked = true;
+                }
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ his props report in
+
+    /**
+     * La Freidora: up off the sand and down in a double stomp (0.7 s, 1.2 s): at the first the sand cracks and
+     * glows in a pattern (rings, halves, a checkerboard, a cross, or a pool under each of you), and 1.5 s later
+     * it is frying oil for 5.5 s while he carries on. "¡A LA PARRILLA!"
+     */
+    private void tickArenaFryer(ServerLevel level, @Nullable LivingEntity target) {
+        int t = stateTicks;
+        getNavigation().stop();
+        if (target != null) turnToward(target.position(), 8F);
+        if (t == 14 && arena != null && freidora == null) {
+            List<Vec3> players = level.getEntitiesOfClass(ServerPlayer.class, arena.bounds(), this::hittable).stream().map(p -> p.position()).toList();
+            Freidora.Pattern[] all = Freidora.Pattern.values();
+            Freidora.Pattern p = farTicks > 80 ? Freidora.Pattern.HUNT : all[random.nextInt(all.length)];
+            if (p == Freidora.Pattern.HUNT && players.isEmpty()) p = Freidora.Pattern.RINGS;     // nobody to put a pool under
+            freidora = Freidora.start(level, arena, p, players, random);
+            landImpact(level, position(), 3.0F, 0F, 0.4F);
+            PaponNetwork.shake(level, position(), 40, 0.6F, 14);
+            say("toss", 40);
+        }
+        if (t == 24) {
+            landImpact(level, position(), 2.5F, 0F, 0.3F);
+            PaponNetwork.shake(level, position(), 40, 0.4F, 10);
+        }
+        if (t >= BossState.ARENA_FRYER.duration) {
+            think = 4;
+            setBossState(BossState.IDLE);
+        }
+    }
+
+    /**
+     * El Machacador: he flies up over the sand and hauls down a potato masher as big as it (seen from
+     * 2.3 s high up, looming; its holes glow green on the sand). At 4.0 s it comes down: anyone under the
+     * metal is mashed (over a third of their health through armor, stunned); anyone under a hole is not.
+     * It lifts away again from 4.8 s.
+     */
+    private void tickMasher(ServerLevel level, @Nullable LivingEntity target) {
+        int t = stateTicks;
+        Vec3 c = arena != null ? new Vec3(arena.centerVec().x, arena.floorY(), arena.centerVec().z) : position();
+        setFlying(true);
+        Vec3 perch = c.add(0, 18, 0).add(Vec3.directionFromRotation(0, getYRot()).scale(-6));
+        Vec3 to = perch.subtract(position());
+        setDeltaMovement(to.lengthSqr() > 0.04 ? to.scale(0.15) : Vec3.ZERO);
+        if (target != null) turnToward(target.position(), 4F);
+        BossProp masher = masherId != null && level.getEntity(masherId) instanceof BossProp b ? b : null;
+        if (t == 1) {
+            masher = BossProp.create(level, BossProp.Kind.MASHER, this, c.add(0, 46, 0)).life(BossState.P2_MASHER.duration + 4);
+            masher.setYRot(random.nextFloat() * 90F);
+            masher.setRadius(46F);
+            level.addFreshEntity(masher);
+            masherId = masher.getUUID();
+            say("qte2", 50);
+            crowdReact(level, CrowdMood.GASP, 50);
+            level.playSound(null, c.x, c.y + 30, c.z, SoundEvents.ANVIL_PLACE, SoundSource.HOSTILE, 3.0F, 0.4F);
+        }
+        if (masher == null) {
+            setBossState(BossState.IDLE);
+            return;
+        }
+        float yaw = masher.getYRot();
+        double h;
+        if (t < 46) {
+            double k = t / 46.0;
+            h = 46 - 30 * (1 - (1 - k) * (1 - k));
+        } else if (t < 80) {
+            h = 16 + Math.sin(t * 0.9) * 0.15;
+            if (t % 14 == 0) level.playSound(null, c.x, c.y + h, c.z, SoundEvents.CHAIN_PLACE, SoundSource.HOSTILE, 3.0F, 0.5F);
+        } else if (t < 86) {
+            double k = (t - 80) / 6.0;
+            h = 16 - 15.7 * k * k;
+        } else if (t < 96) {
+            h = 0.3;
+        } else {
+            double k = (t - 96) / 14.0;
+            h = 0.3 + 50 * k * k;
+        }
+        masher.setPos(c.x, c.y + h, c.z);
+        masher.setRadius((float) h);
+        if (t >= 10 && t < 80 && t % 10 == 0) {
+            for (Vec3 hole : Masher.holes(yaw)) com.groid.papon.fx.Fx.warn(level, c.add(hole), 2.2F, 0x6CFF6A, 12);
+        }
+        if (t == 66) {
+            for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(c, c).inflate(40, 12, 40), this::hittable)) {
+                p.displayClientMessage(Component.translatable("status.papon.masher").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD), true);
+            }
+        }
+        if (t == 86) {
+            PaponNetwork.shake(level, c, 72, 1.5F, 36);
+            com.groid.papon.fx.Fx.land(level, c, 16F);
+            com.groid.papon.fx.Fx.chunks(level, c.add(0, 1, 0), 60, 0.8F, 0xEED69C, 1.4);
+            level.playSound(null, c.x, c.y, c.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 4.0F, 0.4F);
+            level.playSound(null, c.x, c.y, c.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 3.0F, 0.6F);
+            crowdReact(level, CrowdMood.ROAR, 70);
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(Masher.HALF_X + 4, 6, Masher.HALF_X + 4), this::hittable)) {
+                Vec3 off = e.position().subtract(c);
+                Vec3 local = Masher.toLocal(off.x, off.z, yaw);
+                if (Math.abs(local.x) > Masher.HALF_X || Math.abs(local.z) > Masher.HALF_Z) continue;
+                if (Masher.safe(yaw, off, e.getBbWidth() * 0.3)) {
+                    com.groid.papon.fx.Fx.dust(level, e.position(), 1.2, 6);
+                    continue;
+                }
+                if (Mechanics.trueHit(e, 0.36F, this, true)) {
+                    swingHit = true;
+                    Mechanics.stun(e);
+                    e.addEffect(new MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 80, 2, false, true));
+                    com.groid.papon.fx.Fx.splat(level, e.position(), 1.6F, 0xEED69C, 160);
+                }
+            }
+        }
+        if (t >= BossState.P2_MASHER.duration) {
+            masher.discard();
+            masherId = null;
+            setFlying(isRisen());
+            setBossState(BossState.IDLE);
+        }
+    }
+
+    /** ¡Abucheo!: he turns to the stands, arms up, thumbs down (1.0 s), and they start throwing (7 s). */
+    private void tickArenaHeckle(ServerLevel level, @Nullable LivingEntity target) {
+        int t = stateTicks;
+        getNavigation().stop();
+        if (t == 2) crowdReact(level, CrowdMood.BOO, 160);
+        if (t == 20) {
+            heckleTicks = 140;
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 1.0F, 1.6F);
+        }
+        if (target != null && t > 22) turnToward(target.position(), 10F);
+        if (t >= BossState.ARENA_HECKLE.duration) {
+            think = 2;
+            setBossState(BossState.IDLE);
+        }
+    }
+
+    /** The stands throwing produce at whoever is on the sand, lobbed from all round the bowl. */
+    private void tickHeckleBarrage(ServerLevel level) {
+        heckleTicks--;
+        if (arena == null || heckleTicks % 3 != 0) return;
+        List<ServerPlayer> on = level.getEntitiesOfClass(ServerPlayer.class, arena.bounds(), this::hittable);
+        if (on.isEmpty()) return;
+        ServerPlayer p = on.get(random.nextInt(on.size()));
+        double a = random.nextDouble() * Math.PI * 2;
+        double d = 4 + random.nextDouble() * 10;
+        Vec3 c = arena.centerVec();
+        Vec3 from = new Vec3(c.x + Math.cos(a) * (Coliseum.A + d), arena.floorY() + 3 + d * 0.9, c.z + Math.sin(a) * (Coliseum.B + d));
+        int time = 22 + random.nextInt(12);
+        Vec3 to = predict(p, time).add((random.nextDouble() - 0.5) * 2.5, 0, (random.nextDouble() - 0.5) * 2.5);
+        double g = 0.06;
+        Vec3 v = new Vec3((to.x - from.x) / time, (to.y + 0.5 - from.y + 0.5 * g * time * time) / time, (to.z - from.z) / time);
+        level.addFreshEntity(BossProp.create(level, BossProp.Kind.PRODUCE, this, from).velocity(v).life(time + 30));
+    }
 
     /** A prop of his touched {@code e}: what that costs them. */
     public void propHit(BossProp p, LivingEntity e) {
         if (!(level() instanceof ServerLevel level)) return;
         Vec3 at = e.position().add(0, e.getBbHeight() * 0.6, 0);
         switch (p.kind()) {
+            case PRODUCE -> {
+                if (Mechanics.trueHit(e, 0.025F, this, true)) {
+                    e.addEffect(new MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 30, 1, false, true));
+                    com.groid.papon.fx.Fx.splat(level, e.position(), 0.6F, 0xC0281C, 60);
+                    com.groid.papon.fx.Fx.chunks(level, at, 5, 0.2F, 0xC0281C, 0.3);
+                    level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 1.2F, 1.2F);
+                }
+            }
             case CLEAVER, CLEAVER_DART -> {
                 if (strike(e, 9F, ModDamage.SPATULA, false)) {
                     Mechanics.poison(e, 120);
@@ -4405,6 +5027,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** A prop of his came down at {@code at} (a tot burst, a meteor landing). */
     public void propLand(BossProp p, Vec3 at) {
         if (!(level() instanceof ServerLevel level)) return;
+        if (p.kind() == BossProp.Kind.PRODUCE) {
+            com.groid.papon.fx.Fx.splat(level, at, 0.7F, Math.floorMod(p.getId(), 4) == 0 ? 0xC0281C : 0xD9AA51, 80);
+            level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 1.0F, 0.9F + random.nextFloat() * 0.3F);
+            return;
+        }
         boolean big = p.kind() == BossProp.Kind.TOT || p.kind() == BossProp.Kind.METEOR;
         float r = p.kind() == BossProp.Kind.METEOR ? 2.6F : big ? 2.4F : 1.6F;
         com.groid.papon.fx.Fx.blast(level, at, big ? 1.5F : 0.9F);
@@ -4602,11 +5229,29 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         float cap = getMaxHealth() * PaponConfig.HIT_CAP.get().floatValue() * (s == BossState.QTE_BROKEN ? 2F : 1F);
         amount = Math.min(amount, cap);
+        // his composure: past a burst's worth, hits glance off (big damage does not skip the mechanics)
+        boolean open = s == BossState.STAGGER || s == BossState.EXIT_STUMBLE || s == BossState.QTE_BROKEN;
+        float room = Math.max(0, getMaxHealth() * PaponConfig.BURST_CAP.get().floatValue() * (open ? 2.5F : 1F) - burst);
+        if (amount > room) {
+            capHits += 1;
+            composure(attacker);
+            amount = room;
+            if (amount < 0.05F) return false;
+        }
+        if (attacker instanceof Player p && p.distanceTo(this) < 4.5 && level() instanceof ServerLevel level && pressed(p, s)) {
+            setBossState(BossState.SALSA_BURST);
+            saltBurstCd = isPhaseTwo() ? 120 : 180;
+            return false;
+        }
         boolean hurt = super.hurt(source, amount);
-        if (hurt) recentHurt += amount / getMaxHealth();
+        if (hurt) {
+            recentHurt += amount / getMaxHealth();
+            burst += amount;
+        }
         if (hurt && attacker instanceof Player && crowdBooCd <= 0 && amount > getMaxHealth() * 0.008F && level() instanceof ServerLevel level) {
             crowdBooCd = 70;
             crowdReact(level, CrowdMood.BOO, 45);
+            quip("hit" + random.nextInt(2), 0.2F);
         }
         if (hurt && !isPhaseTwo() && !phaseDue && getHealth() <= getMaxHealth() * PHASE_TWO_AT && getHealth() > 0) phaseDue = true;
         return hurt;
@@ -4752,7 +5397,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private PlayState animateForm(AnimationState<PaponBossEntity> event) {
         BossState s = getBossState();
         if (s == BossState.P2_SCREAM) return event.setAndContinue(F_SPROUT);
-        if (s == BossState.P2_APOLOGY && ticksInState() > 100 || s == BossState.P2_HYPE) return event.setAndContinue(F_AURA);
+        if (s == BossState.P2_APOLOGY && ticksInState() > beat("apology.aura", 100) || s == BossState.P2_HYPE) return event.setAndContinue(F_AURA);
         if (!isRisen()) return PlayState.STOP;
         RawAnimation next = switch (s) {
             case VAN_GRAB, VAN_THROW, P2_METEOR -> F_LIFT;
@@ -4826,6 +5471,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case GRAB_COMBO -> A_GRAB_COMBO;
             case GUARD -> A_GUARD;
             case RIPOSTE -> A_RIPOSTE;
+            case SALSA_BURST -> A_SALSA_BURST;
+            case ARENA_FRYER -> A_ARENA_FRYER;
+            case ARENA_HECKLE -> A_ARENA_HECKLE;
+            case P2_MASHER -> A_P2_MASHER;
             case EVADE -> A_EVADE;
             case CLEAVER_TOSS -> A_CLEAVER_TOSS;
             case BURRITO_TOSS -> A_BURRITO_TOSS;
@@ -4836,8 +5485,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case BRICK -> A_BRICK;
             case VAN_HOP -> event.isMoving() ? RUN : A_LEAP;
             case QTE_GRAB -> A_GRAB;
-            case QTE_HOLD -> A_QTE_HOLD[Mth.clamp(qteKind(), 0, 2)];
-            case QTE_FAIL -> A_QTE_FAIL[Mth.clamp(qteKind(), 0, 2)];
+            case QTE_HOLD -> A_QTE_HOLD[qteBase()];
+            case QTE_FAIL -> A_QTE_FAIL[qteBase()];
             case QTE_BROKEN -> A_QTE_BROKEN;
             case P2_FRY_VOLLEY -> A_FRY_VOLLEY;
             case P2_MASH -> A_MASH;
@@ -4871,6 +5520,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         tag.putBoolean("BandWoken", bandWoken);
         tag.putInt("SongStart", songStart);
         if (home != null) tag.put("Home", NbtUtils.writeBlockPos(BlockPos.containing(home)));
+        if (portalAt != null) {
+            tag.putDouble("PortalX", portalAt.x);
+            tag.putDouble("PortalY", portalAt.y);
+            tag.putDouble("PortalZ", portalAt.z);
+            tag.putFloat("PortalYaw", portalYaw);
+        }
         if (vanId != null) tag.putUUID("Van", vanId);
     }
 
@@ -4887,6 +5542,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (isRisen()) foilCd = 40;
         if (isPhaseTwo()) bossEvent.setName(Component.translatable(BAR_KEY + ".phase2"));
         if (tag.contains("Home")) home = Vec3.atBottomCenterOf(NbtUtils.readBlockPos(tag.getCompound("Home")));
+        if (tag.contains("PortalX")) {
+            portalAt = new Vec3(tag.getDouble("PortalX"), tag.getDouble("PortalY"), tag.getDouble("PortalZ"));
+            portalYaw = tag.getFloat("PortalYaw");
+        }
         vanId = tag.hasUUID("Van") ? tag.getUUID("Van") : null;
         entityData.set(DATA_STATE, BossState.IDLE.ordinal());
         setNoGravity(false);

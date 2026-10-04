@@ -22,6 +22,8 @@ public final class PaponConfig {
     public static final ForgeConfigSpec.IntValue VAN_STUN_TICKS;
     public static final ForgeConfigSpec.DoubleValue HIT_CAP;
     public static final ForgeConfigSpec.DoubleValue TRUE_DAMAGE;
+    public static final ForgeConfigSpec.DoubleValue BURST_CAP;
+    public static final ForgeConfigSpec.DoubleValue ARMOR_PIERCE;
     public static final ForgeConfigSpec.BooleanValue CINEMATICS;
     public static final ForgeConfigSpec.BooleanValue BOSS_MUSIC;
 
@@ -74,6 +76,13 @@ public final class PaponConfig {
         TRUE_DAMAGE = b.comment("Multiplier on his mechanics' damage: the hits that take a share of your maximum health through",
                         "armor (drunken attacks, Habanero, the burrito, the gravity spud). Independent of damageMultiplier.")
                 .defineInRange("trueDamageMultiplier", 1.0, 0.0, 10.0);
+        BURST_CAP = b.comment("His composure: the most of his maximum health he can lose in a burst (it drains 2.5% a tick, so",
+                        "0.04 lets about 2% a second through). Past it, hits glance off: big damage does not skip his mechanics.",
+                        "Staggered or stumbling he can lose two and a half times as much. 1.0 turns it off.")
+                .defineInRange("burstCapFraction", 0.04, 0.001, 1.0);
+        ARMOR_PIERCE = b.comment("His heavy hits also take this share of your maximum health, through armor (more in phase two):",
+                        "no amount of armor lets you stand and trade with him. 0 turns it off.")
+                .defineInRange("armorPierceFraction", 0.06, 0.0, 1.0);
         CINEMATICS = b.comment("Play the unmasking and the boss intro as cutscenes (camera, letterbox) for players nearby.")
                 .define("cinematics", true);
         BOSS_MUSIC = b.comment("Play the mariachi boss music during the fight.")

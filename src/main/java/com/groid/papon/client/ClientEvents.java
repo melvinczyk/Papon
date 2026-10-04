@@ -65,6 +65,15 @@ public final class ClientEvents {
         } else if (s == com.groid.papon.boss.BossState.P2_SCREAM) {
             k = 0.75F;
             r = 0.85F; g = 0.22F; b = 0.08F;
+        } else if (s == com.groid.papon.boss.BossState.P2_GRAVITY) {
+            // El Gran Meteoro: the sky goes blood-orange as it looms, and white at the impact
+            if (t >= 150 && t < 158) {
+                k = 1F - (t - 150) / 8F;
+                r = 1F; g = 0.97F; b = 0.85F;
+            } else {
+                k = Math.min(1F, Math.max(0, (t - 5) / 60F)) * 0.8F * (t > 158 ? Math.max(0, 1F - (t - 158) / 20F) : 1F);
+                r = 0.95F; g = 0.36F; b = 0.10F;
+            }
         } else if (s == com.groid.papon.boss.BossState.P2_KNEEL || s == com.groid.papon.boss.BossState.P2_TALK) {
             k = Math.min(1F, t / 40F) * 0.35F;
             r = 0.25F; g = 0.05F; b = 0.05F;

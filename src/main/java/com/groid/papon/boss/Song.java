@@ -21,11 +21,14 @@ import java.util.List;
  * and the guitar's strums.
  *
  * Times are seconds in the original recording. The server only needs the intro: the fight starts
- * when the singer starts to sing, after {@link #INTRO_PASSES} passes of the guitar intro (the close-up,
- * his apology, and him getting the stands going).
+ * when the singer starts to sing, after {@link #introPasses} passes of the guitar intro (the close-up, his apology and
+ * aura farm, "where were we?", and him working the stands up).
  */
 public final class Song {
-    public static final int INTRO_PASSES = 3;
+    /** Passes of the guitar intro before he sings: at least two, more if his apology and aura farm need the room (VoiceLines). */
+    public static int introPasses() {
+        return VoiceLines.beat("song.passes", 2);
+    }
 
     public record Segment(int index, String id, double start, double length, double pre, String level, float energy, boolean sung) {
         public double end() {
@@ -128,7 +131,7 @@ public final class Song {
 
     /** Ticks from the song's first downbeat to the first sung word (the guitar intro, twice). */
     public int fightStartTicks() {
-        return (int) Math.round(intro().length * INTRO_PASSES * 20);
+        return (int) Math.round(intro().length * introPasses() * 20);
     }
 
     /** Index of the beat at or before {@code t}, plus how far into it (0..1); negative before the first. */

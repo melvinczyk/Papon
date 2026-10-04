@@ -47,6 +47,10 @@ public final class AutoShot {
     private static final boolean FIGHT = MODE.equals("fight");
     /** -Pautoshot=coliseum: phase two from the kneel: the coliseum, the band asleep, woken, the count, the song, the fight, the crowd. */
     private static final boolean COLISEUM = MODE.equals("coliseum");
+    /** -Pautoshot=voice: phase two's cutscene for his voice: shots of his face on every line, each line's start and end logged against its state. */
+    private static final boolean VOICE = MODE.equals("voice");
+    /** -Pautoshot=arena: into the coliseum, then the arena attacks one by one (meteor, fryer, masher, heckle, salsa burst), containment and the portal checked. */
+    private static final boolean ARENA = MODE.equals("arena");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -76,8 +80,9 @@ public final class AutoShot {
             fight(mc);
             return;
         }
-        if (COLISEUM) {
+        if (COLISEUM || VOICE || ARENA) {
             coliseum(mc);
+            if (VOICE) voice(mc);
             return;
         }
         if (REWORK) {
@@ -330,6 +335,10 @@ public final class AutoShot {
         };
         if (n != null) once(mc, n);
         if (s == BossState.IDLE && b.isPhaseTwo() && colMark < 0 && taken.contains("c25_where_were_we")) colMark = tick;
+        if (colMark > 0 && ARENA) {
+            arenaTour(mc, b, tick - colMark);
+            return;
+        }
         // the band, member by member, while they play (from the front, a few blocks off)
         if (colMark > 0) bandShots(mc, b, tick - colMark);
         if (colMark > 0) {
@@ -359,6 +368,16 @@ public final class AutoShot {
             if (k == 122) tpLook(b.position().add(0, 1, 6), b.position().add(-18, 9, 16));
             if (k == 132) shot(mc, "c42_stands_south");
             if (k == 134) PaponMod.LOG.info("[autoshot] stands fps {}", mc.getFps());
+            if (VOICE && k >= 136 && k <= 166) {
+                // eye calibration: from in front of him, off to his left, then his right; his eyes should follow
+                Vec3 fwd = Vec3.directionFromRotation(0, b.yBodyRot);
+                Vec3 left = new Vec3(fwd.z * -1, 0, fwd.x).scale(-1);       // MC: facing +z, +x is on your left
+                Vec3 face = b.position().add(0, b.getBbHeight() * 0.72, 0);
+                if (k == 136) tpLook(face.add(fwd.scale(3.2)).add(left.scale(2.6)).add(0, -1.6, 0), face);
+                if (k == 148) shot(mc, "v_gaze_his_left");
+                if (k == 150) tpLook(face.add(fwd.scale(3.2)).add(left.scale(-2.6)).add(0, -1.6, 0), face);
+                if (k == 162) shot(mc, "v_gaze_his_right");
+            }
             if (k == 470) run("gamemode spectator");
             if (k == 474) tpLook(b.position().add(0, 50, 75), b.position());
             if (k == 490) shot(mc, "c45_outside_high");
@@ -424,6 +443,101 @@ public final class AutoShot {
             if (k == at[i]) tpLook(eye.add(f.scale(back[i])).add(side.scale(i == 2 ? -1.6 : 0.6)).add(0, -1.62, 0), eye);
             if (k == at[i] + 8 || k == at[i] + 20 || k == at[i] + 32) shot(mc, names[i] + "_" + (k - at[i]));
         }
+    }
+
+    /** The arena attacks, each forced in turn and shot from over the sand. */
+    private static void arenaTour(Minecraft mc, PaponBossEntity b, int k) {
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        Vec3 c = b.position();
+        if (k == 2) {
+            run("gamemode creative");          // a spectator is nobody to him: the coliseum would come down
+            PaponMod.LOG.info("[arena] portals: {}", mc.level.getEntitiesOfClass(com.groid.papon.boss.ArenaPortalEntity.class,
+                    mc.player.getBoundingBox().inflate(512)).size());
+            run("execute at @e[type=papon:papon_boss,limit=1] run summon minecraft:phantom ~ ~6 ~", "execute at @e[type=papon:papon_boss,limit=1] run summon minecraft:zombie ~4 ~ ~4");
+        }
+        if (k == 30) PaponMod.LOG.info("[arena] foreign mobs left near the boss: {}", mc.level.getEntitiesOfClass(net.minecraft.world.entity.monster.Monster.class,
+                b.getBoundingBox().inflate(40)).size());
+        if (k == 32 || k == 312) {
+            mc.player.getAbilities().flying = true;
+            mc.player.onUpdateAbilities();
+            tpLook(c.add(0, 16, 30), c.add(0, 8, 0));
+        }
+        if (k == 40) run("papon bossstate P2_GRAVITY");
+        if (s == BossState.P2_GRAVITY) {
+            if (t == 30) shot(mc, "a01_meteor_swell");
+            if (t == 100) shot(mc, "a02_meteor_looms");
+            if (t == 145) shot(mc, "a03_meteor_falls");
+            if (t == 151) shot(mc, "a04_meteor_impact");
+            if (t == 162) shot(mc, "a05_meteor_rings");
+        }
+        if (k == 240) run("papon bossstate ARENA_FRYER");
+        if (s == BossState.ARENA_FRYER && t == 20) shot(mc, "a06_fryer_warn");
+        if (k == 300) shot(mc, "a07_fryer_oil");
+        if (k == 304) {
+            tpLook(c.add(3, 3, 6), c.add(0, 0, -6));
+            shot(mc, "a07b_fryer_low");
+        }
+        if (k == 420) run("papon bossstate P2_MASHER");
+        if (s == BossState.P2_MASHER) {
+            if (t == 40) shot(mc, "a08_masher_looms");
+            if (t == 75) shot(mc, "a09_masher_holes");
+            if (t == 88) shot(mc, "a10_masher_slam");
+        }
+        if (k == 556) {
+            run("gamemode survival");
+            run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~8");
+        }
+        if (k == 560) run("papon bossstate ARENA_HECKLE");
+        if (s == BossState.ARENA_HECKLE && t == 30) shot(mc, "a11_heckle");
+        if (k == 610) shot(mc, "a12_heckle_rain");
+        if (k == 640) {
+            run("gamemode survival");
+            run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ^ ^ ^3");
+        }
+        if (k == 646) run("papon bossstate SALSA_BURST");
+        if (s == BossState.SALSA_BURST && t == 8) {
+            mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+            shot(mc, "a13_salsa_charge");
+        }
+        if (s == BossState.SALSA_BURST && t == 12) shot(mc, "a14_salsa_burst");
+        if (k == 700) {
+            mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            run("kill @e[type=papon:papon_boss]");
+        }
+        if (k == 760) PaponMod.LOG.info("[arena] portals after his fall: {}", mc.level.getEntitiesOfClass(com.groid.papon.boss.ArenaPortalEntity.class,
+                mc.player.getBoundingBox().inflate(512)).size());
+        if (k == 780) mc.stop();
+    }
+
+    @Nullable private static com.groid.papon.boss.VoiceLines.Line lastLine;
+    private static int lastLineTick;
+    @Nullable private static com.groid.papon.boss.VoiceLines.Line endedLine;
+
+    /** On top of the coliseum run: every line he says, when, in what state, and whether it ends before the state does; his face mid-line. */
+    private static void voice(Minecraft mc) {
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b == null) return;
+        var line = b.talking();
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        if (line != null && line != lastLine && line != endedLine) {
+            lastLine = line;
+            endedLine = null;
+            lastLineTick = tick;
+            PaponMod.LOG.info("[voice] {} starts at {} t{} ({} t long, mood {})", line.id(), s, t, line.ticks(), line.mood());
+        }
+        if (lastLine != null && tick - lastLineTick == lastLine.ticks()) {
+            PaponMod.LOG.info("[voice] {} ends at {} t{}", lastLine.id(), s, t);
+            endedLine = lastLine;
+            lastLine = null;
+        }
+        if (line != null) {
+            int into = tick - lastLineTick;
+            if (into == 8 || into == line.ticks() / 2) once(mc, "v_" + line.id() + "_" + (into == 8 ? "a" : "b"));
+        }
+        if (s == BossState.P2_APOLOGY && t == com.groid.papon.boss.VoiceLines.beat("apology.wink", 144) + 6) once(mc, "v_wink");
+        if (s == BossState.P2_SEASON && t == com.groid.papon.boss.VoiceLines.beat("season.kiss", 96)) once(mc, "v_chefs_kiss");
     }
 
     private static void tpLook(Vec3 at, Vec3 look) {

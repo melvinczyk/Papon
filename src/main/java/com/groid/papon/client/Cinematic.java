@@ -3,6 +3,7 @@ package com.groid.papon.client;
 import com.groid.papon.PaponConfig;
 import com.groid.papon.boss.BossState;
 import com.groid.papon.boss.PaponBossEntity;
+import com.groid.papon.boss.VoiceLines;
 import com.groid.papon.entity.npc.TacoVendorEntity;
 import com.groid.papon.entity.npc.VendorState;
 import net.minecraft.client.CameraType;
@@ -336,9 +337,12 @@ public final class Cinematic {
                 yield new Shot(eye.add(0, Math.sin(t * 0.3) * 0.02, 0), look, 62, sway, t == 28);
             }
             case P2_TALK -> {
-                double rise = t < 40 ? 0 : Math.min(1, (t - 40) / 18.0);
-                Vec3 at = face.add(0, rise * 0.5, 0);
-                yield new Shot(at.add(f.scale(2.6 - t / 70.0 * 0.5)).add(0, -0.25, 0), at.add(0, 0.05, 0), 42, 0, t == 0);
+                int up = VoiceLines.beat("talk.enough", 40);
+                double rise = t < up ? 0 : Math.min(1, (t - up) / 18.0);
+                // eyes to mouth in frame: aimed between them, far enough back that his 1.5x face fits
+                Vec3 at = face.add(0, rise * 0.5 - 0.3, 0);
+                double push = t / (double) VoiceLines.beat("talk.end", 70);
+                yield new Shot(at.add(f.scale(3.6 - push * 0.5)).add(0, -0.1, 0), at.add(0, 0.05, 0), 42, 0, t == 0);
             }
             case P2_SEASON -> {
                 double orbit = Math.toRadians(-40 + t * 0.9);
@@ -350,7 +354,8 @@ public final class Cinematic {
                         t >= 80 && t < 90 ? (float) Math.sin(t * 2.1) * 4F : 0, t == 0);
             }
             case P2_SCREAM -> {
-                if (t >= 56) flashTarget = Math.min(1F, (t - 56) / 12F);
+                int out = VoiceLines.beat("scream.end", 70) - 14;          // the white-out as the scream ends
+                if (t >= out) flashTarget = Math.min(1F, (t - out) / 12F);
                 if (t < 15) yield new Shot(face.add(f.scale(2.2)).add(0, 0.2, 0), face.add(0, 0.25, 0), 40, 0, t == 0);
                 if (t < 40) {
                     double k = Math.min(1, (t - 15) / 8.0);
@@ -417,16 +422,19 @@ public final class Cinematic {
                     Vec3 to = b.position().add(stageFacing.scale(13)).add(0, 4, 0);
                     return new Shot(from.lerp(to, k), body, 62 - (float) k * 8, 0, t == 0);
                 }
-                if (t < 70) {
-                    double orbit = Math.toRadians(-30 + (t - 40) * 1.4);
+                int musica = VoiceLines.beat("arrive.musica", 74) - 4;
+                if (t < musica) {
+                    double orbit = Math.toRadians(-30 + (t - 40) * 1.4 * 30.0 / Math.max(30, musica - 40));
                     Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
                     return new Shot(b.position().add(dir.scale(7.5)).add(0, 0.6, 0), face, 58, 0, t == 40);
                 }
-                return new Shot(b.position().subtract(f.scale(4.2)).add(right.scale(1.6)).add(0, 3.4, 0), stage.add(0, 1.2, 0), 56, 0, t == 70);
+                return new Shot(b.position().subtract(f.scale(4.2)).add(right.scale(1.6)).add(0, 3.4, 0), stage.add(0, 1.2, 0), 56, 0, t == musica);
             }
             case P2_NOTICE -> {
-                if (t < 26) return new Shot(stage.add(stageFacing.scale(8.5)).add(0, 2.6, 0), stage.add(0, 1.0, 0), 52, 0, t == 0);
-                return new Shot(face.add(f.scale(4.6 - (t - 26) / 34.0 * 0.8)).add(0, -0.1, 0), face, 44, 0, t == 26);
+                int cut = VoiceLines.beat("notice.maestro", 6) + 20;      // the band asleep through his first "Maestro...?"
+                if (t < cut) return new Shot(stage.add(stageFacing.scale(8.5)).add(0, 2.6, 0), stage.add(0, 1.0, 0), 52, 0, t == 0);
+                double len = Math.max(20, VoiceLines.beat("notice.end", 60) - cut);
+                return new Shot(face.add(f.scale(4.6 - (t - cut) / len * 0.8)).add(0, -0.1, 0), face, 44, 0, t == cut);
             }
             case P2_MARCH -> {
                 return new Shot(body.add(right.scale(6.5)).add(f.scale(1.5)).add(0, 0.8, 0), body, 58, 0, t == 0);
@@ -435,6 +443,7 @@ public final class Cinematic {
                 Vec3 head = singer != null ? singer.position().add(0, singer.getBbHeight() * 0.9, 0) : stage.add(0, 2, 0);
                 if (t < 12) return new Shot(b.position().subtract(f.scale(5.6)).add(right.scale(3.6)).add(0, b.getBbHeight() + 1.4, 0), head, 56, 0, t == 0);
                 if (t < 34) {
+                    // side on: the whack, and the singer going up in the air
                     Vec3 mid = b.position().lerp(singer != null ? singer.position() : stage, 0.5);
                     Vec3 side = new Vec3(-f.z, 0, f.x);
                     double push = (t - 12) / 22.0;
@@ -442,9 +451,13 @@ public final class Cinematic {
                             t >= 14 && t < 18 ? (float) Math.sin(t * 2.5) * 3F : 0, t == 12);
                 }
                 // the band jolting awake: from out front and off to the side, high, clear of him
-                if (t < 56) return new Shot(stage.add(stageFacing.scale(7.0)).add(stageSide.scale(right.dot(stageSide) > 0 ? -7.5 : 7.5)).add(0, 4.2, 0),
+                if (t < 58) return new Shot(stage.add(stageFacing.scale(7.0)).add(stageSide.scale(right.dot(stageSide) > 0 ? -7.5 : 7.5)).add(0, 4.2, 0),
                         stage.add(0, 1.2, 0), 60, 0, t == 34);
-                return new Shot(face.add(f.scale(4.0)).add(right.scale(0.8)).add(0, -0.3, 0), face, 46, 0, t == 56);
+                int cut = VoiceLines.beat("wake.end", 54) - 10;           // on him through the bellow, then a bleary mariachi
+                if (t < cut) return new Shot(stage.subtract(stageFacing.scale(2.5)).add(stageSide.scale(3.5)).add(0, 6.0, 0), face.add(0, 0.4, 0), 62, 0, t == 58);
+                com.groid.papon.boss.MariachiEntity m = band.isEmpty() ? null : band.get(Math.floorMod(b.getId(), band.size()));
+                Vec3 at = m != null ? m.position().add(0, 1.2, 0) : stage;
+                return new Shot(at.add(stageFacing.scale(3.4)).add(stageSide.scale(1.2)), at, 46, 0, t == cut);
             }
             case P2_WAIT -> {
                 int phase = (t / 70) % 2;
@@ -477,24 +490,32 @@ public final class Cinematic {
                 return new Shot(eye, look, 46, 0, t == 0);
             }
             case P2_APOLOGY -> {
-                if (t < 50) {
+                int close = VoiceLines.beat("apology.line", 30) + 20;     // the two of you, then on him for the apology
+                int aura = VoiceLines.beat("apology.aura", 110);
+                if (t < close) {
                     Vec3 mid = body.lerp(you, 0.5);
                     return new Shot(mid.add(right.scale(7.5)).add(0, 1.4, 0), mid, 58, 0, t == 0);
                 }
-                if (t < 110) return new Shot(body.add(f.scale(4.0)).add(right.scale(1.4)).add(0, -0.8, 0), face, 48, 0, t == 50);
-                double orbit = Math.toRadians(20 + (t - 110) * 1.5);
+                if (t < aura) return new Shot(body.add(f.scale(4.0)).add(right.scale(1.4)).add(0, -0.8, 0), face, 48, 0, t == close);
+                // the aura farm: a slow low orbit, a little slower the longer it has to last
+                double span = Math.max(68, VoiceLines.beat("apology.end", 178) - aura);
+                double orbit = Math.toRadians(20 + (t - aura) * 1.5 * 68 / span);
                 Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
-                return new Shot(b.position().add(dir.scale(5.2)).add(0, 0.4, 0), body.add(0, 0.5, 0), 50, 0, t == 110);
+                return new Shot(b.position().add(dir.scale(5.2)).add(0, 0.4, 0), body.add(0, 0.5, 0), 50, 0, t == aura);
             }
             case P2_RESUME -> {
-                return new Shot(face.add(f.scale(4.2)).add(right.scale(0.6)).add(0, -0.2, 0), face, 42, 0, t == 0);
+                int whip = VoiceLines.beat("resume.total", 36) - 8;        // whip out as the line ends and he sings
+                Vec3 mid = face.add(0, -0.3, 0);                            // his eyes and his mouth
+                if (t < whip) return new Shot(mid.add(f.scale(4.8)).add(right.scale(0.6)).add(0, -0.1, 0), mid, 42, 0, t == 0);
+                double k = Math.min(1, (t - whip) / 6.0);
+                return new Shot(face.add(f.scale(4.2 + k * 6)).add(0, k * 1.5, 0), body, 42 + (float) k * 22, 0, false);
             }
             case P2_HYPE -> {
                 int left = singer != null && singer.songStart() != 0 ? ticksToSinging(mc, singer) : BossState.P2_HYPE_LENGTH - t;
                 int tt = Math.max(0, BossState.P2_HYPE_LENGTH - left);
                 if (tt < 44) {
                     // over his shoulder, low, out to the stands he is playing to
-                    Vec3 eye = b.position().subtract(f.scale(4.8)).add(right.scale(2.2)).add(0, 1.2, 0);
+                    Vec3 eye = b.position().subtract(f.scale(6.2)).add(right.scale(3.4)).add(0, b.getBbHeight() * 0.7, 0);
                     return new Shot(eye, b.position().add(f.scale(18)).add(0, 7, 0), 64, 0, t == 0);
                 }
                 if (tt < 80) {
