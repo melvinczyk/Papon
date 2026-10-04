@@ -667,13 +667,6 @@
       }
     ]
   },
-  "voice.boss2.scream": {
-    "sounds": [
-      {
-        "name": "papon:voice/boss2/scream"
-      }
-    ]
-  },
   "voice.boss2.listos": {
     "sounds": [
       {
