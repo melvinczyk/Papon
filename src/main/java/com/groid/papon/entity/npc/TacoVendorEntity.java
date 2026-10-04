@@ -185,7 +185,7 @@ public class TacoVendorEntity extends TacoNpc {
                     break;
                 }
                 if (stateTicks == c.kind().orderTicks - 22) {
-                    Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.order" + random.nextInt(3), false, true, 40);
+                    line(ChatFormatting.GOLD, "order" + random.nextInt(3), false, true, 40);
                 }
                 if (stateTicks >= c.kind().orderTicks) {
                     setVendorState(VendorState.COOKING);
@@ -205,7 +205,7 @@ public class TacoVendorEntity extends TacoNpc {
             }
             case SERVING -> {
                 if (stateTicks == 18) {
-                    Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.serve" + random.nextInt(3), false, true, 36);
+                    line(ChatFormatting.GOLD, "serve" + random.nextInt(3), false, true, 36);
                 }
                 if (stateTicks >= Customer.SERVE) {
                     if (head instanceof TacoCustomerEntity c) {
@@ -222,10 +222,10 @@ public class TacoVendorEntity extends TacoNpc {
                     break;
                 }
                 if (stateTicks == 34) {
-                    Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.inspect", false, true, 50);
+                    line(ChatFormatting.GOLD, "inspect", false, true, 50);
                 }
                 if (stateTicks == 92) {
-                    Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.suspicious", false, true, 40);
+                    line(ChatFormatting.GOLD, "suspicious", false, true, 40);
                 }
                 if (stateTicks >= VendorState.INSPECTING.duration) {
                     setVendorState(VendorState.FRAUD);
@@ -346,7 +346,7 @@ public class TacoVendorEntity extends TacoNpc {
     // ------------------------------------------------------------------ the fraud
 
     private void fraud(ServerLevel level, WanderingPaponEntity wanderer) {
-        Speech.say(this, ChatFormatting.RED, "speech.papon.vendor.fraud", true, true, 70);
+        line(ChatFormatting.RED, "fraud", true, true, 70);
         wanderer.busted();
         Component title = Component.translatable("title.papon.fraud").withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
         Component subtitle = Component.translatable("title.papon.fraud.subtitle").withStyle(ChatFormatting.GOLD);
@@ -377,11 +377,11 @@ public class TacoVendorEntity extends TacoNpc {
         double top = getY() + 2.3;
         switch (getVendorState()) {
             case EXPOSED -> {
-                if (t == 18) Speech.say(this, ChatFormatting.GOLD, "speech.papon.vendor.exposed", true, false, 40);
+                if (t == 36) line(ChatFormatting.GOLD, "exposed", true, false, 40);     // after the fraud line (4.7 s in English)
                 if (t >= VendorState.EXPOSED.duration) setVendorState(VendorState.UNMASK);
             }
             case UNMASK -> {
-                if (t == 4) Speech.say(this, ChatFormatting.RED, "speech.papon.vendor.unmask", true, true, 50);
+                if (t == 18) line(ChatFormatting.RED, "unmask", true, true, 50);       // after the laugh; the rip on "truth?"
                 if (t == 19) {      // the rip
                     Vec3 lip = position().add(getLookAngle().scale(0.8)).add(0, 1.05, 0);
                     level.sendParticles(ParticleTypes.CRIT, lip.x, lip.y, lip.z, 10, 0.2, 0.1, 0.2, 0.2);
@@ -400,7 +400,7 @@ public class TacoVendorEntity extends TacoNpc {
             }
             case REALIZE -> {
                 if (t == 4) level.sendParticles(ParticleTypes.CLOUD, getX(), top, getZ(), 4, 0.6, 0.05, 0.6, 0.02);
-                if (t == 40) Speech.say(this, ChatFormatting.RED, "speech.papon.vendor.realize", true, true, 40);
+                if (t == 40) line(ChatFormatting.RED, "realize", true, true, 40);
                 if (t >= VendorState.REALIZE.duration) setVendorState(VendorState.RAGE);
             }
             case RAGE -> {
@@ -408,7 +408,7 @@ public class TacoVendorEntity extends TacoNpc {
                     level.sendParticles(ParticleTypes.SMOKE, getX(), top, getZ(), 4, 0.3, 0.05, 0.3, 0.03);
                 }
                 if (t == 34) {      // the roar
-                    Speech.say(this, ChatFormatting.DARK_RED, "speech.papon.vendor.rage", true, true, 50);
+                    line(ChatFormatting.DARK_RED, "rage", true, true, 50);
                     level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 2.5F, 0.8F);
                     level.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), top, getZ(), 16, 0.9, 0.5, 0.9, 0);
                     level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), top + 0.5, getZ(), 8, 0.4, 0.2, 0.4, 0.06);
@@ -423,6 +423,16 @@ public class TacoVendorEntity extends TacoNpc {
         }
     }
 
+    /**
+     * A line of his, in his own recorded English voice when this build has it (gen_boss_voice.py, said as
+     * speech.papon.boss2.vendor_*), else the old Spanish line.
+     */
+    private void line(ChatFormatting color, String id, boolean chat, boolean gloss, int ticks) {
+        com.groid.papon.boss.VoiceLines.Line v = com.groid.papon.boss.VoiceLines.line("vendor_" + id);
+        if (v != null) Speech.say(this, color, "speech.papon.boss2.vendor_" + id, chat, false, Math.max(ticks, v.ticks() + 12));
+        else Speech.say(this, color, "speech.papon.vendor." + id, chat, gloss, ticks);
+    }
+
     /** Admin skip (/papon reveal): straight to the moment the coupon is found to be a fake. */
     public void skipToFraud(ServerLevel level) {
         for (Entity e : resolveQueue(level)) {
@@ -433,7 +443,7 @@ public class TacoVendorEntity extends TacoNpc {
             }
         }
         setVendorState(VendorState.FRAUD);
-        Speech.say(this, ChatFormatting.RED, "speech.papon.vendor.fraud", true, true, 70);
+        line(ChatFormatting.RED, "fraud", true, true, 70);
     }
 
     /** Admin skip (/papon serve): finish whatever is happening at the window right now. */

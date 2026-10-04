@@ -149,6 +149,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
      */
     private static void drawMasher(BossProp p, PoseStack pose, MultiBufferSource buffers, int light, float age) {
         float yaw = p.getYRot();
+        int v = p.delay();                                  // the layout of the holes (boss/Masher)
         pose.pushPose();
         pose.mulPose(Axis.YP.rotationDegrees(-yaw));
         int lit = LightTexture.FULL_BRIGHT;
@@ -158,15 +159,15 @@ public class PropRenderer extends EntityRenderer<BossProp> {
         int hx = (int) com.groid.papon.boss.Masher.HALF_X, hz = (int) com.groid.papon.boss.Masher.HALF_Z;
         for (int x = -hx; x < hx; x++) {
             for (int z = -hz; z < hz; z++) {
-                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z + 0.5)) continue;
+                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z + 0.5, v)) continue;
                 // top and bottom of this cell
                 quad(vc, m, n, x, PLATE, z, x, PLATE, z + 1, x + 1, PLATE, z + 1, x + 1, PLATE, z, lit, 0, 1, 0);
                 quad(vc, m, n, x, 0, z, x + 1, 0, z, x + 1, 0, z + 1, x, 0, z + 1, lit, 0, -1, 0);
                 // sides where it meets a hole or the edge
-                if (!com.groid.papon.boss.Masher.metal(x - 0.5, z + 0.5)) quad(vc, m, n, x, 0, z, x, 0, z + 1, x, PLATE, z + 1, x, PLATE, z, lit, -1, 0, 0);
-                if (!com.groid.papon.boss.Masher.metal(x + 1.5, z + 0.5)) quad(vc, m, n, x + 1, 0, z + 1, x + 1, 0, z, x + 1, PLATE, z, x + 1, PLATE, z + 1, lit, 1, 0, 0);
-                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z - 0.5)) quad(vc, m, n, x + 1, 0, z, x, 0, z, x, PLATE, z, x + 1, PLATE, z, lit, 0, 0, -1);
-                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z + 1.5)) quad(vc, m, n, x, 0, z + 1, x + 1, 0, z + 1, x + 1, PLATE, z + 1, x, PLATE, z + 1, lit, 0, 0, 1);
+                if (!com.groid.papon.boss.Masher.metal(x - 0.5, z + 0.5, v)) quad(vc, m, n, x, 0, z, x, 0, z + 1, x, PLATE, z + 1, x, PLATE, z, lit, -1, 0, 0);
+                if (!com.groid.papon.boss.Masher.metal(x + 1.5, z + 0.5, v)) quad(vc, m, n, x + 1, 0, z + 1, x + 1, 0, z, x + 1, PLATE, z, x + 1, PLATE, z + 1, lit, 1, 0, 0);
+                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z - 0.5, v)) quad(vc, m, n, x + 1, 0, z, x, 0, z, x, PLATE, z, x + 1, PLATE, z, lit, 0, 0, -1);
+                if (!com.groid.papon.boss.Masher.metal(x + 0.5, z + 1.5, v)) quad(vc, m, n, x, 0, z + 1, x + 1, 0, z + 1, x + 1, PLATE, z + 1, x, PLATE, z + 1, lit, 0, 0, 1);
             }
         }
         // the shaft up to the handle, and the grip across it
@@ -181,7 +182,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
             float pulse = 0.35F + 0.2F * Mth.sin(age * 0.4F);
             Matrix4f g = pose.last().pose();
             float hw = (float) com.groid.papon.boss.Masher.HOLE;
-            for (net.minecraft.world.phys.Vec3 c : com.groid.papon.boss.Masher.holes(yaw)) {
+            for (net.minecraft.world.phys.Vec3 c : com.groid.papon.boss.Masher.holes(yaw, v)) {
                 net.minecraft.world.phys.Vec3 a = c.add(com.groid.papon.boss.Masher.toWorld(-hw, -hw, yaw));
                 net.minecraft.world.phys.Vec3 b = c.add(com.groid.papon.boss.Masher.toWorld(hw, -hw, yaw));
                 net.minecraft.world.phys.Vec3 d = c.add(com.groid.papon.boss.Masher.toWorld(hw, hw, yaw));

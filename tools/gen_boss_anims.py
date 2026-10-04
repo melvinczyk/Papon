@@ -20,7 +20,7 @@ Lengths of one-shots are state durations in Java (GerbinState, BossState); keep 
           exit_stumble 4.0, phase 3.0 (roar 1.2), death 5.0,
           dash_combo 2.5 (hits 0.4 / 0.9 / 1.4, spin 1.9), van_kick 1.2 (kick 0.55),
           grab_lunge (AI-held; lunge 0.45), grab_combo 4.5 (torch 0.8-2.2, salt 2.5-3.4, throw 3.95),
-          p2_kneel 4.0, p2_talk 3.5, p2_season 5.0 (shaker 0.6-3.3, golden at 4.0), p2_scream 3.5 (scream 0.75), p2_arrive 2.5 (no coliseum), fly (loop),
+          p2_kneel 6.0, p2_talk 3.5, p2_season 5.0 (shaker 0.6-3.3, golden at 4.0), p2_scream 3.5 (scream 0.75), p2_arrive 2.5 (no coliseum), fly (loop),
           the coliseum: p2_arrive_sky 5.0 (lands 1.8, snap 3.7), p2_notice 3.0, p2_march (loop), p2_wake 3.5
           (clangs 0.85 / 1.6 / 2.1), p2_wait (loop), p2_kick 1.5 (kick 0.6), p2_count 4.0, p2_groove (loop, a bar),
           p2_apology 8.9 (aura from 5.5), p2_resume 3.0 (held), p2_hype 8.0 (ends on the first sung word),
@@ -279,7 +279,7 @@ GERBIN = [g_idle, g_walk, g_chop, g_wash, g_look, g_shocked, g_cower, g_carry, g
 class B(Pinned):
     # the phase-two parts are pinned too: only the "form" controller (class F) shows them
     pins = ['bottle', 'handle', 'big_spatula', 'molotov', 'lighter', 'keys', 'sweat', 'tears', 'potato_gun',
-            'blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker',
+            'blood', 'hand_blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker',
             'comal', 'cleaver_r', 'cleaver_l', 'tortilla', 'brick', 'tot', 'lid_r', 'lid_l']
 
 
@@ -1395,27 +1395,42 @@ def kneel(a, t0, t1):
 
 
 def b_p2_kneel():
-    """4.0 s (BossState.P2_KNEEL, 80 t). Three quarters of his health gone: he reels, drops to one
-    knee, coughs blood into his hand three times (1.2 / 2.0 / 2.8 s, a drop falls each time),
-    staring at it; then his head comes up, slowly, to look at you (3.2-4.0 s)."""
-    a = B('p2_kneel', 4.0, 'hold')
+    """6.0 s (BossState.P2_KNEEL, 120 t). Three quarters of his health gone: he reels and drops to one
+    knee, his left fist braced on his knee, and coughs blood onto the ground three times (1.2 / 2.0 / 2.8
+    s, a drop falls from his chin each time) while he stares down at it (his point of view from 1.4 s).
+    Then he brings his left hand up in front of his eyes (3.0-3.6 s): it is bleeding too. He stares at it,
+    the hand trembling, turns it a little (3.6-4.7 s), lets it fall (4.7-5.1 s) and his head comes up,
+    slowly, to look at you (5.0-6.0 s)."""
+    a = B('p2_kneel', 6.0, 'hold')
     a.scale('blood', [(0, SHOWN)], 'lin')
-    a.pos('root', [(0, [0, 0, 0]), (0.5, [0, 0, 2.5], 'easeOutQuad'), (0.9, KNEEL_ROOT, 'easeInQuad'), (4.0, KNEEL_ROOT)], 'lin')
-    a.rot('root', [(0, [0, 0, 0]), (0.5, [-12, 0, 6], 'easeOutQuad'), (0.9, [0, 0, 0], 'easeInQuad'), (4.0, [0, 0, 0])], 'lin')
-    a.rot('leg_r', [(0, [0, 0, 0]), (0.5, [-20, 0, 0]), (0.9, KNEEL_LEG_R, 'easeInQuad'), (4.0, KNEEL_LEG_R)], 'lin')
-    a.rot('leg_l', [(0, [0, 0, 0]), (0.5, [10, 0, 0]), (0.9, KNEEL_LEG_L, 'easeInQuad'), (4.0, KNEEL_LEG_L)], 'lin')
+    a.scale('hand_blood', [(0, SHOWN)], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.5, [0, 0, 2.5], 'easeOutQuad'), (0.9, KNEEL_ROOT, 'easeInQuad'), (6.0, KNEEL_ROOT)], 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (0.5, [-12, 0, 6], 'easeOutQuad'), (0.9, [0, 0, 0], 'easeInQuad'), (6.0, [0, 0, 0])], 'lin')
+    a.rot('leg_r', [(0, [0, 0, 0]), (0.5, [-20, 0, 0]), (0.9, KNEEL_LEG_R, 'easeInQuad'), (6.0, KNEEL_LEG_R)], 'lin')
+    a.rot('leg_l', [(0, [0, 0, 0]), (0.5, [10, 0, 0]), (0.9, KNEEL_LEG_L, 'easeInQuad'), (6.0, KNEEL_LEG_L)], 'lin')
     torso = [(0, [0, 0, 0]), (0.5, [-14, 0, 0]), (0.9, [34, 0, 0], 'easeInQuad')]
-    hand = [-150, 30, 0]
-    arm_l = [(0, [-20, 0, -24]), (0.9, [-30, 0, -30]), (1.05, hand, 'easeOutQuad')]
     for c in (1.2, 2.0, 2.8):
         torso += [(round(c - 0.1, 2), [30, 0, 0]), (c, [46, 0, 0], 'easeInExpo'), (round(c + 0.25, 2), [36, 0, 0], 'easeOutQuad')]
-    torso += [(3.2, [36, 0, 0]), (4.0, [4, 0, 0], 'easeInOutSine')]
-    arm_l += [(2.95, hand), (3.25, [-60, 10, -20], 'easeInOutSine'), (4.0, [-40, 0, -30])]
+    # sitting back a little to look at the hand, a flinch when he sees it, then the slow rise to you
+    torso += [(3.0, [36, 0, 0]), (3.6, [24, 0, 0], 'easeInOutSine'), (3.75, [20, 0, 0], 'easeOutQuad'),
+              (4.0, [24, 0, 0]), (5.0, [26, 0, 0]), (6.0, [4, 0, 0], 'easeInOutSine')]
     a.rot('torso', torso, 'lin')
+    brace = [-24, 0, -34]                    # the fist on his knee
+    view = [-78, 32, 0]                      # held out low in front of his eyes, toward his middle
+    arm_l = [(0, [-20, 0, -24]), (0.9, [-30, 0, -30]), (1.1, brace, 'easeOutQuad'), (3.0, brace),
+             (3.6, view, 'easeInOutSine')]
+    # the tremble, and a slow turn of the hand to see all of it
+    t, k = 3.6, 0
+    while t < 4.6:
+        t = round(t + 0.1, 2)
+        k += 1
+        twist = 18 * min(1.0, (t - 3.6) / 0.6)
+        arm_l.append((t, [view[0] + (2.5 if k % 2 else -2.5), view[1] + (1.5 if k % 2 else -1.5), twist]))
+    arm_l += [(4.7, [view[0], view[1], 18]), (5.1, brace, 'easeInOutSine'), (6.0, [-40, 0, -30], 'easeInOutSine')]
     a.rot('arm_l', arm_l, 'lin')
-    stretch(a, 'arm_l', [(0, 1), (0.9, 1), (1.05, 1.5), (2.95, 1.5), (3.25, 1)])
-    a.rot('arm_r', [(0, [-20, 0, 24]), (0.9, [20, 0, 20], 'easeInQuad'), (4.0, [24, 0, 18])])
-    stretch(a, 'arm_r', [(0, 1), (0.9, 1.3), (4.0, 1.3)])
+    stretch(a, 'arm_l', [(0, 1), (3.0, 1), (3.6, 1.25), (4.7, 1.25), (5.1, 1)])
+    a.rot('arm_r', [(0, [-20, 0, 24]), (0.9, [20, 0, 20], 'easeInQuad'), (6.0, [24, 0, 18])])
+    stretch(a, 'arm_r', [(0, 1), (0.9, 1.3), (6.0, 1.3)])
     # a drop of blood falls from his chin with each cough
     drop = [(0, [0, 0, 0])]
     for c in (1.2, 2.0, 2.8):
@@ -1424,14 +1439,18 @@ def b_p2_kneel():
     a.pos('blood_drop', drop, 'lin')
     a.scale('body', [(0, [1, 1, 1])] + [k for c in (1.2, 2.0, 2.8) for k in
                                          ((round(c - 0.1, 2), [1, 1, 1]), (c, [1.08, 0.92, 1.08], 'easeInExpo'),
-                                          (round(c + 0.25, 2), [1, 1, 1]))], 'lin')
+                                          (round(c + 0.25, 2), [1, 1, 1]))]
+            + [(3.62, [1, 1, 1]), (3.72, [1.04, 1.04, 1.04], 'easeOutQuad'), (3.9, [1, 1, 1])], 'lin')
     for brow, s in (('brow_r', 1), ('brow_l', -1)):
-        a.pos(brow, [(0, [0, 1.0, 0]), (3.2, [0, 1.0, 0]), (4.0, [0, -0.6, 0])])
-        a.rot(brow, [(0, [0, 0, -12 * s]), (3.2, [0, 0, -12 * s]), (4.0, [0, 0, 16 * s])])
+        # worried over the blood, shot up in shock at the hand, then down into a glare as he looks up
+        a.pos(brow, [(0, [0, 1.0, 0]), (3.6, [0, 1.0, 0]), (3.7, [0, 2.0, 0], 'easeOutQuad'), (4.7, [0, 1.6, 0]),
+                     (5.2, [0, 1.0, 0]), (6.0, [0, -0.6, 0])])
+        a.rot(brow, [(0, [0, 0, -12 * s]), (3.6, [0, 0, -12 * s]), (3.7, [0, 0, -20 * s]), (5.2, [0, 0, -12 * s]),
+                     (6.0, [0, 0, 16 * s])])
     a.sound(0.9, 'thud')
     for c in (1.2, 2.0, 2.8):
         a.sound(c, 'cough')
-    for t in (0.2, 1.0, 1.8, 2.6, 3.4):
+    for t in (0.2, 1.0, 1.8, 2.6, 3.3, 3.7, 4.1, 4.5, 4.9, 5.4, 5.9):        # racing when he sees the hand
         a.sound(t, 'heartbeat')
     return a
 
@@ -1449,6 +1468,7 @@ def b_p2_talk():
     crack = round(end - 0.45, 2)
     a = angry(B('p2_talk', end, 'hold'))
     a.scale('blood', [(0, SHOWN)], 'lin')
+    a.scale('hand_blood', [(0, SHOWN)], 'lin')
     a.pos('root', [(0, KNEEL_ROOT), (up, KNEEL_ROOT), (stood, [0, 0, 0], 'easeInOutSine'), (end, [0, 0, 0])], 'lin')
     a.rot('leg_r', [(0, KNEEL_LEG_R), (up, KNEEL_LEG_R), (stood, [0, 0, 0], 'easeInOutSine'), (end, [0, 0, 0])], 'lin')
     a.rot('leg_l', [(0, KNEEL_LEG_L), (up, KNEEL_LEG_L), (stood, [0, 0, 0], 'easeInOutSine'), (end, [0, 0, 0])], 'lin')
@@ -2202,24 +2222,42 @@ def b_arena_heckle():
 
 
 def b_p2_masher():
-    """5.5 s (BossState.P2_MASHER, 110 t: El Machacador). Up over the sand, both fists up on the masher's
-    handle overhead (0.4 s), hauling it down hand over hand as it looms (1.0-3.6 s), a heave up (3.6-4.0) and
-    DOWN with all his weight (4.0-4.3 s: it lands), holding it there, then letting go (4.8)."""
-    a = angry(B('p2_masher', 5.5, 'hold'))
+    """6.5 s (BossState.P2_MASHER, 130 t: El Machacador). Up over the sand, both fists up on the masher's
+    handle overhead (0.4 s), hauling it down hand over hand as it looms (0.5-1.0 s), then three slams
+    (PaponBossEntity.MASHER_SLAMS: they land at 2.5, 4.1 and 5.6 s): a heave up and DOWN with all his
+    weight each time, hauling it back up between them; letting go after the last (5.8 s)."""
+    slams = [2.5, 4.1, 5.6]
+    a = angry(B('p2_masher', 6.5, 'hold'))
     for arm, sg in (('arm_r', 1), ('arm_l', -1)):
         keys = [(0, [-20, 0, 24 * sg]), (0.4, [-175, 0, 10 * sg], 'easeOutBack')]
-        for i in range(8):
-            t0 = round(1.0 + 0.32 * i, 2)
+        for i in range(3):
+            t0 = round(0.5 + 0.18 * i, 2)
             up = (i + (0 if sg > 0 else 1)) % 2 == 0
             keys.append((t0, [-175 if up else -140, 0, 10 * sg]))
-        keys += [(3.6, [-160, 0, 10 * sg]), (4.0, [-190, 0, 6 * sg], 'easeOutQuad'), (4.3, [-60, 0, 10 * sg], 'easeInExpo'),
-                 (4.8, [-60, 0, 10 * sg]), (5.5, [-30, 0, 30 * sg], 'easeInOutSine')]
+        st = []
+        for k, sl in enumerate(slams):
+            keys += [(round(sl - 0.45, 2), [-160, 0, 10 * sg]), (round(sl - 0.2, 2), [-190, 0, 6 * sg], 'easeOutQuad'),
+                     (sl, [-60, 0, 10 * sg], 'easeInExpo'), (round(sl + 0.2, 2), [-60, 0, 10 * sg])]
+            st += [(round(sl - 0.45, 2), 1.6), (round(sl - 0.2, 2), 1.8), (sl, 1.4, 'easeInExpo')]
+            if k < 2:
+                keys += [(round(sl + 0.6, 2), [-175, 0, 10 * sg], 'easeInOutSine')]
+                st += [(round(sl + 0.6, 2), 1.6)]
+        keys += [(6.5, [-30, 0, 30 * sg], 'easeInOutSine')]
         a.rot(arm, keys, 'lin')
-        stretch(a, arm, [(0, 1), (0.4, 1.6), (3.6, 1.6), (4.0, 1.8), (4.3, 1.4, 'easeInExpo'), (5.5, 1)])
-    a.rot('torso', [(0, [0, 0, 0]), (0.4, [-20, 0, 0]), (3.6, [-18, 0, 0]), (4.0, [-28, 0, 0]), (4.3, [34, 0, 0], 'easeInExpo'),
-                    (4.8, [30, 0, 0]), (5.5, [0, 0, 0])], 'lin')
-    a.scale('body', [(0, [1, 1, 1]), (4.0, [1.06, 1.06, 1.06]), (4.3, [1.2, 0.84, 1.2], 'easeInExpo'), (4.6, [1, 1, 1])], 'lin')
-    a.sound(0.4, 'grunt').sound(1.6, 'grunt').sound(2.6, 'grunt').sound(4.0, 'roar').sound(4.3, 'slam')
+        stretch(a, arm, [(0, 1), (0.4, 1.6)] + st + [(6.5, 1)])
+    torso = [(0, [0, 0, 0]), (0.4, [-20, 0, 0])]
+    body = [(0, [1, 1, 1])]
+    for k, sl in enumerate(slams):
+        torso += [(round(sl - 0.45, 2), [-18, 0, 0]), (round(sl - 0.2, 2), [-28, 0, 0]), (sl, [34, 0, 0], 'easeInExpo'),
+                  (round(sl + 0.2, 2), [30, 0, 0])]
+        if k < 2:
+            torso += [(round(sl + 0.6, 2), [-18, 0, 0], 'easeInOutSine')]
+        body += [(round(sl - 0.2, 2), [1.06, 1.06, 1.06]), (sl, [1.2, 0.84, 1.2], 'easeInExpo'), (round(sl + 0.3, 2), [1, 1, 1])]
+        a.sound(round(sl - 0.2, 2), 'roar' if k == 2 else 'grunt').sound(sl, 'slam')
+    torso += [(6.5, [0, 0, 0])]
+    a.rot('torso', torso, 'lin')
+    a.scale('body', body, 'lin')
+    a.sound(0.4, 'grunt')
     return a
 
 
