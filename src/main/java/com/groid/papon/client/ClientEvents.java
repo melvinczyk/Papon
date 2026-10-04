@@ -31,6 +31,7 @@ public final class ClientEvents {
         SongPlayer.tick();
         BossMusic.tick();
         CrowdSounds.tick();
+        PotatoSky.tick();
     }
 
     /** The crowd renderer culls its fans against the level's own frustum. */

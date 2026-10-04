@@ -7,7 +7,9 @@
   textures/item/body_pillow.png            128x128: the dakimakura Gerbin gives the winner, a fan-art
                                            Makima (Chainsaw Man) drawn here: front 48x128 at (0,0), back
                                            48x128 at (48,0), the seam strip 8x128 at (96,0), the ends at (104,0)
-  models/item/body_pillow.json             a long soft pillow (6 x 16 x 2.5) with that texture
+  models/item/body_pillow.json             a long soft pillow (6 x 16 x 2.5) with that texture (third person:
+                                           drawn by client/PillowLayer instead)
+  textures/entity/tongue.png               the player's tongue, licking it
 
 The pillow art is our own drawing (it is not from anywhere); to use another picture, draw it over
 the front/back regions of body_pillow.png (48x128 each) and leave the rest.
@@ -289,8 +291,9 @@ def pillow():
             'gui': {'rotation': [0, 180, -30], 'translation': [0, 0, 0], 'scale': [0.85, 0.85, 0.85]},
             'ground': {'rotation': [90, 0, 0], 'translation': [0, 2, 0], 'scale': [0.6, 0.6, 0.6]},
             'fixed': {'rotation': [0, 180, 0], 'scale': [1, 1, 1]},
-            'thirdperson_righthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0.9, 0.9, 0.9]},
-            'thirdperson_lefthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0.9, 0.9, 0.9]},
+            # in third person the pillow is drawn by client/PillowLayer (hugged, licked, under the arm)
+            'thirdperson_righthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0, 0, 0]},
+            'thirdperson_lefthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0, 0, 0]},
             'firstperson_righthand': {'rotation': [0, 160, 10], 'translation': [-2, 2, 0], 'scale': [0.7, 0.7, 0.7]},
             'firstperson_lefthand': {'rotation': [0, 200, -10], 'translation': [-2, 2, 0], 'scale': [0.7, 0.7, 0.7]},
             'head': {'rotation': [0, 180, 0], 'translation': [0, -6, -6], 'scale': [1, 1, 1]},
@@ -302,6 +305,20 @@ def pillow():
     return out, mpath
 
 
+def tongue():
+    """16x16: the player's tongue when licking the pillow (client/PillowLayer): pink, a darker groove
+    down the middle, a wet highlight."""
+    im = Image.new('RGBA', (16, 16), (232, 112, 128, 255))
+    d = ImageDraw.Draw(im)
+    d.rectangle([7, 0, 8, 15], fill=(196, 78, 98, 255))
+    d.rectangle([3, 2, 4, 6], fill=(255, 178, 190, 255))
+    d.rectangle([11, 9, 12, 12], fill=(250, 150, 164, 255))
+    out = os.path.join(ASSETS, 'textures/entity/tongue.png')
+    im.save(out)
+    return out
+
+
 if __name__ == '__main__':
     print(splats())
     print(*pillow())
+    print(tongue())

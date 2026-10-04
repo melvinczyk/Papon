@@ -1,6 +1,7 @@
 package com.groid.papon.boss;
 
 import com.groid.papon.PaponMod;
+import com.groid.papon.block.ArenaFlagBlockEntity;
 import com.groid.papon.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -171,6 +172,8 @@ public final class Coliseum {
 
     private final class Plan {
         final List<long[]> out = new ArrayList<>();
+        /** One flag per key (a stretch of the podium, an arch): the best cell for it so far. */
+        final java.util.Map<Long, double[]> flags = new java.util.HashMap<>();
 
         void put(int x, int y, int z, BlockState s) {
             out.add(new long[]{center.offset(x, y, z).asLong(), Block.getId(s)});
@@ -178,6 +181,26 @@ public final class Coliseum {
 
         void put(int x, int y, int z, Supplier<Block> b) {
             put(x, y, z, b.get().defaultBlockState());
+        }
+
+        /** A flag block (with its kind and the way its cloth faces) for the block entity once it is placed. */
+        void flag(int x, int y, int z, int kind, double normal) {
+            special(x, y, z, ModBlocks.ARENA_FLAG.get().defaultBlockState(), kind, normal);
+        }
+
+        /** A block whose block entity is told something once it is placed (a flag's kind and facing, a lamp's aim). */
+        void special(int x, int y, int z, BlockState s, int kind, double angle) {
+            out.add(new long[]{center.offset(x, y, z).asLong(), Block.getId(s), kind, Double.doubleToLongBits(angle)});
+        }
+
+        /** A candidate cell for flag {@code key}; the one with the lowest {@code score} gets it. */
+        void flagCandidate(long key, int x, int y, int z, int kind, double normal, double score) {
+            double[] best = flags.get(key);
+            if (best == null || score < best[0]) flags.put(key, new double[]{score, x, y, z, kind, normal});
+        }
+
+        void placeFlags() {
+            for (double[] f : flags.values()) flag((int) f[1], (int) f[2], (int) f[3], (int) f[4], f[5]);
         }
     }
 
@@ -223,6 +246,11 @@ public final class Coliseum {
         statues(p);
         box(p);
         stage(p);
+        // the flags replace the ashlar of the cells they were given
+        java.util.Set<Long> flagged = new java.util.HashSet<>();
+        for (double[] f : p.flags.values()) flagged.add(center.offset((int) f[1], (int) f[2], (int) f[3]).asLong());
+        p.out.removeIf(b -> flagged.contains(b[0]));
+        p.placeFlags();
         // the floor and the wall go up first, so it is whole by the time anyone stands in it
         List<long[]> ordered = p.out;
         ordered.sort((a, b) -> Integer.compare(BlockPos.of(b[0]).getY(), BlockPos.of(a[0]).getY()));
@@ -259,11 +287,8 @@ public final class Coliseum {
             }
             Supplier<Block> b = y == PODIUM - 1 ? ModBlocks.ARENA_STONE::get : ModBlocks.ARENA_BRICKS::get;
             if (gate && y == 5) b = ModBlocks.ARENA_GOLD::get;
-            if (front && y >= 1 && y <= 4) {
-                Supplier<Block> drape = drape(x, z, phi, y);
-                if (drape != null) b = drape;
-            }
             p.put(x, y, z, b);
+            if (front && y == 4 && !gate) podiumFlag(p, x, z, d, phi);
         }
         if (!front && !gate && z > -B + 1) {
             // braziers along the top of the wall, one every 11 blocks or so
@@ -278,20 +303,22 @@ public final class Coliseum {
         }
     }
 
-    /** The tricolour on the podium: a flag behind the band, and a drape every so often round the wall. */
-    @Nullable
-    private static Supplier<Block> drape(int x, int z, double phi, int y) {
-        if (z < 0 && Math.abs(x) <= 7) {
-            if (x < -2) return ModBlocks.ARENA_DRAPE_GREEN::get;
-            if (x > 2) return ModBlocks.ARENA_DRAPE_RED::get;
-            return x == 0 && y == 3 ? ModBlocks.ARENA_DRAPE_EMBLEM::get : ModBlocks.ARENA_DRAPE_WHITE::get;
+    /**
+     * La Bandera Papa on the podium (block/ArenaFlagBlock): the big one behind the band, and one every
+     * 14 blocks round the wall, all facing the sand. Each gets the front cell nearest its mark.
+     */
+    private static void podiumFlag(Plan p, int x, int z, double d, double phi) {
+        double a = A + d, b = B + d;
+        double normal = Math.atan2(-z / (b * b), -x / (a * a));         // in, toward the sand
+        if (z < 0 && Math.abs(x) <= 9) {
+            if (x == 0 && z == -B) p.flagCandidate(Long.MIN_VALUE, x, 4, z, ArenaFlagBlockEntity.BACKDROP, Math.PI / 2, 0);
+            return;
         }
+        if (Math.abs(z) < 5) return;                                     // clear of the gates
         double s = phi * arcRate(phi, 0.5);
-        double k = s - Math.floor(s / 14.0) * 14.0;
-        if (k < 1) return ModBlocks.ARENA_DRAPE_GREEN::get;
-        if (k < 2) return y == 3 ? ModBlocks.ARENA_DRAPE_EMBLEM::get : ModBlocks.ARENA_DRAPE_WHITE::get;
-        if (k < 3) return ModBlocks.ARENA_DRAPE_RED::get;
-        return null;
+        long key = (long) Math.floor(s / 14.0);
+        double mark = s - key * 14.0 - 7.0;
+        p.flagCandidate(key, x, 4, z, ArenaFlagBlockEntity.DRAPE, normal, Math.abs(mark) + Math.abs(d - 0.5) * 0.5);
     }
 
     private void stands(Plan p, int x, int z, double d, double phi) {
@@ -332,8 +359,12 @@ public final class Coliseum {
                     else continue;
                 } else if (inArch) {
                     if (!inner) hole = true;
-                    else if (story == 1 && bay % 4 == 0) b = flag(u, mid, y, yb);
                     else b = ModBlocks.ARENA_DARK::get;
+                    if (inner && story == 1 && bay % 4 == 0 && y == yb + 6) {
+                        double a = A + d, bb = B + d;
+                        p.flagCandidate(1L << 40 | bay, x, y, z, ArenaFlagBlockEntity.ARCH, Math.atan2(z / (bb * bb), x / (a * a)),
+                                Math.abs(u - mid) + Math.abs(d - (WALL_IN + 0.5)) * 0.5);
+                    }
                 } else if (!inner && y == yb + 7 && archTop) {
                     b = ModBlocks.ARENA_GOLD::get;                 // the keystone
                 }
@@ -349,14 +380,6 @@ public final class Coliseum {
             if (!hole) p.put(x, y, z, b);
         }
         if (!inner && !proud && bay % 2 == 0 && Math.abs(u - mid) < 0.5) p.put(x, 34, z, ModBlocks.ARENA_BRAZIER::get);
-    }
-
-    /** A flag hung in an arch: green, white (the emblem in the middle), red, left to right. */
-    private static Supplier<Block> flag(double u, double mid, int y, int yb) {
-        double k = u - mid;
-        if (k < -0.5) return ModBlocks.ARENA_DRAPE_GREEN::get;
-        if (k > 0.5) return ModBlocks.ARENA_DRAPE_RED::get;
-        return y == yb + 3 ? ModBlocks.ARENA_DRAPE_EMBLEM::get : ModBlocks.ARENA_DRAPE_WHITE::get;
     }
 
     /** Golden Papons over both gates, on plinths in the stands, one arm up with his spatula. */
@@ -445,6 +468,24 @@ public final class Coliseum {
                 if (Math.abs(x) <= 7 && z <= -B + 2) p.put(x, 1, z, ModBlocks.ARENA_STONE::get);
             }
         }
+        // the floodlights at its back corners, aimed in over the band at the singer (off until nightfall)
+        Vec3 singer = bandSpot(0).subtract(Vec3.atLowerCornerOf(center));
+        for (BlockPos l : LAMPS) {
+            double aim = Math.atan2(singer.z - (l.getZ() + 0.5), singer.x - (l.getX() + 0.5));
+            Direction facing = Direction.fromYRot(aim * Mth.RAD_TO_DEG - 90);
+            p.special(l.getX(), l.getY(), l.getZ(), ModBlocks.STAGE_LAMP.get().defaultBlockState()
+                    .setValue(com.groid.papon.block.StageLampBlock.FACING, facing), -1, aim);
+        }
+    }
+
+    /** The band stand's floodlights, relative to the centre: stage left first (the one the lamplighter switches). */
+    private static final BlockPos[] LAMPS = {new BlockPos(9, 1, -B + 2), new BlockPos(-9, 1, -B + 2)};
+
+    /** Where the floodlights stand (boss/MariachiEntity: the lamplighter goes to the first and switches both). */
+    public List<BlockPos> lamps() {
+        List<BlockPos> out = new ArrayList<>();
+        for (BlockPos l : LAMPS) out.add(center.offset(l));
+        return out;
     }
 
     // ------------------------------------------------------------------ the band and the crowd
@@ -542,6 +583,12 @@ public final class Coliseum {
             BlockPos p = BlockPos.of(b[0]);
             if (!level.isInWorldBounds(p) || !level.getBlockState(p).isAir()) continue;
             level.setBlock(p, Block.stateById((int) b[1]), Block.UPDATE_CLIENTS);
+            if (b.length > 3 && level.getBlockEntity(p) instanceof ArenaFlagBlockEntity flag) {
+                flag.setup((int) b[2], (float) Double.longBitsToDouble(b[3]));
+            }
+            if (b.length > 3 && level.getBlockEntity(p) instanceof com.groid.papon.block.StageLampBlockEntity lamp) {
+                lamp.setAim((float) Double.longBitsToDouble(b[3]));
+            }
             n++;
         }
         if (pending.isEmpty()) {

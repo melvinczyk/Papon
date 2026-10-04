@@ -24,7 +24,7 @@ mariachi   one rig for the whole band (boss/MariachiEntity, BandRole): the rende
   the singer   `mic_stand` (top level, in front of him) and `shades` (aviators)
 arena_fan  a fan in the stands, drawn hundreds of times by client/ColiseumCrowdRenderer (no animation
            file: it poses the bones itself). Hats `sombrero`, `cap`, `foam_hat` (a wedge of foam papa),
-           props `foam_finger` (right), `flag` (left), `maraca_r/_l`, a `jersey`, and `mouth_in` (cheering).
+           props `foam_finger` (right), `flag` (left: the stick; the cloth is drawn in code), `maraca_r/_l`, a `jersey`, and `mouth_in` (cheering).
 """
 from PIL import Image
 
@@ -146,10 +146,19 @@ def jacket(m):
     # comes out of the cuff instead of the whole sleeve turning into a long black beam
     m.add(bone('sleeve_r', [-8, 11, 0], 'arm_r', [m.box([-12, 6.5, -3], [4, 5.5, 6], BLACK, extra=sleeve, inflate=0.3)]))
     m.add(bone('sleeve_l', [8, 11, 0], 'arm_l', [m.box([8, 6.5, -3], [4, 5.5, 6], BLACK, extra=sleeve, inflate=0.3)]))
-    # the same jacket, hung over the chair's back while he sleeps
+    # the same jacket, hung over the chair's back while he sleeps (Gordo, the guitarron: the only chair left)
     m.add(bone('jacket_chair', [0, 14, 9], 'chair', [
         m.box([-7, 9, 8.6], [14, 7, 1], BLACK, extra=jacket_paint),
         m.box([-7, 16, 7.6], [14, 1, 3], BLACK, extra=lambda p, f: studs(p, f['front'])),
+    ]))
+    # ...or folded on the stage floor behind him, for everyone who sleeps sitting on the floor
+    def folded(p, f):
+        for s in f.values():
+            p.fill(s, BLACK, 0.04)
+        studs(p, f['top'])
+        studs(p, f['top'], GOLD, 3, 0)
+    m.add(bone('jacket_floor', [0, 0, 11], None, [
+        m.box([-6, 0, 7], [12, 2, 8], BLACK, extra=folded),
     ]))
 
 
@@ -550,21 +559,11 @@ def arena_fan():
         m.box([-12, -1, -4], [4, 6, 2], (226, 40, 44), extra=finger, noise=0.03),
         m.box([-11, -6, -4], [2, 5, 2], (226, 40, 44), noise=0.03),
     ]))
-    def pennant(p, f):
-        x0, y0, x1, y1 = (int(n) for n in f['right'])
-        n = x1 - x0
-        for i in range(n):
-            c = (32, 122, 64) if i < n / 3 else (238, 234, 222) if i < 2 * n / 3 else (196, 40, 44)
-            for yy in range(y0, y1):
-                p.put(x0 + i, yy, c)
-        x0, y0, x1, y1 = (int(n) for n in f['left'])
-        for i in range(x1 - x0):
-            c = (196, 40, 44) if i < n / 3 else (238, 234, 222) if i < 2 * n / 3 else (32, 122, 64)
-            for yy in range(y0, y1):
-                p.put(x0 + i, yy, c)
+    # a little flag on a stick in his left hand: only the stick is a cube, the cloth (La Bandera Papa,
+    # tools/gen_flag.py) is drawn waving off its tip by client/ColiseumCrowdRenderer
     m.add(bone('flag', HAND_L, 'arm_l', [
-        m.box([9.5, -12, -0.5], [1, 14, 1], (120, 82, 40)),
-        m.box([10, -12, -9], [0.5, 6, 9], WHITE, extra=pennant),
+        m.box([9.6, -14, -0.4], [0.8, 16, 0.8], (120, 82, 40)),
+        m.box([9.5, -14.8, -0.5], [1, 1, 1], (228, 182, 70)),
     ]))
     for side, h, x in (('r', HAND_R, -11), ('l', HAND_L, 9)):
         m.add(bone('maraca_' + side, h, 'arm_' + side, [

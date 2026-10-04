@@ -9,6 +9,7 @@ package com.groid.papon.boss;
  *                                             \--> RESLEEP --> SLEEP (the dozer, until he is kicked)
  * SLEEP --(the boss's spatula: the singer)--> WHACKED --> JACKET_SLOW --> HAT_SLOW --> SHADES --> GRAB --> READY
  * READY --(the singer)--> COUNT --> PLAY (everyone, the song) --> BOW (the fight is over)
+ * PLAY --(nightfall, or dawn: the lamplighter, the third of the coro)--> LAMP_GO --> LAMP_SWITCH --> LAMP_BACK --> PLAY
  * </pre>
  */
 public enum BandState {
@@ -28,7 +29,13 @@ public enum BandState {
     WHACKED(50),
     /** ...and dressing under protest. */
     JACKET_SLOW(90),
-    HAT_SLOW(50);
+    HAT_SLOW(50),
+    /** Over to the floodlight at the back corner of the stage (it has got dark, or light). */
+    LAMP_GO(0),
+    /** A tug on its chain: on (or off). */
+    LAMP_SWITCH(40),
+    /** ...and back to his place, still singing. */
+    LAMP_BACK(0);
 
     public final int duration;
 
@@ -43,6 +50,10 @@ public enum BandState {
 
     public boolean asleep() {
         return this == SLEEP || this == RESLEEP;
+    }
+
+    public boolean lamp() {
+        return this == LAMP_GO || this == LAMP_SWITCH || this == LAMP_BACK;
     }
 
     /** Up, dressed and holding his instrument. */
