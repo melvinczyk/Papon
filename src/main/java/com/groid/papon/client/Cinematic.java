@@ -844,8 +844,8 @@ public final class Cinematic {
                     return new Shot(face.add(f.scale(6.0 - 2.6 * k)).add(right.scale(0.5)).add(0, -0.4, 0), face, 44 - (float) k * 8, 0, t == ln);
                 }
                 // the smile: in on his face, mouth and eyes both
-                Vec3 grin = b.position().add(0, h * (b.isAscended() ? 0.56 : 0.66), 0);
-                return new Shot(grin.add(f.scale(3.2)).add(0, 0.1, 0), grin, 38, 0, t == sm);
+                Vec3 grin = b.position().add(0, h * (b.isAscended() ? 0.42 : 0.6), 0);
+                return new Shot(grin.add(f.scale(3.4)).add(0, -0.2, 0), grin, 46, 0, t == sm);
             }
             case P3_TO_CAR -> {
                 return new Shot(face.add(f.scale(5.5)).add(right.scale(2.0)).add(0, -0.5, 0), face, 50, 0, t == 0);

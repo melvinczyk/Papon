@@ -929,7 +929,7 @@ public final class AutoShot {
             }
             if (j >= 46) ascendedShowcase(mc, b, j - 46);
         }
-        if (k > 60 * 20 * 4) mc.stop();
+        if (k > 60 * 20 * 12) mc.stop();
     }
 
     private static int p3Mark = -1;
@@ -940,10 +940,7 @@ public final class AutoShot {
     private static final int[] SHOW_LEN = {70, 110, 170, 120, 180, 170, 150, 120, 320, 250, 150, 520};
 
     private static void ascendedShowcase(Minecraft mc, PaponBossEntity b, int j) {
-        if (j == 0) {
-            run("papon escort true", "gamemode spectator",
-                    "execute as @e[type=papon:papon_boss,limit=1] at @s run summon armor_stand ~7 ~ ~5 {Invulnerable:1b,NoGravity:0b}");
-        }
+        if (j == 0) run("gamemode survival", "effect give @s resistance 100000 4 true");
         int at = 14, i = 0;
         for (; i < SHOW.length; i++) {
             if (j < at + SHOW_LEN[i]) break;
@@ -960,34 +957,16 @@ public final class AutoShot {
         int u = j - at;
         String st = SHOW[i];
         boolean qte = st.equals("QTE_GRAB") || st.equals("P3_DUEL_FETCH");
+        Vec3 c = b.arena() != null ? b.arena().centerVec() : b.position();
         if (u == 0) {
             PaponMod.LOG.info("[autoshot] showcase {}", st);
-            if (qte) {
-                run("kill @e[type=armor_stand]", "gamemode survival",
-                        "execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ^ ^ ^5 facing entity @s");
-            }
+            if (qte) run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ^ ^ ^5 facing entity @s");
+            else run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", c.x, c.y + 0.2, c.z + 9));
             run("papon bossstate " + st);
         }
-        var stand = mc.level.getEntitiesOfClass(net.minecraft.world.entity.decoration.ArmorStand.class, b.getBoundingBox().inflate(60), e -> true)
-                .stream().findFirst().orElse(null);
-        if (!qte && u % 8 == 1) {
-            Vec3 c = b.arena() != null ? b.arena().centerVec() : b.position();
-            boolean wide = st.equals("P3_SOLAR") || st.equals("P3_NOVA") || st.equals("P3_PINATA") || st.equals("P3_MARIACHI") || st.equals("P3_BRAZIERS");
-            if (wide) {
-                tpLook(c.add(0, 14, 24), c.add(0, 3, 0));
-            } else {
-                Vec3 tgt = stand != null ? stand.position() : c;
-                Vec3 mid = tgt.lerp(b.position(), 0.5);
-                Vec3 d = b.position().subtract(tgt).multiply(1, 0, 1);
-                d = d.lengthSqr() < 1e-3 ? new Vec3(1, 0, 0) : d.normalize();
-                Vec3 side = new Vec3(-d.z, 0, d.x);
-                tpLook(mid.add(side.scale(13)).add(0, 4, 0), mid.add(0, 2, 0));
-            }
-        }
-        if (qte) {
-            lookAt(mc, b);
-            if (st.equals("P3_DUEL_FETCH") || u % 2 == 0) com.groid.papon.client.QteClient.devPress();
-        }
+        // the player is the target (Resistance V keeps them up); the view is theirs, always on him
+        lookAt(mc, b);
+        if (qte && (st.equals("P3_DUEL_FETCH") || u % 2 == 0)) com.groid.papon.client.QteClient.devPress();
         int len = SHOW_LEN[i];
         int[] shots = st.equals("P3_DUEL_FETCH") ? new int[]{40, 120, 200, 300, 400, 470}
                 : st.equals("QTE_GRAB") ? new int[]{24, 34, 44, 90} : new int[]{len / 5, 2 * len / 5, 3 * len / 5, 4 * len / 5};

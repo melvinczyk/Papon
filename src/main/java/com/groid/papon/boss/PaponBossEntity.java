@@ -644,7 +644,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** Whatever an Ascended move left lying about when it ends or is cut short: beams, the daylight, the guitar, noPhysics. */
     private void leaveAscended(ServerLevel level, BossState old, BossState s) {
         if (!beams.isEmpty() && s != BossState.P3_LASER && s != BossState.P3_SOLAR) clearBeams(level);
-        if (old == BossState.P3_SOLAR && isPhaseThree()) entityData.set(DATA_NIGHT, NIGHT_P3);
+        if (old == BossState.P3_SOLAR && isPhaseThree() && inColiseum()) entityData.set(DATA_NIGHT, NIGHT_P3);
         if (old == BossState.P3_FLASH || old == BossState.P3_COMET || old == BossState.P3_COMBO || old == BossState.P3_PINATA) noPhysics = false;
         boolean duel = s == BossState.P3_DUEL_FETCH || s == BossState.P3_DUEL || s == BossState.P3_DUEL_SMASH || s == BossState.P3_DUEL_SHAME;
         if (old == BossState.P3_DUEL && duelResult < 0 && duelWho != null && level.getEntity(duelWho) instanceof ServerPlayer sp) {
@@ -4500,6 +4500,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == drop) {
             entityData.set(DATA_PHASE3, true);
             bossEvent.setName(Component.translatable(BAR_KEY + ".phase3"));
+            if (!isAscended()) {
+                // no coliseum, so no ascension scene: he takes his form here, in a flash, all the same
+                entityData.set(DATA_FORM, 3);
+                refreshDimensions();
+                Fx.flash(level, position().add(0, getBbHeight() * 0.5, 0), 4F);
+            }
             if (inColiseum()) {
                 lightsCrimson(level);
                 entityData.set(DATA_NIGHT, NIGHT_P3);
@@ -5213,7 +5219,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             addBeam(level, sun, aim, 3.0F, 0xFFC23A);
             BeamEntity b = beam(level, 0);
             if (b != null) b.setMode(BeamEntity.FIRE);
-            entityData.set(DATA_NIGHT, 0.1F);
+            if (inColiseum()) entityData.set(DATA_NIGHT, 0.1F);
             level.playSound(null, sun.x, sun.y, sun.z, SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 4.0F, 0.5F);
             level.playSound(null, sun.x, sun.y, sun.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 3.0F, 0.5F);
             PaponNetwork.shake(level, position(), 64, 0.7F, 20);
@@ -5254,9 +5260,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             clearBeams(level);
             level.playSound(null, sun.x, sun.y, sun.z, SoundEvents.BEACON_DEACTIVATE, SoundSource.HOSTILE, 3.0F, 0.6F);
         }
-        if (t > 136) entityData.set(DATA_NIGHT, Math.min(NIGHT_P3, 0.1F + (t - 136) / 20F * (NIGHT_P3 - 0.1F)));
+        if (t > 136 && inColiseum()) entityData.set(DATA_NIGHT, Math.min(NIGHT_P3, 0.1F + (t - 136) / 20F * (NIGHT_P3 - 0.1F)));
         if (t >= BossState.P3_SOLAR.duration) {
-            entityData.set(DATA_NIGHT, NIGHT_P3);
+            if (inColiseum()) entityData.set(DATA_NIGHT, NIGHT_P3);
             think = 10;
             setBossState(BossState.IDLE);
         }

@@ -93,9 +93,9 @@ public final class PillowClient {
                 case HUMP -> {
                     // low in front of you, folded over, rammed forward on every thrust
                     float th = thrust(t);
-                    ps.translate(side * -0.2F, -0.62F + 0.02F * th, -0.62F - 0.12F * th);
+                    ps.translate(side * -0.12F, -0.38F + 0.02F * th, -0.6F - 0.1F * th);
                     ps.mulPose(Axis.YP.rotationDegrees(side * -10));
-                    ps.mulPose(Axis.XP.rotationDegrees(-30 + 6 * th));
+                    ps.mulPose(Axis.XP.rotationDegrees(-8 + 6 * th));
                 }
                 default -> {
                     // held to your chest, rocking slowly from side to side

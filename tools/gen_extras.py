@@ -12,6 +12,8 @@
   models/item/body_pillow.json             builtin/entity: the pillow is a soft mesh drawn by client/PillowMesh
                                            (squeezed, folded, slouched), here only its display transforms
   textures/entity/tongue.png               the player's tongue, licking it
+  textures/entity/sun_stone.png            256x256: El Sol Azteca (phase three): a Piedra del Sol in gold and stone, its rings
+                                           of glyphs and sun rays round Papon's grinning potato face (client/BossRenderer)
 
 To use another picture, put it at tools/src/makima_pillow.jpg (two pillow panels side by side, outlined
 in a dark line, front on the left) and run this again.
@@ -328,8 +330,8 @@ def pillow():
             # in third person the pillow is drawn by client/PillowLayer (hugged, licked, humped, under the arm)
             'thirdperson_righthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0, 0, 0]},
             'thirdperson_lefthand': {'rotation': [0, 180, 0], 'translation': [0, 3, 2], 'scale': [0, 0, 0]},
-            'firstperson_righthand': {'rotation': [0, 160, 10], 'translation': [-2, 2, 0], 'scale': [0.8, 0.8, 0.8]},
-            'firstperson_lefthand': {'rotation': [0, 200, -10], 'translation': [-2, 2, 0], 'scale': [0.8, 0.8, 0.8]},
+            'firstperson_righthand': {'rotation': [0, 160, 10], 'translation': [-2, 2, 0], 'scale': [0.62, 0.62, 0.62]},
+            'firstperson_lefthand': {'rotation': [0, 200, -10], 'translation': [-2, 2, 0], 'scale': [0.62, 0.62, 0.62]},
             'head': {'rotation': [0, 180, 0], 'translation': [0, -6, -6], 'scale': [1, 1, 1]},
         },
     }
@@ -352,7 +354,80 @@ def tongue():
     return out
 
 
+def sun_stone():
+    """A potato Piedra del Sol: a disc of carved rings (rays, a band of glyph squares, dots, the four "movement" lobes)
+    in gold with dark stone in the cuts and turquoise inlay, and in the middle Papon's face, grinning, tongue out like
+    Tonatiuh's. Transparent outside the disc. Drawn at 4x and shrunk, so the carving reads at any size."""
+    S = 1024
+    im = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    c = S / 2
+    gold, gold_dk, gold_lt = (232, 178, 64, 255), (150, 98, 30, 255), (255, 222, 120, 255)
+    stone, turq, red = (70, 52, 34, 255), (60, 196, 186, 255), (204, 52, 44, 255)
+
+    def ring(r0, r1, fill):
+        d.ellipse([c - r1, c - r1, c + r1, c + r1], fill=fill)
+        if r0 > 0:
+            d.ellipse([c - r0, c - r0, c + r0, c + r0], fill=(0, 0, 0, 0))
+
+    # the outer rays: sixteen points round the rim
+    pts = []
+    for i in range(32):
+        a = math.pi * 2 * i / 32 - math.pi / 2
+        r = 510 if i % 2 == 0 else 440
+        pts.append((c + math.cos(a) * r, c + math.sin(a) * r))
+    d.polygon(pts, fill=gold)
+    d.ellipse([c - 450, c - 450, c + 450, c + 450], fill=gold_dk)
+    d.ellipse([c - 436, c - 436, c + 436, c + 436], fill=gold)
+    # a band of glyph squares, each a little carved potato glyph
+    for i in range(40):
+        a = math.pi * 2 * i / 40
+        x, y = c + math.cos(a) * 395, c + math.sin(a) * 395
+        k = 22
+        d.rectangle([x - k, y - k, x + k, y + k], fill=stone)
+        d.rectangle([x - k + 6, y - k + 6, x + k - 6, y + k - 6], fill=gold_lt if i % 3 else turq)
+        d.ellipse([x - 8, y - 5, x + 8, y + 5], fill=stone)
+    d.ellipse([c - 360, c - 360, c + 360, c + 360], fill=gold_dk)
+    d.ellipse([c - 348, c - 348, c + 348, c + 348], fill=gold)
+    # dots
+    for i in range(60):
+        a = math.pi * 2 * i / 60
+        x, y = c + math.cos(a) * 325, c + math.sin(a) * 325
+        d.ellipse([x - 9, y - 9, x + 9, y + 9], fill=stone if i % 2 else red)
+    # the day signs: twenty boxes
+    d.ellipse([c - 300, c - 300, c + 300, c + 300], fill=stone)
+    d.ellipse([c - 290, c - 290, c + 290, c + 290], fill=gold)
+    for i in range(20):
+        a = math.pi * 2 * (i + 0.5) / 20
+        x, y = c + math.cos(a) * 250, c + math.sin(a) * 250
+        d.polygon([(x + math.cos(a + 1.57) * 26, y + math.sin(a + 1.57) * 26), (x + math.cos(a) * 30, y + math.sin(a) * 30),
+                   (x - math.cos(a + 1.57) * 26, y - math.sin(a + 1.57) * 26), (x - math.cos(a) * 30, y - math.sin(a) * 30)],
+                  fill=turq if i % 2 else gold_lt, outline=stone)
+    d.ellipse([c - 205, c - 205, c + 205, c + 205], fill=stone)
+    d.ellipse([c - 195, c - 195, c + 195, c + 195], fill=gold)
+    # the four lobes (Nahui Ollin)
+    for i in range(4):
+        a = math.pi / 4 + math.pi / 2 * i
+        x, y = c + math.cos(a) * 150, c + math.sin(a) * 150
+        d.rectangle([x - 46, y - 46, x + 46, y + 46], fill=stone)
+        d.rectangle([x - 36, y - 36, x + 36, y + 36], fill=gold_lt)
+        d.ellipse([x - 18, y - 18, x + 18, y + 18], fill=red)
+    # Papon in the middle: a golden potato face, white eyes, the grin, the tongue out
+    d.ellipse([c - 120, c - 130, c + 120, c + 130], fill=(224, 164, 64, 255), outline=gold_dk, width=8)
+    for sx in (-1, 1):
+        d.rectangle([c + sx * 52 - 26, c - 50, c + sx * 52 + 26, c - 22], fill=(255, 255, 255, 255))
+        d.rectangle([c + sx * 52 - 34, c - 74, c + sx * 52 + 30, c - 62], fill=(90, 54, 24, 255))
+    d.rectangle([c - 64, c + 30, c + 64, c + 52], fill=(90, 54, 24, 255))
+    d.rectangle([c - 22, c + 52, c + 22, c + 92], fill=red)
+    d.rectangle([c - 22, c + 52, c + 22, c + 60], fill=(150, 30, 30, 255))
+    im = im.resize((256, 256), Image.LANCZOS)
+    out = os.path.join(ASSETS, 'textures/entity/sun_stone.png')
+    im.save(out)
+    return out
+
+
 if __name__ == '__main__':
     print(splats())
     print(*pillow())
     print(tongue())
+    print(sun_stone())

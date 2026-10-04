@@ -290,10 +290,11 @@ final class GuitarDuel {
         int ny = (int) Mth.lerp(Mth.clamp(meter, 0, 1), my1, my0);
         g.fill(mx - 4, ny - 1, mx + 12, ny + 2, 0xFFFFFFFF);
         // combo, multiplier, accuracy, the judgement
+        // over the top of the highway, where nothing is cut off whatever the GUI scale
         Component combo = Component.translatable("qte.papon.duel.combo", this.combo, multiplier());
-        g.drawString(font, combo, cx - halfBottom - 10 - font.width(combo), lineY - 30, 0xFFFFD27A, true);
+        g.drawString(font, combo, cx - font.width(combo) / 2, topY - 30, 0xFFFFD27A, true);
         Component acc = Component.translatable("qte.papon.duel.accuracy", Math.round(accuracy() * 100), Math.round(PASS * 100));
-        g.drawString(font, acc, cx - halfBottom - 10 - font.width(acc), lineY - 18, accuracy() >= PASS ? 0xFF8CFF8C : 0xFFFF8C8C, true);
+        g.drawString(font, acc, cx - font.width(acc) / 2, topY - 19, accuracy() >= PASS ? 0xFF8CFF8C : 0xFFFF8C8C, true);
         if (judgeTime < 14 && !judge.isEmpty()) {
             Component j = Component.translatable("qte.papon.duel." + judge);
             int col = judge.equals("perfect") ? 0xFF7CF0FF : judge.equals("good") ? 0xFF8CFF8C : 0xFFFF5A4A;

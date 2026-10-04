@@ -100,8 +100,19 @@ quality throughout."
      band stage at night, a lamp a member turns on in the background every time it turns to night**; **no chairs
      for the band except Gordo** (the guitarron, the one in the dialogue with the boss: he dozes off again and gets
      his chair kicked); **no gold aura on the singer**.
+   - **Ascended Papon's moveset (2026-10-04, the user's spec, see "Ascended Papon's moveset" below):** phase three's
+     fight gets **its own moveset**: he is a **demigod, buff, flies way faster**, so **none of the chef's attacks** (no
+     spatula, nothing chef); **dramatic, over the top, potato and Mexican themed**, **more involvement with the arena**,
+     **laser attacks**; **the new car (the Skyline) as a prop or something the player uses to avoid damage**; **the
+     mariachi band in the fight** (attacks from them; he **steals the guitar** and **challenges you to a 1-on-1 guitar
+     duel**: QTE mechanics, **like Guitar Hero, hard, for pro gamers**). **QTEs harder and faster, a 0.8 s window**, and a
+     new **spam QTE** (spam keys very fast). The **over-the-top attacks and the QTEs take a percentage of your health**
+     (not all attacks). **New voice lines** for his charisma, charm and crowd control.
    - **The pillow:** the player **hugs the Makima pillow "sensually"** (an animation), can **lick it**, and can **put
-     it on a bed and sleep next to it on their side**.
+     it on a bed and sleep next to it on their side**. (2026-10-04) The pillow uses **the user's Makima picture**
+     (`tools/src/makima_pillow.jpg`), **looks like a natural pillow** (soft, plump, rounded), **slouches against the wall
+     when put on a bed**, the player can **hump** it (in hand, and on the bed), and it is **squeezed or folded over**
+     depending on how it is used.
    - **After his fall:** once Gerbin gives you the pillow you **go back to the Taco Truck**; **Chef Papon is a vendor
      again, friendly, back working in the truck, and his vendor menu gives you free tacos**.
 8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
@@ -183,6 +194,9 @@ player and were not exercised headless.
 | Mesh celebrities' bodies: knees (`shin_r/_l` bones), relaxed hands, shoes, loose trousers, neck clear of the shoulders, Blender decimation to quads (~10.5k verts, head and hands untouched) | `tools/mh_human.py` (`relax_hands`, `dress`, `optimize`), `tools/blender_decimate.py` |
 | Previews without Minecraft: Blender stills and animation filmstrips (GeckoLib keyframes evaluated, mesh skinned) | `tools/blender_preview.py`, `tools/anim_preview.py` + `tools/blender_filmstrip.py` |
 | Phase three "Para Siempre" (half health): knockback, glare, the snatch, lights out round the bowl, the spotlight, his serenade (the song's first 18 s), the toss, the band's drop with the fire back crimson, "let's dance"; night for the rest of the fight | `boss/PaponBossEntity` (`startPhaseThree`, `tickP3*`), `BossState.P3_*`, `boss/BandState` (SCARED/ROBBED/AWED/CATCH), `client/NightLight.java`, `client/BossRenderer` (`drawSpotlight`), `client/BossModel` (serenade hands), `client/BossFace` (sings), `client/Cinematic.phaseThreeShot`, `client/SongPlayer` (`phaseThree`), `client/ColiseumCrowdRenderer` (lighters), `block/ArenaBrazierBlock` (LIT/CRIMSON), `tools/gen_song.py --song para_siempre` |
+| Ascended Papon's moveset (phase three's fight): Puños de Oro, Relámpago Dorado, Cometa de Papa, Ojos de Papa (eye + statue lasers, the Skyline blocks them), El Sol Azteca (hide behind the Skyline), ¡Fuego, Mariachi! (the band's blasts), Duelo de Guitarras, La Piñata, Llamas del Coliseo, La Supernova (+ spent), Nitro (the Skyline), the squeeze (spam QTE) | `boss/PaponBossEntity` (`chooseAscended`, `tickP3Combo..tickP3Nitro`, `tickBandWaves`), `BossState.P3_COMBO..P3_NITRO`, `boss/BeamEntity.java`, `client/BeamRenderer.java`, `client/BossRenderer` (`drawSunStone`, `drawStar`), `client/BossModel` (`shred`), `gen_boss_anims` (`b_a_*`), `gen_props` (`pinata`, `candy`), `gen_extras.sun_stone` |
+| QTEs at 0.8 s, the spam meter (kind 5), the guitar duel (kind 6, guitar-hero on D F J K) | `PaponBossEntity` (`startQte`, `qteResult`), `client/QteClient.java`, `client/GuitarDuel.java`, `client/QteScreen.java`, `network/PaponNetwork.QteResult`, `client/Cinematic` (duel shot) |
+| The body pillow as a soft mesh (squeezed, pressed, folded, slouched), the Makima picture, the hump (in hand and on a bed) | `client/PillowMesh.java`, `client/PillowItemRenderer.java`, `client/PillowLayer.java`, `client/PillowClient.java`, `client/BodyPillowRenderer.java`, `entity/BodyPillowEntity.java`, `item/BodyPillowItem.java`, `gen_extras.panels/pillow` |
 | Phase-two voice: his lines in English in a cloned voice (Qwen3-TTS on Modal), lip-synced, the cutscene timed to them | `tools/gen_boss_voice.py`, `tools/voice_modal.py`, `boss/VoiceLines.java`, `client/BossFace.java`, `client/BossModel.java`, `assets/papon/voice/boss2.json`, `sounds/voice/boss2/` |
 
 ### The boss fight (status 2026-10-02: built; tested headless and with the autoshot client)
@@ -439,12 +453,64 @@ player and were not exercised headless.
   him from every side, the stands lighting up, the band in awe; the stands are near silent while he plays
   (`CrowdSounds`: LIGHTERS bed 0.05). Foil potatoes are not drawn in the cutscene. His aura goes **crimson** from the drop
   (`BossRenderer.aura`: flares, then smoulders through the fight).
+- **Tightened (2026-10-04, the user: "some scenes are too long and broken")**: the glare starts sooner (maraca 30,
+  "not my style" 44), the snatch holds 46 t after the rip, **one groan** in the ascension (the wings tear out on its last
+  cry: ~9 s, was ~15 s; `ascend.groan2` is -1), the toss pause and the smile hold shorter, faster walks to the band and
+  back. **Fixed**: P3_TO_CAR could hover forever when he could not reach the van's door (now he is simply there after
+  4.5 s); the glare's eye close-up and the serenade's stands shot put the camera inside his (ascended, bigger) head; the
+  ascended face is aimed lower (`face` 0.62 h) so the evil smile shows his mouth.
 - **Night** (`client/NightLight`): the coliseum has full skylight, so the client darkens the lightmap (reflection on
   `LightTexture`: forces vanilla's rebuild each frame, then scales skylight by `1 - night`, keeps block light, tints
   it crimson once `isPhaseThree`; cell (15,15) stays white for his spotlight), covers the sky with a black box after
   the sky pass, and blacks the fog. **Spotlight**: `BossRenderer.drawSpotlight` (two additive cones from 30 up and a
   pool on the sand), him drawn full-bright, white-ash motes. **Braziers** `ArenaBrazierBlock.LIT/CRIMSON` (models
   `arena_brazier_out/_crimson`, `gen_blocks.py`).
+
+### Ascended Papon's moveset (status 2026-10-04, v0.9.0: built; check with `./gradlew runClient -Pautoshot=phase3`)
+- **When**: `ascendedFight()` = form 3 and `DATA_PHASE3` (from the band's drop; with no coliseum he takes form 3 at the
+  drop in a flash). `choose()` hands over to `chooseAscended` (same `pickWeighted` deck, `ascendedWeight`): none of the
+  older moves. No comal guard; his sidestep is a flash step (a teleport, he stays IDLE); the salsa burst is a golden
+  burst. Hover is faster (1.1 b/t, a wider, higher orbit). Taunts/quips are the `p3_*` lines. `/papon bossstate P3_X`
+  forces any of them (and puts him in his form if he is not).
+- **The moves** (cooldowns in `startAscended`; percentages are `Mechanics.trueHit`, of max health, through armor):
+  P3_COMBO 56t Puños de Oro (in, jabs t9/14/19, uppercut t28, over you t38, spike t46, landing ring) normal damage ·
+  P3_FLASH Relámpago Dorado (5 dashes: a 0.4 s golden `warnLine`, 4 ticks down it through anything, a bolt) normal ·
+  P3_COMET → P3_COMET_LAND twice (up out of sight, a red mark that follows then locks at t28, down at 2.6 b/t; 30% at
+  the centre falling to 7.5% at 6.5, fire round it, rings at 4/6.2/8.4 for 6% each, jump them) ·
+  P3_LASER 110t Ojos de Papa (two eye beams from t14 aim, fire t34-96 chasing you at 0.36 b/t, 5% per 4 t; in the
+  coliseum his two golden statues' eyes too, 4%; the Skyline stops a beam: `traceBeam`/`vanHit` use the van's real
+  footprint; sparks and a hiss on it) · P3_SOLAR 170t El Sol Azteca (over the far end from you, the sun stone grows
+  behind him (`BossRenderer.drawSunStone`, `sunPos()`), t90-136 daylight in his night and a sweeping beam; anyone the sun
+  can see (`sunSees`: eyes and chest, the Skyline and blocks shade; inside the van is safe) loses 7% every 5 t) ·
+  P3_MARIACHI 160t ¡Fuego, Mariachi! (he conducts from the front of the band stand; on the song's beat a trumpet fires
+  a ring along the ground (jump), on the off-beat a violin a ring at head height (sneak: 1.5 tall ducks it), 10% each;
+  `bandWaves`) · P3_DUEL_FETCH → P3_DUEL → P3_DUEL_SMASH | P3_DUEL_SHAME (the guitarist's guitar snatched
+  (`MariachiEntity.snatch/giveBack`; any robbed member's instrument is hidden), he lands 5.5 in front of you, the duel
+  (14 s, you are rooted); he wins: the guitar over your head, 30% + 30% x (1 - score), stunned; you win: the crowd
+  cheers you, he stands there taking double for 4 s) · P3_PINATA 140t (a PINATA prop down on its rope, his flying kick
+  t44, 24 CANDY props on pink warnings, half on you, 12% each) · P3_BRAZIERS 110t (the podium braziers hurl METEOR
+  potatoes at you every 4 t, normal damage + fire) · P3_NOVA 150t → P3_SPENT 80t (under 40% health: a star over the
+  middle (`drawStar`), the sand marked red but his golden shadow ring (3.5); at t130 everyone outside it loses 70%;
+  spent after: double damage) · P3_NITRO (onto the Skyline's roof, in, `startDriving` with `nitro`: no molotovs, no
+  bail-out, purple fire behind the donuts, rams take 35% (`CaravanEntity.setRamShare`); out through the roof, flying) ·
+  QTE_GRAB kind 5, the squeeze (fail 45% + stunned), or in the coliseum the tango (kind 4, "Now you DANCE for me").
+- **The spam QTE** (kind 5, `QteClient`): three pairs of keys (no key twice), alternate the current pair; the meter
+  starts at 0.2, +0.096 a right press, drains 0.025 a tick (7-8 presses a second to fill it in the 4.5 s), a key not
+  in the pair -0.08; full = free, time up = crushed. Judged on the client, sent as `PaponNetwork.QteResult`.
+- **The guitar duel** (kind 6, `client/GuitarDuel`): keys D F J K, the chart built on the client from the playing song's
+  beat grid (`SongPlayer.songTime` at the start, 6/8: triplets), denser as it goes, chords on the bars, a 16th burst at
+  the end; gems fall in 0.8 s; ±75 ms good, ±35 ms perfect; the rock meter (+0.025/+0.035, -0.07 a miss, -0.03 a bum
+  note) empties = lost; pass = survive with 85% hit. Timed on the real clock. Camera: `Cinematic` duel shot (over your
+  shoulder, no letterbox). Server waits `DUEL_TICKS` + 80 for the result.
+- **Visuals**: `BeamEntity` (both ends synced, eased on the client; AIM a thin flicker, FIRE a white core in a coloured
+  sheath and a splash) drawn by `BeamRenderer` (additive, double-sided). Sun stone texture `textures/entity/sun_stone.png`
+  (`gen_extras.sun_stone`). Props `fx_pinata`, `fx_candy` (`gen_props`). Animations `a_*` (+ `qte_hold_crush`,
+  `qte_fail_crush`) in `gen_boss_anims.ASCENDED_MOVES`; the duel's hands are `BossModel.shred`.
+- **Voice**: 28 new lines (`p3_*`: one per move, `p3_charm0-5`, `p3_hit0-1`, `p3_landed0-1`, `p3_low`, `p3_tango`,
+  `p3_squeeze`, `p3_siesta`, `p3_duel_won/lost`), generated on Modal 2026-10-04 (profile zardman1) from his own built
+  lines as the reference (no reference.mp3 on the Windows machine). `PICKED` pins `p3_duel` take 3.
+- **Dev**: `-Pautoshot=phase3` now ends with a showcase of every move (`AutoShot.ascendedShowcase`: an invulnerable armor
+  stand as the target, a spectator camera, then the QTEs on you), shots `papon_u*.png`.
 
 ### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
 - **From the kneel on he talks in English, in a cloned voice** (the user's reference: Spanish-accented English,
@@ -453,6 +519,11 @@ player and were not exercised headless.
   `voice.boss2.<line>`, its bubble held as long as it plays; the vendor's lines are `vendor_*` in `LINES`
   (`TacoVendorEntity.line`; the unmasking lines moved to EXPOSED t36 / UNMASK t18 to fit the English lengths).
   The Rocko TTS (`gen_voice.py`) is only the fallback for a line with no recording.
+- **On Windows / a fresh checkout (2026-10-04):** the Modal profile is `PAPON_MODAL_PROFILE` or the active one; without
+  `tools/src/voice/reference.mp3` the clone is taken from his built lines (`REFS_FROM_LINES`); without ffmpeg the
+  loudness is pyloudnorm (`pip install pyloudnorm`, `PY_TARGET`); lines already built and not in the take cache are kept
+  as they are (`built_lines`), so only new lines go to the GPU; Rhubarb writes to a file (`-o`: the Windows build prints
+  nothing with `-q`). Run with `PYTHONIOENCODING=utf-8`.
 - **Generating** (`python3.11 tools/gen_boss_voice.py`; `--build` rebuilds from cached takes, `--redo a,b` retakes,
   `--more a,b` adds takes): Modal profile **melvinczyk** (`python3.11 -m modal token new --profile melvinczyk`),
   app `papon-voice` (L40S, volume `papon-voice-cache` for the weights). Qwen3-TTS-12Hz-1.7B-Base clones in ICL
@@ -515,6 +586,16 @@ player and were not exercised headless.
   breaks: `BandState.LAMP_GO` (walks to the stage-left lamp, stepping off the riser) → `LAMP_SWITCH` 40t (a tug on
   the chain at t16: both lamps switch, the far one 7t later) → `LAMP_BACK` → PLAY (`MariachiEntity.tickLamp`;
   animations `lamp_walk`, `lamp_switch`).
+- **The pillow, reworked (2026-10-04, v0.9.0; check with `-Pautoshot=pillow`)**: a soft mesh (`client/PillowMesh`: a spine
+  bent by `Shape` (squeeze, fold, bend, press, bow, anchor), a plump cushion round it, 1.5 x 0.5 blocks) with the user's
+  Makima picture (`gen_extras.panels`: both panels found by their outlines and straightened; 256x256, front 96 wide at 0,
+  back at 96). The item is `builtin/entity` drawn by `PillowItemRenderer` (first person takes the handling's shape);
+  third person `PillowLayer`; hug = squeezed at the arms and bent round you, lick = pressed at the face, **hump** = hold
+  use looking down (`BodyPillowItem.humping`): folded double at the hips, squashed on each thrust (`PillowClient.thrust`,
+  a stroke every 7 t; the HUMP arm pose also moves the body and legs; the whole player rocks in `onRenderPlayerPre`). On a
+  bed it **slouches** against the headboard (`slouchPlace`, folded up, leaning back to the wall, sagging); right-click
+  it to climb on (you ride it: `shouldRiderSit` false, kneeling in the mattress, thrusting; the bed creaks; sneak off),
+  sneak + right-click takes it back; someone asleep in the bed: it lies beside them as before.
 - **The pillow** (`item/BodyPillowItem`): hold use = hug (`client/PillowClient.HUG` arm pose: arms wrapped, cheek on
   it, slow sway, a nuzzle every few seconds; hearts, purrs), sneak + use = lick (`LICK`: up at the face, the head
   bobbing on each lick; slurps and drips; the tongue drawn by `client/PillowLayer`), first person by
@@ -561,6 +642,8 @@ player and were not exercised headless.
   3 manoeuvres a drive; `vanCd` after a drive 2x the config (36 s); VAN_GRAB cooldown 30 s. Risen damage x1.35.
 - **QTEs**: kinds 3 ¡Apaga el Fuego! (mash one key 14x, 9 t each; bottle hold) and 4 El Tango del Papa (arrow keys on
   the song's beat, coliseum only; suplex hold); `qteBase()` maps them onto the three hold/fail animations.
+  **Harder (2026-10-04):** `QTE_WINDOW` 16 (0.8 s), `QTE_GRACE` 10, 4/5/6 keys, the mash 20 presses at 6 t, the tango 9
+  steps with 1 t of slack; kind 5 (the squeeze) and kind 6 (the duel) are below.
 
 ### Boss rework (status 2026-10-03, v0.6.0)
 - **Voice:** Chef Papon's lines (vendor + boss) are text-to-speech clips (`tools/gen_voice.py`, macOS `say` Rocko
