@@ -2869,7 +2869,6 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 1 && arena == null && !arenaFailed) planArena(level);
         if (t == 15) {
             entityData.set(DATA_FORM, 2);
-            sayPlain("scream", 50);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 4.0F, 0.5F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 2.0F, 1.4F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 2.0F, 0.8F);

@@ -79,76 +79,76 @@ DIRECTION = {
     'drunk': ('animated', 'Speak %s, drunk and slurring, wobbly and indignant.' % STAR),
 }
 
-# line -> (text, mood). The text is directed: capitals are stressed, ellipses are the pauses; the bubble
-# shows it as written.
+# line -> (text, mood). The text is directed: capitals are stressed, an ellipsis is a pause (one at most, and
+# only where a pause belongs: too many and he reads word by word); the bubble shows it as written. No scream:
+# the roars under it do that job better than a voice can.
 LINES = {
     # ---- the transformation (on the ground)
-    'bleed':      ("Heh... heh heh. You made me... BLEED, amigo.", 'pained'),
-    'enough':     ("Okay... OKAY. Enough... playing around.", 'smug'),
-    'salt':       ("A little bit... of salt...", 'warm'),
-    'golden':     ("Mmmm... and nice... and GOLDEN!", 'warm'),
-    'scream':     ("RRRAAAAAAAAAAAAAAAAGH!!!", 'shout'),
+    'bleed':      ("Heh heh... You made me BLEED, amigo.", 'pained'),
+    'enough':     ("Okay, OKAY. Enough playing around.", 'smug'),
+    'salt':       ("A little bit of salt...", 'warm'),
+    'golden':     ("Mmm, and nice and GOLDEN!", 'warm'),
     # ---- El Coliseo Papa
-    'listos':     ("ARE... YOU... READY?!", 'shout'),
+    'listos':     ("ARE YOU READY?!", 'shout'),
     'musica':     ("MUSIC, MAESTRO!!!", 'shout'),
-    'maestro':    ("Maestro...? ...MAESTRO?!", 'surprised'),
-    'despierten': ("WAKE UP, you lazy bums!!! We have... an AUDIENCE!", 'angry'),
-    'momentito':  ("One moment, amigo... just... ONE moment.", 'warm'),
-    'ay':         ("Oh... NO!!!", 'surprised'),
+    'maestro':    ("Maestro? ...MAESTRO?!", 'surprised'),
+    'despierten': ("WAKE UP, you lazy bums! We have an AUDIENCE!", 'angry'),
+    'momentito':  ("One moment, amigo. Just ONE moment.", 'warm'),
+    'ay':         ("Oh, NO!!!", 'surprised'),
     'gordo':      ("YOU TOO, GORDO!!!", 'angry'),
-    'apology':    ("My apologies, amigo... Such POOR hospitality. Making my guest... wait like that.", 'warm'),
-    'resume':     ("Now... where... were we?", 'sly'),
+    'apology':    ("My apologies, amigo. Such POOR hospitality... making my guest wait like that.", 'warm'),
+    'resume':     ("Now, where were we?", 'sly'),
     # ---- the fight (his old lines, in English now)
     'salud':      ("CHEERS, amigo!!!", 'shout'),
-    'intro':      ("NOBODY sees my bald head... and LIVES to tell!!!", 'angry'),
-    'taunt0':     ("I am going to make TACOS... out of YOU!", 'sly'),
-    'taunt1':     ("My bald head shines BRIGHTER... than your FUTURE!", 'smug'),
+    'intro':      ("NOBODY sees my bald head and LIVES to tell!!!", 'angry'),
+    'taunt0':     ("I am going to make TACOS out of YOU!", 'sly'),
+    'taunt1':     ("My bald head shines BRIGHTER than your FUTURE!", 'smug'),
     'taunt2':     ("Come HERE, coward!!!", 'angry'),
-    'taunt3':     ("This is PURE... SALSA!", 'sly'),
-    'keys':       ("Where did I leave the keys...? AH! Here!", 'surprised'),
-    'handle':     ("One little sip... for the road...", 'sly'),
+    'taunt3':     ("This is PURE SALSA!", 'sly'),
+    'keys':       ("Where did I leave the keys? AH! Here!", 'surprised'),
+    'handle':     ("One little sip for the road...", 'sly'),
     'ram':        ("MAKE WAY!!!", 'shout'),
     'again':      ("AGAIN!!!", 'shout'),
     'reverse':    ("And in REVERSE!!!", 'shout'),
-    'stumble':    ("Who... who moved the FLOOR?", 'drunk'),
+    'stumble':    ("Who moved the FLOOR?", 'drunk'),
     'stolen':     ("HEY!!! MY VAN!!!", 'angry'),
-    'phase':      ("NOW... I am REALLY MAD!!!", 'angry'),
-    'death':      ("My hair... my beautiful... HAIR...", 'sad'),
+    'phase':      ("NOW I am REALLY MAD!!!", 'angry'),
+    'death':      ("My hair... my beautiful HAIR...", 'sad'),
     'kick':       ("HERE IT COMES!!!", 'shout'),
     'bail':       ("THIS is my STOP!!!", 'shout'),
     'door':       ("Mind the DOOR!", 'sly'),
-    'meteor':     ("It's RAINING... POTATOES!!!", 'shout'),
+    'meteor':     ("It's RAINING POTATOES!!!", 'shout'),
     'catch':      ("CATCH!!!", 'shout'),
     'foil':       ("My TINFOIL!!! You ANIMAL!", 'angry'),
-    'grab':       ("Gotcha... amigo.", 'sly'),
-    'torch':      ("Nice... and golden...", 'warm'),
-    'season':     ("...and a PINCH of salt!", 'sly'),
+    'grab':       ("Gotcha, amigo.", 'sly'),
+    'torch':      ("Nice and golden...", 'warm'),
+    'season':     ("And a PINCH of salt!", 'sly'),
     'toss':       ("ON THE GRILL!!!", 'shout'),
     'dodge':      ("HA! You didn't even TOUCH me!", 'smug'),
-    'burrito':    ("One burrito... TO GO!", 'sly'),
+    'burrito':    ("One burrito, TO GO!", 'sly'),
     'borracho':   ("I'm FINE!!! I'm FINE!!!", 'drunk'),
-    'haymaker':   ("I TOLD you... I was FINE!!!", 'drunk'),
-    'brick':      ("You drive... I HIT.", 'sly'),
-    'qte0':       ("Your last supper... amigo.", 'sly'),
+    'haymaker':   ("I TOLD you I was FINE!!!", 'drunk'),
+    'brick':      ("You drive, I HIT.", 'sly'),
+    'qte0':       ("Your last supper, amigo.", 'sly'),
     'qte1':       ("LAST CALL!!! Open WIDE!", 'shout'),
-    'qte2':       ("MASHED... TOURIST!!!", 'shout'),
+    'qte2':       ("MASHED TOURIST!!!", 'shout'),
     'qte_broken': ("OW!!! My BACK!!!", 'pained'),
-    'gravity':    ("EVERYTHING revolves... around the POTATO!!!", 'shout'),
-    'echoes':     ("The THREE... CHEFS!!!", 'shout'),
+    'gravity':    ("EVERYTHING revolves around the POTATO!!!", 'shout'),
+    'echoes':     ("The THREE CHEFS!!!", 'shout'),
     # ---- new: his charm in the coliseum (phase-two taunts and reactions)
-    'charm0':     ("Come, amigo... DANCE with me.", 'sly'),
-    'charm1':     ("Listen to them... They LOVE me.", 'smug'),
-    'charm2':     ("Ay, you are making me sweat... and I am ALREADY baked.", 'warm'),
-    'charm3':     ("Every great potato... needs a WORTHY audience.", 'smug'),
-    'charm4':     ("Do not worry... I will make this quick... and BEAUTIFUL.", 'sly'),
+    'charm0':     ("Come, amigo. DANCE with me.", 'sly'),
+    'charm1':     ("Listen to them. They LOVE me.", 'smug'),
+    'charm2':     ("Ay, you are making me sweat, and I am ALREADY baked.", 'warm'),
+    'charm3':     ("Every great potato needs a WORTHY audience.", 'smug'),
+    'charm4':     ("Do not worry. I will make this quick... and BEAUTIFUL.", 'sly'),
     'charm5':     ("OLÉ!!!", 'shout'),
     'hit0':       ("AH!!! Not the FACE!", 'pained'),
-    'hit1':       ("You will PAY for that... in TACOS.", 'angry'),
-    'landed0':    ("Gracias, gracias... you are TOO kind.", 'smug'),
-    'landed1':    ("And the crowd... goes WILD!!!", 'shout'),
+    'hit1':       ("You will PAY for that, in TACOS.", 'angry'),
+    'landed0':    ("Gracias, gracias. You are TOO kind.", 'smug'),
+    'landed1':    ("And the crowd goes WILD!!!", 'shout'),
 }
 
-NO_CHECK = {'scream', 'charm5'}          # Whisper cannot judge a scream or a lone word
+NO_CHECK = {'charm5'}          # Whisper cannot judge a scream or a lone word
 
 
 def norm(s):
@@ -272,7 +272,6 @@ def heard_energy(heard):
 def pick(line, info):
     """The most expressive take that says the line (Whisper), sounds like him and is not cut off."""
     text, mood = LINES[line]
-    wants_pauses = '...' in text
     loud = '!' in text
     cands = []
     for k, t in enumerate(info['takes']):
@@ -287,8 +286,11 @@ def pick(line, info):
         excl, caps, stretch = heard_energy(t['heard'])
         err = wer(text, t['heard'])
         score = e['range'] + 0.4 * e['dyn'] + 40 * (t.get('sim') or 0)
-        if wants_pauses:
-            score += 2.0 * min(e['pauses'], 3)
+        # pauses: as many as the text has (its ellipses and full stops inside it), not more; and not word by word
+        allowed = text.count('...') + len(re.findall(r'[.!?](?=\s+\S)', text.replace('...', '')))
+        score -= 4.0 * max(0, e['pauses'] - allowed)
+        words = max(1, len(norm(text)))
+        score -= 12.0 * max(0.0, t['seconds'] / words - 0.55)
         if loud:
             score += 3.0 * min(excl, 3) + 2.0 * min(caps, 3)
         if mood in ('shout', 'angry'):
@@ -413,7 +415,7 @@ def beats(lengths):
     b['season.kiss'] = b['season.golden'] + max(20, L('golden') - 16)
     b['season.end'] = max(100, b['season.golden'] + L('golden') + 16)
     # the scream (15): everyone is pulled up into the coliseum only once it is out of him
-    b['scream.end'] = max(70, 15 + L('scream') + 8)
+    b['scream.end'] = 70
     # the coliseum: down he comes (36), "ARE... YOU... READY?!", then the point at the band stand: "MUSIC, MAESTRO!!!"
     b['arrive.listos'] = 42
     b['arrive.musica'] = max(74, b['arrive.listos'] + L('listos') + 22)
@@ -441,7 +443,7 @@ def beats(lengths):
     b['resume.total'] = b['resume.line'] + L('resume') + 8
     song = json.load(open(os.path.join(ASSETS, 'song/cancion.json')))
     intro = next(s['length'] for s in song['segments'] if s['id'] == 'intro')
-    need = SHOWTIME + b['apology.aura'] + 70 + b['resume.total']        # at least 3.5 s of aura farm
+    need = SHOWTIME + b['apology.aura'] + 60 + b['resume.total']        # at least 3 s of aura farm
     b['song.passes'] = max(2, math.ceil(need / (intro * 20)))
     fight = int(round(intro * b['song.passes'] * 20))
     b['apology.end'] = fight - SHOWTIME - b['resume.total']
