@@ -169,6 +169,16 @@ public final class BossFace {
             pitch = line.pitchAt(t);
             accent = line.accentAt(t);
         }
+        // the scream has no voice (the roars are it): his mouth gapes through it anyway, shaking
+        if (!saying && boss.getBossState() == BossState.P2_SCREAM) {
+            float st = boss.ticksInState() + partial;
+            if (st > 14 && st < 62) {
+                open = 2.6F * Math.min(1F, (st - 14) / 3F) * (st > 54 ? (62 - st) / 8F : 1F) * (0.92F + 0.08F * Mth.sin(st * 2.3F));
+                width = 1.15F;
+                teeth = 1;
+                tongue = 0.6F;
+            }
+        }
         // never more than 2.6 px (past that the lower lip would sink behind his apron)
         open = Math.min(open, 2.6F);
         f.mouth += (open - f.mouth) * (open > f.mouth ? 1F : 1F - (float) Math.exp(-dt * 1.4F));

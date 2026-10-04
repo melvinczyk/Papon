@@ -265,7 +265,8 @@ public final class AutoShot {
         }
         if (s == BossState.P2_KNEEL && t == 18) once(mc, "p2_01_kneel");
         if (s == BossState.P2_KNEEL && t == 44) once(mc, "p2_02_pov_blood");
-        if (s == BossState.P2_KNEEL && t == 76) once(mc, "p2_03_pov_up");
+        if (s == BossState.P2_KNEEL && t == 84) once(mc, "p2_03_pov_hand");
+        if (s == BossState.P2_KNEEL && t == 116) once(mc, "p2_03b_pov_up");
         if (s == BossState.P2_TALK && t == 20) once(mc, "p2_04_enough");
         if (s == BossState.P2_SEASON && t == 30) once(mc, "p2_05_shaker");
         if (s == BossState.P2_SEASON && t == 50) once(mc, "p2_06_salt_aura");

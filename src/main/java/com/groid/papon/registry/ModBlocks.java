@@ -58,7 +58,7 @@ public final class ModBlocks {
     public static final RegistryObject<Block> ARENA_HOT_SAND = REGISTRY.register("arena_hot_sand",
             () -> new com.groid.papon.block.HotSandBlock(props(MapColor.COLOR_ORANGE).sound(SoundType.SAND).lightLevel(s -> 9)));
     public static final RegistryObject<Block> ARENA_FRYING_OIL = REGISTRY.register("arena_frying_oil",
-            () -> new com.groid.papon.block.FryingOilBlock(props(MapColor.GOLD).sound(SoundType.HONEY_BLOCK).lightLevel(s -> 11).noOcclusion()));
+            () -> new com.groid.papon.block.FryingOilBlock(props(MapColor.GOLD).sound(SoundType.HONEY_BLOCK).lightLevel(s -> 11).noOcclusion().dynamicShape()));
 
     /** A stretch of wall with La Bandera Papa hung on it (block/ArenaFlagBlock; the cloth is drawn by client/ArenaFlagRenderer). */
     public static final RegistryObject<Block> ARENA_FLAG = REGISTRY.register("arena_flag",

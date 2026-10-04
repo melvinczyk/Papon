@@ -89,7 +89,7 @@ public enum BossState {
     VAN_KICK(24),
     BAILOUT(30),
     // phase two (from three quarters health): the cutscene, the pocket dimension, flight
-    P2_KNEEL(80),
+    P2_KNEEL(120),
     P2_TALK(70),
     P2_SCREAM(70),
     P2_ARRIVE(100),
@@ -141,7 +141,7 @@ public enum BossState {
     /** ¡Abucheo!: he turns to the stands, thumbs down: they pelt you with produce for the next 7 s. */
     ARENA_HECKLE(32),
     /** El Machacador (phase two): a masher the size of the sand comes down out of the sky (4.0 s): only its holes are safe. */
-    P2_MASHER(110),
+    P2_MASHER(130),
     /** Working the stands up, timed to end on the first sung word (P2_HYPE_LENGTH long when on time). */
     P2_HYPE(0),
     P2_SOLO(60);

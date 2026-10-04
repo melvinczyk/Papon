@@ -144,6 +144,12 @@ public final class ClientEvents {
         }
     }
 
+    /** Everyone else near him is kept out of his phase-two cutscene (Cinematic.hidden). */
+    @SubscribeEvent
+    public static void onRenderLiving(net.minecraftforge.client.event.RenderLivingEvent.Pre<?, ?> event) {
+        if (Cinematic.hidden(event.getEntity())) event.setCanceled(true);
+    }
+
     /** No on-fire (or in-wall, underwater) overlay over a cutscene shot: the camera is not in your eyes. */
     @SubscribeEvent
     public static void onScreenEffect(net.minecraftforge.client.event.RenderBlockScreenEffectEvent event) {

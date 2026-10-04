@@ -67,7 +67,7 @@ public final class Coliseum {
     public static final int HEIGHT = 34;
     /** Offsets (blocks outside the sand) where things are. */
     private static final double CAVEA = 2, GALLERY = 18, WALL_IN = 19, WALL_OUT = 20, OUTSIDE = 22;
-    private static final int PER_TICK = 450;
+    private static final int PER_TICK = 3200;          // up behind the white-out of his scream, ~13 ticks
     private static final int AISLES = 16;
 
     /** The centre of the floor's top face (where you stand). */
@@ -75,6 +75,7 @@ public final class Coliseum {
     /** The middle of the fight on the ground, where everyone goes back to. */
     public final Vec3 ground;
     @Nullable private List<long[]> pending;
+    private boolean started;
 
     private Coliseum(BlockPos center, Vec3 ground) {
         this.center = center;
@@ -563,6 +564,7 @@ public final class Coliseum {
 
     /** Works out every block; {@link #buildStep} then places them. */
     public void startBuild(ServerLevel level) {
+        started = true;
         pending = blocks();
         PaponMod.LOG.info("[boss] El Coliseo Papa goes up at {}: {} blocks", center, pending.size());
     }
@@ -573,6 +575,7 @@ public final class Coliseum {
     }
 
     public boolean buildStep(ServerLevel level, int perTick) {
+        if (!started) startBuild(level);
         if (pending == null) return true;
         int n = 0;
         while (!pending.isEmpty() && n < perTick) {
@@ -596,7 +599,12 @@ public final class Coliseum {
     }
 
     public boolean built() {
-        return pending == null;
+        return started && pending == null;
+    }
+
+    /** Whether the blocks have started going up (it is only planned until the white-out of his scream). */
+    public boolean started() {
+        return started;
     }
 
     /** Takes down every planned block that is still an arena block, and the crowd and the band with it. */
@@ -696,6 +704,8 @@ public final class Coliseum {
             for (int z = -B; z <= B; z++) {
                 double d = offset(x, z);
                 if (d >= 0) continue;
+                m.set(center.getX() + x, center.getY() - 2, center.getZ() + z);
+                if (level.getBlockState(m).is(ModBlocks.ARENA_FRYING_OIL.get())) level.setBlock(m, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
                 m.set(center.getX() + x, center.getY() - 1, center.getZ() + z);
                 BlockState s = level.getBlockState(m);
                 if (!s.is(ModBlocks.ARENA_HOT_SAND.get()) && !s.is(ModBlocks.ARENA_FRYING_OIL.get())) continue;
@@ -770,7 +780,9 @@ public final class Coliseum {
     }
 
     public static Coliseum load(CompoundTag t) {
-        return new Coliseum(BlockPos.of(t.getLong("Center")), new Vec3(t.getDouble("GX"), t.getDouble("GY"), t.getDouble("GZ")));
+        Coliseum c = new Coliseum(BlockPos.of(t.getLong("Center")), new Vec3(t.getDouble("GX"), t.getDouble("GY"), t.getDouble("GZ")));
+        c.started = true;               // a saved coliseum was standing (or is finished from where it stopped)
+        return c;
     }
 
     /**

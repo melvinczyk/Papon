@@ -140,6 +140,11 @@ public class BossProp extends Entity {
         entityData.set(DATA_RADIUS, r);
     }
 
+    /** MASHER: which layout of holes the plate has (boss/Masher; synced in the fry's delay slot, which it does not use). */
+    public void setVariant(int v) {
+        entityData.set(DATA_DELAY, v);
+    }
+
     /** Ticks a fry still hangs before it flies (synced, the renderer shakes it). */
     public int delay() {
         return entityData.get(DATA_DELAY);

@@ -60,6 +60,18 @@ public final class Cinematic {
         return active;
     }
 
+    /**
+     * Whether {@code e} is kept out of the shot: through his phase-two cutscene on the ground (kneel to
+     * scream) every other mob within 10 blocks of him disappears so nothing stands between the camera and
+     * him (not the van, a set piece; not you in his point of view, where you are what he sees).
+     */
+    public static boolean hidden(Entity e) {
+        if (!active || !(subject instanceof PaponBossEntity b) || e == b || !b.getBossState().silent()) return false;
+        if (e instanceof com.groid.papon.vehicle.CaravanEntity) return false;
+        if (e instanceof net.minecraft.world.entity.player.Player && povActive()) return false;
+        return e.distanceToSqr(b) <= 10 * 10;
+    }
+
     public static float bars(float partial) {
         return Mth.lerp(partial, barsO, bars);
     }
@@ -102,6 +114,10 @@ public final class Cinematic {
     public static String subjectSpeech() {
         if (!active || subject == null || !subject.isAlive()) return "";
         return subject instanceof com.groid.papon.entity.Speech.Speaker s ? s.getSpeech() : "";
+    }
+
+    private static double smooth(double k) {
+        return k * k * (3 - 2 * k);
     }
 
     private record Shot(Vec3 eye, Vec3 lookAt, float fov, float roll, boolean cut) {}
@@ -309,8 +325,8 @@ public final class Cinematic {
     /**
      * Phase two's cutscene, beat by beat:
      *   P2_KNEEL   a low wide shot as he drops to his knee; then (from 1.4 s) his eyes: looking down at
-     *              the ground where the blood drips, the edges red and pulsing with the heartbeat, until
-     *              his head comes up to you (from 2.8 s)
+     *              the ground where the blood drips, the edges red and pulsing with the heartbeat; across
+     *              to his left hand as it comes up (3 s), bleeding too; then up to you (from 4.8 s)
      *   P2_TALK    close on his face, the blood on his lip: "Okay... enough playing around."; tilting up
      *              as he gets to his feet
      *   P2_SEASON  a slow orbit as the shaker comes down and salts him, pushing in when he bakes
@@ -327,14 +343,27 @@ public final class Cinematic {
                     yield new Shot(b.position().add(right.scale(6.5)).add(f.scale(3.0)).add(0, 0.6, 0), face, 55, 0, t == 0);
                 }
                 pov = b;
+                // his eyes: down at the blood on the ground (to 3 s), across to his left hand as it comes up in
+                // front of them (3.0-3.6 s): bleeding too; held on it, closer, trembling (to 4.8 s); then up to you
                 Vec3 eye = b.position().add(f.scale(1.05)).add(0, 1.35, 0);
                 Vec3 down = b.position().add(f.scale(2.4)).add(0, 0.05, 0);
+                Vec3 hand = b.position().add(f.scale(1.75)).add(right.scale(-0.3)).add(0, 0.85, 0);
                 Vec3 you = mc.player.getEyePosition();
-                double up = t < 56 ? 0 : Math.min(1, (t - 56) / 20.0);
-                up = up * up * (3 - 2 * up);
-                Vec3 look = down.lerp(you, up);
+                Vec3 look;
+                float fov = 62;
+                if (t < 60) {
+                    look = down;
+                } else if (t < 96) {
+                    double k = smooth(Math.min(1, (t - 60) / 12.0));
+                    look = down.lerp(hand, k).add(0, t >= 72 ? Math.sin(t * 1.9) * 0.012 : 0, 0);
+                    fov = 62 - (float) (smooth(Math.min(1, Math.max(0, (t - 70) / 22.0))) * 16);
+                } else {
+                    double k = smooth(Math.min(1, (t - 96) / 22.0));
+                    look = hand.lerp(you, k);
+                    fov = 46 + (float) k * 16;
+                }
                 float sway = (float) Math.sin(t * 0.12) * 5F;
-                yield new Shot(eye.add(0, Math.sin(t * 0.3) * 0.02, 0), look, 62, sway, t == 28);
+                yield new Shot(eye.add(0, Math.sin(t * 0.3) * 0.02, 0), look, fov, sway, t == 28);
             }
             case P2_TALK -> {
                 int up = VoiceLines.beat("talk.enough", 40);

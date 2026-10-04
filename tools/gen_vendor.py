@@ -386,6 +386,16 @@ def phase_two(m):
         m.box([4.5, 9, -8.13], [1, 2, 0], BLOOD, noise=0.08),
     ]))
     m.add(bone('blood_drop', [-5.5, 6, -8.5], 'blood', [m.box([-6, 5, -8.6], [1, 1, 1], BLOOD_LIT, noise=0.05)]))
+    # ---- blood on his left fist (p2_kneel: he looks at his hand and it is bleeding too): smeared over the
+    # front of the fist (up, when the arm is held out in front of him) and its end, a run up the arm, a drop
+    m.add(bone('hand_blood', HAND_L, 'hand_l', [
+        m.box([8.4, 4, -3.13], [3, 3, 0], BLOOD, noise=0.1),
+        m.box([9.4, 7, -3.13], [1, 2, 0], BLOOD_LIT, noise=0.06),
+        m.box([10.6, 6, -3.13], [1, 1, 0], BLOOD_LIT, noise=0.06),
+        m.box([8.5, 3.95, -2.6], [3, 0, 4], BLOOD, noise=0.1),
+        m.box([7.95, 4, -2.4], [0, 2, 2], BLOOD, noise=0.08),
+    ]))
+    m.add(bone('hand_blood_drop', [10, 4, -2], 'hand_blood', [m.box([9.5, 3, -2.5], [1, 1, 1], BLOOD_LIT, noise=0.05)]))
 
     # ---- a pat of butter melting on his bald head, two runs of it down the back
     m.add(bone('butter', [0, 24, 1], 'body', [

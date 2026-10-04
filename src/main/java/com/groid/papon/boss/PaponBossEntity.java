@@ -60,6 +60,7 @@ import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -640,12 +641,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /**
-     * From the moment he kneels he talks in his own voice (gen_boss_voice.py: English, lip-synced by
-     * client/BossFace): a line recorded for it is said as speech.papon.boss2.*, its bubble held for as
-     * long as it plays. Before that, and for anything not recorded, his old Spanish line.
+     * He talks in his own voice (gen_boss_voice.py: English, lip-synced by client/BossFace): a line
+     * recorded for it is said as speech.papon.boss2.*, its bubble held for as long as it plays. Anything
+     * not recorded falls back to his old Spanish line.
      */
     private void speak(String line, int ticks, boolean gloss) {
-        VoiceLines.Line v = isPhaseTwo() ? VoiceLines.line(line) : null;
+        VoiceLines.Line v = VoiceLines.line(line);
         // in the fight a line waits for the last one to finish and settle (the cutscenes are timed by hand)
         BossState st = getBossState();
         boolean scripted = st.cutscene() || st.intro() || st == BossState.DEATH || st == BossState.PHASE;
@@ -2815,11 +2816,18 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             fires.clear();
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_STUNNED, SoundSource.HOSTILE, 2.0F, 0.6F);
             if (getTarget() != null) face(getTarget().position());   // so his point of view finds you
-            // his coliseum starts going up in the sky now, a few hundred blocks a tick, done by the scream
+            // where his coliseum goes; it only goes up behind the white-out at the end of the scream
             if (arena == null && !arenaFailed) planArena(level);
         }
         LivingEntity target = getTarget();
-        if (target != null && t > 60) turnToward(target.position(), 3F);
+        if (target != null && t > 100) turnToward(target.position(), 3F);
+        if (t == 76 || t == 84 || t == 92) {
+            // his left hand, held out in front of his eyes: it is bleeding too, drops off the fist
+            Vec3 f = Vec3.directionFromRotation(0, getYRot());
+            Vec3 hand = position().add(f.scale(1.75)).add(-f.z * -0.3, 0.8, f.x * -0.3);
+            Fx.fall(level, hand, 1, 0.04, 0.08F, 0x7A0A10);
+            Fx.splat(level, new Vec3(hand.x, groundY(hand), hand.z), 0.2F, 0x6A0A10, 100);
+        }
         if (t == 24 || t == 40 || t == 56) {
             // out in front of his face (the camera is his eyes from 1.4 s): drops spattering the ground below
             Vec3 drip = position().add(Vec3.directionFromRotation(0, getYRot()).scale(1.8)).add(0, 0.7, 0);
@@ -2893,7 +2901,6 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 1 && arena == null && !arenaFailed) planArena(level);
         if (t == 15) {
             entityData.set(DATA_FORM, 2);
-            sayPlain("scream", 50);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 4.0F, 0.5F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 2.0F, 1.4F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 2.0F, 0.8F);
@@ -2910,6 +2917,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             bolt(level, position().add(Math.cos(a) * r, 0, Math.sin(a) * r));
         }
         if (t > 15 && t < 60 && t % 8 == 0) Fx.shock(level, position(), (float) (2 + (t - 15) / 4.0), 0xFFE07A);
+        // the white-out (Cinematic: from 14 ticks before the end): now the coliseum goes up, unseen
+        if (arena != null && !arena.started() && t >= beat("scream.end", BossState.P2_SCREAM.duration) - 13) arena.startBuild(level);
         if (t >= beat("scream.end", BossState.P2_SCREAM.duration)) {
             enterArena(level);
             setBossState(BossState.P2_ARRIVE);
@@ -2927,14 +2936,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     // ------------------------------------------------------------------ phase two: El Coliseo Papa
 
-    /** Where the coliseum goes (in the sky over the fight); it goes up a few hundred blocks a tick from here on. */
+    /** Where the coliseum goes (in the sky over the fight); it goes up in the white-out of the scream (tickScream). */
     private void planArena(ServerLevel level) {
         arena = Coliseum.plan(level, home != null ? home : position());
         if (arena == null) {
             arenaFailed = true;
             PaponMod.LOG.info("[boss] no room in the sky for his coliseum over {}: phase two stays on the ground", blockPosition());
-        } else {
-            arena.startBuild(level);
         }
     }
 
@@ -3060,7 +3067,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             arena.restoreFloor(level);
         }
         if (!arena.built()) {
-            arena.buildStep(level);
+            if (arena.started()) arena.buildStep(level);         // not before the white-out: its shadow would fall on the cutscene
             return;
         }
         CaravanEntity van = van(level);
@@ -4872,11 +4879,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
     }
 
+    /** El Machacador's slams: the tick each one lands (a 4-tick drop before it), then 4 held, 8 lifting to the next. */
+    static final int[] MASHER_SLAMS = {50, 82, 112};
+
     /**
-     * El Machacador: he flies up over the sand and hauls down a potato masher as big as it (seen from
-     * 2.3 s high up, looming; its holes glow green on the sand). At 4.0 s it comes down: anyone under the
-     * metal is mashed (over a third of their health through armor, stunned); anyone under a hole is not.
-     * It lifts away again from 4.8 s.
+     * El Machacador: he flies up over the sand and hauls down a potato masher as big as it (looming over
+     * the sand by 1 s; its holes glow green on the sand). Three slams, faster each time (2.5 s, 4.1 s, 5.6 s),
+     * and between them, as it lifts, the holes move: the grid slides half a cell and the plate turns, so the
+     * hole you stood in is metal now. Anyone under the metal is mashed: 30% of their health through armor,
+     * whatever they wear, and slowed (a heavy hit, so the next slam is harder to run from); under a hole,
+     * nothing. It lifts away for good from 5.8 s.
      */
     private void tickMasher(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
@@ -4890,6 +4902,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 1) {
             masher = BossProp.create(level, BossProp.Kind.MASHER, this, c.add(0, 46, 0)).life(BossState.P2_MASHER.duration + 4);
             masher.setYRot(random.nextFloat() * 90F);
+            masher.setVariant(random.nextInt(Masher.VARIANTS));
             masher.setRadius(46F);
             level.addFreshEntity(masher);
             masherId = masher.getUUID();
@@ -4901,53 +4914,74 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.IDLE);
             return;
         }
-        float yaw = masher.getYRot();
-        double h;
-        if (t < 46) {
-            double k = t / 46.0;
-            h = 46 - 30 * (1 - (1 - k) * (1 - k));
-        } else if (t < 80) {
-            h = 16 + Math.sin(t * 0.9) * 0.15;
-            if (t % 14 == 0) level.playSound(null, c.x, c.y + h, c.z, SoundEvents.CHAIN_PLACE, SoundSource.HOSTILE, 3.0F, 0.5F);
-        } else if (t < 86) {
-            double k = (t - 80) / 6.0;
-            h = 16 - 15.7 * k * k;
-        } else if (t < 96) {
-            h = 0.3;
-        } else {
-            double k = (t - 96) / 14.0;
+        int last = MASHER_SLAMS[MASHER_SLAMS.length - 1];
+        // where it is: down from the sky, then for each slam a hang, a 4-tick drop, 4 held, 8 lifting
+        double h = 14 + Math.sin(t * 0.9) * 0.15;
+        if (t < 20) {
+            double k = t / 20.0;
+            h = 46 - 32 * (1 - (1 - k) * (1 - k));
+        }
+        for (int slam : MASHER_SLAMS) {
+            if (t >= slam - 4 && t < slam) {
+                double k = (t - (slam - 4)) / 4.0;
+                h = 14 - 13.7 * k * k;
+            } else if (t >= slam && t < slam + 4) {
+                h = 0.3;
+            } else if (t >= slam + 4 && t < slam + 12 && slam != last) {
+                double k = (t - slam - 4) / 8.0;
+                h = 0.3 + 13.7 * (1 - (1 - k) * (1 - k));
+            }
+        }
+        if (t >= last + 4) {
+            double k = (t - last - 4) / 14.0;
             h = 0.3 + 50 * k * k;
+        }
+        float yaw = masher.getYRot();
+        int variant = masher.delay();
+        for (int i = 0; i + 1 < MASHER_SLAMS.length; i++) {
+            if (t == MASHER_SLAMS[i] + 4) {
+                // up it goes, and the holes are somewhere else: the grid slides, the plate turns
+                variant = (variant + 1 + random.nextInt(Masher.VARIANTS - 1)) % Masher.VARIANTS;
+                masher.setVariant(variant);
+                yaw = Mth.wrapDegrees(yaw + (random.nextBoolean() ? 1 : -1) * (12F + random.nextFloat() * 18F));
+                masher.setYRot(yaw);
+                level.playSound(null, c.x, c.y + 8, c.z, SoundEvents.PISTON_EXTEND, SoundSource.HOSTILE, 3.0F, 0.5F);
+                level.playSound(null, c.x, c.y + 8, c.z, SoundEvents.CHAIN_PLACE, SoundSource.HOSTILE, 3.0F, 0.6F);
+            }
         }
         masher.setPos(c.x, c.y + h, c.z);
         masher.setRadius((float) h);
-        if (t >= 10 && t < 80 && t % 10 == 0) {
-            for (Vec3 hole : Masher.holes(yaw)) com.groid.papon.fx.Fx.warn(level, c.add(hole), 2.2F, 0x6CFF6A, 12);
+        boolean warning = t >= 10 && t < last - 4 && Arrays.stream(MASHER_SLAMS).noneMatch(sl -> t >= sl - 4 && t < sl + 4);
+        if (warning && t % 6 == 0) {
+            for (Vec3 hole : Masher.holes(yaw, variant)) com.groid.papon.fx.Fx.warn(level, c.add(hole), 2.2F, 0x6CFF6A, 8);
         }
-        if (t == 66) {
+        if (t % 14 == 0 && warning) level.playSound(null, c.x, c.y + h, c.z, SoundEvents.CHAIN_PLACE, SoundSource.HOSTILE, 3.0F, 0.5F);
+        if (t == 22) {
             for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, new AABB(c, c).inflate(40, 12, 40), this::hittable)) {
                 p.displayClientMessage(Component.translatable("status.papon.masher").withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD), true);
             }
         }
-        if (t == 86) {
-            PaponNetwork.shake(level, c, 72, 1.5F, 36);
+        for (int slam : MASHER_SLAMS) {
+            if (t != slam) continue;
+            PaponNetwork.shake(level, c, 72, slam == last ? 1.5F : 1.1F, 24);
             com.groid.papon.fx.Fx.land(level, c, 16F);
-            com.groid.papon.fx.Fx.chunks(level, c.add(0, 1, 0), 60, 0.8F, 0xEED69C, 1.4);
+            com.groid.papon.fx.Fx.chunks(level, c.add(0, 1, 0), 40, 0.8F, 0xEED69C, 1.4);
             level.playSound(null, c.x, c.y, c.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 4.0F, 0.4F);
             level.playSound(null, c.x, c.y, c.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 3.0F, 0.6F);
-            crowdReact(level, CrowdMood.ROAR, 70);
+            crowdReact(level, CrowdMood.ROAR, 50);
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(Masher.HALF_X + 4, 6, Masher.HALF_X + 4), this::hittable)) {
                 Vec3 off = e.position().subtract(c);
                 Vec3 local = Masher.toLocal(off.x, off.z, yaw);
                 if (Math.abs(local.x) > Masher.HALF_X || Math.abs(local.z) > Masher.HALF_Z) continue;
-                if (Masher.safe(yaw, off, e.getBbWidth() * 0.3)) {
+                if (Masher.safe(yaw, variant, off, e.getBbWidth() * 0.3)) {
                     com.groid.papon.fx.Fx.dust(level, e.position(), 1.2, 6);
                     continue;
                 }
-                if (Mechanics.trueHit(e, 0.36F, this, true)) {
+                if (Mechanics.trueHit(e, MASHER_SHARE, this, true)) {
                     swingHit = true;
-                    Mechanics.stun(e);
-                    e.addEffect(new MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 80, 2, false, true));
+                    e.addEffect(new MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 24, 0, false, true));
                     com.groid.papon.fx.Fx.splat(level, e.position(), 1.6F, 0xEED69C, 160);
+                    if (e instanceof ServerPlayer sp) PaponNetwork.shake(sp, 1.0F, 14);
                 }
             }
         }
@@ -4958,6 +4992,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.IDLE);
         }
     }
+
+    /** What a slam of the masher takes, of the maximum health, through armor. */
+    private static final float MASHER_SHARE = 0.30F;
 
     /** ¡Abucheo!: he turns to the stands, arms up, thumbs down (1.0 s), and they start throwing (7 s). */
     private void tickArenaHeckle(ServerLevel level, @Nullable LivingEntity target) {
