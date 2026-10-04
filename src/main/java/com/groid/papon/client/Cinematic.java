@@ -675,7 +675,7 @@ public final class Cinematic {
         float h = b.getBbHeight();
         Vec3 body = b.position().add(0, h * 0.55, 0);
         // his face: the ascended model sits lower in its (bigger) box, so his eyes are lower down it
-        Vec3 face = b.position().add(0, h * (b.isAscended() ? 0.62 : 0.74), 0);
+        Vec3 face = b.position().add(0, h * (b.isAscended() ? 0.62 : 0.69), 0);
         java.util.List<com.groid.papon.boss.MariachiEntity> band = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class,
                 b.getBoundingBox().inflate(64), e -> true);
         com.groid.papon.boss.MariachiEntity singer = band.stream().filter(m -> m.getRole().singer()).findFirst().orElse(null);
@@ -707,9 +707,9 @@ public final class Cinematic {
                 }
                 if (t < up) {
                     // from the ground in front of him, on one knee: "Hhh... that one... HURT.", the lip wiped
-                    Vec3 kneel = b.position().add(0, h * 0.5, 0);
+                    Vec3 kneel = b.position().add(0, h * 0.46, 0);
                     double k = (t - knee) / (double) Math.max(1, up - knee);
-                    return new Shot(kneel.add(f.scale(3.6 - 0.7 * k)).add(right.scale(0.7)).add(0, -0.4, 0), kneel.add(0, 0.25, 0), 46, 0, t == knee);
+                    return new Shot(kneel.add(f.scale(5.2 - 0.8 * k)).add(right.scale(0.9)).add(0, -0.5, 0), kneel, 48, 0, t == knee);
                 }
                 // up, swaying on his feet: from below, his face
                 return new Shot(b.position().add(f.scale(4.0)).add(right.scale(-0.6)).add(0, 0.3, 0), face, 52, (float) Math.sin(t * 0.2) * 3F, t == up);
@@ -746,7 +746,7 @@ public final class Cinematic {
                 if (t < rp) {
                     // his face, furious, close; pushing in through "...who do you think I AM?!"
                     double k = Math.min(1, (t - faceAt) / (double) Math.max(20, rp - faceAt));
-                    return new Shot(face.add(f.scale(4.2 - 1.2 * k)).add(right.scale(0.5)).add(0, -0.35, 0), face, 40 - (float) k * 6,
+                    return new Shot(face.add(f.scale(5.2 - 1.2 * k)).add(right.scale(0.5)).add(0, -0.35, 0), face, 42 - (float) k * 6,
                             t >= ns && t < ns + 10 ? (float) Math.sin(t * 2.2) * 2F : 0, t == faceAt);
                 }
                 // "Let me show you how to REALLY play.": low, in front of him, up into his face

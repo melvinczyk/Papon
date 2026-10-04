@@ -6412,9 +6412,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int swingFrom = 22, swingTo = 152;
         double theta = 0;
         if (t < swingFrom) {
-            // dropping into place, pulled out to the side ready to go
+            // dropping into place on its rope, pulled out to the side ready to go
             double k = Mth.clamp(t / (double) swingFrom, 0, 1);
             theta = Math.toRadians(40) * k;
+            placePinata(pin, anchor, Mth.lerp(1 - (1 - k) * (1 - k), 3, len), pinataPlane, theta);
         } else if (t < swingTo) {
             double ph = (t - swingFrom) * Math.PI * 2 / 56.0;
             theta = Math.toRadians(40) * Math.cos(ph);

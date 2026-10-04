@@ -169,6 +169,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         this.scaleWidth = s;
         this.scaleHeight = s;
         if (!reRender) hideForPov(model, handInView(entity));
+        capturing = !reRender;
         model.getBone("hand_blood").ifPresent(bone -> bone.setTrackingMatrices(true));
         model.getBone("eye_r").ifPresent(bone -> bone.setTrackingMatrices(true));
         model.getBone("eye_l").ifPresent(bone -> bone.setTrackingMatrices(true));
@@ -262,7 +263,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
 
     // Ascended Papon's eyes: their bones' final matrices, caught as they are drawn, for the lightning round them
     private final org.joml.Matrix4f eyeR = new org.joml.Matrix4f(), eyeL = new org.joml.Matrix4f();
-    private boolean eyesSeen, eyeRSeen, eyeLSeen;
+    private boolean eyesSeen, eyeRSeen, eyeLSeen, capturing;
 
     /** Where his eyes were drawn last (world), per boss, [right, left]: his eye beams start there (client/BeamRenderer). */
     private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3[]> EYES = new java.util.HashMap<>();
@@ -276,7 +277,11 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     @Override
     public void renderCubesOfBone(PoseStack pose, software.bernie.geckolib.cache.object.GeoBone bone, VertexConsumer buffer, int light,
                                   int overlay, float r, float g, float b, float a) {
-        if (bone.getName().equals("eye_r")) {
+        // only the main pass: a layer's re-render (the glowmask) draws the bones again under another pose, and caught there
+        // the eyes' matrices put the lightning somewhere else (one eye's arcs happened to land on the other: "only the left")
+        if (!capturing) {
+            // a re-render pass: leave the main pass's matrices alone
+        } else if (bone.getName().equals("eye_r")) {
             eyeR.set(pose.last().pose());
             eyeRSeen = true;
         } else if (bone.getName().equals("eye_l")) {

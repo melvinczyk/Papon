@@ -15,6 +15,12 @@ import org.joml.Matrix4f;
 
 /** The coliseum's portal in the Taco Truck window: an upright oval of the end gateway's starfield, rimmed in gold. */
 public class ArenaPortalRenderer extends EntityRenderer<ArenaPortalEntity> {
+    /** Never in a cutscene's shot (it stands in the truck's window; a camera cutting round him must not end up behind it). */
+    @Override
+    public boolean shouldRender(ArenaPortalEntity e, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
+        return !Cinematic.isActive() && super.shouldRender(e, frustum, x, y, z);
+    }
+
     private static final int SEGMENTS = 28;
     private static final float RX = 0.6F, RY = 1.05F, CY = 1.1F;
 
