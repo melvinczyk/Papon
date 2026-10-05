@@ -21,7 +21,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 /**
- * Ouros and Boros in the sky: the head where the path says, each segment of the body laid along the path behind it
+ * Quetzalcoatl and Kukulcan in the sky: the head where the path says, each segment of the body laid along the path behind it
  * (oriented down its own chord, so the body bends with the path), the collar of feathers on the first, the tail's fan on
  * the last; the crest's feathers ruffling, the jaws working. While it is still coming out, its portal: a churning cloud of
  * black smoke torn in the sky.
@@ -41,7 +41,7 @@ public class SkySerpentRenderer extends EntityRenderer<SkySerpentEntity> {
     public ResourceLocation getTextureLocation(SkySerpentEntity e) { return tex(e, "head"); }
 
     private static ResourceLocation tex(SkySerpentEntity e, String part) {
-        return PaponMod.id("textures/entity/serpent_" + (e.kind() == SkySerpentEntity.OUROS ? "ouros" : "boros") + "_" + part + ".png");
+        return PaponMod.id("textures/entity/serpent_" + (e.kind() == SkySerpentEntity.QUETZAL ? "ouros" : "boros") + "_" + part + ".png");
     }
 
     /** Its own buffers, drawn at once with the distance fog pushed out: it is a hundred blocks off and as big as a hill. */
@@ -63,7 +63,7 @@ public class SkySerpentRenderer extends EntityRenderer<SkySerpentEntity> {
     }
 
     private void draw(SkySerpentEntity e, float partial, PoseStack pose, MultiBufferSource buffers) {
-        String kind = e.kind() == SkySerpentEntity.OUROS ? "ouros" : "boros";
+        String kind = e.kind() == SkySerpentEntity.QUETZAL ? "ouros" : "boros";
         SerpentModel head = SerpentModel.get(kind + "_head"), body = SerpentModel.get(kind + "_body");
         if (head == null || body == null) return;
         SerpentPath path = e.path();

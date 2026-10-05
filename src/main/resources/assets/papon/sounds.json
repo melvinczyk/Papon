@@ -364,5 +364,10 @@
   "voice.boss2.p4_landed3": {"sounds": [{"name": "papon:voice/boss2/p4_landed3"}]},
   "voice.boss2.p4_landed4": {"sounds": [{"name": "papon:voice/boss2/p4_landed4"}]},
   "voice.boss2.p4_low": {"sounds": [{"name": "papon:voice/boss2/p4_low"}]},
-  "voice.boss2.p4_death": {"sounds": [{"name": "papon:voice/boss2/p4_death"}]}
+  "voice.boss2.p4_death": {"sounds": [{"name": "papon:voice/boss2/p4_death"}]},
+  "boss.cine_souls": {"sounds": [{"name": "papon:boss/cine_souls"}], "subtitle": "subtitles.papon.boss.cine_souls"},
+  "boss.cine_soul": {"sounds": [{"name": "papon:boss/cine_soul"}], "subtitle": "subtitles.papon.boss.cine_soul"},
+  "boss.cine_absorb": {"sounds": [{"name": "papon:boss/cine_absorb"}], "subtitle": "subtitles.papon.boss.cine_absorb"},
+  "boss.cine_moon": {"sounds": [{"name": "papon:boss/cine_moon"}], "subtitle": "subtitles.papon.boss.cine_moon"},
+  "boss.cine_swell": {"sounds": [{"name": "papon:boss/cine_swell"}], "subtitle": "subtitles.papon.boss.cine_swell"}
 }

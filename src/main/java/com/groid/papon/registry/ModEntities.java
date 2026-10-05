@@ -141,7 +141,7 @@ public final class ModEntities {
                     .clientTrackingRange(12)
                     .build(PaponMod.id("salsa_dancer").toString()));
 
-    // Phase four: Ouros and Boros, the feathered serpents circling the arena (the entity sits in the middle; the serpent is a path)
+    // Phase four: Quetzalcoatl and Kukulcan, the feathered serpents circling the arena (the entity sits in the middle; the serpent is a path)
     public static final RegistryObject<EntityType<com.groid.papon.boss.SkySerpentEntity>> SKY_SERPENT = REGISTRY.register("sky_serpent",
             () -> EntityType.Builder.<com.groid.papon.boss.SkySerpentEntity>of(com.groid.papon.boss.SkySerpentEntity::new, MobCategory.MISC)
                     .sized(1.0F, 1.0F)

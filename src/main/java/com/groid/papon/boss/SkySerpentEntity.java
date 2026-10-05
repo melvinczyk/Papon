@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Ouros and Boros, the Final Guardian's feathered serpents (phase four): he shoots the moon with his bow, black smoke tears
+ * Quetzalcoatl and Kukulcan, the Final Guardian's feathered serpents (phase four): he shoots the moon with his bow, black smoke tears
  * open in the sky, and out of it they come, colossal, down onto an orbit round the arena. The entity stands still at the
  * arena's middle; the serpent itself is a path ({@link SerpentPath}) both sides work out from the synced numbers, its head
  * {@link #SPEED} blocks a tick along it since it was born, its body the path behind. The boss sends it diving across the
@@ -29,7 +29,7 @@ import java.util.List;
  * tools/gen_serpents.py). Never saved: the boss calls them again.
  */
 public class SkySerpentEntity extends Entity {
-    public static final int OUROS = 0, BOROS = 1;
+    public static final int QUETZAL = 0, KUKULCAN = 1;
     /** Blocks a tick its head travels. */
     public static final double SPEED = 1.6;
     /** The body: segments this far apart (blocks), this many and the tail; the model's scale. */
@@ -69,7 +69,7 @@ public class SkySerpentEntity extends Entity {
 
     @Override
     protected void defineSynchedData() {
-        entityData.define(DATA_KIND, OUROS);
+        entityData.define(DATA_KIND, QUETZAL);
         entityData.define(DATA_BORN, 0);
         entityData.define(DATA_PORTAL, new Vector3f());
         entityData.define(DATA_ORBIT, new Vector3f(100, 50, 1));
@@ -202,7 +202,7 @@ public class SkySerpentEntity extends Entity {
         entityData.set(DATA_ROAR, (int) (level().getGameTime() & 0x7FFFFFFF));
         if (level() instanceof ServerLevel level) {
             Vec3 h = path().at(head(0));
-            level.playSound(null, h.x, h.y, h.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 3.0F, kind() == OUROS ? 0.55F : 0.42F);
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 3.0F, kind() == QUETZAL ? 0.55F : 0.42F);
         }
     }
 

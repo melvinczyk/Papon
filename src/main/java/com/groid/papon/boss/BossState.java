@@ -296,7 +296,7 @@ public enum BossState {
     P4_HALFBAKED(240),
     /** An Aztec bow out of the light; he draws and shoots the moon; black smoke tears open in the sky. */
     P4_BOW(120),
-    /** Ouros and Boros come out of the smoke, colossal, and down onto their orbit round the arena. */
+    /** Quetzalcoatl and Kukulcan come out of the smoke, colossal, and down onto their orbit round the arena. */
     P4_SERPENTS(250),
     /** "Now we're TALKING!" */
     P4_TALKING(60),
@@ -324,7 +324,7 @@ public enum BossState {
     P4_DANZA(170),
     /** La Luna: the moon answers him: rings of blue on the floor, then its beams down into them, volley after volley. */
     P4_LUNA(130),
-    /** Las Serpientes: Ouros and Boros dive out of the sky in turn, straight across the floor (a long warning line each). */
+    /** Las Serpientes: Quetzalcoatl and Kukulcan dive out of the sky in turn, straight across the floor (a long warning line each). */
     P4_SERPIENTES(160),
     /** Flechas del Sol: his bow; arrows of the souls' light shot up, raining back down on rings round you, then a volley. */
     P4_FLECHAS(130),
@@ -332,7 +332,7 @@ public enum BossState {
     /** Phase four's cutscene, after the prophecy: Moctezuma, who saw a god in Cortés and gave his throne away; "I will not make
      *  his mistake"; the moon comes out: "...the prophecy might finally be fulfilled." (beats p4.throne_*) */
     P4_THRONE(400),
-    /** El Ouroboros: Ouros and Boros come down and close a ring round the whole arena, chasing each other's tails; their heads
+    /** El Ouroboros: Quetzalcoatl and Kukulcan come down and close a ring round the whole arena, chasing each other's tails; their heads
      *  breathe jade fire across the floor as they go round (jump it). */
     P4_OUROBOROS(300),
     /** La Pista de los Muertos: the floor lights up as a dance floor of coloured tiles; on the beat, tiles flash and then
@@ -351,7 +351,12 @@ public enum BossState {
     /** He won the dance: he dips you, and drops you. */
     P4_TANGO_WIN(60),
     /** You won the dance: he stands there flustered, dizzy, wide open. */
-    P4_TANGO_LOSE(110);
+    P4_TANGO_LOSE(110),
+    /** Aliento de Jade: Quetzalcoatl and Kukulcan breathe green fire across the floor in sweeps, crossing, then both at once. */
+    P4_ALIENTO(150),
+    /** La Gran Serpiente: the two serpents coil round each other high over the floor, fuse into one blazing knot and pour
+     *  down one huge beam of green fire that hunts you, shockwaves rolling out of where it strikes. */
+    P4_FUSION(300);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;

@@ -64,7 +64,7 @@ public final class AutoShot {
     /** -Pautoshot=state:STATE[:FORM]:t1,t2,...  a boss here (form 3 Ascended or 4 the Final Guardian), straight into STATE; the
      *  cutscene camera's view (or yours) shot at those ticks in it (papon_s_STATE_t.png). For checking one beat quickly. */
     private static final boolean STATE = MODE.startsWith("state:");
-    /** -Pautoshot=serpents: Ouros and Boros out of their smoke over a flat world, from the ground and from the air. */
+    /** -Pautoshot=serpents: Quetzalcoatl and Kukulcan out of their smoke over a flat world, from the ground and from the air. */
     private static final boolean SERPENTS = MODE.equals("serpents");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
