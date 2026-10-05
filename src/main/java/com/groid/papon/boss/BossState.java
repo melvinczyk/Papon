@@ -356,7 +356,15 @@ public enum BossState {
     P4_ALIENTO(150),
     /** La Gran Serpiente: the two serpents coil round each other high over the floor, fuse into one blazing knot and pour
      *  down one huge beam of green fire that hunts you, shockwaves rolling out of where it strikes. */
-    P4_FUSION(300);
+    P4_FUSION(300),
+    // ---- (2026-10-05, phase four in stages: the user: "start dangerous but become increasingly chaotic... the boss losing
+    // control... the final portion combining the boss, the serpents and the giant into a visually spectacular climax")
+    /** A stage of phase four breaking: he clutches his skull, screams, and everything in the arena answers him (El Gigante rises
+     *  to stay, the serpents start hunting on their own). */
+    P4_RAGE(80),
+    /** El Juicio Final: the climax. Everything at once: the serpents wall the arena in and breathe, El Gigante's lasers and
+     *  slams, his arrows and the moon, the floor erupting, and the last blast only the marigold circles survive. */
+    P4_JUICIO(500);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;

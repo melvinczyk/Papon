@@ -375,5 +375,12 @@
   "voice.boss2.p4_fire0": {"sounds": [{"name": "papon:voice/boss2/p4_fire0"}]},
   "voice.boss2.p4_fire1": {"sounds": [{"name": "papon:voice/boss2/p4_fire1"}]},
   "voice.boss2.p4_gigante_swat": {"sounds": [{"name": "papon:voice/boss2/p4_gigante_swat"}]},
-  "voice.band.count": {"sounds": [{"name": "papon:voice/band/count"}]}
+  "voice.band.count": {"sounds": [{"name": "papon:voice/band/count"}]},
+  "voice.boss2.p4_stage2": {"sounds": [{"name": "papon:voice/boss2/p4_stage2"}]},
+  "voice.boss2.p4_stage3": {"sounds": [{"name": "papon:voice/boss2/p4_stage3"}]},
+  "voice.boss2.p4_juicio": {"sounds": [{"name": "papon:voice/boss2/p4_juicio"}]},
+  "voice.boss2.p4_juicio_end": {"sounds": [{"name": "papon:voice/boss2/p4_juicio_end"}]},
+  "voice.boss2.p4_chaos0": {"sounds": [{"name": "papon:voice/boss2/p4_chaos0"}]},
+  "voice.boss2.p4_chaos1": {"sounds": [{"name": "papon:voice/boss2/p4_chaos1"}]},
+  "voice.boss2.p4_crush": {"sounds": [{"name": "papon:voice/boss2/p4_crush"}]}
 }

@@ -488,6 +488,14 @@ LINES = {
     'p4_low':    ("No... not yet. The song is not over yet!", 'wounded'),
     # his fall in phase four: the prophecy fulfilled
     'p4_death':  ("So it was true... The throne is yours now, champion. Take care of them... and keep it warm.", 'sincere'),
+    # (2026-10-05) phase four in stages, the user: "a major escalation and the true climax... the boss losing control"
+    'p4_stage2': ("Enough! Gigante, Quetzalcóatl, Kukulcán... all of you, with me! No more holding back!", 'cry'),
+    'p4_stage3': ("No... no, NO! Ten thousand years, and I will NOT fall! Not tonight! Not to YOU!", 'scream'),
+    'p4_juicio': ("Then let the whole world burn with me! EL JUICIO FINAL!", 'scream'),
+    'p4_juicio_end': ("Still... standing? Ha... then you really are something, amigo.", 'wounded'),
+    'p4_chaos0': ("I can't hold them back anymore! The dead want you, amigo!", 'cry'),
+    'p4_chaos1': ("Burn! All of it, BURN!", 'scream'),
+    'p4_crush':  ("Crush them, Gigante!", 'cry'),
 }
 
 FRESH |= {k for k in LINES if k.startswith('p4_')}
@@ -500,6 +508,7 @@ SPOKEN = {
     'p4_bow': "Ketsalcoatl! Kookoolkahn! Come down, and meet the one who wants my throne!",
     'p4_serpientes': "Ketsalcoatl, Kookoolkahn... feast!",
     'p4_aliento': "Ketsalcoatl, Kookoolkahn... let them taste the fire of the old gods!",
+    'p4_stage2': "Enough! Gigante, Ketsalcoatl, Kookoolkahn... all of you, with me! No more holding back!",
 }
 # phase four from one reference and a touch cooler, so every line of his is the same man (the screams drifted off his voice)
 P4_GEN = {'temperature': 0.9}
