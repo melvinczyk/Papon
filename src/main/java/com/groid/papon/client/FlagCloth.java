@@ -23,8 +23,15 @@ public final class FlagCloth {
 
     private FlagCloth() {}
 
+    /** El Coliseo de los Muertos' flag: the same potato, a calavera now, on black, purple and marigold (tools/gen_muertos.py). */
+    public static final ResourceLocation DEAD_TEXTURE = PaponMod.id("textures/entity/potato_flag_muertos.png");
+
     public static RenderType renderType() {
         return RenderType.entityCutoutNoCull(TEXTURE);
+    }
+
+    public static RenderType renderType(boolean dead) {
+        return RenderType.entityCutoutNoCull(dead ? DEAD_TEXTURE : TEXTURE);
     }
 
     /**

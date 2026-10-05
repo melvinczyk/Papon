@@ -53,6 +53,10 @@ public class ColiseumCrowdEntity extends Entity {
     private static final EntityDataAccessor<Integer> DATA_PULSE = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     /** Fireworks in the flag's colours on the song's beats: (a counter << 8) | how many beats (client/FlagFireworks). */
     private static final EntityDataAccessor<Integer> DATA_SALVO = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
+    /** Phase four: how far round the bowl the moon's rays have turned the fans to skeletons (0..1; 1 all of them). */
+    private static final EntityDataAccessor<Float> DATA_DEAD = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.FLOAT);
+    /** The coliseum's size (its sand's semi-axes, a << 8 | b): El Coliseo de los Muertos is twice El Coliseo Papa's. */
+    private static final EntityDataAccessor<Integer> DATA_SIZE = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     /** Ticks from the fan's wind-up starting to the potato leaving his hand (the renderer's throw pose matches). */
     public static final int WINDUP = 6;
     /** How close to the stands (blocks in from the edge of the sand) a challenger has to be to get pelted. */
@@ -87,6 +91,34 @@ public class ColiseumCrowdEntity extends Entity {
         entityData.define(DATA_LIGHTERS, 0F);
         entityData.define(DATA_PULSE, -1);
         entityData.define(DATA_SALVO, -1);
+        entityData.define(DATA_DEAD, 0F);
+        entityData.define(DATA_SIZE, Coliseum.A << 8 | Coliseum.B);
+    }
+
+    public float dead() {
+        return entityData.get(DATA_DEAD);
+    }
+
+    public void setDead(float k) {
+        entityData.set(DATA_DEAD, k);
+    }
+
+    public int sizeA() {
+        return entityData.get(DATA_SIZE) >> 8;
+    }
+
+    public int sizeB() {
+        return entityData.get(DATA_SIZE) & 0xFF;
+    }
+
+    public void setSize(int a, int b) {
+        entityData.set(DATA_SIZE, a << 8 | b);
+        seats = null;
+    }
+
+    /** Its seats (the coliseum's size). */
+    public List<Coliseum.Seat> seatList() {
+        return Coliseum.seats(seed(), sizeA(), sizeB());
     }
 
     /** Client: ticks since the fan in seat {@code i} started a throw, or -1 if he is not throwing. */
@@ -104,7 +136,7 @@ public class ColiseumCrowdEntity extends Entity {
      */
     public void pelt(ServerLevel level, @Nullable Coliseum arena) {
         if (arena == null || !arena.built()) return;
-        if (seats == null) seats = Coliseum.seats(seed());
+        if (seats == null) seats = seatList();
         long now = level.getGameTime();
         for (java.util.Iterator<long[]> it = windups.iterator(); it.hasNext(); ) {
             long[] w = it.next();
@@ -117,7 +149,7 @@ public class ColiseumCrowdEntity extends Entity {
         Vec3 c = position();
         for (ServerPlayer p : level.players()) {
             if (p.isSpectator() || p.isCreative() || !p.isAlive() || !arena.inArena(p.position())) continue;
-            double edge = Coliseum.offset(p.getX() - c.x, p.getZ() - c.z);
+            double edge = Coliseum.offset(p.getX() - c.x, p.getZ() - c.z, sizeA(), sizeB());
             if (edge < -NEAR) continue;
             Long due = nextAt.get(p.getUUID());
             if (due != null && now < due) continue;
@@ -253,7 +285,7 @@ public class ColiseumCrowdEntity extends Entity {
 
     @Override
     public AABB getBoundingBoxForCulling() {
-        return getBoundingBox().inflate(Coliseum.A + 24, Coliseum.HEIGHT + 4, Coliseum.B + 24);
+        return getBoundingBox().inflate(sizeA() + 24, Coliseum.HEIGHT + 4, sizeB() + 24);
     }
 
     @Override
@@ -272,12 +304,16 @@ public class ColiseumCrowdEntity extends Entity {
         entityData.set(DATA_SEED, tag.getInt("Seed"));
         base = CrowdMood.byId(tag.getInt("Mood"));
         entityData.set(DATA_MOOD, base.ordinal());
+        entityData.set(DATA_DEAD, tag.getFloat("Dead"));
+        if (tag.contains("Size")) entityData.set(DATA_SIZE, tag.getInt("Size"));
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putInt("Seed", seed());
         tag.putInt("Mood", base.ordinal());
+        tag.putFloat("Dead", dead());
+        tag.putInt("Size", entityData.get(DATA_SIZE));
     }
 
     @Override

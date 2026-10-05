@@ -65,11 +65,12 @@ public class PillowLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
                 drawPillow(ps, buffers, light, shape);
             }
             case HUMP -> {
-                // folded over double at the hips, sticking out in front, squashed on every thrust
-                model.body.translateAndRotate(ps);
-                ps.translate(0, 0.72, -0.24);
-                ps.mulPose(Axis.ZP.rotationDegrees(180));
-                ps.mulPose(Axis.XP.rotationDegrees(90));
+                // bent over in front of the hips, her back to them: upright in the model's frame (y down here, so turned
+                // over: her head end up, her front away), the fold at hip height, the legs down to the feet; nudged
+                // forward on every thrust
+                float sq = PillowClient.squash(age);
+                ps.translate(0, 0.7, -0.215 - 0.03 * sq);
+                ps.mulPose(Axis.XP.rotationDegrees(180));
                 PillowMesh.render(ps, buffers, light, shape);
             }
             default -> {

@@ -38,6 +38,9 @@ Lengths of one-shots are state durations in Java (GerbinState, BossState); keep 
           Ascended's moves: a_fly / a_flash / a_comet / a_duel_fly / a_shred (loops), a_combo 2.8, a_comet_land 1.5, a_laser 5.5,
           a_solar 8.5, a_conduct 8.0, a_duel_smash 2.5, a_duel_shame 4.0, a_pinata 7.0, a_braziers 5.5, a_nova 7.5, a_spent 4.0,
           qte_hold_crush (loop), qte_fail_crush 2.0
+          phase four: p4_rise / p4_hammer / p4_strike / p4_reveal / p4_trueform (beats p4.*), p4_moonrays (loop);
+          El Rey de los Muertos: d_fly / d_gigante / d_petalos / d_conduct / d_danza / d_luna (loops), d_martillo 3.2,
+          d_grieta 10.0
   boss "form" controller (phase two only): p2_sprout 3.5 (with p2_scream), p2_form_idle, p2_form_fly,
           p2_form_attack (loops), p2_form_lift 1.0, p2_form_aura 4.0
 """
@@ -288,7 +291,9 @@ class B(Pinned):
     # the blush too: he only goes red while he drinks (chug, the handle, a swig), fading out after
     pins = ['blush', 'bottle', 'handle', 'big_spatula', 'molotov', 'lighter', 'keys', 'sweat', 'tears', 'potato_gun',
             'blood', 'hand_blood', 'butter', 'fry_crown', 'wing_r', 'wing_l', 'giant_shaker', 'torch', 'salt_shaker',
-            'comal', 'cleaver_r', 'cleaver_l', 'tortilla', 'brick', 'tot', 'lid_r', 'lid_l', 'p3_guitar', 'p3_guitar_carry']
+            'comal', 'cleaver_r', 'cleaver_l', 'tortilla', 'brick', 'tot', 'lid_r', 'lid_l', 'p3_guitar', 'p3_guitar_carry',
+            # phase four's (papon_muertos; the hammer on papon_ascended too): client/BossModel.spiritProps shows them
+            'spirit_hammer', 'catrin_hat']
 
 
 ANGRY_R = [0, 0, 18]
@@ -3350,6 +3355,366 @@ def b_qte_fail_crush():
     return a
 
 
+# ===================================================================== phase four: Dia de los Muertos
+# The ritual (BossState.P4_*, beats p4.* from his lines: gen_boss_voice.beats) and El Rey de los Muertos's moves (b_d_*).
+# The spirit hammer (spirit_hammer, off hand_r down the arm's line: a femur 20 px long, the head 27 px past the fist) is shown
+# by client/BossModel while PaponBossEntity.spiritProp is 1, so every pose here keeps it off the floor unless it is slamming:
+# the arm up, forward or out, never hanging.
+
+HAM_CARRY = [-150, 8, 40]      # the hammer up and out at his right shoulder, ready
+HAM_UP = [-176, 0, 14]         # raised straight up
+HAM_BACK = [-212, 0, 10]       # wound up behind his head
+HAM_SLAM = [-60, 0, 6]         # its head on the floor in front of him
+
+
+def p4_beat(key, default):
+    """A beat in TICKS (the Java's VoiceLines.beat), for beats defined from another one."""
+    return VOICE_BEATS.get(key, default)
+
+
+def hammer_arm(a, keys, stretch_keys=None):
+    a.rot('arm_r', keys, 'lin')
+    if stretch_keys:
+        stretch(a, 'arm_r', stretch_keys)
+
+
+def b_p4_rise():
+    """BossState.P4_RISE (beats p4.*). A quarter of his health gone: the hit jolts him (0-0.3); then he laughs, head thrown
+    back, arms open, shaking with it, rising over the sand (p4_laugh at 0.3); the clouds part on the moon (p4.moon); and he
+    leans in to you, a finger at you: "You think that was ALL?" (p4.rise), arms spreading wide again as he rises."""
+    moon, line, end = beat('p4.moon', 34), beat('p4.rise', 50), beat('p4.rise_end', 90)
+    a = B('p4_rise', end, 'hold')
+    laugh = [(round(0.4 + 0.16 * i, 2), [-26 if i % 2 else -20, 0, 0]) for i in range(int((line - 0.5) / 0.16))]
+    a.rot('torso', [(0, [0, 0, 0]), (0.12, [18, 0, 0], 'easeOutExpo'), (0.35, [-20, 0, 0], 'easeOutBack')] + laugh
+          + [(round(line - 0.1, 2), [-14, 0, 0]), (round(line + 0.25, 2), [16, 0, 0], 'easeOutBack'), (round(line + 1.2, 2), [12, 0, 0]),
+             (end, [-10, 0, 0], 'easeInOutSine')], 'lin')
+    a.scale('body', [(0, [1, 1, 1])] + [(round(0.4 + 0.16 * i, 2), [1.05, 0.96, 1.05] if i % 2 else [0.99, 1.03, 0.99])
+                                        for i in range(int((line - 0.5) / 0.16))] + [(line, [1.03, 1.03, 1.03]), (end, [1.05, 1.04, 1.05])], 'lin')
+    a.rot('arm_r', [(0, [-28, 0, 26]), (0.12, [10, 0, 40], 'easeOutExpo'), (0.5, [-50, 0, 80], 'easeOutBack'), (round(line - 0.2, 2), [-46, 0, 84]),
+                    (round(line + 0.2, 2), [-95, -8, 6], 'easeOutBack'), (round(line + 1.2, 2), [-95, -8, 6]),
+                    (end, [-70, 0, 100], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (round(line - 0.2, 2), 1.2), (round(line + 0.2, 2), 1.8), (round(line + 1.2, 2), 1.8), (end, 1.3)])
+    a.rot('arm_l', [(0, [-28, 0, -26]), (0.12, [10, 0, -40], 'easeOutExpo'), (0.5, [-50, 0, -80], 'easeOutBack'), (round(line - 0.2, 2), [-46, 0, -84]),
+                    (round(line + 0.2, 2), [-20, 0, -40], 'easeOutBack'), (round(line + 1.2, 2), [-20, 0, -40]),
+                    (end, [-70, 0, -100], 'easeInOutSine')], 'lin')
+    flying_legs(a, end, 20)
+    for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, 0, 0]), (0.4, [0, 0.8, 0]), (round(line - 0.1, 2), [0, 0.8, 0]), (line, [0, -0.8, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, 0]), (0.4, [0, 0, -10 * sgn]), (round(line - 0.1, 2), [0, 0, -10 * sgn]), (line, [0, 0, 18 * sgn])], 'lin')
+    a.sound(0.05, 'grunt').sound(0.4, 'chuckle').sound(1.1, 'chuckle').sound(moon, 'rumble')
+    return a
+
+
+def b_p4_hammer():
+    """BossState.P4_HAMMER. His right hand up, open, as blue fire spirals into it (0.3 on, the arm trembling harder and
+    harder); it sets into the hammer (p4.forms): the arm drops under its weight, the body jolts; he swings it round once
+    over his head, weighing it, and brings it down to look at it ("La Muerte... me ha prestado su martillo.", p4.hammer),
+    the left hand running along the haft; then up at his shoulder, ready."""
+    forms = beat('p4.forms', 60)
+    line = beat('p4.hammer', p4_beat('p4.forms', 60) + 12)
+    end = beat('p4.hammer_end', 110)
+    a = god(B('p4_hammer', end, 'hold'))
+    up = [-172, 0, 18]
+    tremble = [(round(0.7 + 0.1 * i, 2), [up[0] + (3 if i % 2 else -3) * (1 + i / 12), up[1], up[2] + (2 if i % 2 else -2)])
+               for i in range(int((forms - 0.8) / 0.1))]
+    look = round(forms + 1.5, 2)
+    keys = [(0, [-28, 0, 26]), (0.6, up, 'easeOutBack')] + tremble + [
+        (forms, up), (round(forms + 0.12, 2), [-150, 0, 40], 'easeOutExpo'), (round(forms + 0.45, 2), [-168, 0, 22], 'easeOutBack'),
+        # the swing round over his head, weighing it
+        (round(forms + 0.75, 2), [-190, 40, 30], 'easeInOutSine'), (round(forms + 1.05, 2), [-170, -40, 40], 'easeInOutSine'),
+        (look, [-112, -30, 30], 'easeInOutSine'), (round(line + 0.9, 2), [-108, -34, 26]), (end, HAM_CARRY, 'easeInOutSine')]
+    hammer_arm(a, keys, [(0, 1), (0.6, 1.5), (forms, 1.5), (round(forms + 0.12, 2), 1.2), (look, 1.2), (end, 1.1)])
+    a.rot('arm_l', [(0, [-28, 0, -26]), (0.6, [-110, 30, -40], 'easeOutBack'), (forms, [-120, 34, -40]),
+                    (round(forms + 0.12, 2), [-40, 0, -70], 'easeOutExpo'), (look, [-100, 46, -10], 'easeInOutSine'),
+                    (round(line + 0.4, 2), [-112, 40, -20]), (round(line + 0.9, 2), [-100, 46, -10]), (end, [-40, 0, -40], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (0.6, 1.3), (forms, 1.3), (look, 1.6), (end, 1)])
+    a.rot('torso', [(0, [-6, 0, 0]), (0.6, [-16, 0, 0]), (forms, [-18, 0, 0]), (round(forms + 0.12, 2), [10, 0, 6], 'easeOutExpo'),
+                    (round(forms + 0.75, 2), [-10, 20, 0]), (round(forms + 1.05, 2), [-10, -20, 0]), (look, [14, -10, 0], 'easeInOutSine'),
+                    (end, [-6, 0, 0], 'easeInOutSine')], 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (forms, [1.06, 1.06, 1.06]), (round(forms + 0.12, 2), [1.14, 0.92, 1.14], 'easeOutExpo'),
+                     (round(forms + 0.45, 2), [1.04, 1.04, 1.04]), (end, [1.04, 1.03, 1.04])], 'lin')
+    flying_legs(a, end, 18)
+    a.sound(0.6, 'whoosh').sound(forms, 'slam').sound(round(forms + 0.75, 2), 'swing').sound(round(forms + 1.05, 2), 'swing')
+    return a
+
+
+def b_p4_strike():
+    """BossState.P4_STRIKE. Facing the moon: he winds the hammer back behind his head, crouched in the air (to the swing less
+    0.3), and swings it up at the moon (p4.swing: "¡DESPIERTA, LUNA!" just before); held there, shuddering, as the lightning
+    pours up out of it into the moon until it turns (p4.turn); he lowers it slowly, head still up, and laughs."""
+    swing, turn, end = beat('p4.swing', 30), beat('p4.turn', 52), beat('p4.strike_end', 110)
+    a = god(B('p4_strike', end, 'hold'))
+    pre = round(swing - 0.3, 2)
+    up = [-172, 0, 4]
+    shudder = [(round(swing + 0.1 + 0.08 * i, 2), [up[0] + (3 if i % 2 else -3), 0, up[2] + (2 if i % 2 else -2)])
+               for i in range(int((turn - swing - 0.15) / 0.08))]
+    lower = round(turn + 1.4, 2)
+    hammer_arm(a, [(0, HAM_CARRY), (pre, HAM_BACK, 'easeInOutSine'), (swing, up, 'easeOutExpo')] + shudder
+               + [(turn, up), (lower, HAM_CARRY, 'easeInOutSine'), (end, HAM_CARRY)],
+               [(0, 1.1), (pre, 1.3), (swing, 1.8, 'easeOutExpo'), (turn, 1.8), (lower, 1.1), (end, 1.1)])
+    a.rot('arm_l', [(0, [-40, 0, -40]), (pre, [-30, 0, -80], 'easeInOutSine'), (swing, [-150, 0, -40], 'easeOutExpo'), (turn, [-150, 0, -44]),
+                    (lower, [-60, 0, -70], 'easeInOutSine'), (end, [-60, 0, -70])], 'lin')
+    a.rot('torso', [(0, [-6, 0, 0]), (pre, [22, 0, 0], 'easeInOutSine'), (swing, [-34, 0, 0], 'easeOutExpo'), (turn, [-30, 0, 0]),
+                    (round(turn + 0.3, 2), [-40, 0, 0], 'easeOutBack'), (lower, [-26, 0, 0]), (end, [-20, 0, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (pre, [0, -1.5, 0], 'easeInOutSine'), (swing, [0, 1.5, 0], 'easeOutExpo'), (end, [0, 0, 0])], 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (pre, [1.1, 0.94, 1.1]), (swing, [0.96, 1.12, 0.96], 'easeOutExpo'),
+                     (round(swing + 0.3, 2), [1.05, 1.05, 1.05]), (end, [1.05, 1.04, 1.05])], 'lin')
+    flying_legs(a, end, 22)
+    a.sound(pre, 'whoosh').sound(swing, 'crack').sound(round(turn + 0.6, 2), 'chuckle')
+    return a
+
+
+def b_p4_moonrays():
+    """3.0 s loop (BossState.P4_MOONRAYS, P4_BLUEOUT). Over the sand under the moon as its rays come down: arms open wide,
+    palms up, the hammer out to his right, head back, breathing it in, rising and falling."""
+    a = god(B('p4_moonrays', 3.0, True))
+    a.pos('root', [(0, [0, 0, 0]), (1.5, [0, 1.2, 0]), (3.0, [0, 0, 0])])
+    a.rot('torso', [(0, [-18, 0, 0]), (1.5, [-24, 0, 0]), (3.0, [-18, 0, 0])])
+    a.rot('arm_r', [(0, [-112, 0, 72]), (1.5, [-118, 0, 80]), (3.0, [-112, 0, 72])])
+    a.rot('arm_l', [(0, [-100, 0, -76]), (1.5, [-106, 0, -84]), (3.0, [-100, 0, -76])])
+    stretch(a, 'arm_r', [(0, 1.2)])
+    stretch(a, 'arm_l', [(0, 1.3)])
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (1.5, [1.08, 1.06, 1.08]), (3.0, [1.04, 1.03, 1.04])])
+    flying_legs(a, 3.0, 18)
+    return a
+
+
+def b_p4_reveal():
+    """BossState.P4_REVEAL. Down out of the blue into the great calavera, knees up, arms out (to p4.land); the landing on
+    one knee, the hammer slammed into the floor beside him; he rises slowly, looking round at it all, arms loose, almost
+    tender, the hammer held out at his side (clear of his face for the close-ups); a hand on his chest for "It has been
+    centuries..." (p4.centuries), head bowed, then up; and the arms open to it."""
+    land, line, end = beat('p4.land', 34), beat('p4.centuries', p4_beat('p4.land', 34) + 40), beat('p4.reveal_end', 130)
+    a = B('p4_reveal', end, 'hold')
+    up = round(land + 0.9, 2)
+    a.pos('root', [(0, [0, 2, 0]), (round(land - 0.05, 2), [0, 0, 0]), (land, [0, -4.5, 0], 'easeOutQuad'), (round(land + 0.4, 2), [0, -4.5, 0]),
+                   (up, [0, 0, 0], 'easeInOutSine'), (end, [0, 0, 0])], 'lin')
+    a.rot('torso', [(0, [-10, 0, 0]), (round(land - 0.05, 2), [10, 0, 0]), (land, [36, 0, 0], 'easeOutQuad'), (round(land + 0.4, 2), [34, 0, 0]),
+                    (up, [-4, 0, 0], 'easeInOutSine'), (round(line - 0.2, 2), [-6, 0, 0]), (round(line + 0.3, 2), [16, 0, 0], 'easeInOutSine'),
+                    (round(line + 2.0, 2), [-10, 0, 0], 'easeInOutSine'), (end, [-14, 0, 0])], 'lin')
+    hammer_arm(a, [(0, [-60, 0, 60]), (round(land - 0.05, 2), [-120, 0, 30]), (land, HAM_SLAM, 'easeInExpo'), (round(land + 0.4, 2), HAM_SLAM),
+                   (up, [-96, 0, 78], 'easeInOutSine'), (round(line + 2.0, 2), [-98, 0, 80]), (end, [-112, 0, 80], 'easeInOutSine')],
+               [(0, 1.1), (land, 1.4), (round(land + 0.4, 2), 1.4), (up, 1.1), (end, 1.2)])
+    heart = [-82, 52, -6]
+    a.rot('arm_l', [(0, [-40, 0, -60]), (land, [10, 0, -70], 'easeOutQuad'), (round(land + 0.4, 2), [10, 0, -66]),
+                    (up, [-30, 0, -40], 'easeInOutSine'), (round(line - 0.3, 2), [-30, 0, -40]), (line, heart, 'easeInOutSine'),
+                    (round(line + 2.0, 2), heart), (end, [-104, 0, -80], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (round(line - 0.3, 2), 1), (line, 1.25), (round(line + 2.0, 2), 1.25), (end, 1.3)])
+    for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [-50, 0, 6 * sgn]), (round(land - 0.05, 2), [-20, 0, 6 * sgn]), (land, [-80 if sgn > 0 else 64, 0, 6 * sgn], 'easeOutQuad'),
+                    (round(land + 0.4, 2), [-80 if sgn > 0 else 64, 0, 6 * sgn]), (up, [0, 0, 5 * sgn], 'easeInOutSine'), (end, [0, 0, 5 * sgn])], 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (land, [1.2, 0.85, 1.2], 'easeOutQuad'), (round(land + 0.3, 2), [1.04, 1.03, 1.04]),
+                     (end, [1.06, 1.05, 1.06])], 'lin')
+    for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(brow, [(0, [0, -0.8, 0]), (up, [0, -0.8, 0]), (round(up + 0.4, 2), [0, 0.6, 0]), (line, [0, 0.2, 0]), (end, [0, -0.6, 0])], 'lin')
+        a.rot(brow, [(0, [0, 0, 18 * sgn]), (up, [0, 0, 18 * sgn]), (round(up + 0.4, 2), [0, 0, -8 * sgn]), (end, [0, 0, 10 * sgn])], 'lin')
+    a.sound(land, 'slam').sound(round(up - 0.3, 2), 'grunt')
+    return a
+
+
+def b_p4_trueform():
+    """BossState.P4_TRUEFORM. Blue fire takes him (p4.burn): doubled over, arms clutched round himself, convulsing as the
+    potato burns off him; the bone (p4.bone): flung upright, arms and legs thrown wide, the wings tearing open (the form
+    controller's unfurl); he looks at his hands of bone; "Behold..." (p4.true) both arms to the sky; and at the drop
+    (p4.drop) the roar, fists down and out, crouched into it, then up, the hammer high."""
+    burn, bone, line, drop, end = beat('p4.burn', 8), beat('p4.bone', 40), beat('p4.true', 62), beat('p4.drop', 96), beat('p4.trueform_end', 140)
+    a = B('p4_trueform', end, 'hold')
+    pre = round(bone - 0.05, 2)
+    shudder = [(round(burn + 0.2 + 0.1 * i, 2), [32 + (4 if i % 2 else -4), 0, 3 if i % 2 else -3]) for i in range(int((pre - burn - 0.25) / 0.1))]
+    look = round(bone + 0.5, 2)
+    a.rot('torso', [(0, [0, 0, 0]), (round(burn + 0.2, 2), [30, 0, 0], 'easeOutQuad')] + shudder
+          + [(pre, [34, 0, 0]), (bone, [-30, 0, 0], 'easeOutExpo'), (look, [10, 0, 0], 'easeInOutSine'), (round(line - 0.2, 2), [8, 0, 0]),
+             (line, [-24, 0, 0], 'easeOutBack'), (round(drop - 0.25, 2), [-20, 0, 0]), (drop, [22, 0, 0], 'easeOutExpo'),
+             (round(drop + 0.8, 2), [18, 0, 0]), (end, [-8, 0, 0], 'easeInOutSine')], 'lin')
+    clutch_r, clutch_l = [-60, -60, 0], [-60, 60, 0]
+    hammer_arm(a, [(0, HAM_CARRY), (round(burn + 0.2, 2), clutch_r, 'easeOutQuad'), (pre, clutch_r), (bone, [-90, 0, 100], 'easeOutExpo'),
+                   (look, [-80, -40, 30], 'easeInOutSine'), (round(line - 0.2, 2), [-84, -44, 30]), (line, [-170, 0, 40], 'easeOutBack'),
+                   (round(drop - 0.25, 2), [-172, 0, 36]), (drop, [-70, 0, 70], 'easeOutExpo'), (round(drop + 0.8, 2), [-70, 0, 70]),
+                   (end, HAM_UP, 'easeInOutSine')],
+               [(0, 1.1), (round(burn + 0.2, 2), 1.3), (pre, 1.3), (bone, 1.8), (look, 1.5), (line, 1.7), (drop, 1.5), (end, 1.4)])
+    a.rot('arm_l', [(0, [-40, 0, -40]), (round(burn + 0.2, 2), clutch_l, 'easeOutQuad'), (pre, clutch_l), (bone, [-90, 0, -100], 'easeOutExpo'),
+                    (look, [-80, 40, -30], 'easeInOutSine'), (round(line - 0.2, 2), [-84, 44, -30]), (line, [-170, 0, -40], 'easeOutBack'),
+                    (round(drop - 0.25, 2), [-172, 0, -36]), (drop, [-70, 0, -70], 'easeOutExpo'), (round(drop + 0.8, 2), [-70, 0, -70]),
+                    (end, [-50, 0, -60], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (round(burn + 0.2, 2), 1.3), (pre, 1.3), (bone, 1.8), (look, 1.5), (line, 1.7), (drop, 1.5), (end, 1.2)])
+    for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 4 * sgn]), (round(burn + 0.2, 2), [-20, 0, 8 * sgn]), (pre, [-20, 0, 8 * sgn]), (bone, [0, 0, 30 * sgn], 'easeOutExpo'),
+                    (look, [0, 0, 10 * sgn]), (drop, [-30, 0, 18 * sgn], 'easeOutExpo'), (round(drop + 0.8, 2), [-30, 0, 18 * sgn]),
+                    (end, [0, 0, 8 * sgn])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (round(burn + 0.2, 2), [0, -1.5, 0]), (pre, [0, -1.8, 0]), (bone, [0, 1.0, 0], 'easeOutExpo'),
+                   (look, [0, 0, 0]), (drop, [0, -2.2, 0], 'easeOutExpo'), (round(drop + 0.8, 2), [0, -2.0, 0]), (end, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (pre, [0.92, 0.92, 0.92]), (bone, [1.25, 1.25, 1.25], 'easeOutExpo'), (round(bone + 0.4, 2), [1.06, 1.06, 1.06]),
+                     (drop, [1.16, 0.94, 1.16], 'easeOutExpo'), (round(drop + 0.5, 2), [1.07, 1.06, 1.07]), (end, [1.06, 1.05, 1.06])], 'lin')
+    angry(a, drop)
+    a.sound(round(burn + 0.2, 2), 'grunt').sound(round((burn + bone) / 2, 2), 'scream').sound(bone, 'crack').sound(drop, 'roar')
+    return a
+
+
+def b_d_fly():
+    """1.0 s loop. El Rey de los Muertos in the air between moves: upright, the hammer up at his shoulder, the left fist low
+    and ready, legs trailing, rising and falling on each wingbeat; a little swagger in the hips (the fiesta never stops)."""
+    a = god(B('d_fly', 1.0, True))
+    a.pos('root', [(0, [0, 0, 0]), (0.4, [0, 1.8, 0]), (1.0, [0, 0, 0])])
+    a.rot('torso', [(0, [-6, 6, 0]), (0.5, [-10, -6, 0]), (1.0, [-6, 6, 0])])
+    a.rot('arm_r', [(0, HAM_CARRY), (0.4, [-156, 8, 44]), (1.0, HAM_CARRY)])
+    stretch(a, 'arm_r', [(0, 1.1)])
+    a.rot('arm_l', [(0, [-28, 0, -30]), (0.4, [-36, 0, -36]), (1.0, [-28, 0, -30])])
+    flying_legs(a, 1.0)
+    return a
+
+
+def b_d_martillo():
+    """3.2 s (BossState.P4_MARTILLO, 64 t). Gone in a flash (0.3) and there beside you, already swinging: the forehand
+    (0.5), the backhand (1.0) with the body twisting into each; up (1.4), the hammer wound back over his head at the top;
+    down (2.0) and the hammer driven into the floor (2.2); the recovery."""
+    a = god(B('d_martillo', 3.2, 'hold'))
+    hammer_arm(a, [(0, HAM_CARRY), (0.3, [-100, 60, 60], 'easeInOutSine'), (0.42, [-104, 70, 60]), (0.5, [-92, -60, 10], 'easeOutExpo'),
+                   (0.8, [-96, -72, 6]), (0.92, [-100, -76, 4]), (1.0, [-92, 66, 60], 'easeOutExpo'), (1.25, [-110, 50, 50]),
+                   (1.6, HAM_BACK, 'easeOutQuad'), (2.0, HAM_BACK), (2.2, HAM_SLAM, 'easeInExpo'), (2.6, HAM_SLAM), (3.2, HAM_CARRY, 'easeInOutSine')],
+               [(0, 1.1), (0.42, 1.3), (0.5, 1.8, 'easeOutExpo'), (0.92, 1.4), (1.0, 1.8, 'easeOutExpo'), (1.6, 1.3), (2.2, 1.6), (2.6, 1.6), (3.2, 1.1)])
+    a.rot('arm_l', [(0, [-28, 0, -30]), (0.42, [-60, 30, -50]), (0.5, [-40, 0, -80], 'easeOutExpo'), (0.92, [-60, -20, -40]),
+                    (1.0, [-90, 40, -20], 'easeOutExpo'), (1.6, [-200, 0, -10], 'easeOutQuad'), (2.0, [-200, 0, -10]),
+                    (2.2, [-60, 0, -6], 'easeInExpo'), (2.6, [-60, 0, -6]), (3.2, [-28, 0, -30], 'easeInOutSine')], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.42, [6, 40, 0]), (0.5, [10, -40, 0], 'easeOutExpo'), (0.92, [10, -44, 0]), (1.0, [10, 46, 0], 'easeOutExpo'),
+                    (1.25, [0, 20, 0]), (1.6, [-24, 0, 0], 'easeOutQuad'), (2.0, [-26, 0, 0]), (2.2, [42, 0, 0], 'easeInExpo'), (2.6, [38, 0, 0]),
+                    (3.2, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (0.25, [0, -2, 0]), (0.35, [0, 0, 0]), (1.3, [0, -2.4, 0], 'easeOutQuad'), (1.45, [0, 0, 0]),
+                   (2.2, [0, -3, 0], 'easeInExpo'), (2.6, [0, -2.8, 0]), (3.2, [0, 0, 0], 'easeInOutSine')], 'lin')
+    for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 5 * sgn]), (0.5, [-20 if sgn > 0 else 14, 0, 8 * sgn]), (1.0, [14 if sgn > 0 else -20, 0, 8 * sgn]),
+                    (1.3, [-30, 0, 10 * sgn]), (1.6, [20, 0, 6 * sgn]), (2.2, [-40 if sgn > 0 else 30, 0, 12 * sgn], 'easeInExpo'),
+                    (2.6, [-40 if sgn > 0 else 30, 0, 12 * sgn]), (3.2, [0, 0, 5 * sgn])], 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (2.2, [1.2, 0.86, 1.2], 'easeInExpo'), (2.5, [1.04, 1.03, 1.04])], 'lin')
+    a.sound(0.4, 'swing').sound(0.9, 'swing').sound(1.4, 'whoosh').sound(2.2, 'slam')
+    return a
+
+
+def b_d_gigante():
+    """1.2 s loop (BossState.P4_GIGANTE, AI-held). Perched in the air at his end of the arena, playing the spirit guitar
+    for El Gigante (his hands are client/BossModel.shred): leaning back, knees bouncing, headbanging on the beat, the hips
+    swinging; the wings beat on (the form controller)."""
+    a = god(B('d_gigante', 1.2, True))
+    guitar_slung(a)
+    st = gp('strum')
+    a.rot('arm_r', [(0, st[:3])], 'lin')
+    stretch(a, 'arm_r', [(0, st[3])])
+    a.rot('torso', [(0, [-18, 8, 0]), (0.3, [4, 0, 0], 'easeInQuad'), (0.6, [-18, -8, 0]), (0.9, [4, 0, 0], 'easeInQuad'), (1.2, [-18, 8, 0])])
+    a.pos('root', [(0, [0, 0, 0]), (0.3, [0, -1.0, 0]), (0.6, [0, 0, 0]), (0.9, [0, -1.0, 0]), (1.2, [0, 0, 0])])
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [-30 if s > 0 else 20, 0, 14 * s]), (0.6, [20 if s > 0 else -30, 0, 14 * s]), (1.2, [-30 if s > 0 else 20, 0, 14 * s])])
+    return a
+
+
+def b_d_grieta():
+    """10.0 s (BossState.P4_GRIETA, 200 t). Down in front of you like a stone, fists over his head (0-0.7); both fists
+    smashed into the floor (0.7); onto his knees, both hands in the crack, prying (1.0-2.2), straining harder; and he
+    tears it open (2.2), arms wrenched apart, roaring; he holds it open on his knees, arms wide, shaking with the strain,
+    glaring at you (to 8.9); "¡Ciérrate!" (8.9) and both palms clapped together (9.3): shut; up (to 10)."""
+    a = god(B('d_grieta', 10.0, 'hold'))
+    a.pos('root', [(0, [0, 2, 0]), (0.6, [0, 0, 0]), (0.7, [0, -4.4, 0], 'easeInQuad'), (9.4, [0, -4.4, 0]), (10.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.rot('leg_r', [(0, [10, 0, 6]), (0.7, [-84, 0, 10], 'easeInQuad'), (9.4, [-84, 0, 10]), (10.0, [0, 0, 6], 'easeInOutSine')], 'lin')
+    a.rot('leg_l', [(0, [10, 0, -6]), (0.7, [-84, 0, -10], 'easeInQuad'), (9.4, [-84, 0, -10]), (10.0, [0, 0, -6], 'easeInOutSine')], 'lin')
+    pry_r, pry_l = [-46, -30, 6], [-46, 30, -6]
+    wide_r, wide_l = [-40, 0, 80], [-40, 0, -80]
+    strain = lambda base, sgn: [(round(2.6 + 0.12 * i, 2), [base[0] + (3 if i % 2 else -3), base[1], base[2] + (4 if i % 2 else -4) * sgn])
+                                for i in range(int((8.7 - 2.6) / 0.12))]
+    for arm, sgn, pry, wide in (('arm_r', 1, pry_r, wide_r), ('arm_l', -1, pry_l, wide_l)):
+        keys = [(0, [-176, 0, 10 * sgn]), (0.6, [-180, 0, 6 * sgn]), (0.7, [-50, 0, 6 * sgn], 'easeInExpo'), (1.0, pry, 'easeOutQuad')]
+        keys += [(round(1.0 + 0.2 * i, 2), [pry[0] + (4 if i % 2 else -4), pry[1] + (6 if i % 2 else 0) * sgn, pry[2]]) for i in range(6)]
+        keys += [(2.1, [pry[0], pry[1] - 10 * sgn, pry[2]]), (2.3, wide, 'easeOutExpo')] + strain(wide, sgn)
+        keys += [(8.9, wide), (9.25, [-80, -40 * sgn, 0], 'easeInExpo'), (9.6, [-82, -42 * sgn, 0]), (10.0, [-28, 0, 26 * sgn], 'easeInOutSine')]
+        a.rot(arm, keys, 'lin')
+        stretch(a, arm, [(0, 1.4), (0.7, 1.6), (1.0, 1.6), (2.3, 1.7), (8.9, 1.7), (9.25, 1.5), (10.0, 1)])
+    a.rot('torso', [(0, [0, 0, 0]), (0.7, [40, 0, 0], 'easeInQuad'), (1.0, [44, 0, 0]), (2.1, [48, 0, 0]), (2.3, [-20, 0, 0], 'easeOutExpo'),
+                    (3.0, [-12, 0, 0]), (8.9, [-14, 0, 0]), (9.25, [24, 0, 0], 'easeInExpo'), (9.6, [20, 0, 0]), (10.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (0.7, [1.22, 0.84, 1.22], 'easeInQuad'), (1.0, [1.04, 1.03, 1.04]), (2.1, [1.0, 0.97, 1.0]),
+                     (2.3, [1.12, 1.1, 1.12], 'easeOutExpo'), (3.0, [1.06, 1.05, 1.06]), (9.25, [1.12, 0.94, 1.12], 'easeInExpo'),
+                     (9.6, [1.04, 1.03, 1.04]), (10.0, [1.04, 1.03, 1.04])], 'lin')
+    a.sound(0.7, 'slam').sound(1.2, 'grunt').sound(1.8, 'grunt').sound(2.2, 'roar').sound(9.3, 'slam')
+    return a
+
+
+def b_d_petalos():
+    """1.0 s loop (BossState.P4_PETALOS, AI-held). The spin (the entity turns 24° a tick): a dancer's whirl over the floor,
+    the hammer flung out at arm's length, the left arm up over his head, leaning out into it, the legs tucked."""
+    a = god(B('d_petalos', 1.0, True))
+    a.rot('arm_r', [(0, [-100, 0, 96]), (0.5, [-96, 0, 100]), (1.0, [-100, 0, 96])])
+    stretch(a, 'arm_r', [(0, 1.6)])
+    a.rot('arm_l', [(0, [-176, 0, -20]), (0.5, [-170, 0, -30]), (1.0, [-176, 0, -20])])
+    stretch(a, 'arm_l', [(0, 1.3)])
+    a.rot('root', [(0, [0, 0, 10]), (0.5, [0, 0, 14]), (1.0, [0, 0, 10])])
+    a.rot('torso', [(0, [-8, 0, 0]), (0.5, [-12, 0, 0]), (1.0, [-8, 0, 0])])
+    a.rot('leg_r', [(0, [-40, 0, 10])], 'lin')
+    a.rot('leg_l', [(0, [20, 0, -20])], 'lin')
+    a.sound(0, 'whoosh')
+    return a
+
+
+CANCION_BEAT = 0.47      # Cancion del Mariachi, about 127.5 bpm (the band plays it in phase four)
+
+
+def b_d_conduct():
+    """4 beats loop (BossState.P4_PAPEL, P4_VELAS). Conducting the dead's fiesta with the hammer: it beats time on every
+    beat (down, out, up), the left hand flung out at the floor on each downbeat, the hips swaying to it."""
+    L = round(CANCION_BEAT * 4, 2)
+    a = god(B('d_conduct', L, True))
+    r = [(0, [-150, 0, 30])]
+    l = [(0, [-40, 0, -40])]
+    tor = [(0, [-6, 8, 0])]
+    for i in range(4):
+        t = round(CANCION_BEAT * i, 2)
+        r += [(t, [-176, 0, 20] if i % 2 == 0 else [-120, 20, 70], 'easeInOutSine')]
+        if i % 2 == 0:
+            l += [(t, [-100, 20, -60], 'easeOutBack'), (round(t + CANCION_BEAT * 0.6, 2), [-50, 0, -50])]
+        tor += [(t, [-6, 10 if i % 2 == 0 else -10, 0], 'easeInOutSine')]
+    r.append((L, [-150, 0, 30]))
+    l.append((L, [-40, 0, -40]))
+    tor.append((L, [-6, 8, 0]))
+    a.rot('arm_r', r, 'lin')
+    a.rot('arm_l', l, 'lin')
+    a.rot('torso', tor, 'lin')
+    stretch(a, 'arm_r', [(0, 1.3)])
+    stretch(a, 'arm_l', [(0, 1.4)])
+    flying_legs(a, L, 14)
+    return a
+
+
+def b_d_danza():
+    """2 beats loop (BossState.P4_DANZA). Over the ring of dancers he dances too: zapateado in the air, the left hand
+    clapping against the hammer's haft on the off-beat, the hips and shoulders rolling."""
+    L = round(CANCION_BEAT * 2, 2)
+    h = round(L / 2, 2)
+    a = god(B('d_danza', L, True))
+    a.rot('arm_r', [(0, [-140, -30, 20]), (h, [-130, -40, 10]), (L, [-140, -30, 20])])
+    stretch(a, 'arm_r', [(0, 1.2)])
+    a.rot('arm_l', [(0, [-60, 20, -60]), (round(h - 0.08, 2), [-120, 50, -20], 'easeInQuad'), (h, [-128, 56, -14]), (L, [-60, 20, -60])])
+    stretch(a, 'arm_l', [(0, 1.2), (h, 1.5), (L, 1.2)])
+    a.rot('torso', [(0, [-6, 14, 4]), (h, [-6, -14, -4]), (L, [-6, 14, 4])])
+    a.pos('root', [(0, [0, 0, 0]), (round(L / 4, 2), [0, 1.2, 0]), (h, [0, 0, 0]), (round(L * 0.75, 2), [0, 1.2, 0]), (L, [0, 0, 0])])
+    a.rot('leg_r', [(0, [-40, 0, 6]), (h, [20, 0, 6]), (L, [-40, 0, 6])])
+    a.rot('leg_l', [(0, [20, 0, -6]), (h, [-40, 0, -6]), (L, [20, 0, -6])])
+    a.sound(h, 'snap')
+    return a
+
+
+def b_d_luna():
+    """1.3 s loop (BossState.P4_LUNA, a volley every 26 t). Calling the moon down: the hammer and the left fist thrust up at it
+    on each volley, the body arched back, then a breath."""
+    a = god(B('d_luna', 1.3, True))
+    a.rot('arm_r', [(0, [-150, 0, 30]), (0.15, [-178, 0, 10], 'easeOutExpo'), (0.7, [-174, 0, 14]), (1.3, [-150, 0, 30], 'easeInOutSine')], 'lin')
+    a.rot('arm_l', [(0, [-140, 0, -40]), (0.15, [-176, 0, -14], 'easeOutExpo'), (0.7, [-170, 0, -18]), (1.3, [-140, 0, -40], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1.2), (0.15, 1.7, 'easeOutExpo'), (0.7, 1.6), (1.3, 1.2)])
+    stretch(a, 'arm_l', [(0, 1.2), (0.15, 1.7, 'easeOutExpo'), (0.7, 1.6), (1.3, 1.2)])
+    a.rot('torso', [(0, [-14, 0, 0]), (0.15, [-30, 0, 0], 'easeOutExpo'), (0.7, [-28, 0, 0]), (1.3, [-14, 0, 0], 'easeInOutSine')], 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (0.15, [0.98, 1.1, 0.98], 'easeOutExpo'), (0.6, [1.05, 1.04, 1.05]), (1.3, [1.04, 1.03, 1.04])], 'lin')
+    flying_legs(a, 1.3, 16)
+    return a
+
+
+PHASE_FOUR = [b_p4_rise, b_p4_hammer, b_p4_strike, b_p4_moonrays, b_p4_reveal, b_p4_trueform, b_d_fly, b_d_martillo, b_d_gigante,
+              b_d_grieta, b_d_petalos, b_d_conduct, b_d_danza, b_d_luna]
+
+
 ASCENDED_MOVES = [b_a_fly, b_a_combo, b_a_flash, b_a_comet, b_a_comet_land, b_a_laser, b_a_solar, b_a_conduct, b_a_duel_fly, b_a_shred,
                   b_a_duel_smash, b_a_duel_shame, b_a_pinata, b_a_braziers, b_a_nova, b_a_spent, b_qte_hold_crush, b_qte_fail_crush,
                   b_a_sombrero, b_a_volcan, b_a_calaveras, b_a_pinata_swing]
@@ -3365,7 +3730,7 @@ BOSS = [b_leap_out, b_chug, b_roar, b_idle, b_walk, b_walk_keys, b_run, b_swipe,
         b_swipe_overhead, b_leap, b_leap_land, b_charge_windup, b_charge, b_stagger, b_uppercut, b_air_spike,
         b_blink, b_gatling, b_dash_combo, b_van_kick, b_p2_kneel, b_p2_talk, b_p2_scream, b_p2_arrive, b_fly,
         b_p2_barrage, b_p2_meteor, b_van_throw, b_p2_dive, b_p2_season,
-        b_grab_lunge, b_grab_combo] + REWORK + COLISEUM + FORM + HARDENING + PHASE_THREE + ASCENDED_MOVES
+        b_grab_lunge, b_grab_combo] + REWORK + COLISEUM + FORM + HARDENING + PHASE_THREE + ASCENDED_MOVES + PHASE_FOUR
 
 
 

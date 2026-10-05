@@ -36,6 +36,9 @@ public final class ModItems {
             () -> new TequilaItem(new Item.Properties().rarity(Rarity.UNCOMMON)));
     public static final RegistryObject<Item> CARAVAN_KEYS = REGISTRY.register("caravan_keys",
             () -> new CaravanKeysItem(new Item.Properties().rarity(Rarity.RARE).fireResistant()));
+    /** The key fob to Ascended Papon's Skyline (he drops it, tied to the car). */
+    public static final RegistryObject<Item> SKYLINE_FOB = REGISTRY.register("skyline_fob",
+            () -> new com.groid.papon.item.SkylineFobItem(new Item.Properties().rarity(Rarity.EPIC).fireResistant()));
 
     /** Gerbin's present to whoever beats Chef Papon. */
     public static final RegistryObject<Item> BODY_PILLOW = REGISTRY.register("body_pillow",

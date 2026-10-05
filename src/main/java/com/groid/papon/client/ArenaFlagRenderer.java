@@ -24,6 +24,7 @@ import org.joml.Matrix4f;
  */
 public class ArenaFlagRenderer implements BlockEntityRenderer<ArenaFlagBlockEntity> {
     private static final ResourceLocation GOLD = new ResourceLocation("minecraft", "textures/block/gold_block.png");
+    private static final ResourceLocation BONE = new ResourceLocation("minecraft", "textures/block/bone_block_side.png");
     /** width, height, top (above the block's bottom), standoff from the block's centre, wave depth. */
     private static final float[][] KINDS = {
             {4.2F, 2.4F, 1.0F, 0.62F, 0.07F},
@@ -36,7 +37,8 @@ public class ArenaFlagRenderer implements BlockEntityRenderer<ArenaFlagBlockEnti
     @Override
     public void render(ArenaFlagBlockEntity flag, float partial, PoseStack ps, MultiBufferSource buffers, int light, int overlay) {
         if (flag.getLevel() == null) return;
-        float[] k = KINDS[Mth.clamp(flag.kind(), 0, KINDS.length - 1)];
+        boolean dead = (flag.kind() & ArenaFlagBlockEntity.DEAD) != 0;
+        float[] k = KINDS[Mth.clamp(flag.kind() & 15, 0, KINDS.length - 1)];
         float w = k[0], h = k[1], top = k[2], off = k[3], amp = k[4];
         float phi = flag.normal();
         BlockPos pos = flag.getBlockPos();
@@ -50,7 +52,7 @@ public class ArenaFlagRenderer implements BlockEntityRenderer<ArenaFlagBlockEnti
         ps.translate(0.5, 0, 0.5);
         ps.mulPose(Axis.YP.rotation(Mth.HALF_PI - phi));
         // the rod and its brackets
-        VertexConsumer gold = buffers.getBuffer(RenderType.entitySolid(GOLD));
+        VertexConsumer gold = buffers.getBuffer(RenderType.entitySolid(dead ? BONE : GOLD));
         box(ps, gold, -w / 2 - 0.12F, top - 0.05F, off - 0.04F, w / 2 + 0.12F, top + 0.05F, off + 0.06F, lt);
         for (float s : new float[]{-1, 1}) {
             float x = s * (w / 2 - 0.3F);
@@ -61,7 +63,7 @@ public class ArenaFlagRenderer implements BlockEntityRenderer<ArenaFlagBlockEnti
         // the cloth, hung just in front of the rod
         ps.translate(-w / 2, top - 0.03F, off + 0.02F);
         int nx = Math.max(8, (int) (w * 4)), ny = Math.max(4, (int) (h * 3));
-        FlagCloth.draw(ps, buffers.getBuffer(FlagCloth.renderType()), w, h, lt, time, phase, amp, false, nx, ny);
+        FlagCloth.draw(ps, buffers.getBuffer(FlagCloth.renderType(dead)), w, h, lt, time, phase, amp, false, nx, ny);
         ps.popPose();
     }
 

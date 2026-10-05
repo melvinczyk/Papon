@@ -68,6 +68,38 @@ public final class ModBlocks {
             () -> new com.groid.papon.block.StageLampBlock(props(MapColor.COLOR_BLACK).sound(SoundType.LANTERN).noOcclusion()
                     .lightLevel(s -> s.getValue(com.groid.papon.block.StageLampBlock.LIT) ? 15 : 0)));
 
+    // ------------------------------------------------------------------ El Coliseo de los Muertos (phase four, boss/Coliseum.dead)
+    /** The floor: night-stone tiles, a marigold petal cut in each. */
+    public static final RegistryObject<Block> MUERTOS_TILE = stone("muertos_tile", MapColor.COLOR_BLACK);
+    public static final RegistryObject<Block> MUERTOS_BRICKS = stone("muertos_bricks", MapColor.COLOR_BLACK);
+    public static final RegistryObject<Block> MUERTOS_STONE = stone("muertos_stone", MapColor.COLOR_GRAY);
+    public static final RegistryObject<Block> MUERTOS_DARK = stone("muertos_dark", MapColor.COLOR_BLACK);
+    public static final RegistryObject<Block> MUERTOS_BONE = REGISTRY.register("muertos_bone",
+            () -> new Block(props(MapColor.SAND).sound(SoundType.BONE_BLOCK)));
+    public static final RegistryObject<Block> BONE_COLUMN = REGISTRY.register("bone_column",
+            () -> new RotatedPillarBlock(props(MapColor.SAND).sound(SoundType.BONE_BLOCK)));
+    /** A sugar skull, its painted face to one side, its eyes glowing (block/SugarSkullBlock). */
+    public static final RegistryObject<Block> MUERTOS_SKULL = REGISTRY.register("muertos_skull",
+            () -> new com.groid.papon.block.SugarSkullBlock(props(MapColor.SNOW).sound(SoundType.BONE_BLOCK).lightLevel(s -> 7)));
+    /** The blue running in the floor's cracks (block/EctoplasmBlock): a light. */
+    public static final RegistryObject<Block> ECTOPLASM = REGISTRY.register("ectoplasm",
+            () -> new com.groid.papon.block.EctoplasmBlock(props(MapColor.DIAMOND).sound(SoundType.HONEY_BLOCK).lightLevel(s -> 12).noOcclusion()));
+    /** Cempasuchil: a mass of marigolds. */
+    public static final RegistryObject<Block> MUERTOS_MARIGOLD = REGISTRY.register("muertos_marigold",
+            () -> new Block(props(MapColor.COLOR_ORANGE).sound(SoundType.AZALEA_LEAVES)));
+    public static final RegistryObject<Block> MUERTOS_PINK = stone("muertos_pink", MapColor.COLOR_PINK);
+    public static final RegistryObject<Block> MUERTOS_PURPLE = stone("muertos_purple", MapColor.COLOR_PURPLE);
+    /** A seat: a striped serape folded on the step. */
+    public static final RegistryObject<Block> MUERTOS_SEAT = stone("muertos_seat", MapColor.COLOR_PURPLE);
+    public static final RegistryObject<Block> SPIRIT_BRAZIER = REGISTRY.register("spirit_brazier",
+            () -> new com.groid.papon.block.SpiritBrazierBlock(props(MapColor.COLOR_CYAN).sound(SoundType.LANTERN).lightLevel(s -> 15).noOcclusion()));
+    public static final RegistryObject<Block> MUERTOS_CANDLES = REGISTRY.register("muertos_candles",
+            () -> new com.groid.papon.block.MuertosCandlesBlock(props(MapColor.SNOW).sound(SoundType.CANDLE).lightLevel(s -> 14).noOcclusion()));
+    /** La Grieta de las Almas: the floor torn open onto the souls (block/SoulVoidBlock). */
+    public static final RegistryObject<Block> SOUL_VOID = REGISTRY.register("soul_void",
+            () -> new com.groid.papon.block.SoulVoidBlock(props(MapColor.COLOR_BLACK).sound(SoundType.SOUL_SAND).lightLevel(s -> 6).noOcclusion()
+                    .dynamicShape()));
+
     private static RegistryObject<Block> stone(String name, MapColor color) {
         return REGISTRY.register(name, () -> new Block(stoneProps(color)));
     }

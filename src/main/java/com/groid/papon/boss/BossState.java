@@ -72,6 +72,18 @@ package com.groid.papon.boss;
  * IDLE --> P3_NOVA --> P3_SPENT --> IDLE                     (the supernova: only his shadow is safe; then he is spent)
  * IDLE --> P3_NITRO --> DRIVING --> IDLE                     (the Skyline, nitro on; out through the roof)
  * IDLE --> QTE_GRAB (kind 5) --> QTE_HOLD --> QTE_FAIL | QTE_BROKEN --> IDLE      (the squeeze: spam keys to break out)
+ * IDLE --> P4_RISE --> P4_HAMMER --> P4_STRIKE --> P4_MOONRAYS --> P4_BLUEOUT --> P4_REVEAL --> P4_TRUEFORM --> IDLE
+ *                                                             (a quarter health, Dia de los Muertos: he rises laughing, a
+ *                                                              spirit hammer forms in his hand, its lightning turns the moon
+ *                                                              into a blue calavera, the moon's rays turn the band and the
+ *                                                              stands to skeletons, the moon floods the bowl blue and it
+ *                                                              becomes El Coliseo de los Muertos, twice the size; he looks
+ *                                                              round it ("centuries"), and burns down to his truest form:
+ *                                                              a sugar-skull skeleton with bone wings. No coliseum: no swap)
+ * IDLE --> P4_MARTILLO | P4_GIGANTE | P4_GRIETA | P4_PETALOS | P4_PAPEL | P4_VELAS | P4_DANZA | P4_LUNA --> IDLE
+ *                                                             (El Rey de los Muertos: the hammer, the hologram giant and its
+ *                                                              laser, the rift of souls, the petal spirals, the banners, the
+ *                                                              erupting cracks, the dancers, the moon's beams)
  * any --> DEATH
  * </pre>
  * Append new states at the end: the ordinal is synced and the name is saved.
@@ -259,7 +271,38 @@ public enum BossState {
     /** Phase three's cutscene: just ascended, the power staggers him (a beat before his serenade). */
     P3_POWER(80),
     /** La Piñata (reworked): swung on its rope like a wrecking ball through the sand, then smashed into a spiral of candy. */
-    P3_PINATA_SWING(220);
+    P3_PINATA_SWING(220),
+    // ---- phase four, Dia de los Muertos (a quarter of his health; appended: the ordinal is synced)
+    /** Hit down to a quarter, he does not fall: he rises over the sand, laughing, and the clouds part on the moon. */
+    P4_RISE(90),
+    /** Hovering, his hand up: a spectral hammer forms in it out of blue fire. */
+    P4_HAMMER(110),
+    /** He swings it at the sky: blue lightning up into the moon, which cracks and turns: a blue calavera. */
+    P4_STRIKE(110),
+    /** The moon's rays: down onto the band, one by one, then round the stands: all of them turned to skeletons. */
+    P4_MOONRAYS(150),
+    /** The moon floods everything blue; behind it the coliseum becomes El Coliseo de los Muertos, twice the size. */
+    P4_BLUEOUT(60),
+    /** The new arena seen: down out of the blue, he lands in the middle of the great calavera and looks round at it all. */
+    P4_REVEAL(130),
+    /** His truest form: the flesh burnt off him in blue fire, a sugar-skull skeleton, the bone wings unfurling. */
+    P4_TRUEFORM(140),
+    /** El Martillo: blinks in beside you, two swings of the spirit hammer, up and down: rings and blue lightning. */
+    P4_MARTILLO(64),
+    /** El Gigante: he plays; a giant hologram skeleton rises out from under the arena: its mouth's laser, its hands. */
+    P4_GIGANTE(230),
+    /** La Grieta de las Almas: he slams the floor and tears it open with his hands; the souls in it pull you in. */
+    P4_GRIETA(200),
+    /** Lluvia de Cempasuchil: spinning over the middle, spirals of marigold petals out across the floor. */
+    P4_PETALOS(170),
+    /** Papel Picado: giant banners of cut paper sweep the floor, low (jump) and high (duck), from both ends. */
+    P4_PAPEL(170),
+    /** Las Velas de Animas: the ectoplasm in the cracks erupts in blue fire, out from the skull and back. */
+    P4_VELAS(160),
+    /** La Danza de los Muertos: skeleton dancers ring you, closing, and spin through you one after another. */
+    P4_DANZA(170),
+    /** La Luna: the moon answers him: rings of blue on the floor, then its beams down into them, volley after volley. */
+    P4_LUNA(130);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;
@@ -287,7 +330,17 @@ public enum BossState {
 
     /** Any part of the phase-two cutscene (he cannot be hurt), the guitar solo's moment, and the phase-three cutscene. */
     public boolean cutscene() {
-        return silent() || this == P2_ARRIVE || coliseum() || this == P2_SOLO || this == P2_CUTAWAY || phaseThree();
+        return silent() || this == P2_ARRIVE || coliseum() || this == P2_SOLO || this == P2_CUTAWAY || phaseThree() || phaseFour();
+    }
+
+    /** Phase four's cutscene: the rise to his truest form. */
+    public boolean phaseFour() {
+        return ordinal() >= P4_RISE.ordinal() && ordinal() <= P4_TRUEFORM.ordinal();
+    }
+
+    /** Phase four's moves. */
+    public boolean muertosMove() {
+        return ordinal() >= P4_MARTILLO.ordinal() && ordinal() <= P4_LUNA.ordinal();
     }
 
     /** The phase-three cutscene, the knockback to "let's dance". */

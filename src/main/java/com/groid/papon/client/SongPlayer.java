@@ -89,7 +89,7 @@ public final class SongPlayer {
         boolean dazed = boss != null && dazed(boss);
         // knocked flat, the band plays on, muffled in his ears (it stops dead when they see him staring at them)
         muffleWant = dazed ? 0.3F : 1F;
-        if (boss != null && boss.getBossState().bandStopped() && !dazed) {
+        if (boss != null && (boss.getBossState().bandStopped() || ritual(boss)) && !dazed) {
             phaseThree(mc, boss);
             return;
         }
@@ -155,6 +155,13 @@ public final class SongPlayer {
                 || st == BossState.P3_GLARE && boss.ticksInState() < com.groid.papon.boss.VoiceLines.beat("glare.scare", 114);
     }
 
+    /** Phase four's ritual, the moon to his truest form: the band silent until the dead strike up (P4_TRUEFORM's drop). */
+    private static boolean ritual(PaponBossEntity boss) {
+        BossState st = boss.getBossState();
+        if (st == BossState.P4_TRUEFORM) return boss.ticksInState() < com.groid.papon.boss.VoiceLines.beat("p4.drop", 96);
+        return st.phaseFour();
+    }
+
     /** Passes of the intro before the song moves on: phase two's guitar intro covers his apology; phase three's pickup plays once. */
     private static int passes(Song song) {
         return song == Song.get() ? Song.introPasses() : 1;
@@ -185,7 +192,7 @@ public final class SongPlayer {
         }
         if (current != null && current.id().equals("serenade")) return;      // the last chord rings on under his lines
         if (playing != null && !playing.fading) {
-            if (st == BossState.P3_KNOCKBACK || st == BossState.P3_GLARE) playing.windDown();
+            if (st == BossState.P3_KNOCKBACK || st == BossState.P3_GLARE || st == BossState.P4_RISE) playing.windDown();
             else playing.fadeOut();
         }
         playing = null;

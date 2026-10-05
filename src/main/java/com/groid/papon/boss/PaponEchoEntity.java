@@ -38,6 +38,12 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
     public static final int THROW_1 = 16, THROW_2 = 28;
     private static final RawAnimation THROW = RawAnimation.begin().thenPlayAndHold("animation.papon_boss.echo_throw");
     private static final EntityDataAccessor<Integer> DATA_TARGET = SynchedEntityData.defineId(PaponEchoEntity.class, EntityDataSerializers.INT);
+    /** 0 an echo with cleavers; 1 a skeleton dancer (phase four's La Danza: moved by the boss); 2 the dancer spinning through. */
+    private static final EntityDataAccessor<Integer> DATA_MODE = SynchedEntityData.defineId(PaponEchoEntity.class, EntityDataSerializers.INT);
+    private static final RawAnimation DANCE = RawAnimation.begin().thenLoop("animation.papon_boss.d_dancer");
+    private static final RawAnimation SPIN = RawAnimation.begin().thenLoop("animation.papon_boss.d_dancer_spin");
+    private Vec3 lunge = Vec3.ZERO;
+    private final java.util.Set<Integer> struck = new java.util.HashSet<>();
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private int ownerId = -1;
     private int throwsLeft = 1;
@@ -59,9 +65,49 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
         return e;
     }
 
+    /** A skeleton dancer of La Danza de los Muertos: the boss moves it (round you, then through you). */
+    public static PaponEchoEntity dancer(ServerLevel level, PaponBossEntity boss, LivingEntity target, Vec3 at) {
+        PaponEchoEntity e = create(level, boss, target, at, 0);
+        e.entityData.set(DATA_MODE, 1);
+        return e;
+    }
+
+    public boolean isDancer() {
+        return entityData.get(DATA_MODE) > 0;
+    }
+
+    public boolean spinning() {
+        return entityData.get(DATA_MODE) == 2;
+    }
+
+    public void faceTo(Vec3 at) {
+        face(at);
+    }
+
+    /** It is about to spin straight through along {@code dir}. */
+    public void lungeDir(Vec3 dir) {
+        lunge = dir;
+        entityData.set(DATA_MODE, 2);
+        face(position().add(dir));
+    }
+
+    public Vec3 lungeDirection() {
+        return lunge;
+    }
+
+    /** True the first time it touches {@code id} on its way through. */
+    public boolean hitOnce(int id) {
+        return struck.add(id);
+    }
+
+    public void vanishNow(ServerLevel level) {
+        vanish(level, false);
+    }
+
     @Override
     protected void defineSynchedData() {
         entityData.define(DATA_TARGET, -1);
+        entityData.define(DATA_MODE, 0);
     }
 
     @Nullable
@@ -89,6 +135,17 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
     @Override
     public void tick() {
         super.tick();
+        if (isDancer()) {
+            if (level().isClientSide) {
+                if (tickCount % 3 == 0) {
+                    level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, getX() + (random.nextDouble() - 0.5),
+                            getY() + random.nextDouble() * 2.6, getZ() + (random.nextDouble() - 0.5), 0, 0.02, 0);
+                }
+                return;
+            }
+            if (owner() == null || tickCount > 240) vanish((ServerLevel) level(), false);
+            return;
+        }
         LivingEntity target = target();
         if (target != null) face(target.position());
         // a slow bob, hanging in the air
@@ -136,7 +193,7 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
     }
 
     private void vanish(ServerLevel level, boolean shattered) {
-        Fx.smoke(level, position().add(0, 1.2, 0), shattered ? 8 : 4, 0.6, 0.9F, 0xFFD27A);
+        Fx.smoke(level, position().add(0, 1.2, 0), shattered ? 8 : 4, 0.6, 0.9F, isDancer() ? 0x7FE8FF : 0xFFD27A);
         if (shattered) {
             Fx.spark(level, position().add(0, 1.4, 0), 10, 0.6, 0.35F, 0xFFD27A);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.GLASS_BREAK, SoundSource.HOSTILE, 1.4F, 0.7F);
@@ -184,7 +241,7 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", 0, e -> e.setAndContinue(THROW)));
+        controllers.add(new AnimationController<>(this, "main", 0, e -> e.setAndContinue(spinning() ? SPIN : isDancer() ? DANCE : THROW)));
     }
 
     @Override

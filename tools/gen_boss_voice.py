@@ -161,7 +161,10 @@ OLD_DIRECTION = {
 }
 
 # the lines taken with the new, more human delivery (the user, 2026-10-04: this session's new lines only)
-FRESH = set(['intro', 'felt', 'notstyle', 'p3_hurt', 'p3_noise', 'p3_power', 'upgrade', 'qte_strong', 'qte_weak', 'qte_crush', 'qte_slip', 'qte_quick', 'qte_slow', 'tango_good', 'tango_bad', 'duel_good', 'duel_bad', 'p3_sombrero', 'p3_volcan', 'p3_calaveras', 'p3_swing'])
+FRESH = set(['intro', 'felt', 'notstyle', 'p3_hurt', 'p3_noise', 'p3_power', 'upgrade', 'qte_strong', 'qte_weak', 'qte_crush', 'qte_slip', 'qte_quick', 'qte_slow', 'tango_good', 'tango_bad', 'duel_good', 'duel_bad', 'p3_sombrero', 'p3_volcan', 'p3_calaveras', 'p3_swing'] + [
+    k for k in ['p4_laugh', 'p4_rise', 'p4_hammer', 'p4_strike', 'p4_centuries', 'p4_true', 'p4_fiesta', 'p4_martillo', 'p4_luna', 'p4_gigante',
+                'p4_grieta', 'p4_cierra', 'p4_petalos', 'p4_papel', 'p4_velas', 'p4_danza']] + ['p4_charm%d' % i for i in range(6)]
+    + ['p4_hit%d' % i for i in range(3)] + ['p4_landed%d' % i for i in range(3)])
 
 # sampling: a little warmer than the model's default (0.9), and each take a little different (voice_modal varies it)
 GEN = {'temperature': 1.0}
@@ -367,6 +370,36 @@ LINES = {
     'p3_landed3': ("FEEL my power!!!", 'shout'),
     'p3_hit2':   ("You scratched a god. How... BRAVE.", 'contempt'),
     'p3_hit3':   ("Impressive. It changes NOTHING.", 'cold'),
+    # ---- (2026-10-04) phase four, Dia de los Muertos: the ritual (he rises laughing, the spirit hammer, the moon struck,
+    # the dead's coliseum, his truest form) and El Rey de los Muertos's fight
+    'p4_laugh':  ("Heh heh heh... HA HA HA HA!", 'evil'),
+    'p4_rise':   ("You think that was ALL? Amigo... the fiesta hasn't even started.", 'sly'),
+    'p4_hammer': ("Death herself... lends me her HAMMER tonight.", 'evil'),
+    'p4_strike': ("Wake up, LUNA!!!", 'shout'),
+    'p4_centuries': ("It has been centuries... since I was brought to my TRUEST form.", 'menace'),
+    'p4_true':   ("Behold... EL REY DE LOS MUERTOS!", 'shout'),
+    'p4_fiesta': ("Now, amigo... we CELEBRATE!", 'shout'),
+    'p4_martillo': ("Feel the weight of the DEAD!", 'shout'),
+    'p4_luna':   ("Luna... show them your light.", 'evil'),
+    'p4_gigante': ("A song for my oldest friend... RISE, GIGANTE!", 'shout'),
+    'p4_grieta': ("The souls are HUNGRY, amigo!", 'evil'),
+    'p4_cierra': ("And... SHUT.", 'cold'),
+    'p4_petalos': ("Marigolds, to guide you HOME!", 'smug'),
+    'p4_papel':  ("Duck, jump... DANCE!", 'sly'),
+    'p4_velas':  ("Light a candle for yourself, amigo.", 'sly'),
+    'p4_danza':  ("My ancestors want a DANCE!", 'smug'),
+    'p4_charm0': ("Every year they leave me flowers. This year... I leave some for YOU.", 'sly'),
+    'p4_charm1': ("The dead know how to PARTY, amigo!", 'shout'),
+    'p4_charm2': ("Centuries of fiestas... and you are the BEST one.", 'smug'),
+    'p4_charm3': ("Don't be scared. Death is just a long SIESTA.", 'sly'),
+    'p4_charm4': ("Listen to them... the dead are cheering for ME.", 'smug'),
+    'p4_charm5': ("Bones don't break, amigo. They DANCE!", 'shout'),
+    'p4_hit0':   ("Ay! You rattled my BONES!", 'pained'),
+    'p4_hit1':   ("You can't kill what is already DEAD!", 'angry'),
+    'p4_hit2':   ("Careful! These bones are ANTIQUES!", 'surprised'),
+    'p4_landed0': ("Welcome to the other SIDE!", 'shout'),
+    'p4_landed1': ("Say hello to my ancestors for me.", 'sly'),
+    'p4_landed2': ("OLE! The dead LOVE that one!", 'shout'),
 }
 
 # what the voice model is given to say, where the written line reads two ways ("lives": he said it like "alive")
@@ -885,6 +918,30 @@ def beats(lengths):
     b['dance.drop'] = int(round(pickup * 20))
     b['dance.line'] = b['dance.drop'] + 34
     b['dance.end'] = b['dance.line'] + L('dance') + 16
+    # ---- phase four (2026-10-04): the ritual, every beat from his lines (PaponBossEntity.tickP4*, client/Cinematic, MuertosSky)
+    # P4_RISE: the laugh from t6; the clouds part on the moon as it ends; "You think that was ALL?"
+    b['p4.moon'] = max(24, 6 + L('p4_laugh') - 6)
+    b['p4.rise'] = b['p4.moon'] + 16
+    b['p4.rise_end'] = max(72, b['p4.rise'] + L('p4_rise') + 8)
+    # P4_HAMMER: blue fire spirals into his hand; it sets into the hammer (forms); "Death herself..."
+    b['p4.forms'] = 60
+    b['p4.hammer'] = b['p4.forms'] + 14
+    b['p4.hammer_end'] = b['p4.hammer'] + L('p4_hammer') + 10
+    # P4_STRIKE: "Wake up, LUNA!!!", the swing on its last word, the bolt; the moon turns
+    b['p4.strike'] = 4
+    b['p4.swing'] = b['p4.strike'] + max(16, L('p4_strike') - 6)
+    b['p4.turn'] = b['p4.swing'] + 22
+    b['p4.strike_end'] = b['p4.turn'] + 58
+    # P4_REVEAL: down into the great calavera (land), looking round it; "It has been centuries..."
+    b['p4.land'] = 34
+    b['p4.centuries'] = b['p4.land'] + 40
+    b['p4.reveal_end'] = b['p4.centuries'] + L('p4_centuries') + 14
+    # P4_TRUEFORM: the blue fire (burn), the bone (bone), "Behold..." (true), the drop: the band of the dead, the title
+    b['p4.burn'] = 8
+    b['p4.bone'] = 40
+    b['p4.true'] = 62
+    b['p4.drop'] = b['p4.true'] + L('p4_true') + 4
+    b['p4.trueform_end'] = b['p4.drop'] + 44
     return b
 
 

@@ -59,6 +59,14 @@ public class PropRenderer extends EntityRenderer<BossProp> {
             drawSalsaWave(p, pose, buffers, light, age);
             return;
         }
+        if (k == BossProp.Kind.PAPEL) {
+            drawPapel(p, pose, buffers, age);
+            return;
+        }
+        if (k == BossProp.Kind.SOUL) {
+            drawSoul(p, pose, buffers, age, partialTick);
+            return;
+        }
         pose.pushPose();
         int lit = light;
         ItemStack stack;
@@ -229,6 +237,77 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 buffers, p.level(), p.getId());
         pose.popPose();
         super.render(p, yaw, partialTick, pose, buffers, light);
+    }
+
+    private static final ResourceLocation PAPEL = PaponMod.id("textures/entity/papel_picado.png");
+    private static final ResourceLocation SOUL = PaponMod.id("textures/entity/soul.png");
+
+    /**
+     * Papel Picado: a string of giant cut-paper banners across the floor (its half length the radius), travelling along its
+     * yaw (a maths angle): four colours in turn, skulls and flowers cut out of them, fluttering, full bright; low ones from
+     * the floor to a jump's height, high ones from a crouch's height up. A glowing string along their top.
+     */
+    private static void drawPapel(BossProp p, PoseStack pose, MultiBufferSource buffers, float age) {
+        float half = p.radius();
+        if (half <= 0.5F) return;
+        boolean high = p.delay() == 1;
+        float y0 = high ? 1.55F : 0.02F, y1 = high ? 3.2F : 1.05F;
+        double yaw = Math.toRadians(p.getYRot());
+        float dx = (float) Math.cos(yaw), dz = (float) Math.sin(yaw);
+        float ax = -dz, az = dx;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(PAPEL));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        int lit = LightTexture.FULL_BRIGHT;
+        float w = 1.5F;
+        int count = (int) Math.ceil(half * 2 / w);
+        for (int i = 0; i < count; i++) {
+            float s0 = -half + i * w, s1 = Math.min(half, s0 + w - 0.12F);
+            int col = Math.floorMod(i + p.getId(), 4);
+            float u0 = col * 0.25F, u1 = u0 + 0.25F;
+            // the sheet sways back along its path as it flies, more at its bottom edge
+            float sway = 0.25F * Mth.sin(age * 0.6F + i * 0.9F);
+            float[] a = {ax * s0, y1, az * s0}, b = {ax * s1, y1, az * s1};
+            float[] c = {ax * s1 - dx * sway, y0, az * s1 - dz * sway}, d = {ax * s0 - dx * sway, y0, az * s0 - dz * sway};
+            vtx(vc, m, n, a, u0, 0, lit);
+            vtx(vc, m, n, b, u1, 0, lit);
+            vtx(vc, m, n, c, u1, 1, lit);
+            vtx(vc, m, n, d, u0, 1, lit);
+        }
+        // the string, glowing gold
+        VertexConsumer glow = buffers.getBuffer(RenderType.lightning());
+        for (float side : new float[]{-1, 1}) {
+            glow.vertex(m, -ax * half, y1 + 0.05F, -az * half).color(255, 210, 90, 200).endVertex();
+            glow.vertex(m, ax * half, y1 + 0.05F, az * half).color(255, 210, 90, 200).endVertex();
+            glow.vertex(m, ax * half, y1 + 0.05F + 0.08F * side, az * half).color(255, 210, 90, 0).endVertex();
+            glow.vertex(m, -ax * half, y1 + 0.05F + 0.08F * side, -az * half).color(255, 210, 90, 0).endVertex();
+        }
+    }
+
+    /**
+     * A tortured soul out of the rift (La Grieta): a wailing face of blue light, its arms out toward whoever it is after,
+     * a tail of smoke; it faces the camera and leans along its flight.
+     */
+    private static void drawSoul(BossProp p, PoseStack pose, MultiBufferSource buffers, float age, float partial) {
+        net.minecraft.client.Camera cam = Minecraft.getInstance().gameRenderer.getMainCamera();
+        float grow = Mth.clamp(age / 10F, 0, 1);
+        float wob = Mth.sin(age * 0.5F + p.getId()) * 0.08F;
+        pose.pushPose();
+        pose.translate(0, 0.9 + Mth.sin(age * 0.2F) * 0.15F, 0);
+        pose.mulPose(cam.rotation());
+        pose.mulPose(Axis.ZP.rotation(wob));
+        float w = 0.95F * grow, h = 1.25F * grow;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityTranslucentEmissive(SOUL));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        int a = (int) (215 * (0.8F + 0.2F * Mth.sin(age * 0.9F)));
+        float[][] q = {{-w, -h, 0, 1}, {w, -h, 1, 1}, {w, h, 1, 0}, {-w, h, 0, 0}};
+        for (float[] c : q) {
+            vc.vertex(m, c[0], c[1], 0).color(255, 255, 255, a).uv(c[2], c[3]).overlayCoords(OverlayTexture.NO_OVERLAY)
+                    .uv2(LightTexture.FULL_BRIGHT).normal(n, 0, 0, 1).endVertex();
+        }
+        pose.popPose();
+        drawGlow(pose, buffers, 0.9F, 1.1F * grow, 80, 220, 255, 0.4F);
     }
 
     private static final ResourceLocation METAL = new ResourceLocation("minecraft", "textures/block/iron_block.png");

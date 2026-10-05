@@ -212,6 +212,20 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
 
     private int idleTicks;
 
+    /** The engine running with nobody in it (shown off, or started from the fob). */
+    public boolean idling() {
+        return idleTicks > 0;
+    }
+
+    /** The fob's remote start: the engine catches and runs for {@code ticks} (0 shuts it down). */
+    public void remoteStart(int ticks) {
+        if (ticks > 0 && idleTicks <= 0 && !level().isClientSide) {
+            level().playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_START : ModSounds.CARAVAN_START).get(),
+                    SoundSource.NEUTRAL, 2.0F, 1.0F);
+        }
+        idleTicks = ticks;
+    }
+
     /** The nitro ram (phase three): each hit takes {@code share} of the victim's maximum health; 0 puts it back to normal. */
     public void setRamShare(float share) {
         ramShare = share;
@@ -895,7 +909,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
 
     @Override
     public ItemStack getPickResult() {
-        return new ItemStack(ModItems.CARAVAN_KEYS.get());
+        return new ItemStack(isSkyline() ? ModItems.SKYLINE_FOB.get() : ModItems.CARAVAN_KEYS.get());
     }
 
     // ------------------------------------------------------------------ it is a van

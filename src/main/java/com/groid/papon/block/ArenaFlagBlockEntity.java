@@ -23,6 +23,8 @@ public class ArenaFlagBlockEntity extends BlockEntity {
     public static final int ARCH = 1;
     /** Behind the band, on the podium over the stage: 7 x 4. */
     public static final int BACKDROP = 2;
+    /** Added to the kind: El Coliseo de los Muertos' flag (the calavera potato on black). */
+    public static final int DEAD = 16;
 
     private int kind;
     private float normal;

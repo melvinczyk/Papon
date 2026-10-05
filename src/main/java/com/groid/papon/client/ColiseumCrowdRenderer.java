@@ -58,6 +58,8 @@ import java.util.Map;
 public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     private static final ResourceLocation GEO = PaponMod.id("geo/entity/arena_fan.geo.json");
     private static final ResourceLocation TEX = PaponMod.id("textures/entity/arena_fan.png");
+    /** Phase four: the fans as the skeletons they truly are (tools/gen_muertos.py: bone, sugar-skull faces, fiesta colours). */
+    private static final ResourceLocation TEX_DEAD = PaponMod.id("textures/entity/arena_fan_muertos.png");
     private static final String[] HATS = {"sombrero", "cap", "foam_hat"};
     private static final String[] PROPS = {"foam_finger", "flag", "maraca_r", "maraca_l"};
     private static final float[][] SKINS = {{1, 1, 1}, {0.84F, 0.68F, 0.52F}, {1, 0.74F, 0.68F}, {1, 0.96F, 0.84F},
@@ -67,7 +69,8 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     @Nullable public static Frustum frustum;
 
     private List<Coliseum.Seat> seats;
-    private int seatsSeed = Integer.MIN_VALUE;
+    private int seatsSeed = Integer.MIN_VALUE, seatsA, seatsB;
+    private boolean drawingDead;
     private int[] lights = new int[0];
     private int lightCursor;
     @Nullable private BakedGeoModel model;
@@ -80,7 +83,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
      * buffers, and asking for one ends the other's batch, so writing to both in turn would draw every fan with the
      * flag's texture (the whole crowd green). Each flag's pose is kept and they go down in a second pass.
      */
-    private record FlagDraw(Matrix4f pose, Matrix3f normal, int light, float time, float phase, float amp, int nx, int ny) {}
+    private record FlagDraw(Matrix4f pose, Matrix3f normal, int light, float time, float phase, float amp, int nx, int ny, boolean dead) {}
 
     private final List<FlagDraw> flagDraws = new java.util.ArrayList<>();
     private float flagTime, flagPhase, flagAmp;
@@ -181,6 +184,20 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     private final List<Vector3f> flames = new java.util.ArrayList<>();
     @Nullable private Vector3f flameAt;
     private boolean wantFlame;
+
+    /** Where round the bowl the moon's sweep has got to (radians, the fans' angle: from the band stand, north, clockwise). */
+    public static double sweepAngle(float sweep) {
+        return -Math.PI / 2 + sweep * Math.PI * 2;
+    }
+
+    /** Whether the sweep has passed the fan at {@code angle} (he is a skeleton now). */
+    private static boolean turned(float angle, float sweep) {
+        if (sweep <= 0) return false;
+        if (sweep >= 1) return true;
+        double d = angle - sweepAngle(0);
+        d = d - Math.floor(d / (Math.PI * 2)) * Math.PI * 2;
+        return d < sweep * Math.PI * 2;
+    }
 
     /** Whether this fan has his lighter up yet (they spread through the stands as the share grows). */
     private boolean lighter(int seed) {
@@ -351,6 +368,24 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 p.brow = 1F;
                 p.mouth = 2.6F;
             }
+            case FIESTA -> {
+                // the dead at a fiesta: never still. Bouncing on the beat, hips swinging, both arms up and waving in turn,
+                // spinning round now and then, the flags going round and round
+                float bounce = (float) Math.pow(1 - bph, 2);
+                p.rootY = 2.2F * bounce + 0.8F * Math.abs(Mth.sin(t * 0.3F + r6 * 6));
+                p.torsoZ = 12 * Mth.sin((float) (beat * Math.PI) + r5 * 6);
+                p.torsoX = -6 * bounce;
+                boolean left = (bi + (int) (r1 * 4)) % 2 == 0;
+                p.armRX = left ? -170 + 10 * bounce : -120;
+                p.armRZ = 30 + 20 * Mth.sin(t * 0.5F + r3 * 6);
+                p.armLX = left ? -120 : -170 + 10 * bounce;
+                p.armLZ = -30 - 20 * Mth.sin(t * 0.5F + r4 * 6);
+                p.leg = -10 * bounce;
+                p.mouth = 2.4F;
+                p.brow = 0.6F;
+                if (r2 < 0.25F) p.yaw = (t * 9 + r3 * 360) % 360 - 180;           // the odd one spinning
+                if (flag) flagWave(p, t, r3, 1F);
+            }
             case LIGHTERS -> {
                 // the whole bowl swaying together, slowly, a lighter held high; the rest still sitting, watching
                 float sway = Mth.sin(t * 0.07F + angle * 0.5F);
@@ -392,7 +427,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
      */
     private static void lively(Pose p, CrowdMood mood, int seed, float t, boolean flag) {
         float energy = switch (mood) {
-            case ROAR -> 0.9F;
+            case ROAR, FIESTA -> 0.9F;
             case CHEER -> 0.7F;
             case CHANT -> 0.4F;
             case CLAP, BOO -> 0.3F;
@@ -515,9 +550,11 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     @Override
     public void render(ColiseumCrowdEntity crowd, float yaw, float partial, PoseStack ps, MultiBufferSource buffers, int light) {
         if (!bind()) return;
-        if (seats == null || seatsSeed != crowd.seed()) {
-            seats = Coliseum.seats(crowd.seed());
+        if (seats == null || seatsSeed != crowd.seed() || seatsA != crowd.sizeA() || seatsB != crowd.sizeB()) {
+            seats = crowd.seatList();
             seatsSeed = crowd.seed();
+            seatsA = crowd.sizeA();
+            seatsB = crowd.sizeB();
             lights = new int[seats.size()];
             for (int i = 0; i < lights.length; i++) lights[i] = -1;
         }
@@ -536,11 +573,11 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         PaponBossEntity boss = mc.level.getEntitiesOfClass(PaponBossEntity.class, crowd.getBoundingBox().inflate(80), e -> true)
                 .stream().findFirst().orElse(null);
         if (boss != null) look = boss.getPosition(partial).add(0, 1.5, 0);
-        if (mood == CrowdMood.HUSH) look = at.add(0, 1, -Coliseum.B + 3);
+        if (mood == CrowdMood.HUSH) look = at.add(0, 1, -crowd.sizeB() + 3);
+        float deadSweep = crowd.dead();
         float night = NightLight.night(partial);
         lightersNow = crowd.lighters();         // up through a roar too (their fists are up anyway)
         flames.clear();
-        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutout(TEX));
         flagDraws.clear();
         // a few seats' light a frame
         for (int k = 0; k < 24 && lights.length > 0; k++) {
@@ -548,14 +585,21 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             Coliseum.Seat s = seats.get(lightCursor);
             lights[lightCursor] = LevelRenderer.getLightColor(mc.level, BlockPos.containing(at.x + s.x(), at.y + s.y() + 0.5, at.z + s.z()));
         }
+        // two passes, the living and the dead (each texture its own batch: asking for one buffer ends the other's)
+        for (int pass = 0; pass < 2; pass++) {
+        if (pass == 1 && deadSweep <= 0) break;
+        if (pass == 0 && deadSweep >= 1) continue;
+        drawingDead = pass == 1;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutout(drawingDead ? TEX_DEAD : TEX));
         for (int i = 0; i < seats.size(); i++) {
             Coliseum.Seat s = seats.get(i);
             double wx = at.x + s.x(), wy = at.y + s.y(), wz = at.z + s.z();
+            float angle = (float) Math.atan2(s.z() / (crowd.sizeB() + 10.0), s.x() / (crowd.sizeA() + 10.0));
+            if (turned(angle, deadSweep) != drawingDead) continue;
             if (frustum != null && !frustum.isVisible(new AABB(wx - 0.6, wy - 0.4, wz - 0.6, wx + 0.6, wy + 2.0, wz + 0.6))) continue;
             double d2 = cam.distanceToSqr(wx, wy, wz);
             boolean near = d2 < 48 * 48;
             int seed = s.seed();
-            float angle = (float) Math.atan2(s.z() / (Coliseum.B + 10.0), s.x() / (Coliseum.A + 10.0));
             moodPose(pb, mood, seed, t, beat + rnd(seed, 9) * 0.06, angle, moodT);
             if (blend < 1) {
                 moodPose(pa, prev, seed, t, beat, angle, 100);
@@ -593,10 +637,14 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             if (wantFlame && flameAt != null) flames.add(flameAt);
             ps.popPose();
         }
-        if (!flagDraws.isEmpty()) {
-            VertexConsumer flagVc = buffers.getBuffer(FlagCloth.renderType());
+        }
+        for (int pass = 0; pass < 2 && !flagDraws.isEmpty(); pass++) {
+            boolean dead = pass == 1;
+            if (flagDraws.stream().noneMatch(d -> d.dead() == dead)) continue;
+            VertexConsumer flagVc = buffers.getBuffer(FlagCloth.renderType(dead));
             PoseStack fp = new PoseStack();
             for (FlagDraw d : flagDraws) {
+                if (d.dead() != dead) continue;
                 fp.last().pose().set(d.pose());
                 fp.last().normal().set(d.normal());
                 FlagCloth.draw(fp, flagVc, 0.7F, 0.4F, d.light(), d.time(), d.phase(), d.amp(), true, d.nx(), d.ny());
@@ -671,7 +719,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         if (bone.isHidden()) return;
         ps.pushPose();
         RenderUtils.prepMatrixForBone(ps, bone);
-        boolean tinted = bone == body || bone == armR || bone == armL || bone == legR || bone == legL || bone == browR || bone == browL;
+        boolean tinted = !drawingDead && (bone == body || bone == armR || bone == armL || bone == legR || bone == legL || bone == browR || bone == browL);
         float r = tinted ? skin[0] : 1, g = tinted ? skin[1] : 1, b = tinted ? skin[2] : 1;
         Matrix4f m = ps.last().pose();
         Matrix3f nm = ps.last().normal();
@@ -715,7 +763,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             ps.mulPose(Axis.YP.rotationDegrees(-90));
             ps.mulPose(Axis.ZP.rotationDegrees(180));
             flagDraws.add(new FlagDraw(new Matrix4f(ps.last().pose()), new Matrix3f(ps.last().normal()), light, flagTime, flagPhase, flagAmp,
-                    near ? 7 : 4, near ? 3 : 2));
+                    near ? 7 : 4, near ? 3 : 2, drawingDead));
             ps.popPose();
         }
         for (GeoBone child : bone.getChildBones()) drawBone(ps, child, vc, light, skin, near);

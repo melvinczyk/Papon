@@ -30,7 +30,7 @@ import java.util.UUID;
  * pockets it again.
  */
 public class CaravanKeysItem extends Item {
-    private static final String VAN = "Van";
+    protected static final String VAN = "Van";
 
     public CaravanKeysItem(Properties properties) {
         super(properties.stacksTo(1));
@@ -56,6 +56,7 @@ public class CaravanKeysItem extends Item {
         BlockPos pos = ctx.getClickedPos().relative(ctx.getClickedFace());
         float yaw = player != null ? player.getYRot() : 0;
         van.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, yaw, 0);
+        dress(van);
         if (!server.noCollision(van)) {
             if (player != null) {
                 player.displayClientMessage(Component.translatable("message.papon.van_no_room").withStyle(ChatFormatting.RED), true);
@@ -65,8 +66,15 @@ public class CaravanKeysItem extends Item {
         server.addFreshEntity(van);
         keys.getOrCreateTag().putUUID(VAN, van.getUUID());
         server.playSound(null, pos, SoundEvents.ARMOR_EQUIP_CHAIN, SoundSource.PLAYERS, 1.0F, 1.4F);
+        parked(server, van);
         return InteractionResult.CONSUME;
     }
+
+    /** Which car these keys bring out (SkylineFobItem: the Skyline). */
+    protected void dress(CaravanEntity van) {}
+
+    /** Just parked by these keys. */
+    protected void parked(ServerLevel level, CaravanEntity van) {}
 
     @Override
     public InteractionResult interactLivingEntity(ItemStack keys, Player player, LivingEntity target, InteractionHand hand) {
@@ -90,7 +98,7 @@ public class CaravanKeysItem extends Item {
     }
 
     @Nullable
-    private static Entity vanOf(ServerLevel level, ItemStack keys) {
+    protected static Entity vanOf(ServerLevel level, ItemStack keys) {
         CompoundTag tag = keys.getTag();
         if (tag == null || !tag.hasUUID(VAN)) return null;
         UUID id = tag.getUUID(VAN);

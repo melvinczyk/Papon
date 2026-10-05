@@ -1,0 +1,71 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "papon:block/ectoplasm",
+    "ecto": "papon:block/ectoplasm"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        14,
+        16
+      ],
+      "faces": {
+        "down": {
+          "texture": "#ecto",
+          "forge_data": {
+            "block_light": 15,
+            "sky_light": 15
+          },
+          "cullface": "down"
+        },
+        "up": {
+          "texture": "#ecto",
+          "forge_data": {
+            "block_light": 15,
+            "sky_light": 15
+          }
+        },
+        "north": {
+          "texture": "#ecto",
+          "forge_data": {
+            "block_light": 15,
+            "sky_light": 15
+          },
+          "cullface": "north"
+        },
+        "south": {
+          "texture": "#ecto",
+          "forge_data": {
+            "block_light": 15,
+            "sky_light": 15
+          },
+          "cullface": "south"
+        },
+        "west": {
+          "texture": "#ecto",
+          "forge_data": {
+            "block_light": 15,
+            "sky_light": 15
+          },
+          "cullface": "west"
+        },
+        "east": {
+          "texture": "#ecto",
+          "forge_data": {
+            "block_light": 15,
+            "sky_light": 15
+          },
+          "cullface": "east"
+        }
+      }
+    }
+  ]
+}

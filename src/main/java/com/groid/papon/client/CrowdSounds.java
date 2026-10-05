@@ -56,7 +56,7 @@ public final class CrowdSounds {
         bed.want = near * LOUDNESS * switch (mood) {
             case HUSH, MOURN -> 0.18F;
             case LIGHTERS -> 0.05F;                 // his serenade: you could hear a pin drop
-            case ROAR -> 0.9F;
+            case ROAR, FIESTA -> 0.9F;
             case GASP -> 0.75F;
             case CHANT, CLAP, WAVE -> 0.5F;
             default -> 0.55F;
@@ -74,7 +74,7 @@ public final class CrowdSounds {
                 CrowdMood m = CrowdMood.byId(pulse & 31);
                 boolean loud = (pulse & 32) != 0;
                 String one = switch (m) {
-                    case ROAR, CHEER -> "crowd.roar";
+                    case ROAR, CHEER, FIESTA -> "crowd.roar";
                     case BOO -> "crowd.boo";
                     case GASP, MOURN -> "crowd.gasp";
                     case SWOON -> "crowd.swoon";
@@ -98,6 +98,7 @@ public final class CrowdSounds {
             boolean first = lastBeat == Long.MIN_VALUE;
             lastBeat = b;
             if (!first && mood == CrowdMood.CHANT && b % 2 == 0) play(mc, "crowd.chant", near * 0.9F, 1.0F, false);
+            if (!first && mood == CrowdMood.FIESTA && b % 2 == 1) play(mc, "crowd.clap", near * 0.6F, 1.05F, false);
             if (!first && mood == CrowdMood.CLAP) play(mc, "crowd.clap", near * 0.7F, 0.95F + mc.level.random.nextFloat() * 0.1F, false);
         }
     }

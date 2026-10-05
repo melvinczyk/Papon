@@ -51,6 +51,10 @@ public class MariachiEntity extends TacoNpc {
     private static final EntityDataAccessor<Boolean> DATA_ROBBED =
             SynchedEntityData.defineId(MariachiEntity.class, EntityDataSerializers.BOOLEAN);
 
+    /** Phase four: turned to his bones by the moon's ray (the calavera texture; livelier on the stage). */
+    private static final EntityDataAccessor<Boolean> DATA_DEAD =
+            SynchedEntityData.defineId(MariachiEntity.class, EntityDataSerializers.BOOLEAN);
+
     @Nullable private Vec3 home;
     private float homeYaw;
     /** Extra ticks he lies there stunned before getting up (everyone at his own pace). */
@@ -91,6 +95,28 @@ public class MariachiEntity extends TacoNpc {
         entityData.define(DATA_SONG_START, 0);
         entityData.define(DATA_SONG, 0);
         entityData.define(DATA_ROBBED, false);
+        entityData.define(DATA_DEAD, false);
+    }
+
+    public boolean isDead() {
+        return entityData.get(DATA_DEAD);
+    }
+
+    public void setDead(boolean dead) {
+        entityData.set(DATA_DEAD, dead);
+    }
+
+    /** A new place on a new stage (El Coliseo de los Muertos): where he stands and faces, and the lamps there. */
+    public void home(Vec3 at, float yaw, java.util.List<net.minecraft.core.BlockPos> stageLamps) {
+        home = at;
+        homeYaw = yaw;
+        setYHeadRot(yaw);
+        yBodyRot = yaw;
+        if (getRole().lamplighter()) {
+            lamps.clear();
+            lamps.addAll(stageLamps);
+        }
+        lampStand = null;
     }
 
     /** The song they play: Song.CANCION through phase two, Song.PARA_SIEMPRE from phase three. */
@@ -495,6 +521,7 @@ public class MariachiEntity extends TacoNpc {
         tag.putBoolean("Robbed", robbed());
         tag.putBoolean("Kicked", kicked);
         tag.putBoolean("Woken", woken);
+        tag.putBoolean("Dead", isDead());
         if (home != null) {
             tag.putDouble("HX", home.x);
             tag.putDouble("HY", home.y);
@@ -516,6 +543,7 @@ public class MariachiEntity extends TacoNpc {
         entityData.set(DATA_ROBBED, tag.getBoolean("Robbed"));
         kicked = tag.getBoolean("Kicked");
         woken = tag.getBoolean("Woken");
+        setDead(tag.getBoolean("Dead"));
         if (tag.contains("HX")) home = new Vec3(tag.getDouble("HX"), tag.getDouble("HY"), tag.getDouble("HZ"));
         homeYaw = tag.getFloat("HYaw");
         lamps.clear();

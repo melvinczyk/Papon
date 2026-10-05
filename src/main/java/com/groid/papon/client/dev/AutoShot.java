@@ -53,6 +53,8 @@ public final class AutoShot {
     private static final boolean ARENA = MODE.equals("arena");
     /** -Pautoshot=phase3: phase two into the coliseum and the song, then half health: phase three's cutscene beat by beat, and the night fight. */
     private static final boolean PHASE3 = MODE.equals("phase3");
+    /** -Pautoshot=phase4: into the coliseum, then a quarter health: phase four's ritual beat by beat, the dead's coliseum, and every move of his truest form. */
+    private static final boolean PHASE4 = MODE.equals("phase4");
     /** -Pautoshot=nights: into the coliseum, then the flags, the crowd up close, the potato sun, nightfall (the lamplighter), the potato moon. */
     private static final boolean NIGHTS = MODE.equals("nights");
     /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
@@ -96,7 +98,7 @@ public final class AutoShot {
             pillow(mc);
             return;
         }
-        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3) {
+        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4) {
             coliseum(mc);
             if (VOICE) voice(mc);
             return;
@@ -372,6 +374,10 @@ public final class AutoShot {
             phaseThreeTour(mc, b, tick - colMark);
             return;
         }
+        if (colMark > 0 && PHASE4) {
+            phaseFourTour(mc, b, tick - colMark);
+            return;
+        }
         // the band, member by member, while they play (from the front, a few blocks off)
         if (colMark > 0) bandShots(mc, b, tick - colMark);
         if (colMark > 0) {
@@ -480,14 +486,17 @@ public final class AutoShot {
             case 195 -> shot(mc, "pl03_lick");
             case 200 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
             case 205 -> run("tp @s ~ ~ ~ 0 70");
-            case 225 -> shot(mc, "pl04_hump_front");
-            case 228 -> shot(mc, "pl05_hump_front2");
-            case 232 -> {
-                opts.setCameraType(CameraType.THIRD_PERSON_BACK);
-                run("tp @s ~ ~ ~ 0 -10");
+            // the hump from a camera of its own (she is bent over in front of him, her back to him): the side, behind, the front
+            case 222 -> playerCamera(mc, new Vec3(2.8, -1.15, 0.0));
+            case 230 -> shot(mc, "pl04_hump_side");
+            case 232 -> playerCamera(mc, new Vec3(-0.4, -0.5, -2.6));
+            case 240 -> shot(mc, "pl05_hump_behind");
+            case 242 -> playerCamera(mc, new Vec3(1.8, -0.9, 2.2));
+            case 249 -> shot(mc, "pl06_hump_front");
+            case 251 -> {
+                mc.setCameraEntity(mc.player);
+                opts.hideGui = false;
             }
-            case 236 -> run("tp @s ~ ~ ~ 0 70");
-            case 250 -> shot(mc, "pl06_hump_back");
             // first person
             case 255 -> {
                 opts.setCameraType(CameraType.FIRST_PERSON);
@@ -875,6 +884,30 @@ public final class AutoShot {
         mc.options.setCameraType(CameraType.FIRST_PERSON);
     }
 
+    /** The client-only camera at {@code off} from the player (yaw 0: facing south), looking at their hips. */
+    private static void playerCamera(Minecraft mc, Vec3 off) {
+        if (bedCam == null) {
+            bedCam = new net.minecraft.world.entity.decoration.ArmorStand(mc.level, 0, 0, 0);
+            bedCam.setInvisible(true);
+        }
+        Vec3 c = mc.player.position().add(0, 0.8, 0);
+        Vec3 at = mc.player.position().add(off);
+        Vec3 d = c.subtract(at.add(0, bedCam.getEyeHeight(), 0));
+        float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
+        bedCam.moveTo(at.x, at.y, at.z, yaw, pitch);
+        bedCam.xo = at.x;
+        bedCam.yo = at.y;
+        bedCam.zo = at.z;
+        bedCam.yRotO = yaw;
+        bedCam.xRotO = pitch;
+        bedCam.setYHeadRot(yaw);
+        bedCam.yHeadRotO = yaw;
+        mc.setCameraEntity(bedCam);
+        mc.options.setCameraType(CameraType.FIRST_PERSON);
+        mc.options.hideGui = true;            // no hand drawn from a camera that is not you
+    }
+
     private static void sleepBeside(Minecraft mc) {
         IntegratedServer srv = mc.getSingleplayerServer();
         var id = mc.player.getUUID();
@@ -952,6 +985,110 @@ public final class AutoShot {
     }
 
     private static int p3Mark = -1;
+    private static int p4Mark = -1;
+
+    /** Phase four: the ritual from a quarter health (shots on every beat), the dead's coliseum from outside and in, the band and the stands turned, then each of his moves on you. */
+    private static void phaseFourTour(Minecraft mc, PaponBossEntity b, int k) {
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        if (k == 2) {
+            run("gamemode survival", "effect give @s regeneration 100000 4 true");
+            run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~7");
+        }
+        if (k == 40) run("papon bossstate P4_RISE");
+        if (k > 40 && !com.groid.papon.client.Cinematic.isActive() && !s.phaseFour()) lookAt(mc, b);
+        String n = switch (s) {
+            case P4_RISE -> t == 4 ? "w01_jolt" : t == 20 ? "w02_laugh" : t == vb("p4.moon", 34) + 10 ? "w03_moon_out" : t == vb("p4.rise", 50) + 12 ? "w04_was_that_all" : null;
+            case P4_HAMMER -> t == 30 ? "w05_fire_spiral" : t == vb("p4.forms", 60) + 3 ? "w06_hammer_forms" : t == vb("p4.forms", 60) + 18 ? "w07_up_at_him"
+                    : t == vb("p4.hammer", 74) + 14 ? "w08_death_lends" : null;
+            case P4_STRIKE -> t == vb("p4.swing", 30) - 4 ? "w09_wind_up" : t == vb("p4.swing", 30) + 6 ? "w10_bolt" : t == vb("p4.turn", 52) - 4 ? "w11_moon_cracks"
+                    : t == vb("p4.turn", 52) + 20 ? "w12_calavera_moon" : t == vb("p4.turn", 52) + 46 ? "w13_from_the_band" : null;
+            case P4_MOONRAYS -> t == com.groid.papon.boss.PaponBossEntity.rayAt(1) + 2 ? "w14_ray_band" : t == com.groid.papon.boss.PaponBossEntity.rayAt(6) + 4 ? "w15_rays_band2"
+                    : t == com.groid.papon.boss.PaponBossEntity.rayAt(12) + 14 ? "w16_skeleton_face" : t == 110 ? "w17_rays_stands" : t == 132 ? "w18_rays_stands2" : null;
+            case P4_BLUEOUT -> t == 20 ? "w19_blueout" : t == 50 ? "w20_blueout2" : null;
+            case P4_REVEAL -> t == 12 ? "w21_crane_in" : t == vb("p4.land", 34) + 2 ? "w22_landing" : t == vb("p4.land", 34) + 24 ? "w23_looks_round"
+                    : t == vb("p4.centuries", 74) + 20 ? "w24_centuries" : null;
+            case P4_TRUEFORM -> t == 20 ? "w25_burning" : t == vb("p4.bone", 40) + 4 ? "w26_bone" : t == vb("p4.bone", 40) + 16 ? "w27_wings"
+                    : t == vb("p4.true", 62) + 16 ? "w28_behold" : t == vb("p4.drop", 96) + 10 ? "w29_drop" : t == vb("p4.drop", 96) + 34 ? "w30_dead_go_wild" : null;
+            default -> null;
+        };
+        if (n != null) once(mc, n);
+        if (b.muertosFight() && s == BossState.IDLE && p4Mark < 0) p4Mark = k;
+        if (p4Mark < 0) {
+            if (k > 60 * 20 * 6) mc.stop();
+            return;
+        }
+        int j = k - p4Mark;
+        Vec3 c = b.arena() != null ? b.arena().centerVec() : b.position();
+        if (j == 2) PaponBossEntity.devFrozen = true;
+        if (j == 4) run("gamemode spectator");
+        if (j == 6) tpLook(c.add(0, 70, 120), c);
+        if (j == 24) shot(mc, "x01_dead_coliseum_outside");
+        if (j == 26) tpLook(c.add(0, 30, 50), c);
+        if (j == 44) shot(mc, "x02_dead_bowl");
+        if (j == 46) PaponMod.LOG.info("[autoshot] dead coliseum fps {}", mc.getFps());
+        var singer = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(160),
+                m -> m.getRole().singer()).stream().findFirst().orElse(null);
+        if (singer != null && j == 48) {
+            Vec3 f = c.subtract(singer.position()).multiply(1, 0, 1).normalize();
+            tpLook(singer.position().add(f.scale(9)).add(0, 1.5, 0), singer.position().add(0, 1.2, 0));
+        }
+        if (j == 64) shot(mc, "x03_band_of_the_dead");
+        if (singer != null && j == 66) {
+            Vec3 f = c.subtract(singer.position()).multiply(1, 0, 1).normalize();
+            Vec3 mouth = singer.position().add(0, singer.getBbHeight() * 0.6, 0);
+            tpLook(mouth.add(f.scale(2.6)).add(0, -1.5, 0), mouth);
+        }
+        if (j == 80) shot(mc, "x04_singer_skull");
+        if (j == 82) tpLook(c.add(0, 2, 0), c.add(40, 14, 0));
+        if (j == 98) shot(mc, "x05_stands_dead");
+        if (j == 100) tpLook(c.add(6, 3, 10), b.position().add(0, 2, 0));
+        if (j == 116) shot(mc, "x06_rey_de_los_muertos");
+        if (j == 118) {
+            PaponBossEntity.devFrozen = false;
+            run("gamemode survival");
+        }
+        if (j >= 120) muertosShowcase(mc, b, j - 120);
+    }
+
+    /** El Rey de los Muertos's moves, one after another, on you (Resistance V and regeneration keep you up). */
+    private static final String[] SHOW_P4 = {"P4_MARTILLO", "P4_LUNA", "P4_GIGANTE", "P4_GRIETA", "P4_PETALOS", "P4_PAPEL", "P4_VELAS", "P4_DANZA"};
+    private static final int[] SHOW_P4_LEN = {100, 160, 260, 230, 200, 200, 190, 200};
+
+    private static void muertosShowcase(Minecraft mc, PaponBossEntity b, int j) {
+        int at = 0, i = 0;
+        for (; i < SHOW_P4.length; i++) {
+            if (j < at + SHOW_P4_LEN[i]) break;
+            at += SHOW_P4_LEN[i];
+        }
+        if (i >= SHOW_P4.length) {
+            int u = j - at;
+            if (u == 4) run("kill @e[type=papon:papon_boss]");
+            if (u == 80) once(mc, "y99_his_fall");
+            if (u == 140) once(mc, "y99_back_down");
+            if (u == 160) mc.stop();
+            return;
+        }
+        int u = j - at;
+        String st = SHOW_P4[i];
+        Vec3 c = b.arena() != null ? b.arena().centerVec() : b.position();
+        if (u == 0) {
+            PaponMod.LOG.info("[autoshot] showcase {}", st);
+            run("effect give @s instant_health 1 4 true", "effect give @s resistance 100000 4 true");
+            run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", c.x + 6, c.y + 0.2, c.z + 12));
+            run("papon bossstate " + st);
+        }
+        // the view on the action: the giant at its end, the floor for the rift, the petals and the candles, else him
+        Entity giant = st.equals("P4_GIGANTE") ? nearest(mc, com.groid.papon.boss.SpiritGiantEntity.class) : null;
+        if (giant != null && u % 80 < 40) lookAtPoint(mc, giant.position().add(0, com.groid.papon.boss.SpiritGiantEntity.HEAD_Y, 0));
+        else if (st.equals("P4_GRIETA") || st.equals("P4_VELAS") || st.equals("P4_PETALOS")) lookAtPoint(mc, mc.player.position().lerp(c, 0.5).add(0, -1, 0));
+        else lookAt(mc, b);
+        int len = SHOW_P4_LEN[i];
+        int[] shots = {len / 6, 2 * len / 6, 3 * len / 6, 4 * len / 6, 5 * len / 6};
+        for (int k = 0; k < shots.length; k++) {
+            if (u == shots[k]) shot(mc, String.format("y%02d_%s_%d", i, st.toLowerCase(java.util.Locale.ROOT), k));
+        }
+    }
 
     private static int vb(String key, int def) {
         return com.groid.papon.boss.VoiceLines.beat(key, def);
@@ -1216,6 +1353,16 @@ public final class AutoShot {
         run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f %.1f %.1f", at.x, at.y, at.z, yaw, pitch));
     }
 
+    private static void lookAtPoint(Minecraft mc, Vec3 p) {
+        Vec3 d = p.subtract(mc.player.getEyePosition());
+        float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
+        mc.player.setYRot(yaw);
+        mc.player.setXRot(pitch);
+        mc.player.yRotO = yaw;
+        mc.player.xRotO = pitch;
+    }
+
     private static void lookAt(Minecraft mc, Entity e) {
         Vec3 eye = mc.player.getEyePosition();
         Vec3 d = e.position().add(0, e.getBbHeight() * 0.6, 0).subtract(eye);
@@ -1229,7 +1376,7 @@ public final class AutoShot {
 
     @Nullable
     private static <T extends Entity> T nearest(Minecraft mc, Class<T> type) {
-        return mc.level.getEntitiesOfClass(type, mc.player.getBoundingBox().inflate(80)).stream()
+        return mc.level.getEntitiesOfClass(type, mc.player.getBoundingBox().inflate(200)).stream()
                 .min(Comparator.comparingDouble(e -> e.distanceToSqr(mc.player))).orElse(null);
     }
 

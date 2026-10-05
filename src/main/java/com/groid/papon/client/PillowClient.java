@@ -35,8 +35,9 @@ import java.util.Set;
  *             middle where the arms are, bulging either side, bent round you
  *   licking   (hold use while sneaking) up to the face, the head bobbing into it on every lick, the
  *             tongue out (PillowLayer); the pillow pressed in where the face is
- *   humping   (hold use looking down) folded over double at the hips, hands gripping it, the hips
- *             thrusting; the pillow squashed at the fold on every thrust
+ *   humping   (hold use looking down) bent over in front of you, her back to you (the back panel): the
+ *             legs straight down to the ground, folded at the waist with the top half laid forward, the
+ *             hands gripping her hips, yours thrusting; pressed flat at the hips on every thrust
  *   in bed    laid on a bed (entity/BodyPillowEntity) it slouches against the headboard; right-click it
  *             and you are on the bed with it (humping, the pillow squashed on every thrust, the bed
  *             creaking); with someone asleep in the bed it lies beside them instead, and they sleep
@@ -91,11 +92,15 @@ public final class PillowClient {
                     ps.mulPose(Axis.XP.rotationDegrees(-8 + 6 * lick));
                 }
                 case HUMP -> {
-                    // low in front of you, folded over, rammed forward on every thrust
-                    float th = thrust(t);
-                    ps.translate(side * -0.12F, -0.38F + 0.02F * th, -0.6F - 0.1F * th);
-                    ps.mulPose(Axis.YP.rotationDegrees(side * -10));
-                    ps.mulPose(Axis.XP.rotationDegrees(-8 + 6 * th));
+                    // bent over in front of your hips, her back to you: the view put back upright in the world (you are
+                    // looking down at her), down from your eyes to your hips, nudged forward on every thrust. Kept for
+                    // PillowItemRenderer, which draws her in this frame instead of the item's display transform.
+                    float sq = squash(t);
+                    ps.mulPose(Axis.XP.rotationDegrees(player.getViewXRot(partial)));
+                    ps.translate(0, -0.9F, -0.27F - 0.035F * sq);
+                    ps.mulPose(Axis.YP.rotationDegrees(180));
+                    humpPose = new org.joml.Matrix4f(ps.last().pose());
+                    humpNormal = new org.joml.Matrix3f(ps.last().normal());
                 }
                 default -> {
                     // held to your chest, rocking slowly from side to side
@@ -109,6 +114,10 @@ public final class PillowClient {
             return true;
         }
     };
+
+    /** First person, humping: the frame applyForgeHandTransform set up (PillowItemRenderer draws her in it). */
+    @org.jetbrains.annotations.Nullable static org.joml.Matrix4f humpPose;
+    @org.jetbrains.annotations.Nullable static org.joml.Matrix3f humpNormal;
 
     static boolean using(LivingEntity entity, ItemStack stack) {
         return entity.isUsingItem() && entity.getUseItem() == stack && stack.getItem() instanceof BodyPillowItem;
@@ -135,6 +144,9 @@ public final class PillowClient {
         return s > 0 ? (float) Math.pow(s, 0.6) : s;
     }
 
+    /** Where she bends over (0 her feet .. 1 her head): just above the hips, so they are the corner pressed back at you. */
+    public static final float HUMP_FOLD = 0.55F;
+
     /** How hard the pillow is squashed by the thrust right now, 0..1 (at the end of each stroke in). */
     public static float squash(float t) {
         return Math.max(0, thrust(t));
@@ -147,10 +159,11 @@ public final class PillowClient {
         return switch (mode(entity, stack)) {
             case HUG -> new PillowMesh.Shape().squeeze(0.85F + 0.15F * Mth.sin(t * 0.16F), 0.56F).bend(0.55F).press(0.18F, 0.84F);
             case LICK -> new PillowMesh.Shape().press(0.35F + 0.45F * lick(t), 0.66F).bend(0.3F).squeeze(0.4F, 0.4F);
-            case HUMP -> firstPerson
-                    // in your own view: held low in front of you, bent over toward you, squashed on every thrust
-                    ? new PillowMesh.Shape().fold(1.1F, 0.55F).press(0.25F + 0.65F * squash(t), 0.5F).squeeze(0.4F, 0.66F)
-                    : new PillowMesh.Shape().fold(2.55F, 0.5F).anchor(0.5F).press(0.25F + 0.65F * squash(t), 0.45F).squeeze(0.5F, 0.62F);
+            // bent over at the waist (the user: "folded over naturally", her back toward you): the legs standing straight
+            // down from the fold to the ground, the top half laid forward over it and away from you, the fold where her hips
+            // are; pressed flat where yours meet her on each thrust, the top half bouncing with it
+            case HUMP -> new PillowMesh.Shape().fold(1.9F + 0.1F * squash(t), HUMP_FOLD).anchor(HUMP_FOLD)
+                    .press(0.15F + 0.55F * squash(t), 0.47F).squeeze(0.18F, 0.6F);
             default -> new PillowMesh.Shape().squeeze(0.5F, 0.72F).bend(-0.15F);
         };
     }

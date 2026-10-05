@@ -76,6 +76,7 @@ public class PaponMod {
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(ModItems.CHANCLA);
             event.accept(ModItems.CARAVAN_KEYS);
+            event.accept(ModItems.SKYLINE_FOB);
             event.accept(ModItems.BODY_PILLOW);
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
             ModItems.SPAWN_EGGS.forEach(event::accept);

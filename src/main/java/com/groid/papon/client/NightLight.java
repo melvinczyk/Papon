@@ -43,7 +43,7 @@ import java.lang.reflect.Field;
 public final class NightLight {
     private static final double RANGE = 96;
     private static float night, nightO;
-    private static boolean crimson;
+    private static boolean crimson, dead;
     /** The lightmap was darkened last frame: force one more vanilla rebuild after the night lifts. */
     private static boolean dirty;
     private static Field updateFlag, pixels, texture;
@@ -63,12 +63,14 @@ public final class NightLight {
         nightO = night;
         float want = 0;
         crimson = false;
+        dead = false;
         if (mc.level != null && mc.player != null) {
             PaponBossEntity boss = mc.level.getEntitiesOfClass(PaponBossEntity.class, mc.player.getBoundingBox().inflate(RANGE),
                     b -> b.inColiseum()).stream().findFirst().orElse(null);
             if (boss != null) {
                 want = boss.night();
-                crimson = boss.isPhaseThree();
+                crimson = boss.isPhaseThree() && boss.moon() < 2;
+                dead = boss.moon() >= 2;
             }
         }
         // the lights go down slowly, come up a little quicker
@@ -101,6 +103,7 @@ public final class NightLight {
         darkenLightmap(n);
         dirty = true;
         coverSky(event.getPoseStack(), n);
+        MuertosSky.drawMoon(event.getPoseStack(), event.getPartialTick());
     }
 
     /** The fog (and with it the horizon) goes black with the night. */
@@ -154,6 +157,12 @@ public final class NightLight {
                         tg = 1 - 0.38F * w;
                         tb = 1 - 0.45F * w;
                     }
+                    if (dead && block > 0) {
+                        // the dead's: everything lit by spirit fire and ectoplasm, cold blue
+                        float w = bl * n;
+                        tr = 1 - 0.45F * w;
+                        tg = 1 - 0.08F * w;
+                    }
                     r = Mth.clamp(r * f * tr, 0, 1);
                     g = Mth.clamp(g * f * tg, 0, 1);
                     b = Mth.clamp(b * f * tb, 0, 1);
@@ -187,7 +196,9 @@ public final class NightLight {
                 {-s, s, -s, s, s, -s, s, s, s, -s, s, s},
                 {-s, -s, -s, -s, -s, s, s, -s, s, s, -s, -s}};
         for (float[] f : faces) {
-            for (int i = 0; i < 4; i++) buf.vertex(m, f[i * 3], f[i * 3 + 1], f[i * 3 + 2]).color(0.01F, 0.01F, 0.02F, a).endVertex();
+            for (int i = 0; i < 4; i++) {
+                buf.vertex(m, f[i * 3], f[i * 3 + 1], f[i * 3 + 2]).color(0.01F, dead ? 0.02F : 0.01F, dead ? 0.06F : 0.02F, a).endVertex();
+            }
         }
         Tesselator.getInstance().end();
         RenderSystem.enableCull();
