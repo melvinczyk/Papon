@@ -202,7 +202,7 @@ public class SkySerpentEntity extends Entity {
         entityData.set(DATA_ROAR, (int) (level().getGameTime() & 0x7FFFFFFF));
         if (level() instanceof ServerLevel level) {
             Vec3 h = path().at(head(0));
-            level.playSound(null, h.x, h.y, h.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 8.0F, kind() == OUROS ? 0.55F : 0.42F);
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 3.0F, kind() == OUROS ? 0.55F : 0.42F);
         }
     }
 
@@ -223,9 +223,10 @@ public class SkySerpentEntity extends Entity {
         if (--life <= 0) discard();
         double h = head(0);
         // the hiss as it comes out of the smoke, the beat of it overhead
-        if (tickCount % 70 == 0 && h > 0) {
+        // (quiet and short-ranged: at 4.0 the two of them drowned the stands out for the whole finale)
+        if (tickCount % 160 == 80 * kind() && h > 0) {
             Vec3 at = path().at(h);
-            level().playSound(null, at.x, at.y, at.z, SoundEvents.ELYTRA_FLYING, SoundSource.HOSTILE, 4.0F, 0.4F);
+            level().playSound(null, at.x, at.y, at.z, SoundEvents.ELYTRA_FLYING, SoundSource.HOSTILE, 0.9F, 0.4F);
         }
     }
 

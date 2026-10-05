@@ -1086,6 +1086,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         ServerLevel level = (ServerLevel) level();
         stateTicks++;
+        p4Watchdog(level);
         tickCooldowns();
         if (soloDue > 0) soloDue--;
         if (soloCd > 0) soloCd--;
@@ -1471,8 +1472,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.P2_SCREAM);
             return;
         }
-        if (home != null && distanceToSqr(home) > ARENA_RADIUS * ARENA_RADIUS) {
-            getNavigation().moveTo(home.x, home.y, home.z, 1.2);
+        // the leash: not in a coliseum (it keeps him on the sand itself; the dead one is wider than ARENA_RADIUS, and a
+        // leash there left him hanging in the air forever: a ground path never starts while flying), measured flat
+        if (home != null && !(inColiseum() && arena != null)
+                && Mth.square(getX() - home.x) + Mth.square(getZ() - home.z) > ARENA_RADIUS * ARENA_RADIUS) {
+            if (isFlying()) flyTo(home.add(0, 4, 0), 0.8);
+            else getNavigation().moveTo(home.x, home.y, home.z, 1.2);
             return;
         }
         if (target == null) {
@@ -9830,10 +9835,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Coliseum.send(level, van, arena.vanSpot());
             van.setFloor(arena.floorY());
         }
-        if (ignisHead != null && level.getEntity(ignisHead) instanceof BossProp head) {
-            Vec3 h = onSand(c.add(4, 0, 6));
-            head.setPos(h.x, h.y, h.z);
-        }
+        // Ignis's head stays behind in the old coliseum (the user: gone when the new arena appears)
+        if (ignisHead != null && level.getEntity(ignisHead) instanceof BossProp head) head.discard();
+        ignisHead = null;
         home = c;
         p4Rise = c;
         syncField();
@@ -9939,6 +9943,36 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     private int dOuroCd = 200, dPistaCd = 60, dCaminoCd = 300, dCastilloCd = 420, dSalsaCd = 120, dTangoCd = 600;
+
+    private int p4IdleTicks;
+
+    /**
+     * Never stuck in the finale: a move of his (or WINDED, the tango's ends) running far past its length, a cutscene beat
+     * long past its own, or IDLE with a target and no move for 15 s puts him back down on the sand and thinking again.
+     */
+    private void p4Watchdog(ServerLevel level) {
+        BossState s = getBossState();
+        if (!isPhaseFour() && !s.phaseFour()) return;
+        boolean move = s.muertosMove() || s == BossState.WINDED;
+        boolean stuck = move && stateTicks > Math.max(2 * s.duration, s.duration + 200)
+                || s.phaseFour() && isPhaseFour() && stateTicks > s.duration + 600;      // a beat after his transformation
+        if (s == BossState.IDLE && muertosFight() && getTarget() != null) p4IdleTicks++;
+        else p4IdleTicks = 0;
+        if (p4IdleTicks > 300) {
+            p4IdleTicks = 0;
+            stuck = true;
+        }
+        if (!stuck) return;
+        com.mojang.logging.LogUtils.getLogger().warn("[papon] boss stuck in {} for {} ticks: back on the sand", s, stateTicks);
+        noPhysics = false;
+        setFlying(false);
+        Vec3 at = onSand(position());
+        moveTo(at.x, at.y, at.z, getYRot(), 0);
+        setDeltaMovement(Vec3.ZERO);
+        clearMuertos(level);
+        think = 0;
+        setBossState(BossState.IDLE);
+    }
 
     /** Whatever a move of his left behind (the giant, the souls, the dancers, the banners, the rift), gone. */
     private void clearMuertos(ServerLevel level) {
@@ -10656,7 +10690,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 ouroBeam[k] = null;
             }
         }
-        if (t > 20 && t % 36 == 0) level.playSound(null, c.x, floor + 3, c.z, SoundEvents.ELYTRA_FLYING, SoundSource.HOSTILE, 5.0F, 0.35F);
+        if (t > 20 && t % 72 == 0) level.playSound(null, c.x, floor + 3, c.z, SoundEvents.ELYTRA_FLYING, SoundSource.HOSTILE, 1.2F, 0.35F);
         if (t >= ouroEnd || t > 380) setBossState(BossState.IDLE);
     }
 
