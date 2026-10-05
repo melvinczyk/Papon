@@ -327,10 +327,9 @@ public class MariachiEntity extends TacoNpc {
                 if (t >= s.duration) setBandState(BandState.READY);
             }
             case COUNT -> {
-                // "¡Uno...! ¡...dos! ¡Uno, dos, tres!" on the animation's beats
-                if (t == 4) say("uno", 16);
-                if (t == 23) say("dos", 16);
-                if (t == 42) say("count", 36);
+                // (2026-10-05) "¡Un, dos, tres, cuatro!" in his own voice (sound voice.band.count, the user's reference): the
+                // clip starts 2.0 s in, its four words on the four beats before the downbeat (tools/gen_singer_voice.py)
+                if (t == 40) say("count", 44);
             }
             default -> {}
         }
