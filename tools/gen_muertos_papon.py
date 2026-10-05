@@ -38,13 +38,25 @@ BONE = np.array([238, 230, 210])
 BONE_HI = np.array([252, 248, 236])
 BONE_DK = np.array([176, 164, 136])
 INK = np.array([22, 16, 28])
-ECTO = np.array([48, 228, 255])
-ECTO_HI = np.array([214, 255, 255])
+# (2026-10-04) Papon, the Final Guardian: the souls he took burn jade green in him (eyes, wings, the hammer's light)
+ECTO = np.array([52, 255, 132])
+ECTO_HI = np.array([214, 255, 220])
 MARIGOLD = np.array([255, 150, 24])
 MARIGOLD_HI = np.array([255, 208, 64])
 PINK = np.array([236, 46, 140])
 PURPLE = np.array([122, 44, 186])
 HAT = np.array([26, 22, 30])
+GOLD = np.array([232, 180, 52])
+GOLD_HI = np.array([255, 236, 140])
+GOLD_DK = np.array([150, 96, 22])
+JADE = np.array([24, 170, 120])
+JADE_HI = np.array([120, 236, 184])
+QUETZAL = np.array([20, 150, 80])
+QUETZAL_HI = np.array([96, 230, 120])
+CRIMSON = np.array([200, 30, 36])
+OBSIDIAN = np.array([22, 18, 30])
+BLOOD = np.array([150, 10, 16])
+BLOOD_HI = np.array([216, 40, 40])
 
 
 class Sheet:
@@ -264,7 +276,7 @@ def bone_wing(seg, nseg):
                 bot -= int(round((u - 0.55) * h * 0.6))
             for y in range(top, max(top, bot) + 1):
                 t = (y - top) / max(1, bot - top)
-                col = ECTO * (1 - t) * 0.9 + np.array([90, 60, 220]) * t
+                col = ECTO * (1 - t) * 0.9 + np.array([12, 104, 76]) * t
                 a = 150 - 60 * t
                 if y >= bot - 1 or k == 0:
                     col, a = ECTO_HI, 220                       # the feather's edge
@@ -396,6 +408,201 @@ def hammer():
     ]}
 
 
+# ===================================================================== the Final Guardian (2026-10-04)
+
+def gold_paint(face, w, h):
+    rgb = np.ones((h, w, 3)) * GOLD
+    rgb[0, :] = GOLD_HI
+    rgb[-1, :] = GOLD_DK
+    rgb[:, ::4] = GOLD_HI * 0.95
+    return rgba(rgb)
+
+
+def band_paint(face, w, h):
+    """The headdress's band: beaten gold, a row of jade studs."""
+    rgb = np.ones((h, w, 3)) * GOLD
+    rgb[0, :] = GOLD_HI
+    rgb[-1, :] = GOLD_DK
+    if face not in ('up', 'down') and h >= 2:
+        rgb[h // 2, 1::3] = JADE_HI
+    return rgba(rgb)
+
+
+def medallion(face, w, h):
+    """A sun disc of gold, a jade stone in its heart (glowing)."""
+    rgb = np.ones((h, w, 3)) * GOLD
+    glow = np.zeros((h, w, 4), np.uint8)
+    cx, cy = (w - 1) / 2, (h - 1) / 2
+    for y in range(h):
+        for x in range(w):
+            d = math.hypot(x - cx, y - cy)
+            if face in ('north', 'south'):
+                if d < 1.2:
+                    rgb[y, x] = JADE_HI
+                    glow[y, x] = np.append(ECTO, 255)
+                elif d < 2.0:
+                    rgb[y, x] = JADE
+                elif abs(d - (min(w, h) / 2 - 0.6)) < 0.5:
+                    rgb[y, x] = GOLD_HI
+                elif (x + y) % 2 == 0:
+                    rgb[y, x] = GOLD_DK * 1.1
+    return rgba(rgb), glow
+
+
+def feather_paint(colors):
+    """A long feather, its quill down the middle: colours from the base (bottom) to the tip."""
+    def paint(face, w, h):
+        img = np.zeros((h, w, 4), np.uint8)
+        for y in range(h):
+            t = 1 - y / max(1, h - 1)            # 1 at the tip (top row)
+            col = colors[min(len(colors) - 1, int(t * len(colors)))]
+            half = (w / 2) * (0.45 + 0.55 * math.sin(math.pi * min(1, 0.1 + t)) ** 0.6)
+            for x in range(w):
+                dx = abs(x + 0.5 - w / 2)
+                if dx > half + 0.01:
+                    continue
+                c = col * (0.85 + 0.15 * (1 - dx / max(0.5, half)))
+                if w >= 3 and dx < 0.6:
+                    c = GOLD_HI if t < 0.3 else c * 1.15
+                img[y, x] = np.append(np.clip(c, 0, 255), 255)
+        return img
+    return paint
+
+
+def penacho():
+    """An Aztec feather headdress (a penacho, after Moctezuma's): a band of beaten gold round the top of the potato studded
+    with jade, a sun disc at the front, and a great fan of quetzal feathers standing up behind, green with gold quills and
+    red tips, an inner row of crimson and gold. Bones: penacho > penacho_f0.. (each its own rotation)."""
+    bones = [{'name': 'penacho', 'parent': 'body', 'pivot': [0, 24, 0], 'cubes': [
+        cube([-8.6, 22.2, -8.6], [17.2, 2.4, 0.6], band_paint),             # the band: front, back, sides
+        cube([-8.6, 22.2, 8.0], [17.2, 2.4, 0.6], band_paint),
+        cube([-8.6, 22.2, -8.0], [0.6, 2.4, 16], band_paint),
+        cube([8.0, 22.2, -8.0], [0.6, 2.4, 16], band_paint),
+        cube([-2.6, 23.0, -9.4], [5.2, 5.2, 0.8], medallion),               # the sun disc over his brow
+    ]}]
+    rows = [
+        # (count, length, width, colours base->tip, tilt back, spread degrees, radius)
+        (13, 30, 4, [GOLD, QUETZAL, QUETZAL_HI, QUETZAL, CRIMSON], 22, 200, 7.0),
+        (9, 20, 3, [GOLD, CRIMSON, GOLD_HI, CRIMSON], 12, 160, 6.0),
+    ]
+    k = 0
+    for count, length, width, colors, tilt, spread, rad in rows:
+        for i in range(count):
+            phi = math.radians(-spread / 2 + spread * i / (count - 1))       # 0 = straight behind him
+            x, z = rad * math.sin(phi), rad * math.cos(phi)
+            bones.append({'name': 'penacho_f%d' % k, 'parent': 'penacho', 'pivot': [round(x, 3), 24, round(z, 3)],
+                          'rotation': [round(-tilt - 8 * abs(math.sin(phi)), 2), round(-math.degrees(phi), 2), 0],
+                          'cubes': [cube([x - width / 2, 24, z], [width, length, 0], feather_paint(colors))]})
+            k += 1
+    # jade ear spools
+    for sx in (-1, 1):
+        bones[0]['cubes'].append(cube([8.0 * sx - (0.8 if sx < 0 else 0), 13.5, -1.6], [0.8, 3.2, 3.2], medallion))
+    return bones
+
+
+def scar_paint(face, w, h):
+    rgb = np.ones((h, w, 3)) * BLOOD
+    rgb[0, :] = BLOOD_HI
+    return rgba(rgb)
+
+
+def scar_glow(face, w, h):
+    """In his truest form the old wound is a crack of the souls' light."""
+    rgb = np.ones((h, w, 3)) * ECTO
+    rgb[0, :] = ECTO_HI
+    glow = np.zeros((h, w, 4), np.uint8)
+    glow[:] = np.append(ECTO_HI, 255)
+    return rgba(rgb), glow
+
+
+def scar(glowing=False):
+    """The scar on his chest (phase four: it tears open): a jagged gash slanting across the lower front of the potato, below
+    the mouth, and the blood running down from it (scar_blood: its drips grow, scaled in Y from the top)."""
+    pts = [(-7.2, 8.6), (-5.0, 7.4), (-3.4, 8.0), (-1.2, 6.6), (0.8, 7.0), (2.6, 5.8), (4.6, 6.1), (6.8, 4.9)]
+    paint = scar_glow if glowing else scar_paint
+    cubes = []
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        n = 4
+        for j in range(n):
+            x = x0 + (x1 - x0) * j / n
+            y = y0 + (y1 - y0) * j / n
+            cubes.append(cube([round(x - 0.35, 3), round(y - 0.45, 3), -8.28], [0.9, 0.9, 0.3], paint))
+    bones = [{'name': 'scar', 'parent': 'body', 'pivot': [0, 7, -8], 'cubes': cubes}]
+    if not glowing:
+        drips = []
+        for x, y, l in ((-5.0, 7.0, 2.6), (-1.2, 6.2, 2.0), (2.6, 5.4, 1.4), (4.8, 5.7, 1.1), (-3.4, 7.6, 1.6)):
+            drips.append(cube([x - 0.3, y - l, -8.24], [0.6, l, 0.2], scar_paint))
+        bones.append({'name': 'scar_blood', 'parent': 'scar', 'pivot': [0, 8, -8], 'cubes': drips})
+    return bones
+
+
+def wood(face, w, h):
+    rgb = np.ones((h, w, 3)) * np.array([120, 70, 34])
+    rgb[::3] = GOLD
+    rgb[1::6] = JADE
+    return rgba(rgb)
+
+
+def string_paint(face, w, h):
+    return rgba(np.ones((h, w, 3)) * np.array([236, 230, 206]))
+
+
+def bow():
+    """An Aztec war bow in his left fist (aztec_bow: shown by client/BossModel while spiritProp is 3), held across the arm's
+    line: when the arm points at the moon the stave stands upright. Wrapped in gold and jade, its tips curled forward and
+    tipped with feathers; the string straight (bow_string) or drawn back to his right hand (bow_drawn, keyed by p4_bow), and
+    an arrow of the souls' light with an obsidian head (aztec_arrow, keyed by p4_bow)."""
+    hx, hy = 10.0, 4.5
+    out = [{'name': 'aztec_bow', 'parent': 'hand_l', 'pivot': [hx, hy, 0], 'cubes': [
+        cube([hx - 0.7, 1.4, -1.6], [1.4, 2.4, 3.2], solid(CRIMSON, 0.06)),          # the grip, bound in red
+    ]}]
+    for sign, name in ((-1, 'u'), (1, 'l')):
+        L = 12.5
+        out.append({'name': 'bow_limb_' + name, 'parent': 'aztec_bow', 'pivot': [hx, 2.6, 1.5 * sign],
+                    'rotation': [12 * sign, 0, 0],
+                    'cubes': [cube([hx - 0.5, 2.1, 1.5 if sign > 0 else -1.5 - L], [1.0, 1.0, L], wood)]})
+        tz = (1.5 + L * math.cos(math.radians(12))) * sign
+        ty = 2.6 + L * math.sin(math.radians(12))
+        out.append({'name': 'bow_tip_' + name, 'parent': 'bow_limb_' + name, 'pivot': [hx, ty, tz],
+                    'rotation': [-20 if sign > 0 else 20, 0, 0],
+                    'cubes': [cube([hx - 0.4, ty - 0.4, tz if sign > 0 else tz - 3.2], [0.8, 0.8, 3.2], solid(GOLD, 0.05)),
+                              cube([hx - 0.05, ty - 0.2, tz + (2.4 if sign > 0 else -4.4)], [0.1, 3.6, 2.0],
+                                   feather_paint([GOLD, QUETZAL_HI, CRIMSON]))]})
+    tip_z, tip_y = 16.6, 4.6
+    out.append({'name': 'bow_string', 'parent': 'aztec_bow', 'pivot': [hx, tip_y, 0], 'cubes': [
+        cube([hx - 0.12, tip_y - 0.12, -tip_z], [0.24, 0.24, 2 * tip_z], string_paint)]})
+    draw = 9.5
+    L = math.hypot(tip_z, draw)
+    a = math.degrees(math.atan2(draw, tip_z))
+    out.append({'name': 'bow_drawn', 'parent': 'aztec_bow', 'pivot': [hx, tip_y, 0], 'cubes': []})
+    out.append({'name': 'bow_drawn_u', 'parent': 'bow_drawn', 'pivot': [hx, tip_y, -tip_z], 'rotation': [a, 0, 0],
+                'cubes': [cube([hx - 0.12, tip_y - 0.12, -tip_z], [0.24, 0.24, L], string_paint)]})
+    out.append({'name': 'bow_drawn_l', 'parent': 'bow_drawn', 'pivot': [hx, tip_y, tip_z], 'rotation': [-a, 0, 0],
+                'cubes': [cube([hx - 0.12, tip_y - 0.12, tip_z - L], [0.24, 0.24, L], string_paint)]})
+    ax = hx + 0.9
+    top = tip_y + draw
+    out.append({'name': 'aztec_arrow', 'parent': 'aztec_bow', 'pivot': [ax, top, 0], 'cubes': [
+        cube([ax - 0.25, -4.0, -0.25], [0.5, top + 4.0, 0.5], scar_glow),                    # the shaft: light
+        cube([ax - 0.6, -6.6, -0.6], [1.2, 2.6, 1.2], solid(OBSIDIAN, 0.05)),                # the obsidian head
+        cube([ax - 0.3, -7.6, -0.3], [0.6, 1.0, 0.6], solid(OBSIDIAN, 0.05)),
+        cube([ax, top - 3.2, -1.0], [0.0, 2.8, 2.0], feather_paint([CRIMSON, QUETZAL_HI])),  # the fletching
+        cube([ax - 1.0, top - 3.2, 0.0], [2.0, 2.8, 0.0], feather_paint([CRIMSON, QUETZAL_HI])),
+    ]})
+    return out
+
+
+def give_ascended_scar(bones):
+    """The scar tears open while he is still Ascended (P4_FALL on): papon_ascended gets the bleeding scar bones, their pixels
+    copied to the same place on its sheet (rows 384 on). Pinned to 0 in every animation; client/BossModel shows it."""
+    geo_path = os.path.join(ASSETS, 'geo/entity/papon_ascended.geo.json')
+    geo = json.load(open(geo_path))
+    g = geo['minecraft:geometry'][0]
+    names = {b['name'] for b in bones}
+    g['bones'] = [b for b in g['bones'] if b['name'] not in names] + [copy.deepcopy(b) for b in bones]
+    with open(geo_path, 'w', newline='\n') as f:
+        json.dump(geo, f, separators=(',', ':'))
+
+
 # ===================================================================== the model
 
 def build():
@@ -417,8 +624,12 @@ def build():
     lips(by)
     flowers(rect_list(by['hair'].get('cubes', [])) + rect_list(by['wisps'].get('cubes', [])))
     repaint_wings(bones)
-    bones.append(hat())
     bones.append(hammer())
+    # the Final Guardian: the penacho, the bow, the scar burning green (the bleeding one goes on Ascended, drawn first)
+    ascended_scar = scar(False)
+    bones.extend(penacho())
+    bones.extend(bow())
+    bones.extend(scar(True))
     geo = {'format_version': '1.12.0', 'minecraft:geometry': [{
         'description': {'identifier': 'geometry.papon_muertos', 'texture_width': TEX, 'texture_height': TEX,
                         'visible_bounds_width': 9, 'visible_bounds_height': 6, 'visible_bounds_offset': [0, 1.5, 0]},
@@ -429,6 +640,7 @@ def build():
     Image.fromarray(S.img, 'RGBA').save(os.path.join(ASSETS, 'textures/entity/papon_muertos.png'))
     Image.fromarray(S.glow, 'RGBA').save(os.path.join(ASSETS, 'textures/entity/papon_muertos_glowmask.png'))
     give_ascended_hammer(bones)
+    give_ascended_scar(ascended_scar)
     return out
 
 
@@ -439,7 +651,8 @@ def give_ascended_hammer(bones):
     geo_path = os.path.join(ASSETS, 'geo/entity/papon_ascended.geo.json')
     geo = json.load(open(geo_path))
     g = geo['minecraft:geometry'][0]
-    g['bones'] = [b for b in g['bones'] if b['name'] != 'spirit_hammer'] + [copy.deepcopy(b) for b in bones if b['name'] == 'spirit_hammer']
+    g['bones'] = [b for b in g['bones'] if b['name'] not in ('spirit_hammer', 'scar', 'scar_blood')] \
+        + [copy.deepcopy(b) for b in bones if b['name'] == 'spirit_hammer']
     with open(geo_path, 'w', newline='\n') as f:
         json.dump(geo, f, separators=(',', ':'))
     for name, src in (('papon_ascended.png', S.img), ('papon_ascended_glowmask.png', S.glow)):

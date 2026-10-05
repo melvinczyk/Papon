@@ -74,6 +74,8 @@ public final class ModItems {
     public static final RegistryObject<Item> FX_CANDY = prop("fx_candy");
     public static final RegistryObject<Item> FX_SOMBRERO = prop("fx_sombrero");
     public static final RegistryObject<Item> FX_CALAVERA = prop("fx_calavera");
+    /** Ignis's head (the pack's Ignis trophy, tools/gen_ignis_head.py): held and thrown down in phase four. */
+    public static final RegistryObject<Item> FX_IGNIS_HEAD = prop("fx_ignis_head");
 
     public static final RegistryObject<Item> WANDERING_PAPON_SPAWN_EGG = egg("wandering_papon", ModEntities.WANDERING_PAPON, 0xD9AA51, 0x5C7840);
     public static final RegistryObject<Item> TACO_VENDOR_SPAWN_EGG = egg("taco_vendor", ModEntities.TACO_VENDOR, 0xF6F6F0, 0xD9AA51);

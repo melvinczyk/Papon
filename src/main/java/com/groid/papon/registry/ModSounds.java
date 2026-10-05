@@ -37,6 +37,9 @@ public final class ModSounds {
     // the fight
     public static final RegistryObject<SoundEvent> BOSS_MUSIC = sound("music.boss");
     public static final RegistryObject<SoundEvent> REVEAL = sound("boss.reveal");
+    // phase four (tools/gen_p4_sounds.py): his panting on his back, the band stopping dead
+    public static final RegistryObject<SoundEvent> PANT = sound("boss.pant");
+    public static final RegistryObject<SoundEvent> SCRATCH = sound("boss.scratch");
 
     private static RegistryObject<SoundEvent> sound(String name) {
         return REGISTRY.register(name, () -> SoundEvent.createVariableRangeEvent(PaponMod.id(name)));

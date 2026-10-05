@@ -94,6 +94,7 @@ public final class PaponCommand {
                 .then(Commands.literal("reveal").executes(PaponCommand::reveal))
                 .then(Commands.literal("boss").executes(PaponCommand::boss))
                 .then(Commands.literal("van").executes(PaponCommand::van))
+                .then(Commands.literal("serpents").executes(PaponCommand::serpents))
                 .then(Commands.literal("bossstate").then(Commands.argument("state", StringArgumentType.word())
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                 java.util.Arrays.stream(BossState.values()).map(Enum::name), b))
@@ -102,6 +103,19 @@ public final class PaponCommand {
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                 java.util.Arrays.stream(PaponBossEntity.Cutaway.values()).map(Enum::name), b))
                         .executes(c -> cutaway(c, StringArgumentType.getString(c, "who"))))));
+    }
+
+    /** Ouros and Boros out of their smoke, to circle here (a look at them without the fight). */
+    private static int serpents(CommandContext<CommandSourceStack> c) {
+        ServerLevel level = c.getSource().getLevel();
+        net.minecraft.world.phys.Vec3 at = c.getSource().getPosition();
+        for (int k = 0; k < 2; k++) {
+            double a = Math.toRadians(-90 + (k == 0 ? -35 : 35));
+            net.minecraft.world.phys.Vec3 portal = at.add(Math.cos(a) * 200, 95, Math.sin(a) * 200);
+            var s = com.groid.papon.boss.SkySerpentEntity.create(level, k, at, portal, 90 + k * 14, 48 + k * 10, k == 0 ? 1 : -1);
+            level.addFreshEntity(s);
+        }
+        return 1;
     }
 
     private static int locate(CommandContext<CommandSourceStack> c) {

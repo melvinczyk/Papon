@@ -26,8 +26,8 @@ import java.util.List;
  */
 public final class Song {
     /** The songs (MariachiEntity.songId): phase two's, and phase three's, "Para Siempre" (song/para_siempre.json). */
-    public static final int CANCION = 0, PARA_SIEMPRE = 1;
-    private static final String[] FILES = {"cancion", "para_siempre"};
+    public static final int CANCION = 0, PARA_SIEMPRE = 1, PERSONA_IDEAL = 2;
+    private static final String[] FILES = {"cancion", "para_siempre", "persona_ideal"};
 
     /** Passes of the guitar intro before he sings: at least two, more if his apology and aura farm need the room (VoiceLines). */
     public static int introPasses() {

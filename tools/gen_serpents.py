@@ -32,6 +32,7 @@ SRC = os.environ.get('PAPON_DNL_SRC', '/tmp/papon_refs/dnl/src/client/model')
 MODS = os.environ.get('PAPON_MODS', os.path.expanduser('~/Documents/curseforge/minecraft/Instances/Groid Pack OG/mods'))
 JAR = os.path.join(MODS, 'Dungeon Now Loading-forge-1.20.1-2.2.jar')
 TEX = 512
+TEX_H = 768       # taller than the originals: room under them for the feathers
 
 SCALE_DK = np.array([18, 74, 36])
 SCALE = np.array([46, 142, 50])
@@ -124,11 +125,11 @@ def faces(c):
 
 class Canvas:
     def __init__(self, src_png):
-        self.img = np.zeros((TEX, TEX, 4), np.uint8)
-        self.glow = np.zeros((TEX, TEX, 4), np.uint8)
+        self.img = np.zeros((TEX_H, TEX, 4), np.uint8)
+        self.glow = np.zeros((TEX_H, TEX, 4), np.uint8)
         src = np.asarray(Image.open(src_png).convert('RGBA'), dtype=np.float32) if src_png else None
-        self.lum = np.full((TEX, TEX), 0.5, np.float32)
-        self.red = np.zeros((TEX, TEX), bool)
+        self.lum = np.full((TEX_H, TEX), 0.5, np.float32)
+        self.red = np.zeros((TEX_H, TEX), bool)
         if src is not None:
             h, w = src.shape[:2]
             lum = (0.3 * src[..., 0] + 0.59 * src[..., 1] + 0.11 * src[..., 2]) / 255.0
@@ -139,7 +140,7 @@ class Canvas:
 
     def rect(self, r, fn):
         u, v, w, h = r
-        for y in range(max(0, v), min(TEX, v + h)):
+        for y in range(max(0, v), min(TEX_H, v + h)):
             for x in range(max(0, u), min(TEX, u + w)):
                 col = fn(x - u, y - v, w, h, x, y)
                 if col is None:
@@ -232,7 +233,7 @@ def eye(cv, r, at_x, at_y, rad=2.6):
     cx, cy = u + at_x, v + at_y
     for y in range(int(cy - rad - 2), int(cy + rad + 3)):
         for x in range(int(cx - rad - 2), int(cx + rad + 3)):
-            if not (0 <= x < TEX and 0 <= y < TEX):
+            if not (0 <= x < TEX and 0 <= y < TEX_H):
                 continue
             d = math.hypot(x - cx, y - cy)
             if d <= rad * 0.55:
@@ -256,6 +257,8 @@ class Feathers:
     def take(self, w, h):
         if self.x + w * 2 > TEX:
             self.x, self.y, self.row = 0, self.y + self.row + 1, 0
+        if self.y + h > TEX_H:
+            raise ValueError('no room left for feathers')
         at = (self.x, self.y)
         self.x += w * 2 + 1
         self.row = max(self.row, h)
@@ -388,10 +391,11 @@ def build(kind):
     # the feather crown round the back of the head, flaring back over the neck
     back_z = 0.0 if kind == 'ouros' else 3.0
     crest(head, jaw, [0, -4 if kind == 'ouros' else -14, back_z], fe, [
-        (16, 34, 7, FIERY, 0.0, 0.0),
-        (12, 26, 6, QUETZAL, 0.18, 0.5),
-        (10, 18, 5, CROWN, 0.32, 0.25),
-    ], 0.55)
+        (20, 52, 12, FIERY, 0.0, 0.0),
+        (16, 40, 11, QUETZAL, 0.16, 0.5),
+        (14, 28, 9, FIERY, 0.3, 0.25),
+        (10, 18, 7, CROWN, 0.45, 0.75),
+    ], 0.5)
     if kind == 'ouros':
         # Ouros's horns were stone: a tall crown of feathers over his brow instead
         head['brow'] = {'parent': jaw, 'pose': [0, -11, -14, 0, 0, 0], 'cubes': []}
@@ -426,21 +430,21 @@ def build(kind):
                 paint_scaled(cv, c, 'body')
     # a collar of feathers round the neck end (the first segment), and the tail's fan
     crest(body, seg, [0, -9 if kind == 'ouros' else -14, -22], fe, [
-        (14, 22, 6, FIERY, 0.0, 0.0),
-        (10, 16, 5, QUETZAL, 0.2, 0.5),
-    ], 0.9, name='collar')
+        (16, 30, 10, FIERY, 0.0, 0.0),
+        (12, 20, 8, QUETZAL, 0.2, 0.5),
+    ], 0.95, name='collar')
     tail_z = 21 if kind == 'ouros' else 23
     body['fan'] = {'parent': 'tail', 'pose': [0, -11 if kind == 'ouros' else -2, tail_z, 0, 0, 0], 'cubes': []}
-    for i in range(9):
-        length = 34 - abs(i - 4) * 3
-        uv = fe.feather(7, length, [JADE, SCALE_HI, YELLOW, ORANGE, RED], seed=900 + i)
-        body['fan_%d' % i] = {'parent': 'fan', 'pose': [0, 0, 0, round(-1.35 - abs(i - 4) * 0.05, 4), round((i - 4) * 0.2, 4), 0],
-                              'cubes': [{'uv': uv, 'box': [-3.5, -length, 0, 7, length, 0], 'mirror': False, 'grow': 0.0}]}
+    for i in range(11):
+        length = 56 - abs(i - 5) * 4
+        uv = fe.feather(12, length, [YELLOW, ORANGE, RED, RED, JADE], seed=900 + i)
+        body['fan_%d' % i] = {'parent': 'fan', 'pose': [0, 0, 0, round(-1.35 - abs(i - 5) * 0.05, 4), round((i - 5) * 0.17, 4), 0],
+                              'cubes': [{'uv': uv, 'box': [-6, -length, 0, 12, length, 0], 'mirror': False, 'grow': 0.0}]}
     write(kind, 'body', body, cv)
 
 
 def write(kind, part, parts, cv):
-    out = {'texture': [TEX, TEX], 'parts': parts}
+    out = {'texture': [TEX, TEX_H], 'parts': parts}
     d = os.path.join(ASSETS, 'serpent')
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, '%s_%s.json' % (kind, part)), 'w', newline='\n') as f:
@@ -454,3 +458,24 @@ def write(kind, part, parts, cv):
 if __name__ == '__main__':
     for k in ('ouros', 'boros'):
         build(k)
+
+
+def smoke():
+    """textures/entity/black_smoke.png: a soft, lumpy puff of smoke (white, tinted near-black when drawn)."""
+    n = 64
+    rng = np.random.default_rng(3)
+    img = np.zeros((n, n, 4), np.uint8)
+    blobs = [(rng.uniform(20, 44), rng.uniform(20, 44), rng.uniform(9, 17)) for _ in range(9)]
+    for y in range(n):
+        for x in range(n):
+            a = 0.0
+            for bx, by, br in blobs:
+                d = math.hypot(x - bx, y - by) / br
+                a = max(a, 1 - d * d)
+            a *= 0.75 + 0.25 * rng.random()
+            img[y, x] = [255, 255, 255, int(max(0, min(1, a)) * 255)]
+    Image.fromarray(img).save(os.path.join(ASSETS, 'textures/entity/black_smoke.png'))
+
+
+if __name__ == '__main__':
+    smoke()

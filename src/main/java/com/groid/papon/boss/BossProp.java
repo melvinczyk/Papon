@@ -87,7 +87,10 @@ public class BossProp extends Entity {
         SOUL,
         /** Papel Picado (phase four): a string of giant cut-paper banners sweeping the floor: half its length = radius,
          *  travelling along its yaw; the delay slot 0 low (jump it), 1 high (duck it). Moved by the boss. */
-        PAPEL
+        PAPEL,
+        // ---- phase four, reworked (appended)
+        /** Ignis's head (the user's Ignis trophy, kubejs in the pack): thrown down at his feet, where it stays; radius = the floor. */
+        IGNIS_HEAD
     }
 
     /** GUITAR: the pull down on its arc each tick. */
@@ -127,6 +130,16 @@ public class BossProp extends Entity {
 
     public BossProp velocity(Vec3 v) {
         setDeltaMovement(v);
+        return this;
+    }
+
+    /** Thrown down to land on {@code at} in {@code ticks} (an arc under TOSS_G), then lying where it fell. */
+    public BossProp throwDown(Vec3 at, int ticks) {
+        Vec3 d = at.subtract(position());
+        int n = Math.max(1, ticks);
+        setDeltaMovement(new Vec3(d.x / n, (d.y + TOSS_G * n * (n - 1) / 2.0) / n, d.z / n));
+        aim = at;
+        entityData.set(DATA_RADIUS, (float) at.y);
         return this;
     }
 
@@ -234,6 +247,16 @@ public class BossProp extends Entity {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
             }
+            case IGNIS_HEAD -> {
+                if (getY() > radius() + 0.01 || getDeltaMovement().y > 0) {
+                    move();
+                    setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+                    if (getY() <= radius()) {
+                        setPos(getX(), radius(), getZ());
+                        setDeltaMovement(Vec3.ZERO);
+                    }
+                }
+            }
             case CANDY -> {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
@@ -275,6 +298,18 @@ public class BossProp extends Entity {
             case GUITAR, CANDY -> {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+            }
+            case IGNIS_HEAD -> {
+                if (getY() > radius() + 0.01 || getDeltaMovement().y > 0) {
+                    move();
+                    setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+                    if (getY() <= radius()) {
+                        setPos(getX(), radius(), getZ());
+                        setDeltaMovement(Vec3.ZERO);
+                    }
+                }
+                if (tickCount % 6 == 0) level().addParticle(net.minecraft.core.particles.ParticleTypes.SMALL_FLAME, getX() + (random.nextDouble() - 0.5) * 0.6,
+                        getY() + 0.9, getZ() + (random.nextDouble() - 0.5) * 0.6, 0, 0.02, 0);
             }
             case PINATA -> {
                 move();

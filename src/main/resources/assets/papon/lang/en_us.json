@@ -612,7 +612,7 @@
   "message.papon.fob_out_of_range": "*chirp* ...the Skyline is too far away to hear it.",
   "message.papon.fob_start": "*chirp chirp* The Skyline's engine catches.",
   "message.papon.fob_off": "*chirp* The Skyline's engine shuts down.",
-  "bossbar.papon.chef.phase4": "El Rey de los Muertos",
+  "bossbar.papon.chef.phase4": "Papon, the Final Guardian",
   "title.papon.muertos": "EL REY",
   "title.papon.muertos.subtitle": "DE LOS MUERTOS",
   "speech.papon.band.p4_bones": "¡Mis huesos! ...I feel GREAT!",
@@ -680,5 +680,13 @@
   "speech.papon.boss2.p4_flechas": "The sun's arrows never miss, amigo!",
   "speech.papon.boss2.p4_serpientes": "My serpents... FEAST!",
   "speech.papon.boss2.p4_charm6": "Ten thousand years I waited... and the prophecy sent me YOU? I love it.",
-  "speech.papon.boss2.p4_charm7": "The old gods are watching, amigo. Give them a show!"
+  "speech.papon.boss2.p4_charm7": "The old gods are watching, amigo. Give them a show!",
+  "title.papon.guardian": "PAPON",
+  "title.papon.guardian.subtitle": "THE FINAL GUARDIAN",
+  "speech.papon.band.p4_listo": "...Sí, jefe. One last song.",
+  "subtitles.papon.boss.pant": "Papon pants",
+  "subtitles.papon.boss.scratch": "The band stops dead",
+  "item.papon.fx_ignis_head": "Head of Ignis",
+  "entity.papon.salsa_dancer": "Muchacha",
+  "entity.papon.sky_serpent": "Feathered Serpent"
 }

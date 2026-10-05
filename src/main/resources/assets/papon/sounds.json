@@ -2458,5 +2458,21 @@
         "name": "papon:voice/boss2/p4_charm7"
       }
     ]
+  },
+  "boss.pant": {
+    "sounds": [
+      {
+        "name": "papon:boss/pant"
+      }
+    ],
+    "subtitle": "subtitles.papon.boss.pant"
+  },
+  "boss.scratch": {
+    "sounds": [
+      {
+        "name": "papon:boss/scratch"
+      }
+    ],
+    "subtitle": "subtitles.papon.boss.scratch"
   }
 }

@@ -39,11 +39,11 @@ import java.util.List;
  *   the moon     over his coliseum's band stand (PaponBossEntity.moonPos): the potato moon when the clouds part
  *                (moon 1), shaking and going blue under his hammer's lightning, then the dead's: a blue calavera with
  *                glowing eyes (moon 2), a cold halo round it. Drawn over the night's black sky (NightLight.coverSky)
- *   the bolt     P4_STRIKE: blue lightning from his hammer up into the moon, re-struck every other tick
- *   the rays     P4_MOONRAYS: a beam of moonlight down onto each band member in turn (they turn to skeletons as it
- *                reaches them), then a fan of them sweeping round the stands
+ *   the souls    P4_SOULS: every fan's soul out of him and in a glowing arc to the boss as he turns to bone (the same
+ *                order as ColiseumCrowdRenderer.threshold), then the band's, one by one (PaponBossEntity.soulAt)
+ *   the arrow    P4_BOW: his arrow of the souls' light up into the moon
  *   the petals   P4_PETALOS: the marigold spirals (the same sums as the server: PaponBossEntity.petal)
- *   the blue-out P4_BLUEOUT: the screen floods with the moon's blue and clears on the new coliseum
+ *   the flash    P4_HALFBAKED: the screen floods green-white as he turns, and clears on the dead's coliseum
  */
 @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class MuertosSky {
@@ -65,28 +65,28 @@ public final class MuertosSky {
 
     /** How far the moon has turned (0 the potato moon .. 1 the calavera), and how hard it is shaking. */
     private static float turn(PaponBossEntity b, float partial) {
-        if (b.moon() >= 2) {
-            if (b.getBossState() == BossState.P4_STRIKE) {
-                float t = b.ticksInState() + partial;
-                float at = VoiceLines.beat("p4.turn", 52);
-                return Mth.clamp((t - at) / 6F + 1F, 0, 1);
-            }
-            return 1;
-        }
-        if (b.getBossState() == BossState.P4_STRIKE) {
-            float t = b.ticksInState() + partial;
-            float swing = VoiceLines.beat("p4.swing", 30), at = VoiceLines.beat("p4.turn", 52);
-            return Mth.clamp((t - swing) / (at - swing), 0, 1) * 0.6F;
-        }
+        boolean brethren = b.getBossState() == BossState.P4_BRETHREN;
+        float t = b.ticksInState() + partial;
+        float grant = VoiceLines.beat("p4.grant", 114), at = VoiceLines.beat("p4.turn", 194);
+        if (b.moon() >= 2) return brethren ? Mth.clamp((t - at) / 10F + 0.6F, 0.6F, 1) : 1;
+        // "...grant me your STRENGTH!": it shakes, going cold
+        if (brethren) return Mth.clamp((t - grant) / (at - grant), 0, 1) * 0.6F;
         return 0;
+    }
+
+    /** Whether the moon is shaking (the line before it turns). */
+    private static boolean shaking(PaponBossEntity b, float partial) {
+        if (b.getBossState() != BossState.P4_BRETHREN) return false;
+        float t = b.ticksInState() + partial;
+        return t > VoiceLines.beat("p4.grant", 114) && t < VoiceLines.beat("p4.turn", 194) + 12;
     }
 
     /** Whether the moon shows (and how much: it fades in as the clouds part). */
     private static float shown(PaponBossEntity b, float partial) {
         if (b.moon() <= 0) return 0;
-        if (b.getBossState() == BossState.P4_RISE) {
-            float t = b.ticksInState() + partial, at = VoiceLines.beat("p4.moon", 34);
-            return Mth.clamp((t - at) / 24F, 0, 1);
+        if (b.getBossState() == BossState.P4_PROPHECY) {
+            float t = b.ticksInState() + partial, at = VoiceLines.beat("p4.moon", 186);
+            return Mth.clamp((t - at) / 30F, 0, 1);
         }
         return 1;
     }
@@ -102,7 +102,7 @@ public final class MuertosSky {
         float turned = turn(b, partial);
         float t = b.tickCount + partial;
         // shaking as the lightning goes into it
-        if (b.getBossState() == BossState.P4_STRIKE && turned > 0 && turned < 1) {
+        if (shaking(b, partial)) {
             d = d.add((Math.sin(t * 3.1) * 0.004), Math.cos(t * 2.7) * 0.004, 0).normalize();
         }
         Vec3 right = d.cross(new Vec3(0, 1, 0)).normalize();
@@ -171,7 +171,7 @@ public final class MuertosSky {
         PaponBossEntity b = boss();
         if (b == null) return;
         BossState s = b.getBossState();
-        if (s != BossState.P4_STRIKE && s != BossState.P4_MOONRAYS && s != BossState.P4_PETALOS) return;
+        if (s != BossState.P4_SOULS && s != BossState.P4_BOW && s != BossState.P4_PETALOS) return;
         Minecraft mc = Minecraft.getInstance();
         float partial = event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
@@ -182,73 +182,86 @@ public final class MuertosSky {
         VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
         Matrix4f m = pose.last().pose();
         float t = b.ticksInState() + partial;
-        if (s == BossState.P4_STRIKE) bolt(vc, m, b, t, partial, cam);
-        if (s == BossState.P4_MOONRAYS) rays(vc, m, b, t, partial, cam);
+        if (s == BossState.P4_SOULS) souls(vc, m, b, t, partial, cam);
+        if (s == BossState.P4_BOW) arrow(vc, m, b, t, partial, cam);
         if (s == BossState.P4_PETALOS) petals(vc, m, b, t, partial, cam);
         buffers.endBatch(RenderType.lightning());
         pose.popPose();
     }
 
-    /** His hammer's lightning up into the moon: jagged, re-struck every other tick, white at the core in blue. */
-    private static void bolt(VertexConsumer vc, Matrix4f m, PaponBossEntity b, float t, float partial, Vec3 cam) {
-        float swing = VoiceLines.beat("p4.swing", 30);
-        if (t < swing || t > swing + 24) return;
-        float fade = t > swing + 16 ? 1 - (t - swing - 16) / 8F : 1;
-        Vec3 from = b.getPosition(partial).add(0, b.getBbHeight() * 1.35, 0);
-        Vec3 to = b.moonPos();
-        net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create((long) (b.tickCount / 2) * 977L + b.getId());
-        Vec3 dir = to.subtract(from);
-        int n = 18;
-        Vec3 prev = from;
-        for (int i = 1; i <= n; i++) {
-            double k = i / (double) n;
-            double jit = (i == n ? 0 : 4 + 18 * Math.sin(k * Math.PI));
-            Vec3 p = from.add(dir.scale(k)).add((r.nextDouble() - 0.5) * jit, (r.nextDouble() - 0.5) * jit * 0.5, (r.nextDouble() - 0.5) * jit);
-            ribbon(vc, m, prev, p, cam, 1.4F + 2F * (float) k, 60, 200, 255, (int) (120 * fade));
-            ribbon(vc, m, prev, p, cam, 0.35F + 0.6F * (float) k, 235, 255, 255, (int) (255 * fade));
-            if (r.nextInt(4) == 0) {
-                // a fork off it
-                Vec3 f = p.add((r.nextDouble() - 0.5) * 14, (r.nextDouble() - 0.5) * 8, (r.nextDouble() - 0.5) * 14);
-                ribbon(vc, m, p, f, cam, 0.3F, 140, 230, 255, (int) (160 * fade));
-            }
-            prev = p;
-        }
-    }
+    /** How long a soul takes to fly to him, as a share of the stands' sweep (and in ticks for the band's). */
+    private static final float SOUL_SPAN = 0.2F;
+    private static final float BAND_FLIGHT = 22F;
 
-    /** The moon's rays: onto each band member in turn, then a fan sweeping round the stands. */
-    private static void rays(VertexConsumer vc, Matrix4f m, PaponBossEntity b, float t, float partial, Vec3 cam) {
+    /**
+     * The souls: out of each fan in turn (ColiseumCrowdRenderer.threshold: all over the bowl at once, not a sweep) and up in
+     * an arc into his chest, a green-white wisp with a tail; then the band's, one by one, out of the stage.
+     */
+    private static void souls(VertexConsumer vc, Matrix4f m, PaponBossEntity b, float t, float partial, Vec3 cam) {
         Minecraft mc = Minecraft.getInstance();
-        Vec3 moon = b.moonPos();
-        AABB box = b.getBoundingBox().inflate(120);
+        Vec3 into = b.getPosition(partial).add(0, b.getBbHeight() * 0.5, 0);
+        AABB box = b.getBoundingBox().inflate(160);
+        ColiseumCrowdEntity crowd = mc.level.getEntitiesOfClass(ColiseumCrowdEntity.class, box, e -> true).stream().findFirst().orElse(null);
+        if (crowd != null) {
+            float sweep = (t - PaponBossEntity.SOULS_STANDS) / (PaponBossEntity.SOULS_STANDS_END - PaponBossEntity.SOULS_STANDS);
+            if (sweep > 0 && sweep < 1 + SOUL_SPAN) {
+                Vec3 at = crowd.getPosition(partial);
+                List<com.groid.papon.boss.Coliseum.Seat> seats = crowd.seatList();
+                for (int i = 0; i < seats.size(); i++) {
+                    com.groid.papon.boss.Coliseum.Seat seat = seats.get(i);
+                    if (ColiseumCrowdRenderer.empty(seat.seed())) continue;
+                    float k = (sweep - ColiseumCrowdRenderer.threshold(seat.seed())) / SOUL_SPAN;
+                    if (k <= 0 || k >= 1) continue;
+                    Vec3 from = at.add(seat.x(), seat.y() + 1.3, seat.z());
+                    wisp(vc, m, from, into, k, cam, 0.55F, seat.seed());
+                }
+            }
+        }
         List<MariachiEntity> band = new java.util.ArrayList<>(mc.level.getEntitiesOfClass(MariachiEntity.class, box, e -> true));
         band.sort(java.util.Comparator.comparingInt(e -> e.getRole().ordinal()));
         for (int i = 0; i < band.size(); i++) {
-            float at = PaponBossEntity.rayAt(i);
-            float k = t < at - 6 ? 0 : t < at ? (t - at + 6) / 6F : Math.max(0, 1 - (t - at) / 10F);
-            if (k <= 0) continue;
-            Vec3 to = band.get(i).getPosition(partial).add(0, 1, 0);
-            beam(vc, m, moon, to, cam, 2.6F * k, k);
-        }
-        ColiseumCrowdEntity crowd = mc.level.getEntitiesOfClass(ColiseumCrowdEntity.class, box, e -> true).stream().findFirst().orElse(null);
-        if (crowd == null || t < PaponBossEntity.RAYS_STANDS - 4 || t > PaponBossEntity.RAYS_STANDS_END + 8) return;
-        float sweep = Mth.clamp((t - PaponBossEntity.RAYS_STANDS) / (PaponBossEntity.RAYS_STANDS_END - PaponBossEntity.RAYS_STANDS), 0, 1);
-        float fade = t > PaponBossEntity.RAYS_STANDS_END ? 1 - (t - PaponBossEntity.RAYS_STANDS_END) / 8F : Math.min(1, (t - PaponBossEntity.RAYS_STANDS + 4) / 4F);
-        Vec3 c = crowd.getPosition(partial);
-        for (int j = 0; j < 7; j++) {
-            double phi = ColiseumCrowdRenderer.sweepAngle(sweep) - j * 0.12;
-            double a = crowd.sizeA() + 10, bb = crowd.sizeB() + 10;
-            Vec3 to = c.add(Math.cos(phi) * a, 12 + j % 3, Math.sin(phi) * bb);
-            beam(vc, m, moon, to, cam, 3.0F - j * 0.25F, fade * (1 - j * 0.1F));
+            float k = (t - PaponBossEntity.soulAt(i)) / BAND_FLIGHT;
+            if (k <= 0 || k >= 1) continue;
+            wisp(vc, m, band.get(i).getPosition(partial).add(0, 1.3, 0), into, k, cam, 1.1F, i * 31 + 7);
         }
     }
 
-    /** A beam of moonlight: a wide cold sheath round a white core, brightest at the end it lands on. */
-    private static void beam(VertexConsumer vc, Matrix4f m, Vec3 from, Vec3 to, Vec3 cam, float w, float k) {
-        Vec3 d = to.subtract(from);
-        Vec3 near = from.add(d.scale(0.55));
-        ribbon(vc, m, near, to, cam, w, 70, 200, 255, (int) (110 * k));
-        ribbon(vc, m, near, to, cam, w * 0.35F, 230, 255, 255, (int) (220 * k));
-        ribbon(vc, m, from, near, cam, w * 0.6F, 70, 200, 255, (int) (40 * k));
+    /** One soul {@code k} of the way along its arc from {@code from} to {@code to}: a bright head, a fading tail. */
+    private static void wisp(VertexConsumer vc, Matrix4f m, Vec3 from, Vec3 to, float k, Vec3 cam, float size, int seed) {
+        double lift = 8 + (seed & 7);
+        double sway = ((seed >> 3 & 15) - 7.5) * 0.6;
+        Vec3 side = to.subtract(from).cross(new Vec3(0, 1, 0));
+        final Vec3 off = side.lengthSqr() < 1e-6 ? Vec3.ZERO : side.normalize().scale(sway);
+        java.util.function.DoubleFunction<Vec3> at = u -> {
+            double e = u * u * (3 - 2 * u);
+            return from.lerp(to, e).add(off.scale(Math.sin(u * Math.PI))).add(0, Math.sin(u * Math.PI) * lift, 0);
+        };
+        Vec3 prev = at.apply(Math.max(0, k - 0.12));
+        for (int j = 1; j <= 4; j++) {
+            double u = Math.max(0, k - 0.12 + 0.03 * j);
+            Vec3 p = at.apply(u);
+            int a = (int) (60 + 40 * j);
+            ribbon(vc, m, prev, p, cam, size * (0.3F + 0.18F * j), 82, 255, 132, a);
+            prev = p;
+        }
+        Vec3 head = at.apply(k);
+        ribbon(vc, m, head.subtract(0, size * 0.5, 0), head.add(0, size * 0.5, 0), cam, size * 1.3F, 214, 255, 220, 230);
+    }
+
+    /** His arrow of the souls' light, from the bow up into the moon (P4_BOW: loosed, a streak, the moon struck). */
+    private static void arrow(VertexConsumer vc, Matrix4f m, PaponBossEntity b, float t, float partial, Vec3 cam) {
+        float loose = PaponBossEntity.BOW_LOOSE, hit = PaponBossEntity.BOW_HIT;
+        if (t < loose || t > hit + 8) return;
+        Vec3 from = b.getPosition(partial).add(0, b.getBbHeight() * 0.75, 0);
+        Vec3 to = b.moonPos();
+        float k = Mth.clamp((t - loose) / (hit - loose), 0, 1);
+        float fade = t > hit ? 1 - (t - hit) / 8F : 1;
+        Vec3 headAt = from.lerp(to, k * k);
+        Vec3 tailAt = from.lerp(to, Math.max(0, k * k - 0.35));
+        ribbon(vc, m, tailAt, headAt, cam, 2.2F, 82, 255, 132, (int) (110 * fade));
+        ribbon(vc, m, tailAt, headAt, cam, 0.7F, 230, 255, 236, (int) (240 * fade));
+        // the trail it leaves, lingering
+        ribbon(vc, m, from, tailAt, cam, 0.5F, 82, 255, 132, (int) (60 * fade));
     }
 
     /** The marigold spirals: a petal per arm per send, glowing orange, gold and pink as they turn. */
@@ -299,14 +312,16 @@ public final class MuertosSky {
 
     // ------------------------------------------------------------------ the blue-out
 
-    /** How far the screen is flooded with the moon's blue (P4_BLUEOUT), 0..1. */
+    /** How far the screen is flooded green-white as he turns (P4_HALFBAKED's flash), 0..1: it covers the arena turning. */
     static float blueout(float partial) {
         PaponBossEntity b = boss();
-        if (b == null || b.getBossState() != BossState.P4_BLUEOUT) return 0;
+        if (b == null || b.getBossState() != BossState.P4_HALFBAKED) return 0;
         float t = b.ticksInState() + partial;
-        if (t < 14) return t / 14F;
-        if (t < 44) return 1;
-        return Math.max(0, 1 - (t - 44) / 16F);
+        float flash = VoiceLines.beat("p4.flash", 136), clear = VoiceLines.beat("p4.clear", 162);
+        if (t < flash - 8) return 0;
+        if (t < flash) return (t - flash + 8) / 8F;
+        if (t < flash + 12) return 1;
+        return Math.max(0, 1 - (t - flash - 12) / Math.max(1F, clear - flash - 12));
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -315,6 +330,6 @@ public final class MuertosSky {
         if (a <= 0) return;
         GuiGraphics g = event.getGuiGraphics();
         int w = g.guiWidth(), h = g.guiHeight();
-        g.fill(0, 0, w, h, ((int) (a * 255) & 0xFF) << 24 | (a > 0.85F ? 0xB8F6FF : 0x4FDCFF));
+        g.fill(0, 0, w, h, ((int) (a * 255) & 0xFF) << 24 | (a > 0.85F ? 0xE6FFEC : 0x52FF84));
     }
 }

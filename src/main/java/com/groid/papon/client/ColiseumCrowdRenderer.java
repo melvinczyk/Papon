@@ -190,13 +190,21 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
         return -Math.PI / 2 + sweep * Math.PI * 2;
     }
 
-    /** Whether the sweep has passed the fan at {@code angle} (he is a skeleton now). */
-    private static boolean turned(float angle, float sweep) {
+    /** Whether the fan in seat {@code seed} has given up his soul yet (he is a skeleton now): all over the bowl, each in turn. */
+    private static boolean turned(int seed, float sweep) {
         if (sweep <= 0) return false;
         if (sweep >= 1) return true;
-        double d = angle - sweepAngle(0);
-        d = d - Math.floor(d / (Math.PI * 2)) * Math.PI * 2;
-        return d < sweep * Math.PI * 2;
+        return threshold(seed) < sweep;
+    }
+
+    /** When (0..1 through the stands' souls, P4_SOULS) the fan in seat {@code seed} gives his soul up: MuertosSky flies it. */
+    public static float threshold(int seed) {
+        return rnd(seed, 31) * 0.8F;
+    }
+
+    /** No seat is left empty by the time the souls go (the seats list is the taken ones). */
+    public static boolean empty(int seed) {
+        return false;
     }
 
     /** Whether this fan has his lighter up yet (they spread through the stands as the share grows). */
@@ -595,7 +603,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             Coliseum.Seat s = seats.get(i);
             double wx = at.x + s.x(), wy = at.y + s.y(), wz = at.z + s.z();
             float angle = (float) Math.atan2(s.z() / (crowd.sizeB() + 10.0), s.x() / (crowd.sizeA() + 10.0));
-            if (turned(angle, deadSweep) != drawingDead) continue;
+            if (turned(s.seed(), deadSweep) != drawingDead) continue;
             if (frustum != null && !frustum.isVisible(new AABB(wx - 0.6, wy - 0.4, wz - 0.6, wx + 0.6, wy + 2.0, wz + 0.6))) continue;
             double d2 = cam.distanceToSqr(wx, wy, wz);
             boolean near = d2 < 48 * 48;

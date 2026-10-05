@@ -946,30 +946,71 @@ def beats(lengths):
     b['dance.drop'] = int(round(pickup * 20))
     b['dance.line'] = b['dance.drop'] + 34
     b['dance.end'] = b['dance.line'] + L('dance') + 16
-    # ---- phase four (2026-10-04): the ritual, every beat from his lines (PaponBossEntity.tickP4*, client/Cinematic, MuertosSky)
-    # P4_RISE: the laugh from t6; the clouds part on the moon as it ends; "You think that was ALL?"
-    b['p4.moon'] = max(24, 6 + L('p4_laugh') - 6)
-    b['p4.rise'] = b['p4.moon'] + 16
-    b['p4.rise_end'] = max(72, b['p4.rise'] + L('p4_rise') + 8)
-    # P4_HAMMER: blue fire spirals into his hand; it sets into the hammer (forms); "Death herself..."
-    b['p4.forms'] = 60
-    b['p4.hammer'] = b['p4.forms'] + 14
-    b['p4.hammer_end'] = b['p4.hammer'] + L('p4_hammer') + 10
-    # P4_STRIKE: "Wake up, LUNA!!!", the swing on its last word, the bolt; the moon turns
-    b['p4.strike'] = 4
-    b['p4.swing'] = b['p4.strike'] + max(16, L('p4_strike') - 6)
-    b['p4.turn'] = b['p4.swing'] + 22
-    b['p4.strike_end'] = b['p4.turn'] + 58
-    # P4_REVEAL: down into the great calavera (land), looking round it; "It has been centuries..."
-    b['p4.land'] = 34
-    b['p4.centuries'] = b['p4.land'] + 40
-    b['p4.reveal_end'] = b['p4.centuries'] + L('p4_centuries') + 14
-    # P4_TRUEFORM: the blue fire (burn), the bone (bone), "Behold..." (true), the drop: the band of the dead, the title
-    b['p4.burn'] = 8
-    b['p4.bone'] = 40
-    b['p4.true'] = 62
-    b['p4.drop'] = b['p4.true'] + L('p4_true') + 4
-    b['p4.trueform_end'] = b['p4.drop'] + 44
+    # ---- phase four (2026-10-04, reworked to the user's script): the Final Guardian's awakening, every beat from his lines
+    # (PaponBossEntity.tickP4*, client/Cinematic, client/MuertosSky, gen_boss_anims b_p4_*)
+    # P4_FALL: thrown flat (lands t14), panting on his back, up on an elbow, finds the scar: "Huh... it reopened, didn't it."
+    b['p4.land'] = 14
+    b['p4.elbow'] = 44
+    b['p4.look'] = 58
+    b['p4.scar'] = 76
+    b['p4.fall_end'] = b['p4.scar'] + L('p4_scar') + 14
+    # P4_RISEUP: up in two goes, the cough of blood, "Do you want to know... how I got this scar?"
+    b['p4.knee'] = 16
+    b['p4.cough'] = 36
+    b['p4.howgot'] = 52
+    b['p4.riseup_end'] = b['p4.howgot'] + L('p4_howgot') + 12
+    # P4_IGNIS: the reach behind his back, Ignis's head out, held up beside his face for the line, thrown down; at you
+    b['p4.head_out'] = 20
+    b['p4.ignis'] = 34
+    b['p4.throw'] = b['p4.ignis'] + L('p4_ignis') + 4
+    b['p4.thud'] = b['p4.throw'] + 13
+    b['p4.met'] = b['p4.thud'] + 16
+    b['p4.ignis_end'] = b['p4.met'] + L('p4_met') + 14
+    # P4_PROPHECY: walking, "Ten thousand years..."; the fog rolls in under it; "...the prophecy..."; the moon; the smile
+    b['p4.years'] = 8
+    b['p4.fog'] = b['p4.years'] + 30
+    b['p4.prophecy'] = b['p4.years'] + L('p4_years') + 14
+    b['p4.moon'] = b['p4.prophecy'] + L('p4_prophecy') + 4
+    b['p4.lunaknows'] = b['p4.moon'] + 26
+    b['p4.prophecy_end'] = b['p4.lunaknows'] + L('p4_lunaknows') + 14
+    # P4_BRETHREN: the arms open to the stands; the two lines; the moon turns on the last word
+    b['p4.brethren'] = 14
+    b['p4.grant'] = b['p4.brethren'] + L('p4_brethren') + 10
+    b['p4.turn'] = b['p4.grant'] + L('p4_grant') - 4
+    b['p4.brethren_end'] = b['p4.turn'] + 40
+    # P4_HALFBAKED: the line in the green glow; the burst; the flash (the arena turns behind it); the reveal; the title
+    b['p4.halfbaked'] = 12
+    b['p4.burst'] = b['p4.halfbaked'] + L('p4_halfbaked') + 10
+    b['p4.flash'] = b['p4.burst'] + 30
+    b['p4.clear'] = b['p4.flash'] + 26
+    b['p4.title'] = b['p4.clear'] + 8
+    b['p4.halfbaked_end'] = b['p4.clear'] + 80
+    # P4_TALKING
+    b['p4.talking'] = 6
+    b['p4.talking_end'] = b['p4.talking'] + L('p4_talking') + 18
+    # P4_HONOR: soft, to the band; the singer nods; they strike up (the song's downbeat); the trumpets
+    b['p4.honor'] = 10
+    b['p4.nod'] = b['p4.honor'] + L('p4_honor') + 4
+    b['p4.song'] = b['p4.nod'] + 16
+    b['p4.honor_end'] = b['p4.song'] + 44
+    # P4_MUCHACHAS: "Where are the muchachas?", the clap, the dancers rise, he goes to one and twirls her
+    b['p4.muchachas'] = 4
+    b['p4.clap'] = b['p4.muchachas'] + L('p4_muchachas') + 2
+    b['p4.rise'] = b['p4.clap'] + 10
+    b['p4.twirl'] = b['p4.rise'] + 52
+    b['p4.twirl_line'] = b['p4.twirl'] + 14
+    b['p4.dip'] = b['p4.twirl'] + 58                 # the twirl, then a dip, then a few steps together
+    b['p4.muchachas_end'] = b['p4.twirl'] + 110
+    # P4_GOODTIME: round to you; "COME ON!!! SHOW ME A GOOD TIME!!!"; the stands erupt; he holds it till the first sung word
+    b['p4.goodtime'] = 40
+    b['p4.erupt'] = b['p4.goodtime'] + L('p4_goodtime')
+    # passes of the song's brass intro from the downbeat to the fight: the rest of the honor, the muchachas, the line, a beat
+    try:
+        intro = json.load(open(os.path.join(ASSETS, 'song/persona_ideal.json')))['segments'][0]['length']
+        need = (b['p4.honor_end'] - b['p4.song']) + b['p4.muchachas_end'] + b['p4.erupt'] + 30
+        b['p4.passes'] = max(1, int(math.ceil(need / (intro * 20))))
+    except (OSError, KeyError, IndexError):
+        b['p4.passes'] = 2
     return b
 
 

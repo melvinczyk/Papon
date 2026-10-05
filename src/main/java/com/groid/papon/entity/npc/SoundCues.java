@@ -107,6 +107,7 @@ public final class SoundCues {
             case "cough" -> { sound = SoundEvents.PANDA_SNEEZE; volume = 1.0F; pitch = 0.45F; }
             case "heartbeat" -> { sound = SoundEvents.WARDEN_HEARTBEAT; volume = 2.0F; pitch = 0.8F; }
             case "chuckle" -> { sound = SoundEvents.WITCH_CELEBRATE; volume = 0.8F; pitch = 0.6F; }
+            case "clap" -> { sound = SoundEvents.SKELETON_HURT; volume = 1.0F; pitch = 1.8F; }
             case "crack" -> { sound = SoundEvents.SKELETON_HURT; volume = 0.7F; pitch = 0.5F; }
             case "scream" -> { sound = SoundEvents.WARDEN_ROAR; volume = 2.0F; pitch = 1.2F; }
             case "flap" -> { sound = SoundEvents.ENDER_DRAGON_FLAP; volume = 0.9F; pitch = 1.3F; }
