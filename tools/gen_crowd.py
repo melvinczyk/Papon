@@ -20,6 +20,7 @@ and their events in sounds.json.
   python tools/gen_crowd.py
 """
 import json
+from geo_util import read_sounds, write_sounds
 import math
 import os
 
@@ -348,15 +349,12 @@ EVENTS = ['crowd/ambience', 'crowd/roar', 'crowd/boo', 'crowd/gasp', 'crowd/swoo
 
 
 def register():
-    path = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(path, encoding='utf-8'))
+    sounds = read_sounds()
     for e in EVENTS:
         if e in ('crowd/ambience', 'crowd/roar') and os.path.exists(os.path.join(ASSETS, 'sounds/crowd/ambience_rec_a.ogg')):
             continue                # the recorded crowd (gen_crowd_samples.py) has these
         sounds[e.replace('/', '.')] = {'sounds': [{'name': 'papon:' + e, 'stream': e == 'crowd/ambience'}]}
-    with open(path, 'w', newline='\n', encoding='utf-8') as f:
-        json.dump(sounds, f, indent=2, ensure_ascii=False)
-        f.write('\n')
+    write_sounds(sounds)
 
 
 if __name__ == '__main__':

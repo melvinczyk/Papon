@@ -8,6 +8,7 @@ Writes sounds/boss/pant.ogg, sounds/boss/scratch.ogg and their sounds.json entri
   python3.11 tools/gen_p4_sounds.py
 """
 import json
+from geo_util import read_sounds, write_sounds
 import os
 
 import numpy as np
@@ -77,11 +78,8 @@ def write(name, y):
 if __name__ == '__main__':
     write('pant', pant())
     write('scratch', scratch())
-    sp = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(sp, encoding='utf-8'))
+    sounds = read_sounds()
     for k in ('pant', 'scratch'):
         sounds['boss.' + k] = {'sounds': [{'name': 'papon:boss/' + k}], 'subtitle': 'subtitles.papon.boss.' + k}
-    with open(sp, 'w', newline='\n', encoding='utf-8') as f:
-        json.dump(sounds, f, indent=2, ensure_ascii=False)
-        f.write('\n')
+    write_sounds(sounds)
     print('ok')

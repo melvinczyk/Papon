@@ -35,6 +35,7 @@ Needs: pip install modal librosa soundfile numpy; ffmpeg; Rhubarb in tools/.cach
 of 1.13.0); a Modal token for the melvinczyk profile (`python3.11 -m modal token new --profile melvinczyk`).
 """
 import argparse
+from geo_util import read_sounds, write_sounds
 import glob
 import json
 import os
@@ -1020,8 +1021,7 @@ def build(meta):
     data = {'rate': RATE, 'lines': {}}
     lang_path = os.path.join(ASSETS, 'lang/en_us.json')
     lang = json.load(open(lang_path, encoding='utf-8'))
-    sounds_path = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(sounds_path, encoding='utf-8'))
+    sounds = read_sounds()
     built_path = os.path.join(ASSETS, 'voice/boss2.json')
     built = json.load(open(built_path, encoding='utf-8')).get('lines', {}) if os.path.exists(built_path) else {}
     # lines with no takes here (a fresh checkout has no cache) keep what is built; only lines gone from LINES go
@@ -1066,9 +1066,7 @@ def build(meta):
     os.makedirs(os.path.join(ASSETS, 'voice'), exist_ok=True)
     with open(built_path, 'w', newline='\n') as f:
         json.dump(data, f, separators=(',', ':'))
-    with open(sounds_path, 'w', newline='\n', encoding='utf-8') as f:
-        json.dump(sounds, f, indent=2, ensure_ascii=False)
-        f.write('\n')
+    write_sounds(sounds)
     with open(lang_path, 'w', newline='\n', encoding='utf-8') as f:
         json.dump(lang, f, indent=2, ensure_ascii=False)
         f.write('\n')

@@ -42,6 +42,7 @@ the boss plays and sings exactly that himself, the `serenade` segment); the trum
 Writes song/para_siempre.json and sounds/music/para_siempre/<segment>.ogg ("music.para_siempre.<id>").
 """
 import json
+from geo_util import read_sounds, write_sounds
 import os
 import subprocess
 
@@ -422,8 +423,7 @@ def main():
     folder = 'song' if SONG == 'cancion' else SONG
     out_dir = os.path.join(ASSETS, 'sounds/music/' + folder)
     os.makedirs(out_dir, exist_ok=True)
-    sounds_path = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(sounds_path, encoding='utf-8'))
+    sounds = read_sounds()
     for k in [k for k in sounds if k.startswith('music.%s.' % folder)]:
         del sounds[k]
     segs = []
@@ -447,9 +447,7 @@ def main():
                      'level': level, 'energy': energy, 'sung': sung,
                      'beats': int(round(np.searchsorted(b, t1 - 0.05) - np.searchsorted(b, t0 - 0.05)))})
         print('%-10s %7.2f s  %6.2f s  %s' % (sid, t0, t1 - t0, level))
-    with open(sounds_path, 'w', newline='\n', encoding='utf-8') as f:
-        json.dump(sounds, f, indent=2, ensure_ascii=False)
-        f.write('\n')
+    write_sounds(sounds)
     voice = envelope(vocals)
     n = len(voice)
     midi, y16 = lead_line(other)
