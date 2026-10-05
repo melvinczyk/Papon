@@ -743,7 +743,7 @@ public final class Cinematic {
                 int swing = VoiceLines.beat("p4.swing", 30), turn = VoiceLines.beat("p4.turn", 52);
                 if (t < swing) {
                     // over his shoulder, up at the moon
-                    Vec3 eye = b.position().subtract(toMoon.multiply(1, 0, 1).normalize().scale(h * 1.3)).add(right.scale(h * 1.6)).add(0, h * 0.2, 0);
+                    Vec3 eye = b.position().subtract(toMoon.multiply(1, 0, 1).normalize().scale(h * 2.0)).add(right.scale(h * 2.8)).add(0, h * 0.2, 0);
                     return new Shot(eye, b.position().add(toMoon.scale(40)), 66, 0, t == 0, true);
                 }
                 if (t < turn + 40) {
