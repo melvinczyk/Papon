@@ -18,13 +18,9 @@ import net.minecraft.world.phys.AABB;
 public class StageLampBlockEntity extends BlockEntity {
     private float aim = Float.NaN;
 
-    public StageLampBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.STAGE_LAMP.get(), pos, state);
-    }
+    public StageLampBlockEntity(BlockPos pos, BlockState state) { super(ModBlockEntities.STAGE_LAMP.get(), pos, state); }
 
-    public float aim() {
-        return aim;
-    }
+    public float aim() { return aim; }
 
     public void setAim(float aim) {
         this.aim = aim;
@@ -45,17 +41,11 @@ public class StageLampBlockEntity extends BlockEntity {
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        return saveWithoutMetadata();
-    }
+    public CompoundTag getUpdateTag() { return saveWithoutMetadata(); }
 
     @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
+    public Packet<ClientGamePacketListener> getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
 
     @Override
-    public AABB getRenderBoundingBox() {
-        return new AABB(worldPosition).inflate(10);
-    }
+    public AABB getRenderBoundingBox() { return new AABB(worldPosition).inflate(10); }
 }

@@ -30,13 +30,9 @@ public final class Terrain {
     private Terrain() {}
 
     public static boolean isUnderground(Level level, int x, int y, int z) {
-        if (!level.hasChunk(x >> 4, z >> 4)) {
-            return true;
-        }
+        if (!level.hasChunk(x >> 4, z >> 4)) { return true; }
         int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-        if (y >= top - 1) {
-            return false;
-        }
+        if (y >= top - 1) { return false; }
         return y < top - MAX_COVER || level.getBrightness(LightLayer.SKY, new BlockPos(x, y, z)) < CAVE_SKY_LIGHT;
     }
 
@@ -47,9 +43,7 @@ public final class Terrain {
     /** First open block above the top solid-or-fluid, non-leaf block of the column; null if not loaded. */
     @Nullable
     public static BlockPos surfaceAt(Level level, int x, int z) {
-        if (!level.hasChunk(x >> 4, z >> 4)) {
-            return null;
-        }
+        if (!level.hasChunk(x >> 4, z >> 4)) { return null; }
         return new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
     }
 

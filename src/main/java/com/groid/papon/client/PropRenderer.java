@@ -595,9 +595,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
     }
 
     @Override
-    public ResourceLocation getTextureLocation(BossProp p) {
-        return MASH;
-    }
+    public ResourceLocation getTextureLocation(BossProp p) { return MASH; }
 
     /** The piñata's rope, straight up out of sight from the top of it (model space: the item's 16 units are a block). */
     private static void drawRope(PoseStack pose, MultiBufferSource buffers, float up) {

@@ -20,19 +20,13 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class EctoplasmBlock extends Block {
     private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 14, 16);
 
-    public EctoplasmBlock(Properties props) {
-        super(props);
-    }
+    public EctoplasmBlock(Properties props) { super(props); }
 
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return SHAPE;
-    }
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) { return SHAPE; }
 
     @Override
-    public boolean useShapeForLightOcclusion(BlockState state) {
-        return true;
-    }
+    public boolean useShapeForLightOcclusion(BlockState state) { return true; }
 
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {

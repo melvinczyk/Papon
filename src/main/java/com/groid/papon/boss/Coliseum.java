@@ -147,18 +147,12 @@ public final class Coliseum {
         return new Coliseum(center, ground, A * k, B * k, true);
     }
 
-    public double floorY() {
-        return center.getY();
-    }
+    public double floorY() { return center.getY(); }
 
-    public Vec3 centerVec() {
-        return Vec3.atBottomCenterOf(center);
-    }
+    public Vec3 centerVec() { return Vec3.atBottomCenterOf(center); }
 
     /** How many times El Coliseo Papa's size this one is. */
-    public int scale() {
-        return a / A;
-    }
+    public int scale() { return a / A; }
 
     // ------------------------------------------------------------------ the shape
 
@@ -183,9 +177,7 @@ public final class Coliseum {
     }
 
     /** {@link #offset} for this coliseum's size. */
-    public double edge(double x, double z) {
-        return offset(x, z, a, b);
-    }
+    public double edge(double x, double z) { return offset(x, z, a, b); }
 
     /** The angle round the ellipse (0 = east, PI/2 = south) of a point at offset d. */
     private static double angle(double x, double z, double d, int a, int b) {
@@ -236,25 +228,15 @@ public final class Coliseum {
     // ------------------------------------------------------------------ the materials
 
     /** What it is built of: El Coliseo Papa's potato travertine, or the dead's night stone and bone. */
-    private Supplier<Block> stone() {
-        return dead ? ModBlocks.MUERTOS_STONE::get : ModBlocks.ARENA_STONE::get;
-    }
+    private Supplier<Block> stone() { return dead ? ModBlocks.MUERTOS_STONE::get : ModBlocks.ARENA_STONE::get; }
 
-    private Supplier<Block> bricks() {
-        return dead ? ModBlocks.MUERTOS_BRICKS::get : ModBlocks.ARENA_BRICKS::get;
-    }
+    private Supplier<Block> bricks() { return dead ? ModBlocks.MUERTOS_BRICKS::get : ModBlocks.ARENA_BRICKS::get; }
 
-    private Supplier<Block> darkBlock() {
-        return dead ? ModBlocks.MUERTOS_DARK::get : ModBlocks.ARENA_DARK::get;
-    }
+    private Supplier<Block> darkBlock() { return dead ? ModBlocks.MUERTOS_DARK::get : ModBlocks.ARENA_DARK::get; }
 
-    private Supplier<Block> brazier() {
-        return dead ? ModBlocks.SPIRIT_BRAZIER::get : ModBlocks.ARENA_BRAZIER::get;
-    }
+    private Supplier<Block> brazier() { return dead ? ModBlocks.SPIRIT_BRAZIER::get : ModBlocks.ARENA_BRAZIER::get; }
 
-    private Supplier<Block> seat() {
-        return dead ? ModBlocks.MUERTOS_SEAT::get : ModBlocks.ARENA_SEAT::get;
-    }
+    private Supplier<Block> seat() { return dead ? ModBlocks.MUERTOS_SEAT::get : ModBlocks.ARENA_SEAT::get; }
 
     private BlockState column(Direction.Axis axis) {
         return (dead ? ModBlocks.BONE_COLUMN.get() : ModBlocks.ARENA_COLUMN.get()).defaultBlockState().setValue(RotatedPillarBlock.AXIS, axis);
@@ -281,9 +263,7 @@ public final class Coliseum {
             out.add(new long[]{center.offset(x, y, z).asLong(), Block.getId(s)});
         }
 
-        void put(int x, int y, int z, Supplier<Block> b) {
-            put(x, y, z, b.get().defaultBlockState());
-        }
+        void put(int x, int y, int z, Supplier<Block> b) { put(x, y, z, b.get().defaultBlockState()); }
 
         /** A flag block (with its kind and the way its cloth faces) for the block entity once it is placed. */
         void flag(int x, int y, int z, int kind, double normal) {
@@ -301,9 +281,7 @@ public final class Coliseum {
             if (best == null || score < best[0]) flags.put(key, new double[]{score, x, y, z, kind, normal});
         }
 
-        void placeFlags() {
-            for (double[] f : flags.values()) flag((int) f[1], (int) f[2], (int) f[3], (int) f[4], f[5]);
-        }
+        void placeFlags() { for (double[] f : flags.values()) flag((int) f[1], (int) f[2], (int) f[3], (int) f[4], f[5]); }
     }
 
     /** Every block of the coliseum, in build order (the floor and the wall first). */
@@ -672,9 +650,7 @@ public final class Coliseum {
             int base = PODIUM + 4;
             for (int dx = -2; dx <= 2; dx++) {
                 for (int dz = -2; dz <= 2; dz++) {
-                    for (int y = PODIUM; y <= base; y++) {
-                        p.put(cx + dx, y, dz, y == base ? stone() : bricks());
-                    }
+                    for (int y = PODIUM; y <= base; y++) { p.put(cx + dx, y, dz, y == base ? stone() : bricks()); }
                 }
             }
             double rx = 2.4, ry = 3.6, rz = 2.2;
@@ -888,9 +864,7 @@ public final class Coliseum {
     }
 
     /** Places the next batch; true once the whole coliseum is up. */
-    public boolean buildStep(ServerLevel level) {
-        return buildStep(level, PER_TICK);
-    }
+    public boolean buildStep(ServerLevel level) { return buildStep(level, PER_TICK); }
 
     public boolean buildStep(ServerLevel level, int perTick) {
         if (!started) startBuild(level);
@@ -926,14 +900,10 @@ public final class Coliseum {
         return false;
     }
 
-    public boolean built() {
-        return started && pending == null;
-    }
+    public boolean built() { return started && pending == null; }
 
     /** Whether the blocks have started going up (it is only planned until the white-out of his scream). */
-    public boolean started() {
-        return started;
-    }
+    public boolean started() { return started; }
 
     /**
      * Every brazier in the plan (podium, walls, top), in order round the bowl starting from the band stand (north)
@@ -942,9 +912,7 @@ public final class Coliseum {
     public List<BlockPos> braziers() {
         Block brazier = brazier().get();
         List<BlockPos> out = new ArrayList<>();
-        for (long[] bl : blocks()) {
-            if (Block.stateById((int) bl[1]).is(brazier)) out.add(BlockPos.of(bl[0]));
-        }
+        for (long[] bl : blocks()) { if (Block.stateById((int) bl[1]).is(brazier)) out.add(BlockPos.of(bl[0])); }
         out.sort(java.util.Comparator.comparingDouble(p -> {
             double ang = Math.atan2(p.getX() - center.getX(), -(p.getZ() - center.getZ()));
             return ang < 0 ? ang + Math.PI * 2 : ang;
@@ -984,13 +952,9 @@ public final class Coliseum {
 
     // ------------------------------------------------------------------ getting in and out
 
-    public AABB bounds() {
-        return new AABB(center).inflate(a + OUTSIDE + 1, 0, b + OUTSIDE + 1).expandTowards(0, HEIGHT + 8, 0).move(0, -4, 0);
-    }
+    public AABB bounds() { return new AABB(center).inflate(a + OUTSIDE + 1, 0, b + OUTSIDE + 1).expandTowards(0, HEIGHT + 8, 0).move(0, -4, 0); }
 
-    public boolean contains(Vec3 p) {
-        return bounds().contains(p);
-    }
+    public boolean contains(Vec3 p) { return bounds().contains(p); }
 
     /** On the sand (or just over it): inside the podium wall and below the top of the barrier. */
     public boolean inArena(Vec3 p) {
@@ -1021,9 +985,7 @@ public final class Coliseum {
     }
 
     /** The van's parking place: the east end of the sand, nose to the north. */
-    public Vec3 vanSpot() {
-        return centerVec().add(a - 9, 0, 6);
-    }
+    public Vec3 vanSpot() { return centerVec().add(a - 9, 0, 6); }
 
     /** The way back down: same offset from the middle, on top of whatever is there. */
     public Vec3 outside(ServerLevel level, Vec3 from) {
@@ -1047,9 +1009,7 @@ public final class Coliseum {
         e.fallDistance = 0;
         if (e instanceof ServerPlayer sp) {
             sp.teleportTo(level, to.x, to.y, to.z, sp.getYRot(), sp.getXRot());
-        } else {
-            e.teleportTo(to.x, to.y, to.z);
-        }
+        } else { e.teleportTo(to.x, to.y, to.z); }
         e.setDeltaMovement(Vec3.ZERO);
     }
 

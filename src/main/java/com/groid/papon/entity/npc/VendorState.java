@@ -36,14 +36,10 @@ public enum VendorState {
 
     public final int duration;
 
-    VendorState(int duration) {
-        this.duration = duration;
-    }
+    VendorState(int duration) { this.duration = duration; }
 
     /** From the fraud until he turns into the boss. */
-    public boolean unmasking() {
-        return this == FRAUD || this == FURIOUS || this == EXPOSED || this == UNMASK || this == REALIZE || this == RAGE;
-    }
+    public boolean unmasking() { return this == FRAUD || this == FURIOUS || this == EXPOSED || this == UNMASK || this == REALIZE || this == RAGE; }
 
     public static VendorState byId(int id) {
         VendorState[] all = values();

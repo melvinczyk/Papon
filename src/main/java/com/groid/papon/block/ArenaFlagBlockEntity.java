@@ -29,17 +29,11 @@ public class ArenaFlagBlockEntity extends BlockEntity {
     private int kind;
     private float normal;
 
-    public ArenaFlagBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.ARENA_FLAG.get(), pos, state);
-    }
+    public ArenaFlagBlockEntity(BlockPos pos, BlockState state) { super(ModBlockEntities.ARENA_FLAG.get(), pos, state); }
 
-    public int kind() {
-        return kind;
-    }
+    public int kind() { return kind; }
 
-    public float normal() {
-        return normal;
-    }
+    public float normal() { return normal; }
 
     public void setup(int kind, float normal) {
         this.kind = kind;
@@ -63,17 +57,11 @@ public class ArenaFlagBlockEntity extends BlockEntity {
     }
 
     @Override
-    public CompoundTag getUpdateTag() {
-        return saveWithoutMetadata();
-    }
+    public CompoundTag getUpdateTag() { return saveWithoutMetadata(); }
 
     @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
-    }
+    public Packet<ClientGamePacketListener> getUpdatePacket() { return ClientboundBlockEntityDataPacket.create(this); }
 
     @Override
-    public AABB getRenderBoundingBox() {
-        return new AABB(worldPosition).inflate(4.5);
-    }
+    public AABB getRenderBoundingBox() { return new AABB(worldPosition).inflate(4.5); }
 }

@@ -12,12 +12,8 @@ import java.util.List;
  * to be annoying. Milk does not help (it is potato).
  */
 public class SplatteredEffect extends MobEffect {
-    public SplatteredEffect() {
-        super(MobEffectCategory.HARMFUL, 0xD9B65A);
-    }
+    public SplatteredEffect() { super(MobEffectCategory.HARMFUL, 0xD9B65A); }
 
     @Override
-    public List<ItemStack> getCurativeItems() {
-        return List.of();
-    }
+    public List<ItemStack> getCurativeItems() { return List.of(); }
 }

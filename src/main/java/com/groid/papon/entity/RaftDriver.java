@@ -29,9 +29,7 @@ final class RaftDriver {
     private Vec3 lastCheck = Vec3.ZERO;
     private int checkTicks;
 
-    RaftDriver(WanderingPaponEntity papon) {
-        this.papon = papon;
-    }
+    RaftDriver(WanderingPaponEntity papon) { this.papon = papon; }
 
     void reset() {
         steerOffset = 0;

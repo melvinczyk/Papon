@@ -102,9 +102,7 @@ public final class MuertosSky {
         float turned = turn(b, partial);
         float t = b.tickCount + partial;
         // shaking as the lightning goes into it
-        if (shaking(b, partial)) {
-            d = d.add((Math.sin(t * 3.1) * 0.004), Math.cos(t * 2.7) * 0.004, 0).normalize();
-        }
+        if (shaking(b, partial)) { d = d.add((Math.sin(t * 3.1) * 0.004), Math.cos(t * 2.7) * 0.004, 0).normalize(); }
         Vec3 right = d.cross(new Vec3(0, 1, 0)).normalize();
         Vec3 up = right.cross(d).normalize();
         Vec3 c = d.scale(90);

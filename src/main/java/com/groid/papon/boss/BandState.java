@@ -51,22 +51,16 @@ public enum BandState {
 
     public final int duration;
 
-    BandState(int duration) {
-        this.duration = duration;
-    }
+    BandState(int duration) { this.duration = duration; }
 
     public static BandState byId(int id) {
         BandState[] all = values();
         return id >= 0 && id < all.length ? all[id] : SLEEP;
     }
 
-    public boolean asleep() {
-        return this == SLEEP || this == RESLEEP;
-    }
+    public boolean asleep() { return this == SLEEP || this == RESLEEP; }
 
-    public boolean lamp() {
-        return this == LAMP_GO || this == LAMP_SWITCH || this == LAMP_BACK;
-    }
+    public boolean lamp() { return this == LAMP_GO || this == LAMP_SWITCH || this == LAMP_BACK; }
 
     /** Up, dressed and holding his instrument. */
     public boolean ready() {

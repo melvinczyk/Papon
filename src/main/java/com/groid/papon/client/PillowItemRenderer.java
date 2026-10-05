@@ -15,9 +15,7 @@ import net.minecraft.world.item.ItemStack;
  * face, folded over.
  */
 public class PillowItemRenderer extends BlockEntityWithoutLevelRenderer {
-    public PillowItemRenderer() {
-        super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels());
-    }
+    public PillowItemRenderer() { super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels()); }
 
     @Override
     public void renderByItem(ItemStack stack, ItemDisplayContext ctx, PoseStack ps, MultiBufferSource buffers, int light, int overlay) {

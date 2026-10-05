@@ -13,13 +13,9 @@ import org.jetbrains.annotations.Nullable;
  * client/ArenaFlagRenderer draws the cloth waving in front of it. Unbreakable like the rest.
  */
 public class ArenaFlagBlock extends Block implements EntityBlock {
-    public ArenaFlagBlock(Properties props) {
-        super(props);
-    }
+    public ArenaFlagBlock(Properties props) { super(props); }
 
     @Nullable
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new ArenaFlagBlockEntity(pos, state);
-    }
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new ArenaFlagBlockEntity(pos, state); }
 }

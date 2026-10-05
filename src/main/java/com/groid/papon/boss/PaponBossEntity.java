@@ -610,18 +610,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** Client: the held player's meter in a squeeze or duel (0..1). */
-    public float qteMeterValue() {
-        return entityData.get(DATA_METER);
-    }
+    public float qteMeterValue() { return entityData.get(DATA_METER); }
 
     /** Untouchable right now (the shimmer). */
-    public boolean isArmored() {
-        return entityData.get(DATA_ARMOR);
-    }
+    public boolean isArmored() { return entityData.get(DATA_ARMOR); }
 
-    public int qteKind() {
-        return entityData.get(DATA_QTE);
-    }
+    public int qteKind() { return entityData.get(DATA_QTE); }
 
     /**
      * The hold the QTE uses: 0 La Última Cena (the cleaver), 1 Last Call (the bottle), 2 La Papa Suplex. The
@@ -634,27 +628,17 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** The entity id of whoever he holds, or -1. */
-    public int heldId() {
-        return entityData.get(DATA_HELD);
-    }
+    public int heldId() { return entityData.get(DATA_HELD); }
 
-    public int form() {
-        return entityData.get(DATA_FORM);
-    }
+    public int form() { return entityData.get(DATA_FORM); }
 
     /** Baked golden (the texture swap). */
-    public boolean isBaked() {
-        return form() >= 1;
-    }
+    public boolean isBaked() { return form() >= 1; }
 
     /** Fully risen: fry wings, crown, butter; he flies. */
-    public boolean isRisen() {
-        return form() >= 2;
-    }
+    public boolean isRisen() { return form() >= 2; }
 
-    public boolean isFlying() {
-        return entityData.get(DATA_FLYING);
-    }
+    public boolean isFlying() { return entityData.get(DATA_FLYING); }
 
     private void setFlying(boolean f) {
         entityData.set(DATA_FLYING, f);
@@ -662,14 +646,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     @Nullable
-    public Coliseum arena() {
-        return arena;
-    }
+    public Coliseum arena() { return arena; }
 
     /** In his coliseum (both sides: the band plays the music there, not the old score). */
-    public boolean inColiseum() {
-        return entityData.get(DATA_ARENA);
-    }
+    public boolean inColiseum() { return entityData.get(DATA_ARENA); }
 
     @Override
     public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
@@ -677,9 +657,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return isMuertos() ? d.scale(1.45F) : isAscended() ? d.scale(1.35F) : isRisen() ? d.scale(1.15F) : d;
     }
 
-    public boolean isGhost() {
-        return entityData.get(DATA_GHOST);
-    }
+    public boolean isGhost() { return entityData.get(DATA_GHOST); }
 
     private void setGhost(boolean g) {
         entityData.set(DATA_GHOST, g);
@@ -693,9 +671,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     // ------------------------------------------------------------------ state
 
-    public BossState getBossState() {
-        return BossState.byId(entityData.get(DATA_STATE));
-    }
+    public BossState getBossState() { return BossState.byId(entityData.get(DATA_STATE)); }
 
     public void setBossState(BossState s) {
         BossState old = getBossState();
@@ -817,13 +793,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** Ticks in the current state, on either side. */
-    public int ticksInState() {
-        return level().isClientSide ? clientStateTicks : stateTicks;
-    }
+    public int ticksInState() { return level().isClientSide ? clientStateTicks : stateTicks; }
 
-    public boolean isPhaseTwo() {
-        return entityData.get(DATA_PHASE2);
-    }
+    public boolean isPhaseTwo() { return entityData.get(DATA_PHASE2); }
 
     /** Set up by TacoBoss: where he jumps from and to, his arena and his van. */
     public void begin(Vec3 from, Vec3 to, @Nullable CaravanEntity van) {
@@ -836,9 +808,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         setBossState(BossState.LEAP_OUT);
     }
 
-    public void setTruck(com.groid.papon.journey.TacoLine line) {
-        truck = line;
-    }
+    public void setTruck(com.groid.papon.journey.TacoLine line) { truck = line; }
 
     /** /papon boss: no window to jump out of, straight to the bottle. */
     public void beginHere(@Nullable CaravanEntity van) {
@@ -875,9 +845,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     // ------------------------------------------------------------------ speech
 
     @Override
-    public String getSpeech() {
-        return entityData.get(DATA_SPEECH);
-    }
+    public String getSpeech() { return entityData.get(DATA_SPEECH); }
 
     @Override
     public void setSpeech(String encoded, int ticks) {
@@ -885,14 +853,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         speechTicks = ticks;
     }
 
-    private void say(String line, int ticks) {
-        speak(line, ticks, true);
-    }
+    private void say(String line, int ticks) { speak(line, ticks, true); }
 
     /** A line with no translation under it (it is already in English, or a scream). */
-    private void sayPlain(String line, int ticks) {
-        speak(line, ticks, false);
-    }
+    private void sayPlain(String line, int ticks) { speak(line, ticks, false); }
 
     /**
      * He talks in his own voice (gen_boss_voice.py: English, lip-synced by client/BossFace): a line
@@ -972,14 +936,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** A player honked his own horn at him. */
-    public void heardHonk(Player p) {
-        if (p.distanceTo(this) < 40) retort("honk", 300, 0.8F, "honk0", "honk1");
-    }
+    public void heardHonk(Player p) { if (p.distanceTo(this) < 40) retort("honk", 300, 0.8F, "honk0", "honk1"); }
 
     /** A player's totem saved them. */
-    public void sawTotem(Player p) {
-        if (p.distanceTo(this) < 48) retort("totem", 600, 1F, "totem");
-    }
+    public void sawTotem(Player p) { if (p.distanceTo(this) < 48) retort("totem", 600, 1F, "totem"); }
 
     /**
      * Every second, what the players in his fight are up to: in his car, eating (his tacos!), drinking a potion,
@@ -1014,13 +974,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                         retort("mytaco", 400, 1F, "mytaco");
                     } else if (use.getItem() instanceof net.minecraft.world.item.PotionItem) {
                         retort("potion", 500, 0.7F, "potion");
-                    } else if (use.isEdible()) {
-                        retort("snack", 500, 0.6F, "snack0", "snack1");
-                    }
+                    } else if (use.isEdible()) { retort("snack", 500, 0.6F, "snack0", "snack1"); }
                 }
-            } else {
-                usingSince.remove(id);
-            }
+            } else { usingSince.remove(id); }
             if (p.getHealth() < p.getMaxHealth() * 0.3F) retort("lowhp", 700, 0.5F, "lowhp0", "lowhp1");
         }
         if (target instanceof Player p) {
@@ -1042,13 +998,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /** Client: the phase-two line he is saying and how far into it he is (seconds), or null. */
     @Nullable
-    public VoiceLines.Line talking() {
-        return talk;
-    }
+    public VoiceLines.Line talking() { return talk; }
 
-    public double talkTime(float partial) {
-        return (tickCount - talkStart + partial) / 20.0;
-    }
+    public double talkTime(float partial) { return (tickCount - talkStart + partial) / 20.0; }
 
     // ------------------------------------------------------------------ ticking
 
@@ -1650,9 +1602,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int[] cds = {uppercutCd, grabCd, drunkCd, risen ? 1 : comalCd, breathCd, target instanceof Player ? qteCd : 1, risen ? barrageCd : 1};
         BossState[] moves = {BossState.UPPERCUT, BossState.GRAB, BossState.DRUNK_SWIG, BossState.COMAL_SLAM, BossState.BREATH,
                 BossState.QTE_GRAB, BossState.P2_BARRAGE};
-        for (int i = 0; i < moves.length; i++) {
-            if (cds[i] <= 0 && tickCount - lastUsed.getOrDefault(moves[i], fightStart) > 400) return true;
-        }
+        for (int i = 0; i < moves.length; i++) { if (cds[i] <= 0 && tickCount - lastUsed.getOrDefault(moves[i], fightStart) > 400) return true; }
         return false;
     }
 
@@ -2215,9 +2165,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 chargesLeft--;
                 setBossState(BossState.CHARGE_WINDUP);
                 stateTicks = 7;          // a shorter wind-up for the second run
-            } else {
-                setBossState(swingHit ? BossState.IDLE : BossState.STAGGER);
-            }
+            } else { setBossState(swingHit ? BossState.IDLE : BossState.STAGGER); }
         }
     }
 
@@ -2464,9 +2412,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return dx * dx + dz * dz;
     }
 
-    private float yawTo(Vec3 at) {
-        return (float) (Mth.atan2(at.z - getZ(), at.x - getX()) * Mth.RAD_TO_DEG) - 90F;
-    }
+    private float yawTo(Vec3 at) { return (float) (Mth.atan2(at.z - getZ(), at.x - getX()) * Mth.RAD_TO_DEG) - 90F; }
 
     /**
      * Every hit goes through here: a heavy one breaks a raised shield (Cataclysm's disableShield) and
@@ -2660,9 +2606,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         shoveNear(level);
         if (horizontalDist(door) < 4) {
             getMoveControl().setWantedPosition(door.x, door.y, door.z, isPhaseTwo() ? 2.0 : 1.75);
-        } else if (getNavigation().isDone() || tickCount % 6 == 0) {
-            getNavigation().moveTo(door.x, door.y, door.z, isPhaseTwo() ? 2.0 : 1.75);
-        }
+        } else if (getNavigation().isDone() || tickCount % 6 == 0) { getNavigation().moveTo(door.x, door.y, door.z, isPhaseTwo() ? 2.0 : 1.75); }
     }
 
     private void tickDrinkHandle(ServerLevel level, @Nullable LivingEntity target) {
@@ -2893,9 +2837,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 if (van.consumeLanding()) {
                     vanImpact(level, van);
                     nextDrive(Drive.BRAKE);
-                } else if (driveTicks > 90) {
-                    nextDrive(Drive.BRAKE);
-                }
+                } else if (driveTicks > 90) { nextDrive(Drive.BRAKE); }
             }
             case BRAKE -> {
                 van.brake();
@@ -3080,9 +3022,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             stopRiding();
             moveTo(door.x, van.getY(), door.z, getYRot(), 0);
             unstick();
-        } else {
-            stopRiding();
-        }
+        } else { stopRiding(); }
         vanCd = isPhaseTwo() ? PaponConfig.VAN_COOLDOWN.get() * 2 : PaponConfig.VAN_COOLDOWN.get();     // phase two has better things to do
         if (WanderingDebug.on()) PaponMod.LOG.info("[debug] boss out of the van ({} after {}t)", drive, driveTicks);
         setBossState(BossState.EXIT_STUMBLE);
@@ -3095,9 +3035,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Vec3 d = Vec3.directionFromRotation(0, yaw).scale(0.25);
             setDeltaMovement(d.x, 0.1, d.z);
         }
-        if (stateTicks % 16 == 0) {
-            Fx.chunks(level, position().add(0, getBbHeight() * 0.8, 0), 2, 0.12F, Fx.TEQUILA, 0.15);
-        }
+        if (stateTicks % 16 == 0) { Fx.chunks(level, position().add(0, getBbHeight() * 0.8, 0), 2, 0.12F, Fx.TEQUILA, 0.15); }
         if (stateTicks >= BossState.EXIT_STUMBLE.duration) {
             think = 6;
             setBossState(BossState.IDLE);
@@ -3142,9 +3080,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Fx.slash(level, sw, getYRot() + (t == 18 ? -30 : 30), 2.0F, Fx.WHITE);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.HOSTILE, 1.5F, 0.6F);
         }
-        if (t >= 32 && t <= 44 && t % 4 == 0) {
-            Fx.slash(level, position().add(0, 1.2, 0), getYRot() + t * 50F, 2.8F, Fx.WHITE);
-        }
+        if (t >= 32 && t <= 44 && t % 4 == 0) { Fx.slash(level, position().add(0, 1.2, 0), getYRot() + t * 50F, 2.8F, Fx.WHITE); }
         if (t == 38) {
             for (LivingEntity e : around(level, 4.6)) {
                 if (strike(e, 12F, ModDamage.SPATULA, true)) {
@@ -3181,9 +3117,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (horizontalDist(spot) < 4) {
             getMoveControl().setWantedPosition(spot.x, spot.y, spot.z, 1.5);
-        } else if (getNavigation().isDone() || tickCount % 6 == 0) {
-            getNavigation().moveTo(spot.x, spot.y, spot.z, 1.5);
-        }
+        } else if (getNavigation().isDone() || tickCount % 6 == 0) { getNavigation().moveTo(spot.x, spot.y, spot.z, 1.5); }
     }
 
     /** The kick (0.55 s): the van goes skidding and spinning at where you will be. */
@@ -3222,9 +3156,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (target != null) {
                 swipeCd = 0;
                 startAttack(BossState.SWIPE, target);
-            } else {
-                setBossState(BossState.IDLE);
-            }
+            } else { setBossState(BossState.IDLE); }
         }
     }
 
@@ -3280,9 +3212,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** True while {@code e} is in his fist: they cannot climb down (see {@link GrabHold}). */
-    public boolean holds(Entity e) {
-        return grabbed != null && !releasing && e.getUUID().equals(grabbed);
-    }
+    public boolean holds(Entity e) { return grabbed != null && !releasing && e.getUUID().equals(grabbed); }
 
     /** Takes {@code e} into his right fist: his passenger, held out in front of him (positionRider). */
     private void hold(LivingEntity e) {
@@ -3360,9 +3290,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /** Held ones stand in his fist; they do not sit on him. */
     @Override
-    public boolean shouldRiderSit() {
-        return false;
-    }
+    public boolean shouldRiderSit() { return false; }
 
     /**
      * Held up in his fist, no way out: browned with a blowtorch for a second and a half (fire, the
@@ -3614,9 +3542,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         Vec3 c = arena.centerVec();
         List<ServerPlayer> in = new ArrayList<>();
-        for (ServerPlayer p : level.players()) {
-            if (!p.isSpectator() && p.distanceToSqr(this) <= 48 * 48) in.add(p);
-        }
+        for (ServerPlayer p : level.players()) { if (!p.isSpectator() && p.distanceToSqr(this) <= 48 * 48) in.add(p); }
         for (int i = 0; i < in.size(); i++) {
             ServerPlayer p = in.get(i);
             p.stopRiding();
@@ -3846,14 +3772,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** Off the sand: past the podium wall, below the floor, or up over the top of the barrier. */
-    private boolean outOfArena(Vec3 p) {
-        return !arena.inArena(p) || p.y < arena.floorY() - 1.5;
-    }
+    private boolean outOfArena(Vec3 p) { return !arena.inArena(p) || p.y < arena.floorY() - 1.5; }
 
     /** The stand's front, where he stands to have words with the band. */
-    private Vec3 standFront() {
-        return arena.centerVec().add(0, 0, -Coliseum.B + 9.6);
-    }
+    private Vec3 standFront() { return arena.centerVec().add(0, 0, -Coliseum.B + 9.6); }
 
     /**
      * In his coliseum (5 s): the white clears on him coming down out of the sky into the middle of
@@ -4007,9 +3929,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowdReact(level, CrowdMood.GASP, 18);
         }
         if (t == 17) {
-            for (MariachiEntity m : band(level)) {
-                if (!m.getRole().singer()) m.wake(m.getRole().dozer() ? 0 : random.nextInt(30));
-            }
+            for (MariachiEntity m : band(level)) { if (!m.getRole().singer()) m.wake(m.getRole().dozer() ? 0 : random.nextInt(30)); }
         }
         if (t == 30) crowdReact(level, CrowdMood.ROAR, 30);
         if (t == Math.max(26, beat("wake.line", 42))) sayPlain("despierten", 50);
@@ -4129,9 +4049,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** Rockets off the top of the walls in the flag's colours, on the beat (a salvo: client/FlagFireworks). */
-    private void fireworks(ServerLevel level) {
-        salvo(level, 8);
-    }
+    private void fireworks(ServerLevel level) { salvo(level, 8); }
 
     /** The guitar intro (the camera on the singer's hands): he grooves along, nodding, facing the band. */
     private void tickShowtime(ServerLevel level) {
@@ -4154,9 +4072,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             double d = horizontalDist(target.position());
             if (t < 50 && d > 5.5) {
                 if (t % 10 == 1) getNavigation().moveTo(target.getX(), target.getY(), target.getZ(), 0.9);
-            } else {
-                getNavigation().stop();
-            }
+            } else { getNavigation().stop(); }
             if (t < aura) turnToward(target.position(), 8F);
             else turnToward(target.position().add(Vec3.directionFromRotation(0, getYRot() + 90).scale(6)), 2.5F);
         }
@@ -4329,15 +4245,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return id >= 1 && id <= all.length ? all[id - 1] : TRUMPETS;
         }
 
-        public int id() {
-            return ordinal() + 1;
-        }
+        public int id() { return ordinal() + 1; }
     }
 
     /** Client: who P2_CUTAWAY is on. */
-    public Cutaway cutaway() {
-        return Cutaway.byId(entityData.get(DATA_CUTAWAY));
-    }
+    public Cutaway cutaway() { return Cutaway.byId(entityData.get(DATA_CUTAWAY)); }
 
     /**
      * A moment in the music (or the stands) worth a cut to the band: if the fight can spare 1.8 s (he is between moves,
@@ -4371,9 +4283,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (c == Cutaway.STANDS) {
                 crowdRoar(level, 30);
                 salvo(level, 3);
-            } else {
-                crowdReact(level, CrowdMood.CHEER, 30);
-            }
+            } else { crowdReact(level, CrowdMood.CHEER, 30); }
         }
         if (t == 10 && quipCd <= 0 && speechTicks <= 0 && random.nextInt(3) == 0) {
             // a word for his public, or "OLÉ!!!" for his band
@@ -4546,9 +4456,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             float sway = Mth.sin(t * 0.09F) * 25F;
             setYRot(p3Yaw + sway);
             yHeadRot = getYRot();
-        } else if (singer != null) {
-            turnToward(singer.position(), t < focus ? 2.5F : 6F);
-        }
+        } else if (singer != null) { turnToward(singer.position(), t < focus ? 2.5F : 6F); }
         if (t % (t < scare ? 26 : 20) == 0) {
             level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.HOSTILE, 1.4F, 0.8F);
         }
@@ -4846,9 +4754,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** Ascended Papon (phase three, from his serenade on): the better potato, white eyes, eagle wings. */
-    public boolean isAscended() {
-        return form() >= 3;
-    }
+    public boolean isAscended() { return form() >= 3; }
 
     /** The chord dying, the guitar lowered from his chest: "THIS... is more my style. Learn, muchachos." The stands erupt. */
     private void tickP3Verdict(ServerLevel level) {
@@ -5100,9 +5006,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 Fx.spark(level, van.local(side * (CaravanEntity.HALF_WIDTH + 0.1), 0.15, CaravanEntity.HALF_LENGTH * (1 - 2 * k)), 3, 0.15, 0.2F, 0xB050FF);
             }
         }
-        if (t == rev) {
-            level.playSound(null, van.getX(), van.getY(), van.getZ(), ModSounds.SKYLINE_REV.get(), SoundSource.HOSTILE, 3.0F, 1.0F);
-        }
+        if (t == rev) { level.playSound(null, van.getX(), van.getY(), van.getZ(), ModSounds.SKYLINE_REV.get(), SoundSource.HOSTILE, 3.0F, 1.0F); }
         // the pops after the blips, the flames on the pull and all through the overrun (the rev sound's own timing)
         int r = t - rev;
         if (r == 8 || r == 20 || (r >= 58 && r <= 84 && r % 4 == 2)) backfire(level, van, r >= 58 ? 0.7F : 1F);
@@ -5217,19 +5121,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** How dark the coliseum stays through phase three (the braziers and his spotlight light it). */
     private static final float NIGHT_P3 = 0.8F;
 
-    public boolean isPhaseThree() {
-        return entityData.get(DATA_PHASE3);
-    }
+    public boolean isPhaseThree() { return entityData.get(DATA_PHASE3); }
 
     /** How dark it is round him (client: the lightmap, the sky, the fog), 0 day .. 1 pitch black. */
-    public float night() {
-        return entityData.get(DATA_NIGHT);
-    }
+    public float night() { return entityData.get(DATA_NIGHT); }
 
     /** The spotlight is on him (from the blackout on, through phase three). */
-    public boolean spotlit() {
-        return entityData.get(DATA_SPOT);
-    }
+    public boolean spotlit() { return entityData.get(DATA_SPOT); }
 
     /** Client: the serenade's place in the song (seconds into the recording), or NaN outside it. */
     public double serenadeTime(float partial) {
@@ -5285,9 +5183,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private int duelLen, duelGuitarist = -1, duelPhase, duelResult = -1, duelScore;
 
     /** Ascended Papon (phase three's fight, after the cutscene): his own moveset. */
-    private boolean ascendedFight() {
-        return isAscended() && isPhaseThree();
-    }
+    private boolean ascendedFight() { return isAscended() && isPhaseThree(); }
 
     /**
      * What Ascended Papon does next, by range and what is ready (and then the same weighted deck as ever): up close the
@@ -5507,9 +5403,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return level.getEntity(beams.get(i)) instanceof BeamEntity b && b.isAlive() ? b : null;
     }
 
-    private void addBeam(ServerLevel level, Vec3 from, Vec3 aim, float width, int color) {
-        addBeam(level, from, aim, width, color, 0);
-    }
+    private void addBeam(ServerLevel level, Vec3 from, Vec3 aim, float width, int color) { addBeam(level, from, aim, width, color, 0); }
 
     /** ...out of his eye ({@code eye} 1 right, -1 left; 0 none): the client draws it from the eye itself. */
     private void addBeam(ServerLevel level, Vec3 from, Vec3 aim, float width, int color, int eye) {
@@ -5572,9 +5466,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Vec3 dv = to.subtract(position());
             setDeltaMovement(dv.scale(0.5));
             if (t % 2 == 0) Fx.spark(level, position().add(0, getBbHeight() * 0.5, 0), 3, 0.4, 0.3F, 0xFFE07A);
-        } else if (t < 38) {
-            setDeltaMovement(getDeltaMovement().scale(0.3));
-        }
+        } else if (t < 38) { setDeltaMovement(getDeltaMovement().scale(0.3)); }
         if (t == 9 || t == 14 || t == 19) {
             for (LivingEntity e : inCone(level, position().add(0, 1, 0), look, 4.8, 65)) {
                 e.invulnerableTime = 0;
@@ -6373,9 +6265,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     LivingEntity v = victims.get((i / 2) % victims.size());
                     Vec3 p = predict(v, 14 + i);
                     to = p.add(random.nextGaussian() * 2.2, 0, random.nextGaussian() * 2.2);
-                } else {
-                    to = c.add((random.nextDouble() - 0.5) * 2 * Coliseum.A, 0, (random.nextDouble() - 0.5) * 2 * Coliseum.B);
-                }
+                } else { to = c.add((random.nextDouble() - 0.5) * 2 * Coliseum.A, 0, (random.nextDouble() - 0.5) * 2 * Coliseum.B); }
                 to = inSand(to, 1.5, 0, 0);
                 to = new Vec3(to.x, floor, to.z);
                 int flight = 14 + (int) (i * 1.4) + random.nextInt(4);
@@ -7342,9 +7232,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     if (divesLeft > 0) {
                         diveStage = 0;
                         diveTicks = 0;
-                    } else {
-                        setBossState(BossState.IDLE);
-                    }
+                    } else { setBossState(BossState.IDLE); }
                 }
             }
         }
@@ -7374,9 +7262,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         foils.clear();
     }
 
-    public int foilsLeft() {
-        return foils.size();
-    }
+    public int foilsLeft() { return foils.size(); }
 
     /** Keeps the foil potatoes on their orbit; wraps a new set 45 s after the last one is broken. */
     private void tickFoils(ServerLevel level) {
@@ -7407,9 +7293,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     // ================================================================== the rework
 
     /** Anything he may hit (his props ask this too). */
-    public boolean canHit(LivingEntity e) {
-        return hittable(e);
-    }
+    public boolean canHit(LivingEntity e) { return hittable(e); }
 
     private static float pct(boolean p2, float p1, float p2v) {
         return p2 ? p2v : p1;
@@ -7539,9 +7423,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (target != null && distanceTo(target) < 14) {
                 dashCd = 0;
                 startAttack(BossState.DASH_COMBO, target);
-            } else {
-                setBossState(BossState.IDLE);
-            }
+            } else { setBossState(BossState.IDLE); }
         }
     }
 
@@ -7631,9 +7513,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickDrunkSwig(ServerLevel level, @Nullable LivingEntity target) {
         getNavigation().stop();
         if (target != null) face(target.position());
-        if (stateTicks == 2) {
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_DRINK, SoundSource.HOSTILE, 1.5F, 0.6F);
-        }
+        if (stateTicks == 2) { level.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_DRINK, SoundSource.HOSTILE, 1.5F, 0.6F); }
         if (stateTicks >= BossState.DRUNK_SWIG.duration) {
             say("borracho", 40);
             setBossState(BossState.DRUNK_FLURRY);
@@ -8221,9 +8101,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 diveCd = 0;
                 pendingDives = 1;
                 startAttack(BossState.P2_DIVE, rooted);
-            } else {
-                setBossState(BossState.IDLE);
-            }
+            } else { setBossState(BossState.IDLE); }
         }
     }
 
@@ -8500,9 +8378,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         masher.setPos(c.x, c.y + h, c.z);
         masher.setRadius((float) h);
         boolean warning = t >= 10 && t < last - 4 && Arrays.stream(MASHER_SLAMS).noneMatch(sl -> t >= sl - 4 && t < sl + 4);
-        if (warning && t % 6 == 0) {
-            for (Vec3 hole : Masher.holes(yaw, variant)) com.groid.papon.fx.Fx.warn(level, c.add(hole), 2.2F, 0x6CFF6A, 8);
-        }
+        if (warning && t % 6 == 0) { for (Vec3 hole : Masher.holes(yaw, variant)) com.groid.papon.fx.Fx.warn(level, c.add(hole), 2.2F, 0x6CFF6A, 8); }
         if (t % 14 == 0 && warning) level.playSound(null, c.x, c.y + h, c.z, SoundEvents.CHAIN_PLACE, SoundSource.HOSTILE, 3.0F, 0.5F);
         if (t == 22) {
         }
@@ -8826,9 +8702,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (p.kind() == BossProp.Kind.METEOR) {
             com.groid.papon.fx.Fx.scorch(level, at, 2.2F, 200);
             addFire(level, at.add(0, 0.5, 0));
-        } else {
-            com.groid.papon.fx.Fx.chunks(level, at.add(0, 0.3, 0), big ? 10 : 5, 0.3F, 0xE9B85A, 0.4);
-        }
+        } else { com.groid.papon.fx.Fx.chunks(level, at.add(0, 0.3, 0), big ? 10 : 5, 0.3F, 0xE9B85A, 0.4); }
         level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, big ? 1.2F : 0.7F, big ? 1.0F : 1.5F);
         PaponNetwork.shake(level, at, big ? 8 : 4, big ? 0.25F : 0.1F, 8);
         for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(r, 2.0, r), this::hittable)) {
@@ -8844,13 +8718,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     // ------------------------------------------------------------------ hits
 
-    private float dmg() {
-        return PaponConfig.BOSS_DAMAGE.get().floatValue() * (isRisen() ? 1.35F : 1F);
-    }
+    private float dmg() { return PaponConfig.BOSS_DAMAGE.get().floatValue() * (isRisen() ? 1.35F : 1F); }
 
-    private DamageSource source(ResourceKey<DamageType> type) {
-        return ModDamage.of((ServerLevel) level(), type, this, this);
-    }
+    private DamageSource source(ResourceKey<DamageType> type) { return ModDamage.of((ServerLevel) level(), type, this, this); }
 
     private void hitArc(ServerLevel level, double range, double halfAngle, float damage, double knock, ResourceKey<DamageType> type,
                         boolean heavy) {
@@ -9072,9 +8942,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (!getBossState().unstoppable() && !getBossState().qte()) super.knockback(strength, x, z);
     }
 
-    public boolean isGuarding() {
-        return getBossState() == BossState.GUARD;
-    }
+    public boolean isGuarding() { return getBossState() == BossState.GUARD; }
 
     /** Arrows into the comal's face fly back where they came from. */
     @net.minecraftforge.fml.common.Mod.EventBusSubscriber(modid = PaponMod.MOD_ID)
@@ -9148,43 +9016,27 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private final java.util.Set<Long> velasHits = new java.util.HashSet<>();
 
     /** His truest form: the skeleton (form 4). */
-    public boolean isMuertos() {
-        return form() >= 4;
-    }
+    public boolean isMuertos() { return form() >= 4; }
 
     /** The fight in phase four (after the cutscene). */
-    public boolean muertosFight() {
-        return isMuertos() && entityData.get(DATA_PHASE4);
-    }
+    public boolean muertosFight() { return isMuertos() && entityData.get(DATA_PHASE4); }
 
-    public boolean isPhaseFour() {
-        return entityData.get(DATA_PHASE4);
-    }
+    public boolean isPhaseFour() { return entityData.get(DATA_PHASE4); }
 
     /** What the moon is: 0 not shown, 1 the potato moon (the clouds parted), 2 the dead's blue calavera. */
-    public int moon() {
-        return entityData.get(DATA_MOON);
-    }
+    public int moon() { return entityData.get(DATA_MOON); }
 
     /** What he holds out of thin air: 0 nothing, 1 the spirit hammer, 2 a spirit guitar. */
-    public int spiritProp() {
-        return entityData.get(DATA_P4PROP);
-    }
+    public int spiritProp() { return entityData.get(DATA_P4PROP); }
 
     /** The fog over his awakening (phase four's cutscene), 0..1. */
-    public float fog() {
-        return entityData.get(DATA_FOG);
-    }
+    public float fog() { return entityData.get(DATA_FOG); }
 
     /** The souls' green light in him, 0..1. */
-    public float glow() {
-        return entityData.get(DATA_GLOW);
-    }
+    public float glow() { return entityData.get(DATA_GLOW); }
 
     /** A synced angle for the move he is doing (the petal spirals' start). */
-    public float moveAngle() {
-        return entityData.get(DATA_P4ANGLE);
-    }
+    public float moveAngle() { return entityData.get(DATA_P4ANGLE); }
 
     /** Where the moon hangs (both sides): over his coliseum's band stand, or over where he fights. */
     public Vec3 moonPos() {
@@ -9193,9 +9045,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** Client: the arena's middle (or his home), the moon's rays aim from there. */
-    public Vec3 fightCenter() {
-        return inColiseum() && arena != null ? arena.centerVec() : home != null ? home : position();
-    }
+    public Vec3 fightCenter() { return inColiseum() && arena != null ? arena.centerVec() : home != null ? home : position(); }
 
     private boolean canStartPhaseFour() {
         BossState s = getBossState();
@@ -9243,9 +9093,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         PaponMod.LOG.info("[boss] phase four: the Final Guardian (hp {}/{})", (int) getHealth(), (int) getMaxHealth());
     }
 
-    private Vec3 p4Center() {
-        return inColiseum() && arena != null ? arena.centerVec() : home != null ? home : position();
-    }
+    private Vec3 p4Center() { return inColiseum() && arena != null ? arena.centerVec() : home != null ? home : position(); }
 
     /** A point kept on the sand (well inside its ellipse), at the floor. */
     private Vec3 onSand(Vec3 p) {
@@ -9276,9 +9124,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Vec3 at = to.lerp(skid, 1 - (1 - k) * (1 - k));
             setPos(at.x, at.y, at.z);
             if (t % 2 == 0) Fx.dust(level, position(), 0.9, 3);
-        } else {
-            noPhysics = false;
-        }
+        } else { noPhysics = false; }
         if (t == land) {
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 1.6F, 0.5F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 1.4F, 0.4F);
@@ -9402,9 +9248,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             LivingEntity target = getTarget();
             Vec3 stands = target != null ? c.add(target.position().subtract(c).multiply(1, 0, 1).normalize().scale(60)) : c.add(0, 0, 60);
             turnToward(stands, 3F);
-        } else {
-            turnToward(moonPos(), 4F);
-        }
+        } else { turnToward(moonPos(), 4F); }
         if (t == beat("p4.brethren", 14)) {
             sayPlain("p4_brethren", 100);
             crowdMood(level, CrowdMood.HUSH);
@@ -9591,9 +9435,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     @Nullable
     private SkySerpentEntity serpent(ServerLevel level, int kind) {
-        for (UUID id : serpentIds) {
-            if (level.getEntity(id) instanceof SkySerpentEntity s && s.kind() == kind) return s;
-        }
+        for (UUID id : serpentIds) { if (level.getEntity(id) instanceof SkySerpentEntity s && s.kind() == kind) return s; }
         return null;
     }
 
@@ -9633,9 +9475,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** Where he stands to talk to the band: on the sand just off the stage, in front of the singer. */
-    private Vec3 bandSpot() {
-        return wakeSpot();
-    }
+    private Vec3 bandSpot() { return wakeSpot(); }
 
     /** P4_TOBAND: a walk over to the band, quiet now. */
     private void tickP4ToBand(ServerLevel level) {
@@ -9848,9 +9688,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowd.setDead(1F);
         }
         List<ServerPlayer> in = new ArrayList<>();
-        for (ServerPlayer p : level.players()) {
-            if (!p.isSpectator() && arena.contains(p.position())) in.add(p);
-        }
+        for (ServerPlayer p : level.players()) { if (!p.isSpectator() && arena.contains(p.position())) in.add(p); }
         for (int i = 0; i < in.size(); i++) {
             ServerPlayer p = in.get(i);
             p.stopRiding();
@@ -9979,9 +9817,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 if (e != null) e.discard();
             }
             souls.clear();
-            for (UUID id : dancers) {
-                if (level.getEntity(id) instanceof PaponEchoEntity e) e.discard();
-            }
+            for (UUID id : dancers) { if (level.getEntity(id) instanceof PaponEchoEntity e) e.discard(); }
             dancers.clear();
             if (old == BossState.P4_GRIETA) closeRift(level, false);
             if (isPhaseFour()) entityData.set(DATA_P4PROP, 1);
@@ -10010,9 +9846,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return level.getEntitiesOfClass(LivingEntity.class, new AABB(c, c).inflate(r, 30, r), this::hittable);
     }
 
-    private double deadFloor() {
-        return floorNear(position());
-    }
+    private double deadFloor() { return floorNear(position()); }
 
     // ---- El Martillo
 
@@ -10407,9 +10241,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     }
                 }
             }
-        } else if (!beams.isEmpty()) {
-            clearBeams(level);
-        }
+        } else if (!beams.isEmpty()) { clearBeams(level); }
         // the hands: marked where you are, then down
         for (int[] slam : new int[][]{{125, 140, 0}, {145, 160, 1}}) {
             if (t == slam[0] && target != null) {
@@ -10922,9 +10754,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                         level.playSound(null, hit.getX(), hit.getY(), hit.getZ(), SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 1.6F, 0.6F);
                     }
                 }
-            } else if (t == start + 10) {
-                e.vanishNow(level);
-            }
+            } else if (t == start + 10) { e.vanishNow(level); }
         }
         if (t >= BossState.P4_DANZA.duration) setBossState(BossState.IDLE);
     }
@@ -11003,9 +10833,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     @Override
-    public double getMyRidingOffset() {
-        return -0.15;
-    }
+    public double getMyRidingOffset() { return -0.15; }
 
     // ------------------------------------------------------------------ boss bar
 
@@ -11013,9 +10841,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         for (ServerPlayer p : List.copyOf(bossEvent.getPlayers())) {
             if (!p.isAlive() || p.level() != level() || p.distanceToSqr(this) > 72 * 72) bossEvent.removePlayer(p);
         }
-        for (ServerPlayer p : ((ServerLevel) level()).players()) {
-            if (p.distanceToSqr(this) < 56 * 56) bossEvent.addPlayer(p);
-        }
+        for (ServerPlayer p : ((ServerLevel) level()).players()) { if (p.distanceToSqr(this) < 56 * 56) bossEvent.addPlayer(p); }
     }
 
     @Override
@@ -11230,18 +11056,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /** Client: on the way back from the band stand with the guitar (the duel's fetch, second leg). */
-    private boolean duelPhaseClient() {
-        return entityData.get(DATA_GUITAR);
-    }
+    private boolean duelPhaseClient() { return entityData.get(DATA_GUITAR); }
 
-    private void onSoundCue(SoundKeyframeEvent<PaponBossEntity> event) {
-        SoundCues.play(this, event.getKeyframeData().getSound());
-    }
+    private void onSoundCue(SoundKeyframeEvent<PaponBossEntity> event) { SoundCues.play(this, event.getKeyframeData().getSound()); }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return cache;
-    }
+    public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
 
     // ------------------------------------------------------------------ persistence
 

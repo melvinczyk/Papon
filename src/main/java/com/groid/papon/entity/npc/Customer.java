@@ -79,9 +79,7 @@ public enum Customer {
         this.own = own;
     }
 
-    public String key(String line) {
-        return "speech.papon." + (this == PAPON ? "papon" : id) + "." + line;
-    }
+    public String key(String line) { return "speech.papon." + (this == PAPON ? "papon" : id) + "." + line; }
 
     /** Full GeckoLib animation name for one of this customer's animations ("walk", "order", ...). */
     public String anim(String name) {
@@ -90,13 +88,9 @@ public enum Customer {
     }
 
     /** This customer's own idle while waiting (props in hand), without the file prefix. */
-    public String idleAnim() {
-        return human ? "idle_" + id : "idle";
-    }
+    public String idleAnim() { return human ? "idle_" + id : "idle"; }
 
-    public String reactAnim() {
-        return human ? "react_" + id : "react";
-    }
+    public String reactAnim() { return human ? "react_" + id : "react"; }
 
     /** A spoken line, {@code at} ticks into the reaction, showing for {@code ticks}. */
     public record Line(int at, String name, int ticks) {}

@@ -77,9 +77,7 @@ public class SkySerpentEntity extends Entity {
         entityData.define(DATA_ROAR, -1000);
     }
 
-    public int kind() {
-        return entityData.get(DATA_KIND);
-    }
+    public int kind() { return entityData.get(DATA_KIND); }
 
     /** Ticks since it came out of its portal. */
     public double age(float partial) {
@@ -89,18 +87,12 @@ public class SkySerpentEntity extends Entity {
     }
 
     /** How far along its path its head is. */
-    public double head(float partial) {
-        return age(partial) * SPEED;
-    }
+    public double head(float partial) { return age(partial) * SPEED; }
 
     /** Puts it out of its portal long ago (already circling: after a reload). */
-    public void circling() {
-        entityData.set(DATA_BORN, (int) ((level().getGameTime() - 20 * 40) & 0x7FFFFFFF));
-    }
+    public void circling() { entityData.set(DATA_BORN, (int) ((level().getGameTime() - 20 * 40) & 0x7FFFFFFF)); }
 
-    public Vec3 portal() {
-        return new Vec3(entityData.get(DATA_PORTAL));
-    }
+    public Vec3 portal() { return new Vec3(entityData.get(DATA_PORTAL)); }
 
     public SerpentPath path() {
         CompoundTag key = entityData.get(DATA_DIVES);
@@ -202,29 +194,19 @@ public class SkySerpentEntity extends Entity {
     }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double d) {
-        return true;
-    }
+    public boolean shouldRenderAtSqrDistance(double d) { return true; }
 
     @Override
-    public AABB getBoundingBoxForCulling() {
-        return getBoundingBox().inflate(400);
-    }
+    public AABB getBoundingBoxForCulling() { return getBoundingBox().inflate(400); }
 
     @Override
-    public boolean isPickable() {
-        return false;
-    }
+    public boolean isPickable() { return false; }
 
     @Override
-    public boolean isPushable() {
-        return false;
-    }
+    public boolean isPushable() { return false; }
 
     @Override
-    public boolean shouldBeSaved() {
-        return false;
-    }
+    public boolean shouldBeSaved() { return false; }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {}

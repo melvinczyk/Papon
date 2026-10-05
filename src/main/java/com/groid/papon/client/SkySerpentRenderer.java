@@ -35,14 +35,10 @@ public class SkySerpentRenderer extends EntityRenderer<SkySerpentEntity> {
     }
 
     @Override
-    public boolean shouldRender(SkySerpentEntity e, Frustum frustum, double x, double y, double z) {
-        return true;
-    }
+    public boolean shouldRender(SkySerpentEntity e, Frustum frustum, double x, double y, double z) { return true; }
 
     @Override
-    public ResourceLocation getTextureLocation(SkySerpentEntity e) {
-        return tex(e, "head");
-    }
+    public ResourceLocation getTextureLocation(SkySerpentEntity e) { return tex(e, "head"); }
 
     private static ResourceLocation tex(SkySerpentEntity e, String part) {
         return PaponMod.id("textures/entity/serpent_" + (e.kind() == SkySerpentEntity.OUROS ? "ouros" : "boros") + "_" + part + ".png");

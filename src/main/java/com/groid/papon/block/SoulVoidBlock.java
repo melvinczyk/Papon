@@ -32,14 +32,10 @@ public class SoulVoidBlock extends Block {
     private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 15, 16);
     private static final VoxelShape FLOOR = Block.box(0, 0, 0, 16, 4, 16);
 
-    public SoulVoidBlock(Properties props) {
-        super(props);
-    }
+    public SoulVoidBlock(Properties props) { super(props); }
 
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return SHAPE;
-    }
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) { return SHAPE; }
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
@@ -63,18 +59,14 @@ public class SoulVoidBlock extends Block {
             Mechanics.trueHit(e, DRAGGED, null, true);
             level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.SOUL_ESCAPE, SoundSource.HOSTILE, 2.0F, 0.5F);
             level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.HOSTILE, 0.8F, 1.6F);
-        } else {
-            Mechanics.trueHit(e, PER_TICK, null, true);
-        }
+        } else { Mechanics.trueHit(e, PER_TICK, null, true); }
         e.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20, 3, false, false, true));
         e.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 40, 0, false, false, true));
         if ((now + e.getId()) % 22 == 0) {
             // the souls wail and the void heaves: thrown up and out
             e.setDeltaMovement(e.getDeltaMovement().multiply(0.4, 0, 0.4).add(0, 0.95, 0));
             level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.GHAST_SCREAM, SoundSource.HOSTILE, 1.2F, 0.5F);
-        } else {
-            e.setDeltaMovement(e.getDeltaMovement().multiply(0.6, 1, 0.6).add(0, -0.04, 0));
-        }
+        } else { e.setDeltaMovement(e.getDeltaMovement().multiply(0.6, 1, 0.6).add(0, -0.04, 0)); }
         e.hurtMarked = true;
     }
 

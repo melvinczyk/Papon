@@ -26,9 +26,7 @@ public record FxOptions(ParticleType<FxOptions> type, int sprite, float size, fl
                         float yaw) implements ParticleOptions {
 
     @Override
-    public ParticleType<?> getType() {
-        return type;
-    }
+    public ParticleType<?> getType() { return type; }
 
     @Override
     public void writeToNetwork(FriendlyByteBuf buf) {
@@ -83,9 +81,7 @@ public record FxOptions(ParticleType<FxOptions> type, int sprite, float size, fl
     public static ParticleType<FxOptions> newType() {
         return new ParticleType<>(true, DESERIALIZER) {
             @Override
-            public Codec<FxOptions> codec() {
-                return FxOptions.codec(this);
-            }
+            public Codec<FxOptions> codec() { return FxOptions.codec(this); }
         };
     }
 }

@@ -265,9 +265,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     }
 
     @Override
-    protected float getDeathMaxRotation(PaponBossEntity entity) {
-        return 0;
-    }
+    protected float getDeathMaxRotation(PaponBossEntity entity) { return 0; }
 
     /** How strong the light rays bursting out of him are: when he bakes golden, and through the scream. */
     private static float rays(PaponBossEntity boss, float partialTick) {

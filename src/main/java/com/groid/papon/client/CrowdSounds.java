@@ -127,9 +127,7 @@ public final class CrowdSounds {
         }
 
         @Override
-        public boolean canStartSilent() {
-            return true;
-        }
+        public boolean canStartSilent() { return true; }
 
         @Override
         public void tick() {

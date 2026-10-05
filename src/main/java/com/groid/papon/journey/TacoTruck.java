@@ -95,9 +95,7 @@ public final class TacoTruck {
 
     /** Rotation that turns the template's +Z (south) window to face {@code dir}. */
     private static Rotation rotationFacing(Direction dir) {
-        for (Rotation r : Rotation.values()) {
-            if (r.rotate(Direction.SOUTH) == dir) return r;
-        }
+        for (Rotation r : Rotation.values()) { if (r.rotate(Direction.SOUTH) == dir) return r; }
         return Rotation.NONE;
     }
 
@@ -142,9 +140,7 @@ public final class TacoTruck {
     private static void prepareGround(ServerLevel level, BoundingBox box, int groundY) {
         BlockState grass = Blocks.GRASS_BLOCK.defaultBlockState();
         for (int x = box.minX() - 1; x <= box.maxX() + 1; x++) {
-            for (int z = box.minZ() - 1; z <= box.maxZ() + 1; z++) {
-                levelColumn(level, x, z, groundY, box.maxY() + CLEAR_ABOVE, grass);
-            }
+            for (int z = box.minZ() - 1; z <= box.maxZ() + 1; z++) { levelColumn(level, x, z, groundY, box.maxY() + CLEAR_ABOVE, grass); }
         }
     }
 
@@ -256,9 +252,7 @@ public final class TacoTruck {
     /** A truck already stands within {@code radius} of the spot. */
     @Nullable
     public static BlockPos existingNear(ServerLevel level, BlockPos spot, int radius) {
-        for (BlockPos t : JourneyData.get(level).trucks()) {
-            if (JourneyPlanner.horizontalDistSqr(t, spot) <= (double) radius * radius) return t;
-        }
+        for (BlockPos t : JourneyData.get(level).trucks()) { if (JourneyPlanner.horizontalDistSqr(t, spot) <= (double) radius * radius) return t; }
         return null;
     }
 }

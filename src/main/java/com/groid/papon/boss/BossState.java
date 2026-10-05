@@ -334,9 +334,7 @@ public enum BossState {
 
     public final int duration;
 
-    BossState(int duration) {
-        this.duration = duration;
-    }
+    BossState(int duration) { this.duration = duration; }
 
     public static BossState byId(int id) {
         BossState[] all = values();
@@ -344,14 +342,10 @@ public enum BossState {
     }
 
     /** The intro: he cannot be hurt and the boss bar is hidden. */
-    public boolean intro() {
-        return this == LEAP_OUT || this == CHUG;
-    }
+    public boolean intro() { return this == LEAP_OUT || this == CHUG; }
 
     /** The phase-two cutscene before the dome: he cannot be hurt, and the music stops dead. */
-    public boolean silent() {
-        return this == P2_KNEEL || this == P2_TALK || this == P2_SEASON || this == P2_SCREAM;
-    }
+    public boolean silent() { return this == P2_KNEEL || this == P2_TALK || this == P2_SEASON || this == P2_SCREAM; }
 
     /** Any part of the phase-two cutscene (he cannot be hurt), the guitar solo's moment, and the phase-three cutscene. */
     public boolean cutscene() {
@@ -359,19 +353,13 @@ public enum BossState {
     }
 
     /** Phase four's cutscene: the reopened scar to the first sung word. */
-    public boolean phaseFour() {
-        return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_GOODTIME.ordinal();
-    }
+    public boolean phaseFour() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_GOODTIME.ordinal(); }
 
     /** Phase four's moves. */
-    public boolean muertosMove() {
-        return ordinal() >= P4_MARTILLO.ordinal() && ordinal() <= P4_FLECHAS.ordinal();
-    }
+    public boolean muertosMove() { return ordinal() >= P4_MARTILLO.ordinal() && ordinal() <= P4_FLECHAS.ordinal(); }
 
     /** Phase four's cutscene before the band plays his last song (their music off). */
-    public boolean p4Silent() {
-        return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_TOBAND.ordinal();
-    }
+    public boolean p4Silent() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_TOBAND.ordinal(); }
 
     /** The phase-three cutscene, the knockback to "let's dance". */
     public boolean phaseThree() {
@@ -379,9 +367,7 @@ public enum BossState {
     }
 
     /** Through phase three's cutscene, before the band takes the song back: the stands' own song is off. */
-    public boolean bandStopped() {
-        return phaseThree() && this != P3_DANCE;
-    }
+    public boolean bandStopped() { return phaseThree() && this != P3_DANCE; }
 
     /** The coliseum's own beats: the band, the count-in, the apology. */
     public boolean coliseum() {
@@ -396,12 +382,8 @@ public enum BossState {
     }
 
     /** A QTE in progress (he cannot be hurt until it resolves). */
-    public boolean qte() {
-        return this == QTE_HOLD || this == QTE_FAIL;
-    }
+    public boolean qte() { return this == QTE_HOLD || this == QTE_FAIL; }
 
     /** Music and boss bar are on. */
-    public boolean fighting() {
-        return !intro() && this != DEATH && !silent();
-    }
+    public boolean fighting() { return !intro() && this != DEATH && !silent(); }
 }

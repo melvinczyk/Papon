@@ -20,18 +20,14 @@ public class SalsaDancerRenderer extends GeoEntityRenderer<SalsaDancerEntity> {
     public SalsaDancerRenderer(EntityRendererProvider.Context ctx) {
         super(ctx, new DefaultedEntityGeoModel<SalsaDancerEntity>(PaponMod.id("salsa_dancer")) {
             @Override
-            public ResourceLocation getTextureResource(SalsaDancerEntity e) {
-                return LOOKS[e.look()];
-            }
+            public ResourceLocation getTextureResource(SalsaDancerEntity e) { return LOOKS[e.look()]; }
         });
         withScale(1.6F);
         shadowRadius = 0.7F;
     }
 
     @Override
-    public ResourceLocation getTextureLocation(SalsaDancerEntity e) {
-        return LOOKS[e.look()];
-    }
+    public ResourceLocation getTextureLocation(SalsaDancerEntity e) { return LOOKS[e.look()]; }
 
     @Override
     public void render(SalsaDancerEntity e, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {

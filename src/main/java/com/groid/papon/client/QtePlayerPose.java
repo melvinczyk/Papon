@@ -112,9 +112,7 @@ public final class QtePlayerPose {
             pose.mulPose(Axis.XP.rotationDegrees(-25F - 10F * Mth.sin(age * 0.25F)));
             pose.mulPose(Axis.ZP.rotationDegrees(8F * Mth.sin(age * 0.5F)));
             pose.translate(0, -0.9, 0);
-        } else if (kind == Kind.LIMP) {
-            pose.mulPose(Axis.XP.rotationDegrees(-12F));
-        }
+        } else if (kind == Kind.LIMP) { pose.mulPose(Axis.XP.rotationDegrees(-12F)); }
         pose.scale(-1F, -1F, 1F);
         pose.scale(0.9375F, 0.9375F, 0.9375F);
         pose.translate(0, -1.501F, 0);

@@ -46,9 +46,7 @@ public final class SerpentPath {
         for (Dive d : dives) this.dives.add(new Piece(d));
     }
 
-    public double approachLength() {
-        return approachLength;
-    }
+    public double approachLength() { return approachLength; }
 
     // ---- the orbit
 
@@ -57,9 +55,7 @@ public final class SerpentPath {
         return center.add(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
     }
 
-    private Vec3 orbitTangent(double angle) {
-        return new Vec3(-Math.sin(angle) * dir, 0, Math.cos(angle) * dir);
-    }
+    private Vec3 orbitTangent(double angle) { return new Vec3(-Math.sin(angle) * dir, 0, Math.cos(angle) * dir); }
 
     /** On the orbit, {@code s} blocks from the portal (as if it had circled all along). */
     public Vec3 orbitAt(double s) {
@@ -67,9 +63,7 @@ public final class SerpentPath {
         return orbitPoint(entryAngle + dir * along / radius, along);
     }
 
-    private Vec3 orbitTangentAt(double s) {
-        return orbitTangent(entryAngle + dir * (s - approachLength) / radius);
-    }
+    private Vec3 orbitTangentAt(double s) { return orbitTangent(entryAngle + dir * (s - approachLength) / radius); }
 
     // ---- the way in
 
@@ -83,17 +77,13 @@ public final class SerpentPath {
     public Vec3 at(double s) {
         if (s <= 0) return portal.add(approachTangent.scale(s));
         if (s < approachLength) return approachCurve.at(s);
-        for (Piece p : dives) {
-            if (s >= p.s0 && s < p.s0 + p.total) return p.at(s - p.s0);
-        }
+        for (Piece p : dives) { if (s >= p.s0 && s < p.s0 + p.total) return p.at(s - p.s0); }
         return orbitAt(s);
     }
 
     /** Whether {@code s} is inside a dive (low over the floor: it can hit). */
     public boolean diving(double s) {
-        for (Piece p : dives) {
-            if (s >= p.s0 + p.l1 * 0.6 && s < p.s0 + p.l1 + p.line + p.l3 * 0.4) return true;
-        }
+        for (Piece p : dives) { if (s >= p.s0 + p.l1 * 0.6 && s < p.s0 + p.l1 + p.line + p.l3 * 0.4) return true; }
         return false;
     }
 

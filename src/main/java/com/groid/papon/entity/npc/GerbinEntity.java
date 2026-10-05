@@ -79,18 +79,12 @@ public class GerbinEntity extends TacoNpc {
     }
 
     @Override
-    protected Speech.Voice voice() {
-        return new Speech.Voice(SoundEvents.FOX_AMBIENT, 1.5F, 0.5F, 3);
-    }
+    protected Speech.Voice voice() { return new Speech.Voice(SoundEvents.FOX_AMBIENT, 1.5F, 0.5F, 3); }
 
     @Override
-    public boolean shouldShowName() {
-        return true;
-    }
+    public boolean shouldShowName() { return true; }
 
-    public GerbinState getGerbinState() {
-        return GerbinState.byId(stateId());
-    }
+    public GerbinState getGerbinState() { return GerbinState.byId(stateId()); }
 
     private void setGerbinState(GerbinState s) {
         setStateId(s.ordinal());
@@ -286,9 +280,7 @@ public class GerbinEntity extends TacoNpc {
         }
         if (horizontalDistSqr(p) < 1.5 * 1.5) {
             getMoveControl().setWantedPosition(p.x, p.y, p.z, 0.6);
-        } else if (getNavigation().isDone() || tickCount % 20 == 0) {
-            getNavigation().moveTo(p.x, p.y, p.z, 0.8);
-        }
+        } else if (getNavigation().isDone() || tickCount % 20 == 0) { getNavigation().moveTo(p.x, p.y, p.z, 0.8); }
     }
 
     private void hold(TacoTruck.Station s) {

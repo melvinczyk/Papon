@@ -23,7 +23,5 @@ public class BoundEffect extends MobEffect {
     }
 
     @Override
-    public List<ItemStack> getCurativeItems() {
-        return List.of();
-    }
+    public List<ItemStack> getCurativeItems() { return List.of(); }
 }

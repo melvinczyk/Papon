@@ -29,9 +29,7 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     /** El Rey de los Muertos (tools/gen_muertos_papon.py): Ascended's bones, bone white, a Catrin's hat, the spirit hammer. */
     private static final net.minecraft.resources.ResourceLocation MUERTOS_GEO = PaponMod.id("geo/entity/papon_muertos.geo.json");
 
-    public BossModel() {
-        super(PaponMod.id("papon_boss"));
-    }
+    public BossModel() { super(PaponMod.id("papon_boss")); }
 
     /** Ascended Papon (tools/gen_ascended.py): the same bones, his better potato, white eyes, eagle wings. */
     @Override

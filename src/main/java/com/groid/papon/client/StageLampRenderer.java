@@ -60,12 +60,8 @@ public class StageLampRenderer implements BlockEntityRenderer<StageLampBlockEnti
     }
 
     @Override
-    public boolean shouldRenderOffScreen(StageLampBlockEntity lamp) {
-        return true;
-    }
+    public boolean shouldRenderOffScreen(StageLampBlockEntity lamp) { return true; }
 
     @Override
-    public int getViewDistance() {
-        return 160;
-    }
+    public int getViewDistance() { return 160; }
 }

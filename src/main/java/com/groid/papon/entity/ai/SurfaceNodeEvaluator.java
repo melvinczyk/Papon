@@ -15,9 +15,7 @@ public class SurfaceNodeEvaluator extends WalkNodeEvaluator {
     @Override
     public BlockPathTypes getBlockPathType(BlockGetter level, int x, int y, int z, Mob mob) {
         BlockPathTypes type = super.getBlockPathType(level, x, y, z, mob);
-        if (type == BlockPathTypes.BLOCKED || mob == null) {
-            return type;
-        }
+        if (type == BlockPathTypes.BLOCKED || mob == null) { return type; }
         return Terrain.isUnderground(mob.level(), x, y, z) ? BlockPathTypes.BLOCKED : type;
     }
 }

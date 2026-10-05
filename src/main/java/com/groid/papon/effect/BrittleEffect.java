@@ -30,7 +30,5 @@ public class BrittleEffect extends MobEffect {
     }
 
     @Override
-    public boolean isDurationEffectTick(int duration, int amplifier) {
-        return duration % 10 == 0;
-    }
+    public boolean isDurationEffectTick(int duration, int amplifier) { return duration % 10 == 0; }
 }

@@ -49,9 +49,7 @@ public enum PaponState {
     /** Ticks this state lasts before it advances on its own; 0 = until something else moves it on. */
     public final int duration;
 
-    PaponState(int duration) {
-        this.duration = duration;
-    }
+    PaponState(int duration) { this.duration = duration; }
 
     /** States in which he stays put on land and keeps facing one way. */
     public boolean isSeated() {
@@ -63,18 +61,12 @@ public enum PaponState {
     }
 
     /** On the llama raft: the entity floats at the water line and is steered by hand, not pathfinding. */
-    public boolean isRafting() {
-        return this == RAFT_BOARDING || this == RAFTING || this == RAFT_IDLE || this == RAFT_LANDING;
-    }
+    public boolean isRafting() { return this == RAFT_BOARDING || this == RAFTING || this == RAFT_IDLE || this == RAFT_LANDING; }
 
-    public boolean isAsleep() {
-        return this == SLEEP_SETUP || this == SLEEPING || this == SLEEP_FLINCH;
-    }
+    public boolean isAsleep() { return this == SLEEP_SETUP || this == SLEEPING || this == SLEEP_FLINCH; }
 
     /** States at the Taco Truck, where he is done travelling (and may stand under its awning). */
-    public boolean atTruck() {
-        return this == ARRIVED || this == WAITING || this == QUEUED || this == PRESENTING || this == BUSTED;
-    }
+    public boolean atTruck() { return this == ARRIVED || this == WAITING || this == QUEUED || this == PRESENTING || this == BUSTED; }
 
     public static PaponState byId(int id) {
         PaponState[] all = values();

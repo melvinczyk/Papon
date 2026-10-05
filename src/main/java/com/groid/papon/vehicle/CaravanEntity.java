@@ -192,9 +192,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     /** The underglow off (the Skyline as it is made: dark until he shows it off) or switched on now. */
-    public void setUnderglow(boolean on) {
-        entityData.set(DATA_GLOW, on ? (int) (level().getGameTime() & 0x7FFFFFFF) : -1);
-    }
+    public void setUnderglow(boolean on) { entityData.set(DATA_GLOW, on ? (int) (level().getGameTime() & 0x7FFFFFFF) : -1); }
 
     /** Client: ticks since the underglow came on (big for long ago), or -1 while it is off. */
     public float underglowAge(float partial) {
@@ -206,16 +204,12 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     /** The engine running with nobody at the wheel for a while (him showing the Skyline off). */
-    public void idleFor(int ticks) {
-        idleTicks = Math.max(idleTicks, ticks);
-    }
+    public void idleFor(int ticks) { idleTicks = Math.max(idleTicks, ticks); }
 
     private int idleTicks;
 
     /** The engine running with nobody in it (shown off, or started from the fob). */
-    public boolean idling() {
-        return idleTicks > 0;
-    }
+    public boolean idling() { return idleTicks > 0; }
 
     /** The fob's remote start: the engine catches and runs for {@code ticks} (0 shuts it down). */
     public void remoteStart(int ticks) {
@@ -227,29 +221,17 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     /** The nitro ram (phase three): each hit takes {@code share} of the victim's maximum health; 0 puts it back to normal. */
-    public void setRamShare(float share) {
-        ramShare = share;
-    }
+    public void setRamShare(float share) { ramShare = share; }
 
-    public boolean isSkyline() {
-        return entityData.get(DATA_SKYLINE);
-    }
+    public boolean isSkyline() { return entityData.get(DATA_SKYLINE); }
 
-    public void setSkyline(boolean skyline) {
-        entityData.set(DATA_SKYLINE, skyline);
-    }
+    public void setSkyline(boolean skyline) { entityData.set(DATA_SKYLINE, skyline); }
 
-    public float squash() {
-        return entityData.get(DATA_SQUASH);
-    }
+    public float squash() { return entityData.get(DATA_SQUASH); }
 
-    public void setSquash(float k) {
-        entityData.set(DATA_SQUASH, k);
-    }
+    public void setSquash(float k) { entityData.set(DATA_SQUASH, k); }
 
-    public boolean isGhost() {
-        return entityData.get(DATA_GHOST);
-    }
+    public boolean isGhost() { return entityData.get(DATA_GHOST); }
 
     public void setGhost(boolean ghost) {
         if (ghost != isGhost() && !level().isClientSide) {
@@ -304,9 +286,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         setPos(getX(), groundY(), getZ());
     }
 
-    public boolean isFlying() {
-        return launchTicks > 0;
-    }
+    public boolean isFlying() { return launchTicks > 0; }
 
     public boolean consumeLanding() {
         boolean l = landed;
@@ -315,9 +295,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     /** Sets (or, with null, clears) the floor a ghosting or flying van comes down on. */
-    public void setFloor(@Nullable Double y) {
-        floorOverride = y;
-    }
+    public void setFloor(@Nullable Double y) { floorOverride = y; }
 
     /**
      * Sends the van sliding with a velocity of its own, turning {@code spin} degrees a tick: kicked
@@ -332,9 +310,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         speed = shoveVel.dot(forward());
     }
 
-    public boolean isSliding() {
-        return shoveTicks > 0;
-    }
+    public boolean isSliding() { return shoveTicks > 0; }
 
     /** Lifted over Chef Papon's head (he moves it); false puts it back on its own physics. */
     public void setCarried(boolean c) {
@@ -355,9 +331,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     /** The planar velocity the server measured last tick, blocks a tick. */
-    public Vec3 planarVelocity() {
-        return planar;
-    }
+    public Vec3 planarVelocity() { return planar; }
 
     /**
      * The ground under a ghosting van: the median of five height samples (centre, nose, tail, both
@@ -376,13 +350,9 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         return ys[2];
     }
 
-    public boolean isEngineOn() {
-        return entityData.get(DATA_ENGINE);
-    }
+    public boolean isEngineOn() { return entityData.get(DATA_ENGINE); }
 
-    public boolean isDoorOpen() {
-        return entityData.get(DATA_DOOR);
-    }
+    public boolean isDoorOpen() { return entityData.get(DATA_DOOR); }
 
     // ------------------------------------------------------------------ geometry
 
@@ -404,14 +374,10 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     /** Where to stand to get in behind the wheel: outside the driver's door. */
-    public Vec3 driverDoor() {
-        return local(HALF_WIDTH + 1.0, 0, 0.6);
-    }
+    public Vec3 driverDoor() { return local(HALF_WIDTH + 1.0, 0, 0.6); }
 
     /** The van's real speed along its heading, blocks per tick (measured on the server). */
-    public double speed() {
-        return level().isClientSide ? speed : measured;
-    }
+    public double speed() { return level().isClientSide ? speed : measured; }
 
     // ------------------------------------------------------------------ driving
 
@@ -429,14 +395,10 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         if (!b) releaseAutopilot();
     }
 
-    public boolean isBricked() {
-        return bricked;
-    }
+    public boolean isBricked() { return bricked; }
 
     /** Stand on the brakes. */
-    public void brake() {
-        autoBrake = true;
-    }
+    public void brake() { autoBrake = true; }
 
     public void releaseAutopilot() {
         autoTarget = null;
@@ -522,9 +484,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
                     speed *= 0.95;
                 }
             }
-        } else {
-            brake = true;
-        }
+        } else { brake = true; }
         if (burnout > 0) {
             throttle = 0;
             brake = true;
@@ -534,9 +494,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
             speed += speed < -0.02 ? BRAKE : accel * throttle * Math.max(0.12, 1 - speed / top);
         } else if (throttle < -0.01F) {
             speed -= speed > 0.02 ? BRAKE : accel * 0.8 * -throttle * Math.max(0.12, 1 + speed / back);
-        } else {
-            speed *= COAST;
-        }
+        } else { speed *= COAST; }
         if (brake) speed *= 0.8;
         if (isInWater()) speed *= 0.86;
         if (!onGround()) speed *= 0.995;
@@ -633,14 +591,10 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     @Override
-    protected Vec3 getRiddenInput(Player player, Vec3 input) {
-        return Vec3.ZERO;
-    }
+    protected Vec3 getRiddenInput(Player player, Vec3 input) { return Vec3.ZERO; }
 
     @Override
-    protected float getRiddenSpeed(Player player) {
-        return 0;
-    }
+    protected float getRiddenSpeed(Player player) { return 0; }
 
     // ------------------------------------------------------------------ ticking
 
@@ -704,9 +658,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         if (isSliding() || wasSliding) {
             if (planar.horizontalDistance() > 0.16) slideOver(level, driver);
             if (planar.horizontalDistance() > 0.3) tyreSmoke(level);
-        } else if (Math.abs(measured) > 0.16) {
-            runOver(level, measured, driver);
-        }
+        } else if (Math.abs(measured) > 0.16) { runOver(level, measured, driver); }
         if (wasSliding && !isSliding() && driver == null && isGhost()) {
             setGhost(false);
             settle();
@@ -831,9 +783,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     // ------------------------------------------------------------------ passengers
 
     @Override
-    protected boolean canAddPassenger(Entity passenger) {
-        return getPassengers().size() < SEATS.length;
-    }
+    protected boolean canAddPassenger(Entity passenger) { return getPassengers().size() < SEATS.length; }
 
     @Nullable
     @Override
@@ -857,9 +807,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     @Override
-    public void onPassengerTurned(Entity passenger) {
-        if (passenger instanceof PaponBossEntity) passenger.setYRot(getYRot());
-    }
+    public void onPassengerTurned(Entity passenger) { if (passenger instanceof PaponBossEntity) passenger.setYRot(getYRot()); }
 
     @Override
     protected void addPassenger(Entity passenger) {
@@ -908,9 +856,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     @Override
-    public ItemStack getPickResult() {
-        return new ItemStack(isSkyline() ? ModItems.SKYLINE_FOB.get() : ModItems.CARAVAN_KEYS.get());
-    }
+    public ItemStack getPickResult() { return new ItemStack(isSkyline() ? ModItems.SKYLINE_FOB.get() : ModItems.CARAVAN_KEYS.get()); }
 
     // ------------------------------------------------------------------ it is a van
 
@@ -965,9 +911,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         controllers.add(new AnimationController<>(this, "door", 0, this::animateDoor).setSoundKeyframeHandler(this::onSoundCue));
     }
 
-    private PlayState animateEngine(AnimationState<CaravanEntity> event) {
-        return event.setAndContinue(isEngineOn() ? IDLE : PARKED);
-    }
+    private PlayState animateEngine(AnimationState<CaravanEntity> event) { return event.setAndContinue(isEngineOn() ? IDLE : PARKED); }
 
     private PlayState animateDoor(AnimationState<CaravanEntity> event) {
         if (isDoorOpen()) return event.setAndContinue(DOOR_OPEN);
@@ -986,7 +930,5 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return cache;
-    }
+    public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
 }

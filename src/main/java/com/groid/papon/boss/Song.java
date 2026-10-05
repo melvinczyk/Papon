@@ -35,9 +35,7 @@ public final class Song {
     }
 
     public record Segment(int index, String id, double start, double length, double pre, String level, float energy, boolean sung) {
-        public double end() {
-            return start + length;
-        }
+        public double end() { return start + length; }
     }
 
     public final List<Segment> segments = new ArrayList<>();
@@ -157,9 +155,7 @@ public final class Song {
     }
 
     /** Ticks from the song's first downbeat to the first sung word (the guitar intro, twice). */
-    public int fightStartTicks() {
-        return (int) Math.round(intro().length * introPasses() * 20);
-    }
+    public int fightStartTicks() { return (int) Math.round(intro().length * introPasses() * 20); }
 
     /** Index of the beat at or before {@code t}, plus how far into it (0..1); negative before the first. */
     public double beatAt(double t) {
@@ -202,34 +198,22 @@ public final class Song {
     }
 
     /** How loud he sings at {@code t}, 0..1. */
-    public float voiceAt(double t) {
-        return sample(voice, t);
-    }
+    public float voiceAt(double t) { return sample(voice, t); }
 
     /** The note he sings, in semitones over his middle (0 when not singing). */
-    public float pitchAt(double t) {
-        return sample(pitch, t);
-    }
+    public float pitchAt(double t) { return sample(pitch, t); }
 
     /** The guitars' attack at {@code t}, 0..1 (spikes on the strums). */
-    public float strumAt(double t) {
-        return sample(strum, t);
-    }
+    public float strumAt(double t) { return sample(strum, t); }
 
     /** The backing vocals at {@code t}: 0 (the singer alone) .. 1 (the coro sings with him). */
-    public float harmonyAt(double t) {
-        return sample(harmony, t);
-    }
+    public float harmonyAt(double t) { return sample(harmony, t); }
 
     /** Whether the trumpets play at {@code t} (0..1, the edges eased by the caller). */
-    public float hornAt(double t) {
-        return sample(horn, t);
-    }
+    public float hornAt(double t) { return sample(horn, t); }
 
     /** Whether the violins play at {@code t} (0..1, eased in and out already). */
-    public float fiddleAt(double t) {
-        return fiddle.length == 0 ? 1 : sample(fiddle, t);
-    }
+    public float fiddleAt(double t) { return fiddle.length == 0 ? 1 : sample(fiddle, t); }
 
     /** The melody line's note at {@code t} (MIDI number; 0 when there is none to hear). */
     public int leadAt(double t) {
@@ -238,14 +222,10 @@ public final class Song {
     }
 
     /** Index of the melody note sounding at {@code t} (-1 before the first). */
-    public int noteIndex(double t) {
-        return floorIndex(notes, t);
-    }
+    public int noteIndex(double t) { return floorIndex(notes, t); }
 
     /** When note {@code i} started. */
-    public double noteTime(int i) {
-        return i < 0 || i >= notes.length ? Double.NEGATIVE_INFINITY : notes[i];
-    }
+    public double noteTime(int i) { return i < 0 || i >= notes.length ? Double.NEGATIVE_INFINITY : notes[i]; }
 
     /**
      * Where on the bow the violins are at {@code t} (0 frog .. 1 tip): straight from one stroke's

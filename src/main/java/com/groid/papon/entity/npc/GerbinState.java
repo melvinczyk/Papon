@@ -26,16 +26,12 @@ public enum GerbinState {
 
     public final int duration;
 
-    GerbinState(int duration) {
-        this.duration = duration;
-    }
+    GerbinState(int duration) { this.duration = duration; }
 
     public static GerbinState byId(int id) {
         GerbinState[] all = values();
         return id >= 0 && id < all.length ? all[id] : IDLE;
     }
 
-    public boolean scared() {
-        return this == SHOCKED || this == COWER;
-    }
+    public boolean scared() { return this == SHOCKED || this == COWER; }
 }

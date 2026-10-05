@@ -82,18 +82,12 @@ public class SpiritGiantEntity extends Entity {
         }
     }
 
-    public void sink() {
-        if (act() != SINK) act(SINK);
-    }
+    public void sink() { if (act() != SINK) act(SINK); }
 
     /** Hand {@code i} (0 left, 1 right) is going to come down on {@code at}. */
-    public void handTarget(int i, Vec3 at) {
-        entityData.set(i == 0 ? DATA_HAND_L : DATA_HAND_R, at.toVector3f());
-    }
+    public void handTarget(int i, Vec3 at) { entityData.set(i == 0 ? DATA_HAND_L : DATA_HAND_R, at.toVector3f()); }
 
-    public int act() {
-        return entityData.get(DATA_ACT);
-    }
+    public int act() { return entityData.get(DATA_ACT); }
 
     /** Ticks since the current act began (both sides: from the synced game tick). */
     public float actTime(float partial) {
@@ -117,9 +111,7 @@ public class SpiritGiantEntity extends Entity {
         return k * k * (3 - 2 * k);
     }
 
-    public Vec3 forward() {
-        return Vec3.directionFromRotation(0, getYRot());
-    }
+    public Vec3 forward() { return Vec3.directionFromRotation(0, getYRot()); }
 
     /** The skull's centre (world). */
     public Vec3 head(float partial) {
@@ -128,9 +120,7 @@ public class SpiritGiantEntity extends Entity {
     }
 
     /** Its mouth (world): where the laser comes out. */
-    public Vec3 mouth() {
-        return head(0).add(forward().scale(6.5)).add(0, -5.5, 0);
-    }
+    public Vec3 mouth() { return head(0).add(forward().scale(6.5)).add(0, -5.5, 0); }
 
     /** A hand's place on the wall at rest: {@code side} 1 its left (on your right as you face it), -1 its right. */
     public Vec3 handRest(int side) {
@@ -140,9 +130,7 @@ public class SpiritGiantEntity extends Entity {
     }
 
     /** Where hand {@code i} is aimed now (its mark on the floor). */
-    public Vec3 handMark(int i) {
-        return new Vec3(entityData.get(i == 0 ? DATA_HAND_L : DATA_HAND_R));
-    }
+    public Vec3 handMark(int i) { return new Vec3(entityData.get(i == 0 ? DATA_HAND_L : DATA_HAND_R)); }
 
     @Override
     public void tick() {
@@ -167,22 +155,16 @@ public class SpiritGiantEntity extends Entity {
             Fx.flash(level, at.add(0, 1, 0), 2.5F);
             PaponNetwork.shake(level, at, 60, 0.8F, 16);
         }
-        if (act() == SLAM_L || act() == SLAM_R) {
-            if (t >= SLAM_T) act(IDLE);
-        }
+        if (act() == SLAM_L || act() == SLAM_R) { if (t >= SLAM_T) act(IDLE); }
         if (act() == RISE && t >= RISE_T) act(IDLE);
         if (act() == SINK && t >= SINK_T) discard();
     }
 
     @Override
-    public AABB getBoundingBoxForCulling() {
-        return getBoundingBox().inflate(40, 60, 40).move(0, 30, 0);
-    }
+    public AABB getBoundingBoxForCulling() { return getBoundingBox().inflate(40, 60, 40).move(0, 30, 0); }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double d) {
-        return d < 256 * 256;
-    }
+    public boolean shouldRenderAtSqrDistance(double d) { return d < 256 * 256; }
 
     @Override public boolean hurt(DamageSource source, float amount) { return false; }
     @Override public boolean isPickable() { return false; }
@@ -192,7 +174,5 @@ public class SpiritGiantEntity extends Entity {
     @Override protected void addAdditionalSaveData(CompoundTag tag) {}
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return new ClientboundAddEntityPacket(this);
-    }
+    public Packet<ClientGamePacketListener> getAddEntityPacket() { return new ClientboundAddEntityPacket(this); }
 }

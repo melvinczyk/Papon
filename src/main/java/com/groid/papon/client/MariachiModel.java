@@ -84,19 +84,13 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
     private final Map<Integer, Mem> mem = new HashMap<>();
 
     @Override
-    public ResourceLocation getModelResource(MariachiEntity m) {
-        return GEO;
-    }
+    public ResourceLocation getModelResource(MariachiEntity m) { return GEO; }
 
     @Override
-    public ResourceLocation getTextureResource(MariachiEntity m) {
-        return m.isDead() ? TEX_DEAD : TEX;
-    }
+    public ResourceLocation getTextureResource(MariachiEntity m) { return m.isDead() ? TEX_DEAD : TEX; }
 
     @Override
-    public ResourceLocation getAnimationResource(MariachiEntity m) {
-        return ANIM;
-    }
+    public ResourceLocation getAnimationResource(MariachiEntity m) { return ANIM; }
 
     @Override
     public void setCustomAnimations(MariachiEntity m, long instanceId, AnimationState<MariachiEntity> state) {
@@ -172,9 +166,7 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
                 CoreGeoBone br = bone(brow);
                 if (br != null) br.setPosY(br.getPosY() + mm.solo * 0.6F);
             }
-        } else {
-            sing(song, t, 1F);
-        }
+        } else { sing(song, t, 1F); }
     }
 
     private static boolean singing(Song song, double t) {
@@ -343,9 +335,7 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
         return k * k * (3 - 2 * k);
     }
 
-    private CoreGeoBone bone(String name) {
-        return getAnimationProcessor().getBone(name);
-    }
+    private CoreGeoBone bone(String name) { return getAnimationProcessor().getBone(name); }
 
     private static void rot(CoreGeoBone b, float x, float y, float z) {
         if (b == null) return;

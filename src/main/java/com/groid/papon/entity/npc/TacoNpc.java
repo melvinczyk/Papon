@@ -73,14 +73,10 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
         entityData.define(DATA_SPEECH, "");
     }
 
-    protected int stateId() {
-        return entityData.get(DATA_STATE);
-    }
+    protected int stateId() { return entityData.get(DATA_STATE); }
 
     /** Ticks in the current state, on either side. */
-    public int ticksInState() {
-        return level().isClientSide ? clientStateTicks : stateTicks;
-    }
+    public int ticksInState() { return level().isClientSide ? clientStateTicks : stateTicks; }
 
     protected void setStateId(int id) {
         entityData.set(DATA_STATE, id);
@@ -90,9 +86,7 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
     // ------------------------------------------------------------------ speech
 
     @Override
-    public String getSpeech() {
-        return entityData.get(DATA_SPEECH);
-    }
+    public String getSpeech() { return entityData.get(DATA_SPEECH); }
 
     @Override
     public void setSpeech(String encoded, int ticks) {
@@ -104,15 +98,11 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
         if (DATA_STATE.equals(key) && level().isClientSide) clientStateTicks = 0;
-        if (DATA_SPEECH.equals(key) && level().isClientSide) {
-            babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech());
-        }
+        if (DATA_SPEECH.equals(key) && level().isClientSide) { babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech()); }
     }
 
     /** Client: whether a line is being spoken right now (drives the talking jaw). */
-    public boolean isBabbling() {
-        return babbleTicks > 0;
-    }
+    public boolean isBabbling() { return babbleTicks > 0; }
 
     /** Pitch and sound used for this character's talking blips. */
     protected abstract Speech.Voice voice();
@@ -128,9 +118,7 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
             }
             return;
         }
-        if (speechTicks > 0 && --speechTicks == 0) {
-            entityData.set(DATA_SPEECH, "");
-        }
+        if (speechTicks > 0 && --speechTicks == 0) { entityData.set(DATA_SPEECH, ""); }
     }
 
     @Override
@@ -156,14 +144,10 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
     // ------------------------------------------------------------------ animation sounds
 
     /** Sound keyframes in the crowd animations name a cue; {@link SoundCues} maps it to a sound. */
-    protected <T extends TacoNpc> void onSoundCue(SoundKeyframeEvent<T> event) {
-        SoundCues.play(this, event.getKeyframeData().getSound());
-    }
+    protected <T extends TacoNpc> void onSoundCue(SoundKeyframeEvent<T> event) { SoundCues.play(this, event.getKeyframeData().getSound()); }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return cache;
-    }
+    public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {

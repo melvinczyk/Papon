@@ -347,9 +347,7 @@ public final class SongPlayer {
             x = y = z = 0;
         }
 
-        void fadeOut() {
-            fading = true;
-        }
+        void fadeOut() { fading = true; }
 
         /** Stopped dead (gone in a couple of ticks). */
         void cut() {
@@ -364,9 +362,7 @@ public final class SongPlayer {
         }
 
         @Override
-        public boolean canStartSilent() {
-            return true;
-        }
+        public boolean canStartSilent() { return true; }
 
         @Override
         public void tick() {

@@ -86,9 +86,7 @@ public final class ClientEvents {
         } else if (s == com.groid.papon.boss.BossState.P2_KNEEL || s == com.groid.papon.boss.BossState.P2_TALK) {
             k = Math.min(1F, t / 40F) * 0.35F;
             r = 0.25F; g = 0.05F; b = 0.05F;
-        } else {
-            return;
-        }
+        } else { return; }
         event.setRed(event.getRed() + (r - event.getRed()) * k);
         event.setGreen(event.getGreen() + (g - event.getGreen()) * k);
         event.setBlue(event.getBlue() + (b - event.getBlue()) * k);
@@ -164,9 +162,7 @@ public final class ClientEvents {
     public static void onOverlay(RenderGuiOverlayEvent.Pre event) {
         if (!Cinematic.isActive()) return;
         NamedGuiOverlay o = event.getOverlay();
-        if (o.id().equals(VanillaGuiOverlay.TITLE_TEXT.id()) || o.id().equals(VanillaGuiOverlay.SUBTITLES.id())) {
-            return;
-        }
+        if (o.id().equals(VanillaGuiOverlay.TITLE_TEXT.id()) || o.id().equals(VanillaGuiOverlay.SUBTITLES.id())) { return; }
         event.setCanceled(true);
     }
 

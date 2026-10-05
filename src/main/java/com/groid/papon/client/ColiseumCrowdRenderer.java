@@ -96,14 +96,10 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     }
 
     @Override
-    public ResourceLocation getTextureLocation(ColiseumCrowdEntity entity) {
-        return TEX;
-    }
+    public ResourceLocation getTextureLocation(ColiseumCrowdEntity entity) { return TEX; }
 
     @Override
-    public boolean shouldRender(ColiseumCrowdEntity e, Frustum f, double x, double y, double z) {
-        return true;
-    }
+    public boolean shouldRender(ColiseumCrowdEntity e, Frustum f, double x, double y, double z) { return true; }
 
     private boolean bind() {
         BakedGeoModel m = GeckoLibCache.getBakedModels().get(GEO);
@@ -208,9 +204,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
     }
 
     /** Whether this fan has his lighter up yet (they spread through the stands as the share grows). */
-    private boolean lighter(int seed) {
-        return rnd(seed, 13) < lightersNow;
-    }
+    private boolean lighter(int seed) { return rnd(seed, 13) < lightersNow; }
 
     private static float rnd(int seed, int k) {
         int h = seed * 0x9E3779B1 + k * 0x85EBCA6B;
@@ -612,9 +606,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             if (blend < 1) {
                 moodPose(pa, prev, seed, t, beat, angle, 100);
                 pose.set(pa, pb, blend * blend * (3 - 2 * blend));
-            } else {
-                pose.set(pb, pb, 1);
-            }
+            } else { pose.set(pb, pb, 1); }
             int tt = crowd.throwTicks(i);
             if (tt >= 0) throwPose(pose, tt + partial);
             float turn = 0;

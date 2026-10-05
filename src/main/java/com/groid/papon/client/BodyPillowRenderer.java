@@ -72,7 +72,5 @@ public class BodyPillowRenderer extends EntityRenderer<BodyPillowEntity> {
     }
 
     @Override
-    public ResourceLocation getTextureLocation(BodyPillowEntity pillow) {
-        return TextureAtlas.LOCATION_BLOCKS;
-    }
+    public ResourceLocation getTextureLocation(BodyPillowEntity pillow) { return TextureAtlas.LOCATION_BLOCKS; }
 }

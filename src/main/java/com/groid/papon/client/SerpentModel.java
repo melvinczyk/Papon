@@ -78,11 +78,7 @@ public final class SerpentModel {
     }
 
     @org.jetbrains.annotations.Nullable
-    public ModelPart part(String name) {
-        return parts.get(name);
-    }
+    public ModelPart part(String name) { return parts.get(name); }
 
-    public java.util.Set<String> names() {
-        return parts.keySet();
-    }
+    public java.util.Set<String> names() { return parts.keySet(); }
 }

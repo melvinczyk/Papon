@@ -18,14 +18,10 @@ public class SpiritBrazierBlock extends Block {
     private static final VoxelShape SHAPE = Shapes.or(Block.box(4, 0, 4, 12, 1, 12), Block.box(7, 1, 7, 9, 7, 9),
             Block.box(3, 7, 3, 13, 9, 13), Block.box(1, 9, 1, 15, 13, 15));
 
-    public SpiritBrazierBlock(Properties props) {
-        super(props);
-    }
+    public SpiritBrazierBlock(Properties props) { super(props); }
 
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return SHAPE;
-    }
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) { return SHAPE; }
 
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {

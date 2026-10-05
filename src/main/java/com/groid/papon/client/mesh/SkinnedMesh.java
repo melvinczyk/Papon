@@ -58,9 +58,7 @@ public final class SkinnedMesh {
         for (int i = 1; i < uvs.length; i += 2) uvs[i] = 1F - uvs[i];   // OBJ-style v -> texture v
     }
 
-    public int vertexCount() {
-        return positions.length / 3;
-    }
+    public int vertexCount() { return positions.length / 3; }
 
     @Nullable
     public static synchronized SkinnedMesh get(String name) {

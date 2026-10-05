@@ -24,9 +24,7 @@ public class ArenaPortalRenderer extends EntityRenderer<ArenaPortalEntity> {
     private static final int SEGMENTS = 28;
     private static final float RX = 0.6F, RY = 1.05F, CY = 1.1F;
 
-    public ArenaPortalRenderer(EntityRendererProvider.Context ctx) {
-        super(ctx);
-    }
+    public ArenaPortalRenderer(EntityRendererProvider.Context ctx) { super(ctx); }
 
     @Override
     public void render(ArenaPortalEntity e, float yaw, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
@@ -73,7 +71,5 @@ public class ArenaPortalRenderer extends EntityRenderer<ArenaPortalEntity> {
     }
 
     @Override
-    public ResourceLocation getTextureLocation(ArenaPortalEntity e) {
-        return TextureAtlas.LOCATION_BLOCKS;
-    }
+    public ResourceLocation getTextureLocation(ArenaPortalEntity e) { return TextureAtlas.LOCATION_BLOCKS; }
 }

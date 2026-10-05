@@ -151,9 +151,7 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
     }
 
     @Override
-    protected float getDeathMaxRotation(CaravanEntity entity) {
-        return 0;
-    }
+    protected float getDeathMaxRotation(CaravanEntity entity) { return 0; }
 
     static final class Model extends GeoModel<CaravanEntity> {
         private static final ResourceLocation GEO = PaponMod.id("geo/entity/caravan.geo.json");
@@ -198,7 +196,5 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
 
     /** GeckoLib labels every non-mob living entity; a van shows its name only if someone named it. */
     @Override
-    public boolean shouldShowName(CaravanEntity van) {
-        return van.hasCustomName() && super.shouldShowName(van);
-    }
+    public boolean shouldShowName(CaravanEntity van) { return van.hasCustomName() && super.shouldShowName(van); }
 }

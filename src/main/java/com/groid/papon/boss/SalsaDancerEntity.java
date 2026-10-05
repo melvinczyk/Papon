@@ -39,9 +39,7 @@ public class SalsaDancerEntity extends TacoNpc {
 
         public final int duration;
 
-        State(int duration) {
-            this.duration = duration;
-        }
+        State(int duration) { this.duration = duration; }
     }
 
     private static final EntityDataAccessor<Integer> DATA_LOOK = SynchedEntityData.defineId(SalsaDancerEntity.class, EntityDataSerializers.INT);
@@ -77,13 +75,9 @@ public class SalsaDancerEntity extends TacoNpc {
     }
 
     /** Her dress (0 red, 1 marigold and purple, 2 turquoise and pink, 3 black and gold). */
-    public int look() {
-        return entityData.get(DATA_LOOK) & 3;
-    }
+    public int look() { return entityData.get(DATA_LOOK) & 3; }
 
-    public void dance() {
-        setStateId(State.DANCE.ordinal());
-    }
+    public void dance() { setStateId(State.DANCE.ordinal()); }
 
     public void twirl(PaponBossEntity with) {
         partnerId = with.getId();
@@ -91,9 +85,7 @@ public class SalsaDancerEntity extends TacoNpc {
         setStateId(State.TWIRLED.ordinal());
     }
 
-    public void mourn() {
-        setStateId(State.MOURN.ordinal());
-    }
+    public void mourn() { setStateId(State.MOURN.ordinal()); }
 
     @Override
     protected void serverStep(ServerLevel level) {
@@ -115,9 +107,7 @@ public class SalsaDancerEntity extends TacoNpc {
     }
 
     @Override
-    protected Speech.Voice voice() {
-        return new Speech.Voice(SoundEvents.SKELETON_AMBIENT, 1.6F, 0.5F, 4);
-    }
+    protected Speech.Voice voice() { return new Speech.Voice(SoundEvents.SKELETON_AMBIENT, 1.6F, 0.5F, 4); }
 
     // ------------------------------------------------------------------ animation
 
@@ -143,12 +133,8 @@ public class SalsaDancerEntity extends TacoNpc {
     }
 
     @Override
-    public boolean shouldBeSaved() {
-        return false;
-    }
+    public boolean shouldBeSaved() { return false; }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-    }
+    public void addAdditionalSaveData(CompoundTag tag) { super.addAdditionalSaveData(tag); }
 }

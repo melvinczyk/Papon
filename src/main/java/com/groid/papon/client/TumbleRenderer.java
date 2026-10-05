@@ -46,7 +46,5 @@ public class TumbleRenderer<T extends Entity> extends EntityRenderer<T> {
 
     @Override
     @SuppressWarnings("deprecation")
-    public ResourceLocation getTextureLocation(T e) {
-        return TextureAtlas.LOCATION_BLOCKS;
-    }
+    public ResourceLocation getTextureLocation(T e) { return TextureAtlas.LOCATION_BLOCKS; }
 }

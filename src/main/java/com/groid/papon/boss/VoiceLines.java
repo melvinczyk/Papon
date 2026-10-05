@@ -24,9 +24,7 @@ public final class VoiceLines {
     public record Line(String id, double length, String mood, float[] mouthT, char[] mouthS, float[] env, float[] pitch,
                        float[] accent, int rate) {
         /** Ticks the line takes, rounded up. */
-        public int ticks() {
-            return (int) Math.ceil(length * 20);
-        }
+        public int ticks() { return (int) Math.ceil(length * 20); }
 
         /** The mouth shape (Rhubarb: A-H, X) at {@code t} seconds into the line, the one before it, and when it started. */
         public char mouthAt(double t) {
@@ -56,19 +54,13 @@ public final class VoiceLines {
         }
 
         /** How loud he is, 0..1. */
-        public float envAt(double t) {
-            return sample(env, t);
-        }
+        public float envAt(double t) { return sample(env, t); }
 
         /** Semitones over his middle (0 when unvoiced). */
-        public float pitchAt(double t) {
-            return sample(pitch, t);
-        }
+        public float pitchAt(double t) { return sample(pitch, t); }
 
         /** 0..1, a pulse on each stressed syllable. */
-        public float accentAt(double t) {
-            return sample(accent, t);
-        }
+        public float accentAt(double t) { return sample(accent, t); }
 
         private float sample(float[] a, double t) {
             double x = t * rate;

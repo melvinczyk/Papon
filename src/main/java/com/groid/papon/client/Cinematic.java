@@ -131,9 +131,7 @@ public final class Cinematic {
 
     /** A camera position for a tick; {@code free}: placed in the open on purpose (a wide shot of the stands), not to be moved off walls. */
     private record Shot(Vec3 eye, Vec3 lookAt, float fov, float roll, boolean cut, boolean free) {
-        Shot(Vec3 eye, Vec3 lookAt, float fov, float roll, boolean cut) {
-            this(eye, lookAt, fov, roll, cut, false);
-        }
+        Shot(Vec3 eye, Vec3 lookAt, float fov, float roll, boolean cut) { this(eye, lookAt, fov, roll, cut, false); }
     }
 
     public static void tick() {
@@ -153,9 +151,7 @@ public final class Cinematic {
             lost = 0;
             if (!active) start(mc, shot);
             moveCamera(shot);
-        } else if (active && ++lost > GRACE) {
-            stop(mc);
-        }
+        } else if (active && ++lost > GRACE) { stop(mc); }
         bars = Mth.clamp(bars + (active && !duelShot ? 0.12F : -0.15F), 0, 1);
         if (!active) pov = null;
         vignette = Mth.clamp(vignette + (pov != null ? 0.1F : -0.1F), 0, 1);
@@ -399,9 +395,7 @@ public final class Cinematic {
         Vec3 face = b.position().add(0, 1.1, 0);
         return switch (s) {
             case P2_KNEEL -> {
-                if (t < 28) {
-                    yield new Shot(b.position().add(right.scale(6.5)).add(f.scale(3.0)).add(0, 0.6, 0), face, 55, 0, t == 0);
-                }
+                if (t < 28) { yield new Shot(b.position().add(right.scale(6.5)).add(f.scale(3.0)).add(0, 0.6, 0), face, 55, 0, t == 0); }
                 pov = b;
                 // his eyes: down at the blood on the ground (to 3 s), across to his left hand as it comes up in
                 // front of them (3.0-3.6 s): bleeding too; held on it, closer, trembling (to 4.8 s); then up to you
@@ -1350,9 +1344,7 @@ public final class Cinematic {
                 return new Shot(face.add(f.scale(4.0 + k)).add(0, -0.3, 0), face, 48 + (float) k * 6, t < ln + 10 ? (float) Math.sin(t * 2.2) * 3F : 0, t == 0);
             }
             case P3_DANCE -> {
-                if (!b.inColiseum() || singer == null) {
-                    return new Shot(face.add(f.scale(4.6)).add(0, -0.2, 0), face, 42, 0, t == 0);
-                }
+                if (!b.inColiseum() || singer == null) { return new Shot(face.add(f.scale(4.6)).add(0, -0.2, 0), face, 42, 0, t == 0); }
                 int drop = VoiceLines.beat("dance.drop", 42);
                 if (t < drop) return new Shot(singerFace.add(stageFacing.scale(3.6 - t * 0.015)).add(stageSide.scale(-0.7)), singerFace, 44, 0, t == 0);
                 if (t < drop + 22) {

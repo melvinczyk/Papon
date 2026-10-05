@@ -29,9 +29,7 @@ public class CrowdPotatoEntity extends ThrowableItemProjectile {
     public static final float DAMAGE = 0.5F;
     public static final int SPLAT_TICKS = 100;
 
-    public CrowdPotatoEntity(EntityType<? extends CrowdPotatoEntity> type, Level level) {
-        super(type, level);
-    }
+    public CrowdPotatoEntity(EntityType<? extends CrowdPotatoEntity> type, Level level) { super(type, level); }
 
     public CrowdPotatoEntity(Level level, Vec3 from, Vec3 velocity) {
         super(ModEntities.CROWD_POTATO.get(), from.x, from.y, from.z, level);
@@ -39,14 +37,10 @@ public class CrowdPotatoEntity extends ThrowableItemProjectile {
     }
 
     @Override
-    protected Item getDefaultItem() {
-        return Items.POTATO;
-    }
+    protected Item getDefaultItem() { return Items.POTATO; }
 
     @Override
-    protected float getGravity() {
-        return 0.04F;
-    }
+    protected float getGravity() { return 0.04F; }
 
     @Override
     public void tick() {
@@ -55,9 +49,7 @@ public class CrowdPotatoEntity extends ThrowableItemProjectile {
     }
 
     @Override
-    protected boolean canHitEntity(Entity e) {
-        return e instanceof Player && super.canHitEntity(e);
-    }
+    protected boolean canHitEntity(Entity e) { return e instanceof Player && super.canHitEntity(e); }
 
     @Override
     protected void onHitEntity(EntityHitResult result) {

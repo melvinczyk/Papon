@@ -12,9 +12,7 @@ import java.util.List;
 
 /** The only thing that can wake a sleeping Papon early (2% per whack, see CommonEvents#onAttack). */
 public class ChanclaItem extends Item {
-    public ChanclaItem(Properties properties) {
-        super(properties.stacksTo(1));
-    }
+    public ChanclaItem(Properties properties) { super(properties.stacksTo(1)); }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {

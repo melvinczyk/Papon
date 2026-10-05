@@ -37,9 +37,7 @@ import java.util.function.Consumer;
  *                      it to climb on with it; sleep there and she lies beside you, you on your side facing her
  */
 public class BodyPillowItem extends Item {
-    public BodyPillowItem(Properties properties) {
-        super(properties);
-    }
+    public BodyPillowItem(Properties properties) { super(properties); }
 
     @Override
     public InteractionResult onItemUseFirst(ItemStack stack, UseOnContext ctx) {
@@ -67,14 +65,10 @@ public class BodyPillowItem extends Item {
     }
 
     @Override
-    public int getUseDuration(ItemStack stack) {
-        return 72000;
-    }
+    public int getUseDuration(ItemStack stack) { return 72000; }
 
     @Override
-    public UseAnim getUseAnimation(ItemStack stack) {
-        return UseAnim.NONE;
-    }
+    public UseAnim getUseAnimation(ItemStack stack) { return UseAnim.NONE; }
 
     /** Holding it and looking down (not sneaking): the hump. */
     public static boolean humping(LivingEntity user) {
@@ -113,9 +107,7 @@ public class BodyPillowItem extends Item {
             }
             return;
         }
-        if (held % 24 == 8) {
-            server.sendParticles(ParticleTypes.HEART, x, y + 0.4, z, 2, 0.35, 0.2, 0.35, 0.02);
-        }
+        if (held % 24 == 8) { server.sendParticles(ParticleTypes.HEART, x, y + 0.4, z, 2, 0.35, 0.2, 0.35, 0.02); }
         if (held % 48 == 8) {
             server.playSound(null, x, y, z, SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 0.8F, 0.7F);
             server.playSound(null, x, y, z, SoundEvents.CAT_PURR, SoundSource.PLAYERS, 0.5F, 1.1F);
@@ -127,9 +119,7 @@ public class BodyPillowItem extends Item {
     }
 
     @Override
-    public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-        consumer.accept(com.groid.papon.client.PillowClient.EXTENSIONS);
-    }
+    public void initializeClient(Consumer<IClientItemExtensions> consumer) { consumer.accept(com.groid.papon.client.PillowClient.EXTENSIONS); }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {

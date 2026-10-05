@@ -45,9 +45,7 @@ public final class FlagCloth {
         Matrix4f m = ps.last().pose();
         Matrix3f nm = ps.last().normal();
         float[][] z = new float[nx + 1][ny + 1];
-        for (int i = 0; i <= nx; i++) {
-            for (int j = 0; j <= ny; j++) z[i][j] = wave(i / (float) nx, j / (float) ny, time, phase, amp, pole);
-        }
+        for (int i = 0; i <= nx; i++) { for (int j = 0; j <= ny; j++) z[i][j] = wave(i / (float) nx, j / (float) ny, time, phase, amp, pole); }
         for (int i = 0; i < nx; i++) {
             for (int j = 0; j < ny; j++) {
                 vertex(vc, m, nm, z, i, j, nx, ny, width, height, light);

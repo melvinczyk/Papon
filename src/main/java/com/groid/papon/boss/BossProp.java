@@ -180,27 +180,17 @@ public class BossProp extends Entity {
         return this;
     }
 
-    public Kind kind() {
-        return Kind.values()[Mth.clamp(entityData.get(DATA_KIND), 0, Kind.values().length - 1)];
-    }
+    public Kind kind() { return Kind.values()[Mth.clamp(entityData.get(DATA_KIND), 0, Kind.values().length - 1)]; }
 
-    public float radius() {
-        return entityData.get(DATA_RADIUS);
-    }
+    public float radius() { return entityData.get(DATA_RADIUS); }
 
-    public void setRadius(float r) {
-        entityData.set(DATA_RADIUS, r);
-    }
+    public void setRadius(float r) { entityData.set(DATA_RADIUS, r); }
 
     /** MASHER: which layout of holes the plate has (boss/Masher; synced in the fry's delay slot, which it does not use). */
-    public void setVariant(int v) {
-        entityData.set(DATA_DELAY, v);
-    }
+    public void setVariant(int v) { entityData.set(DATA_DELAY, v); }
 
     /** Ticks a fry still hangs before it flies (synced, the renderer shakes it). */
-    public int delay() {
-        return entityData.get(DATA_DELAY);
-    }
+    public int delay() { return entityData.get(DATA_DELAY); }
 
     @Nullable
     public PaponBossEntity owner() {
@@ -346,13 +336,9 @@ public class BossProp extends Entity {
     }
 
     /** SALSA_WAVE: where its gap is, across it from its middle (blocks). */
-    public double gap() {
-        return (delay() - 1000) / 10.0;
-    }
+    public double gap() { return (delay() - 1000) / 10.0; }
 
-    public void setGap(double across) {
-        entityData.set(DATA_DELAY, 1000 + (int) Math.round(across * 10));
-    }
+    public void setGap(double across) { entityData.set(DATA_DELAY, 1000 + (int) Math.round(across * 10)); }
 
     // ---- the cleaver: out on a curve, then home to his hand
     private void tickCleaver(ServerLevel level, PaponBossEntity boss) {
@@ -493,14 +479,10 @@ public class BossProp extends Entity {
     }
 
     @Override
-    public boolean isPickable() {
-        return false;
-    }
+    public boolean isPickable() { return false; }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double d) {
-        return d < 128 * 128;
-    }
+    public boolean shouldRenderAtSqrDistance(double d) { return d < 128 * 128; }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {}
@@ -509,14 +491,10 @@ public class BossProp extends Entity {
     protected void addAdditionalSaveData(CompoundTag tag) {}
 
     @Override
-    public boolean shouldBeSaved() {
-        return false;
-    }
+    public boolean shouldBeSaved() { return false; }
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return new ClientboundAddEntityPacket(this);
-    }
+    public Packet<ClientGamePacketListener> getAddEntityPacket() { return new ClientboundAddEntityPacket(this); }
 
     @SuppressWarnings("unused")
     private static BlockPos below(Vec3 v) {

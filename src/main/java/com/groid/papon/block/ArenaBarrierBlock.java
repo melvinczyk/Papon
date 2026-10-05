@@ -17,19 +17,13 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * thrown things, arrows); it cannot be seen, aimed at or broken.
  */
 public class ArenaBarrierBlock extends Block {
-    public ArenaBarrierBlock(Properties props) {
-        super(props);
-    }
+    public ArenaBarrierBlock(Properties props) { super(props); }
 
     @Override
-    public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.INVISIBLE;
-    }
+    public RenderShape getRenderShape(BlockState state) { return RenderShape.INVISIBLE; }
 
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return Shapes.empty();
-    }
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) { return Shapes.empty(); }
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
@@ -37,12 +31,8 @@ public class ArenaBarrierBlock extends Block {
     }
 
     @Override
-    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
-        return true;
-    }
+    public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) { return true; }
 
     @Override
-    public float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) {
-        return 1.0F;
-    }
+    public float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) { return 1.0F; }
 }

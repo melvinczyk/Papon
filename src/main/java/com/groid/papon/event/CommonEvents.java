@@ -39,14 +39,10 @@ public final class CommonEvents {
     public static void onInteract(PlayerInteractEvent.EntityInteract event) {
         ItemStack stack = event.getItemStack();
         Entity target = event.getTarget();
-        if (!stack.is(ModItems.TACO_COUPON.get()) || !PAPON.equals(ForgeRegistries.ENTITY_TYPES.getKey(target.getType()))) {
-            return;
-        }
+        if (!stack.is(ModItems.TACO_COUPON.get()) || !PAPON.equals(ForgeRegistries.ENTITY_TYPES.getKey(target.getType()))) { return; }
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.sidedSuccess(event.getLevel().isClientSide));
-        if (!(event.getLevel() instanceof ServerLevel level) || !(target instanceof Mob papon) || !papon.isAlive()) {
-            return;
-        }
+        if (!(event.getLevel() instanceof ServerLevel level) || !(target instanceof Mob papon) || !papon.isAlive()) { return; }
         Player player = event.getEntity();
         if (!level.dimensionType().hasSkyLight()) {
             player.displayClientMessage(Component.translatable("message.papon.no_trucks_here").withStyle(ChatFormatting.RED), true);
@@ -86,9 +82,7 @@ public final class CommonEvents {
     /** Nothing may take the Wandering Papon, or anyone at the Taco Truck, as a target. */
     @SubscribeEvent
     public static void onChangeTarget(LivingChangeTargetEvent event) {
-        if (event.getNewTarget() instanceof WanderingPaponEntity || event.getNewTarget() instanceof TacoNpc) {
-            event.setCanceled(true);
-        }
+        if (event.getNewTarget() instanceof WanderingPaponEntity || event.getNewTarget() instanceof TacoNpc) { event.setCanceled(true); }
     }
 
     /** A totem in Chef Papon's fight: he calls it what it is. */

@@ -98,13 +98,9 @@ public class MariachiEntity extends TacoNpc {
         entityData.define(DATA_DEAD, false);
     }
 
-    public boolean isDead() {
-        return entityData.get(DATA_DEAD);
-    }
+    public boolean isDead() { return entityData.get(DATA_DEAD); }
 
-    public void setDead(boolean dead) {
-        entityData.set(DATA_DEAD, dead);
-    }
+    public void setDead(boolean dead) { entityData.set(DATA_DEAD, dead); }
 
     /** A new place on a new stage (El Coliseo de los Muertos): where he stands and faces, and the lamps there. */
     public void home(Vec3 at, float yaw, java.util.List<net.minecraft.core.BlockPos> stageLamps) {
@@ -120,30 +116,18 @@ public class MariachiEntity extends TacoNpc {
     }
 
     /** The song they play: Song.CANCION through phase two, Song.PARA_SIEMPRE from phase three. */
-    public int songId() {
-        return entityData.get(DATA_SONG);
-    }
+    public int songId() { return entityData.get(DATA_SONG); }
 
-    public boolean robbed() {
-        return entityData.get(DATA_ROBBED);
-    }
+    public boolean robbed() { return entityData.get(DATA_ROBBED); }
 
-    public BandRole getRole() {
-        return BandRole.byId(entityData.get(DATA_ROLE));
-    }
+    public BandRole getRole() { return BandRole.byId(entityData.get(DATA_ROLE)); }
 
-    public BandState getBandState() {
-        return BandState.byId(stateId());
-    }
+    public BandState getBandState() { return BandState.byId(stateId()); }
 
     /** The server tick (game time, low 31 bits) the song's first downbeat falls on; 0 before the count. */
-    public int songStart() {
-        return entityData.get(DATA_SONG_START);
-    }
+    public int songStart() { return entityData.get(DATA_SONG_START); }
 
-    public void setBandState(BandState s) {
-        setStateId(s.ordinal());
-    }
+    public void setBandState(BandState s) { setStateId(s.ordinal()); }
 
     // ------------------------------------------------------------------ what the boss does to them
 
@@ -172,9 +156,7 @@ public class MariachiEntity extends TacoNpc {
     }
 
     /** Back asleep after the clang (the guitarron): his chair needs kicking. */
-    public boolean dozing() {
-        return woken && !kicked && getBandState() == BandState.SLEEP && stateTicks > 10;
-    }
+    public boolean dozing() { return woken && !kicked && getBandState() == BandState.SLEEP && stateTicks > 10; }
 
     /** The singer counts the band in; the first downbeat falls {@link BandState#COUNT} ticks from now. */
     public void count(int songStartTick) {
@@ -197,9 +179,7 @@ public class MariachiEntity extends TacoNpc {
     // ------------------------------------------------------------------ phase three
 
     /** The boss knocked down: the music stops dead, instruments still in hand. */
-    public void stop() {
-        if (getBandState() == BandState.PLAY || getBandState() == BandState.COUNT) setBandState(BandState.READY);
-    }
+    public void stop() { if (getBandState() == BandState.PLAY || getBandState() == BandState.COUNT) setBandState(BandState.READY); }
 
     /** The boss over them, the requinto torn away: everyone cowers ({@code delay} ticks late, each his own way). */
     public void scare(int delay) {
@@ -216,9 +196,7 @@ public class MariachiEntity extends TacoNpc {
     }
 
     /** The spotlight on the boss: they forget to be scared and watch. */
-    public void awe() {
-        if (getBandState() == BandState.SCARED || getBandState() == BandState.READY) setBandState(BandState.AWED);
-    }
+    public void awe() { if (getBandState() == BandState.SCARED || getBandState() == BandState.READY) setBandState(BandState.AWED); }
 
     /** The singer: the requinto back at him through the air (it lands in his hands now). */
     public void catchGuitar() {
@@ -252,9 +230,7 @@ public class MariachiEntity extends TacoNpc {
     }
 
     /** ...and in {@code delay} ticks it is back in his hands (thrown back, or a spare): on with the song. */
-    public void giveBack(int delay) {
-        giveBackIn = Math.max(1, delay);
-    }
+    public void giveBack(int delay) { giveBackIn = Math.max(1, delay); }
 
     public void bow() {
         if (getBandState().lamp()) {
@@ -264,14 +240,10 @@ public class MariachiEntity extends TacoNpc {
         if (getBandState() == BandState.PLAY || getBandState().ready() || getBandState().lamp()) setBandState(BandState.BOW);
     }
 
-    private void say(String line, int ticks) {
-        Speech.say(this, ChatFormatting.GOLD, "speech.papon.band." + line, false, false, ticks);
-    }
+    private void say(String line, int ticks) { Speech.say(this, ChatFormatting.GOLD, "speech.papon.band." + line, false, false, ticks); }
 
     /** A line of his own in a bubble (phase three's cutscene: the band's scared asides). */
-    public void blurt(String line, int ticks) {
-        say(line, ticks);
-    }
+    public void blurt(String line, int ticks) { say(line, ticks); }
 
     // ------------------------------------------------------------------ ticking
 
@@ -470,9 +442,7 @@ public class MariachiEntity extends TacoNpc {
             SCARED = loop("scared"), ROBBED = once("robbed"), AWED = loop("awed"), CATCH = once("catch");
 
     /** Gordo has the only chair; everyone else sleeps (and wakes, and dresses) sitting on the stage floor. */
-    private String chair(String name) {
-        return getRole().dozer() ? name : name + "_floor";
-    }
+    private String chair(String name) { return getRole().dozer() ? name : name + "_floor"; }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {

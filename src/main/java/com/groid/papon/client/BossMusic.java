@@ -78,14 +78,10 @@ public final class BossMusic {
             x = y = z = 0;
         }
 
-        void setPitch(float p) {
-            pitch = p;
-        }
+        void setPitch(float p) { pitch = p; }
 
         @Override
-        public boolean canStartSilent() {
-            return true;
-        }
+        public boolean canStartSilent() { return true; }
 
         @Override
         public void tick() {

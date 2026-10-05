@@ -58,9 +58,7 @@ public final class Mechanics {
             Vec3 at = e.position().add(0, e.getBbHeight() * 0.5, 0);
             Fx.blast(level, at, 1.4F);
             level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.FIRECHARGE_USE, SoundSource.HOSTILE, 1.5F, 0.6F);
-            if (e instanceof ServerPlayer sp) {
-                PaponNetwork.shake(sp, 0.8F, 16);
-            }
+            if (e instanceof ServerPlayer sp) { PaponNetwork.shake(sp, 0.8F, 16); }
             return;
         }
         e.addEffect(new MobEffectInstance(ModEffects.HABANERO.get(), 120, now - 1, false, true, true));

@@ -34,13 +34,9 @@ public final class BandPoses {
                     Mth.lerp(t, px, o.px), Mth.lerp(t, py, o.py), Mth.lerp(t, pz, o.pz));
         }
 
-        public Arm plus(float dx, float dy, float dz) {
-            return new Arm(x + dx, y + dy, z + dz, k, px, py, pz);
-        }
+        public Arm plus(float dx, float dy, float dz) { return new Arm(x + dx, y + dy, z + dz, k, px, py, pz); }
 
-        public Arm stretched(float kk) {
-            return new Arm(x, y, z, kk, px, py, pz);
-        }
+        public Arm stretched(float kk) { return new Arm(x, y, z, kk, px, py, pz); }
     }
 
     public final Arm[] bow;

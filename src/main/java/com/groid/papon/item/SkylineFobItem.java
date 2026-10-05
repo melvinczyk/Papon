@@ -26,14 +26,10 @@ import java.util.List;
 public class SkylineFobItem extends CaravanKeysItem {
     private static final double RANGE = 64;
 
-    public SkylineFobItem(Properties properties) {
-        super(properties);
-    }
+    public SkylineFobItem(Properties properties) { super(properties); }
 
     @Override
-    protected void dress(CaravanEntity van) {
-        van.setSkyline(true);
-    }
+    protected void dress(CaravanEntity van) { van.setSkyline(true); }
 
     @Override
     protected void parked(ServerLevel level, CaravanEntity van) {
