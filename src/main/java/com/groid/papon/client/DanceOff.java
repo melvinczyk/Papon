@@ -40,7 +40,7 @@ final class DanceOff {
     static final int FWD = 0, BACK = 1, LEFT = 2, RIGHT = 3, SPIN = 4;
     static final int[] KEYS = {GLFW.GLFW_KEY_W, GLFW.GLFW_KEY_S, GLFW.GLFW_KEY_A, GLFW.GLFW_KEY_D, GLFW.GLFW_KEY_SPACE};
     private static final String[] GLYPH = {"↑", "↓", "←", "→", "↻"};
-    private static final String[] KEY_NAME = {"W", "S", "A", "D", "␣"};
+    private static final String[] KEY_NAME = {"W", "S", "A", "D", "SPC"};
     private static final double GOOD = 0.13, PERFECT = 0.06;
     private static final int JADE = 0xFF52FF84, GOLD = 0xFFFFD27A, ROSA = 0xFFEC2E8C;
 

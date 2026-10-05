@@ -843,22 +843,22 @@ public final class Cinematic {
                 return new Shot(fp.add(f.scale(h * 1.7)).add(right.scale(-h * 0.35)), fp, 44, 0, near(t, met + 30));
             }
             case P4_PROPHECY -> {
-                int fog = VoiceLines.beat("p4.fog", 40), look = VoiceLines.beat("p4.throne_look", 119), line = VoiceLines.beat("p4.throne", 133),
+                int look = VoiceLines.beat("p4.throne_look", 119), line = VoiceLines.beat("p4.throne", 133),
                         carved = VoiceLines.beat("p4.carved", 262), warrior = VoiceLines.beat("p4.warrior", 368);
                 Vec3 fp = BossRenderer.facePos(b);
                 Vec3 throne = b.throneSpot();
                 Vec3 toThrone = throne.subtract(b.position()).multiply(1, 0, 1);
                 toThrone = toThrone.lengthSqr() < 1e-4 ? f : toThrone.normalize();
                 Vec3 tSide = new Vec3(-toThrone.z, 0, toThrone.x);
-                if (t < fog + 20) {
+                if (t < look - 50) {
                     // walking with him in profile, a little ahead: "Ten thousand years..."
                     Vec3 eye = body.add(right.scale(h * 3.2)).add(f.scale(h * (1.3 + t * 0.004))).add(0, h * 0.15, 0);
                     return new Shot(eye, fp.add(f.scale(0.8)), 50, 0, near(t, 0));
                 }
                 if (t < look) {
-                    // low and wide on the sand as the fog rolls in round him
+                    // low and wide on the sand, walking on toward the middle
                     Vec3 eye = b.position().add(f.scale(h * 3.6)).add(right.scale(-h * 1.6)).add(0, 0.4, 0);
-                    return new Shot(eye, body.add(0, h * 0.2, 0), 62, 0, near(t, fog + 20));
+                    return new Shot(eye, body.add(0, h * 0.2, 0), 62, 0, near(t, look - 50));
                 }
                 if (t < line + 50) {
                     // behind him and well out to his side (clear of his wings), past him up at the throne in his box
