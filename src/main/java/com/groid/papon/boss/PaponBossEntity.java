@@ -458,6 +458,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** His coliseum (phase two), up in the sky over the fight; null on the ground. */
     @Nullable private Coliseum arena;
     private boolean arenaFailed;
+    /** Loaded with a coliseum: see whether everyone still has to be taken up into it (customServerAiStep). */
+    private boolean resumeArena;
     private int arenaLonely;
     /** Ticks before he may raise the coliseum again after it came down empty. */
     private int arenaRetryCd;
@@ -1093,6 +1095,17 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         ServerLevel level = (ServerLevel) level();
         stateTicks++;
+        if (resumeArena) {
+            resumeArena = false;
+            if (arena != null && isPhaseTwo() && getY() < arena.floorY() - 6) {
+                // (2026-10-05) saved before he took everyone up into it (a reload, or a kick, in the middle of phase two's
+                // cutscene): it stood half built over an empty sky and came down as "nobody in it". Up now, with the arrival.
+                PaponMod.LOG.info("[boss] loaded in the middle of phase two's cutscene: into his coliseum now");
+                enterArena(level);
+                setBossState(bandWoken ? BossState.IDLE : BossState.P2_ARRIVE);
+                return;
+            }
+        }
         p4Watchdog(level);
         tickCooldowns();
         if (soloDue > 0) soloDue--;
@@ -1488,7 +1501,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.P2_CUTAWAY);
             return;
         }
-        if (isRisen() && arena == null && !arenaFailed && arenaRetryCd <= 0 && target != null && noTargetTicks == 0) {
+        if (isRisen() && arena == null && !arenaFailed && (arenaRetryCd <= 0 || phaseThreeDue || phaseFourDue) && target != null && noTargetTicks == 0) {
             // back for more after the coliseum came down: up it goes again
             planArena((ServerLevel) level());
             setBossState(BossState.P2_SCREAM);
@@ -4394,8 +4407,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         BossState s = getBossState();
         if (s.cutscene() || s.intro() || s.qte() || s == BossState.DEATH || s == BossState.ROAR) return false;
         if (isPassenger() || s == BossState.ENTER_VAN || s == BossState.DRIVING) return false;
-        // his coliseum's own beats come first (the band has to be up and playing)
-        return !inColiseum() || bandWoken;
+        // his coliseum's own beats come first (the band has to be up and playing). (2026-10-05) And with no coliseum, it waits
+        // for him to put it up again (tickIdle does at once when a phase is due) unless there is no room for one in this sky:
+        // the ground version has no band, no guitar to snatch, no serenade (the user lost all of it after a reload mid-fight)
+        if (!inColiseum()) return arenaFailed;
+        return bandWoken;
     }
 
     /**
@@ -9165,6 +9181,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         BossState s = getBossState();
         if (s.cutscene() || s.intro() || s.qte() || s == BossState.DEATH || s == BossState.ROAR) return false;
         if (s == BossState.P3_DUEL || isPassenger() || s == BossState.ENTER_VAN || s == BossState.DRIVING) return false;
+        if (!inColiseum() && !arenaFailed) return false;            // (as phase three: his coliseum up first)
         return isPhaseThree();
     }
 
@@ -13012,6 +13029,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         entityData.set(DATA_PHASE2, tag.getBoolean("Phase2"));
         entityData.set(DATA_FORM, tag.getInt("Form"));
         arena = tag.contains("Arena") ? Coliseum.load(tag.getCompound("Arena")) : null;
+        resumeArena = arena != null;
         entityData.set(DATA_ARENA, arena != null);
         oldDome = tag.contains("Dome") ? tag.getCompound("Dome") : null;
         bandWoken = tag.getBoolean("BandWoken");

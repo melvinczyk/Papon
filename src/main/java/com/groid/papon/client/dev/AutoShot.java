@@ -58,6 +58,12 @@ public final class AutoShot {
     /** -Pautoshot=climax: into the coliseum, then phase four's stages: El Gigante up close from every side, the storm's rage and
      *  the fight with the giant and the serpents on their own, El Juicio Final (papon_z*.png). */
     private static final boolean CLIMAX = MODE.equals("climax");
+    /** -Pautoshot=phases: into the coliseum's fight, then real hits (not /papon bossstate) take him to half health and to a
+     *  quarter: phase three's whole cutscene and phase four's must follow on their own (papon_p*.png, every state logged). */
+    private static final boolean PHASES = MODE.equals("phases") || MODE.equals("phasesdown");
+    /** -Pautoshot=phasesdown: the same, but first you leave so his coliseum comes down (as after the user's reload): phase three
+     *  must wait for it to go up again and play in full, not its ground version. */
+    private static final boolean PHASES_DOWN = MODE.equals("phasesdown");
     /** -Pautoshot=nights: into the coliseum, then the flags, the crowd up close, the potato sun, nightfall (the lamplighter), the potato moon. */
     private static final boolean NIGHTS = MODE.equals("nights");
     /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
@@ -114,7 +120,7 @@ public final class AutoShot {
             statePose(mc);
             return;
         }
-        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4 || CLIMAX) {
+        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4 || CLIMAX || PHASES) {
             coliseum(mc);
             if (VOICE) voice(mc);
             return;
@@ -392,6 +398,10 @@ public final class AutoShot {
         }
         if (colMark > 0 && PHASE4) {
             phaseFourTour(mc, b, tick - colMark);
+            return;
+        }
+        if (colMark > 0 && PHASES) {
+            phasesTour(mc, b, tick - colMark);
             return;
         }
         if (colMark > 0 && CLIMAX) {
@@ -1154,6 +1164,39 @@ public final class AutoShot {
         }
         if (k > 1500 + 20 * 60 * 2) mc.stop();
     }
+
+    /** Real hits from you: down to just over half, one more hit; then (once phase three's fight is on) to just over a quarter. */
+    private static void phasesTour(Minecraft mc, PaponBossEntity b, int k) {
+        BossState s = b.getBossState();
+        if (k == 2) run("effect give @s regeneration 100000 4 true", "effect give @s resistance 100000 4 true");
+        if (k % 20 == 0) PaponMod.LOG.info("[autoshot] phases: {} t{} hp {} p3 {} p4 {} form {}", s, b.ticksInState(), (int) b.getHealth(),
+                b.isPhaseThree(), b.isPhaseFour(), b.form());
+        if (!com.groid.papon.client.Cinematic.isActive()) lookAt(mc, b);
+        float max = b.getMaxHealth();
+        if (PHASES_DOWN) {
+            // away from it (below it, on the ground) until it comes down, then back to him on the ground
+            if (k == 20) run("effect give @s slow_falling 60 0 true", "tp @s ~ ~-190 ~");
+            if (k < 20 * 20) return;
+            if (k == 20 * 20) run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~1 ~6");
+            k -= 20 * 20;
+        }
+        if (k == 60) run(String.format(java.util.Locale.ROOT, "data merge entity @e[type=papon:papon_boss,limit=1] {Health:%.1ff}", max * 0.52F));
+        if (k >= 80 && k % 20 == 0 && !b.isPhaseThree() && !s.phaseThree() && b.getHealth() > max * 0.5F)
+            run("damage @e[type=papon:papon_boss,limit=1] 30 minecraft:player_attack by @s");
+        if (s.phaseThree() && b.ticksInState() % 60 == 10) once(mc, String.format("p_%s_%d", s.name().toLowerCase(java.util.Locale.ROOT), b.ticksInState()));
+        if (b.isPhaseThree() && !b.isPhaseFour() && !s.phaseThree() && s != BossState.P3_DANCE && p4At < 0) p4At = k + 200;
+        if (k == p4At) run(String.format(java.util.Locale.ROOT, "data merge entity @e[type=papon:papon_boss,limit=1] {Health:%.1ff}", max * 0.27F));
+        if (p4At > 0 && k > p4At + 20 && k % 20 == 0 && !b.isPhaseFour() && !s.phaseFour() && b.getHealth() > max * 0.25F)
+            run("damage @e[type=papon:papon_boss,limit=1] 30 minecraft:player_attack by @s");
+        if (s.phaseFour() && b.ticksInState() == 30) once(mc, "p_" + s.name().toLowerCase(java.util.Locale.ROOT));
+        if (b.muertosFight() && s == BossState.IDLE && p4At > 0) {
+            once(mc, "p_muertos_fight");
+            mc.stop();
+        }
+        if (k > 20 * 60 * 14) mc.stop();
+    }
+
+    private static int p4At = -1;
 
     private static Vec3 flat(Vec3 p, double y) { return new Vec3(p.x, y, p.z); }
 

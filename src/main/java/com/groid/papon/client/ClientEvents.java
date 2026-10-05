@@ -133,6 +133,21 @@ public final class ClientEvents {
     }
 
     /**
+     * (2026-10-05) No attacking, using or picking through a cutscene. The camera is not you then, so the game aims your click
+     * from the camera, and from there what it hits can be your own body: the server kicks anyone who attacks themselves
+     * ("Attempting to attack an invalid entity"). The user was kicked like that in the middle of phase two's cutscene, before
+     * his coliseum was up, and came back to a fight without it (phase three's ground version followed).
+     */
+    @SubscribeEvent
+    public static void onInteract(net.minecraftforge.client.event.InputEvent.InteractionKeyMappingTriggered event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (Cinematic.isActive() || (mc.player != null && mc.getCameraEntity() != mc.player)) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+        }
+    }
+
+    /**
      * Through a cutscene you stand still: no input (onMovement) and no momentum either (the user: a jump or a sprint into
      * one carried on through it). Your fall is left alone, so you still land.
      */

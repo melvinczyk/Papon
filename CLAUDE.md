@@ -217,6 +217,12 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   mixin's `embPlus$checked/whitelisted` on every `papon:` entity and block entity type. Big visuals on small entities: draw by distance
   (`PropRenderer.shouldRender`), keep the entity near the arena's middle (beams at their midpoint, the giant at the centre) so the
   server's tracking range (capped by view distance) reaches every player.
+- **Clicking during a cutscene kicked the player** (the camera is not the player, so the click's ray can hit their own body:
+  vanilla kicks "Attempting to attack an invalid entity"): `ClientEvents.onInteract` cancels attack/use/pick while a cutscene runs.
+  The user hit it mid phase two, rejoined to a half-built coliseum that came down as empty, and phase three played its ground
+  version. Now: a coliseum loaded with him below it is entered at once (`resumeArena`), phases three and four wait for the
+  coliseum unless there is no room for one (`arenaFailed`), and tickIdle rebuilds it at once when a phase is due.
+  `-Pautoshot=phases` / `phasesdown` check the real-damage path.
 - Voice: `gen_boss_voice.py` with no args retakes every line whose cached signature changed (all of phase four on Windows): to add
   lines, take and build only them (`g.generate(new)`, `g.FRESH = set(new)`, `g.build(meta)`).
 - iCloud makes `* 2` duplicates under `build/` (namespace `papon 2` build failure):
@@ -312,7 +318,7 @@ Dev in worktrees is fine (`./gradlew compileJava`, `./gradlew runServer` in `run
   move forces the form).
 - **Autoshot client** (`./gradlew runClient -Pautoshot[=X]`, shots in `run/screenshots/papon_*.png`, then quits): default (truck,
   unmasking, phase one), `phase2`, `coliseum`, `phase3` (ends with an Ascended move showcase), `phase4`, `climax` (the giant from every
-  side, the storm, El Juicio Final), `serpents`, `voice`,
+  side, the storm, El Juicio Final), `phases` / `phasesdown` (real hits through phase three and into phase four; `phasesdown` with the coliseum down first), `serpents`, `voice`,
   `nights`, `ending`, `arena`, `pillow`, `drive`, `fight` (3-min AI fight log), `pose`, `state:<STATE>:<form>:<t1,t2,…>`.
 - Walking Crops is not in the dev run: the coupon handoff can only be tested in the real pack. Jarrito handing and chancla need a
   real player.
