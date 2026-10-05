@@ -2026,5 +2026,201 @@
         "name": "papon:voice/boss2/p3_swing"
       }
     ]
+  },
+  "voice.boss2.p4_laugh": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_laugh"
+      }
+    ]
+  },
+  "voice.boss2.p4_rise": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_rise"
+      }
+    ]
+  },
+  "voice.boss2.p4_hammer": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_hammer"
+      }
+    ]
+  },
+  "voice.boss2.p4_strike": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_strike"
+      }
+    ]
+  },
+  "voice.boss2.p4_centuries": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_centuries"
+      }
+    ]
+  },
+  "voice.boss2.p4_true": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_true"
+      }
+    ]
+  },
+  "voice.boss2.p4_fiesta": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_fiesta"
+      }
+    ]
+  },
+  "voice.boss2.p4_martillo": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_martillo"
+      }
+    ]
+  },
+  "voice.boss2.p4_luna": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_luna"
+      }
+    ]
+  },
+  "voice.boss2.p4_gigante": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_gigante"
+      }
+    ]
+  },
+  "voice.boss2.p4_grieta": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_grieta"
+      }
+    ]
+  },
+  "voice.boss2.p4_cierra": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_cierra"
+      }
+    ]
+  },
+  "voice.boss2.p4_petalos": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_petalos"
+      }
+    ]
+  },
+  "voice.boss2.p4_papel": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_papel"
+      }
+    ]
+  },
+  "voice.boss2.p4_velas": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_velas"
+      }
+    ]
+  },
+  "voice.boss2.p4_danza": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_danza"
+      }
+    ]
+  },
+  "voice.boss2.p4_charm0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_charm0"
+      }
+    ]
+  },
+  "voice.boss2.p4_charm1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_charm1"
+      }
+    ]
+  },
+  "voice.boss2.p4_charm2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_charm2"
+      }
+    ]
+  },
+  "voice.boss2.p4_charm3": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_charm3"
+      }
+    ]
+  },
+  "voice.boss2.p4_charm4": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_charm4"
+      }
+    ]
+  },
+  "voice.boss2.p4_charm5": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_charm5"
+      }
+    ]
+  },
+  "voice.boss2.p4_hit0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_hit0"
+      }
+    ]
+  },
+  "voice.boss2.p4_hit1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_hit1"
+      }
+    ]
+  },
+  "voice.boss2.p4_hit2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_hit2"
+      }
+    ]
+  },
+  "voice.boss2.p4_landed0": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_landed0"
+      }
+    ]
+  },
+  "voice.boss2.p4_landed1": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_landed1"
+      }
+    ]
+  },
+  "voice.boss2.p4_landed2": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_landed2"
+      }
+    ]
   }
 }
