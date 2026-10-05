@@ -133,5 +133,5 @@ def write_geo(name, bones, tex_w, tex_h, bounds=(3, 3.5, 1.5)):
     path = os.path.join(ASSETS, 'geo/entity/%s.geo.json' % name)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', newline='\n') as f:
-        json.dump(geo, f, indent='\t')
+        json.dump(geo, f, separators=(',', ':'))
     return path

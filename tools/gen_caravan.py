@@ -516,7 +516,7 @@ def main():
     }
     out = os.path.join(ASSETS, 'geo/entity/caravan.geo.json')
     with open(out, 'w', newline='\n') as f:
-        json.dump(geo, f, indent='\t')
+        json.dump(geo, f, separators=(',', ':'))
     print(out)
     print(van.p.save(os.path.join(ASSETS, 'textures/entity/caravan.png')))
     glow = os.path.join(ASSETS, 'textures/entity/caravan_glowmask.png')
@@ -524,7 +524,7 @@ def main():
     print(glow)
     anim = os.path.join(ASSETS, 'animations/entity/caravan.animation.json')
     with open(anim, 'w', newline='\n') as f:
-        json.dump(animations(), f, indent='\t')
+        json.dump(animations(), f, separators=(',', ':'))
     print(anim)
 
 

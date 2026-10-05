@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "papon:block/spirit_brazier"
-    }
-  }
-}
+{"variants":{"":{"model":"papon:block/spirit_brazier"}}}

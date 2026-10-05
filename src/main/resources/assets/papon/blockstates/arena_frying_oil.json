@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "papon:block/arena_frying_oil"
-    }
-  }
-}
+{"variants":{"":{"model":"papon:block/arena_frying_oil"}}}

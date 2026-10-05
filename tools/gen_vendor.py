@@ -975,7 +975,7 @@ def foil_potato():
                                  '2.0': {'vector': [1, 1, 1]}}}}}}}
     apath = os.path.join(ASSETS, 'animations/entity/foil_potato.animation.json')
     with open(apath, 'w', newline='\n') as f:
-        json.dump(anim, f, indent='\t')
+        json.dump(anim, f, separators=(',', ':'))
     return [geo, p.save(os.path.join(ASSETS, 'textures/entity/foil_potato.png'))]
 
 if __name__ == '__main__':

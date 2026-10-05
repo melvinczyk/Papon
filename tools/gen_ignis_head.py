@@ -33,5 +33,5 @@ model = {
     },
 }
 with open(os.path.join(ASSETS, 'models/item/fx_ignis_head.json'), 'w', newline='\n') as f:
-    json.dump(model, f, indent=1)
+    json.dump(model, f, separators=(',', ':'))
 print('ok')

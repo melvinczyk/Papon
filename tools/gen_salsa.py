@@ -267,7 +267,7 @@ def write_anims():
         a = fn()
         data['animations']['animation.salsa_dancer.' + a.name] = guard_brows(a.compile())
     with open(OUT_ANIM, 'w', newline='\n') as f:
-        json.dump(data, f, indent='\t')
+        json.dump(data, f, separators=(',', ':'))
     return OUT_ANIM
 
 

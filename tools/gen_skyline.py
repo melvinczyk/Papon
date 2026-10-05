@@ -270,7 +270,7 @@ def main():
         'bones': bones}]}
     out = os.path.join(ASSETS, 'geo/entity/skyline.geo.json')
     with open(out, 'w', newline='\n') as f:
-        json.dump(geo, f, indent='\t')
+        json.dump(geo, f, separators=(',', ':'))
     print(out)
     print(van.p.save(os.path.join(ASSETS, 'textures/entity/skyline.png')))
     glow = os.path.join(ASSETS, 'textures/entity/skyline_glowmask.png')

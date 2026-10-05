@@ -888,7 +888,7 @@ class Character:
             'bones': bones}]}
         path = os.path.join(ASSETS, 'geo/entity/%s_mesh.geo.json' % self.name)
         with open(path, 'w') as f:
-            json.dump(geo, f, indent='\t')
+            json.dump(geo, f, separators=(',', ':'))
         return path
 
     def generate(self):

@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "papon:block/arena_drape_red"
-    }
-  }
-}
+{"variants":{"":{"model":"papon:block/arena_drape_red"}}}

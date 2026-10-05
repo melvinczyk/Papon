@@ -1,12 +1,1 @@
-{
-  "textures": [
-    "papon:fx_shock_0",
-    "papon:fx_shock_1",
-    "papon:fx_shock_2",
-    "papon:fx_shock_3",
-    "papon:fx_shock_4",
-    "papon:fx_shock_5",
-    "papon:fx_shock_6",
-    "papon:fx_shock_7"
-  ]
-}
+{"textures":["papon:fx_shock_0","papon:fx_shock_1","papon:fx_shock_2","papon:fx_shock_3","papon:fx_shock_4","papon:fx_shock_5","papon:fx_shock_6","papon:fx_shock_7"]}

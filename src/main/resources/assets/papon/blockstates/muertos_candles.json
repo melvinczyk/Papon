@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "papon:block/muertos_candles"
-    }
-  }
-}
+{"variants":{"":{"model":"papon:block/muertos_candles"}}}

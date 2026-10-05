@@ -1,5 +1,1 @@
-{
-  "textures": {
-    "particle": "papon:block/arena_stone"
-  }
-}
+{"textures":{"particle":"papon:block/arena_stone"}}

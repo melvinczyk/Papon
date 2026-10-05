@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "papon:block/potato_skin"
-    }
-  }
-}
+{"variants":{"":{"model":"papon:block/potato_skin"}}}

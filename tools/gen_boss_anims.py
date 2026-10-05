@@ -4028,7 +4028,7 @@ def write(name, fns, prefix):
         data['animations'][prefix + a.name] = guard_brows(a.compile())
     path = os.path.join(OUT_DIR, name + '.animation.json')
     with open(path, 'w', newline='\n') as f:
-        json.dump(data, f, indent='\t')
+        json.dump(data, f, separators=(',', ':'))
     return path
 
 

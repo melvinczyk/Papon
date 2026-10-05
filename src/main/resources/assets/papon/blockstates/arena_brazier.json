@@ -1,16 +1,1 @@
-{
-  "variants": {
-    "crimson=false,lit=true": {
-      "model": "papon:block/arena_brazier"
-    },
-    "crimson=true,lit=true": {
-      "model": "papon:block/arena_brazier_crimson"
-    },
-    "crimson=false,lit=false": {
-      "model": "papon:block/arena_brazier_out"
-    },
-    "crimson=true,lit=false": {
-      "model": "papon:block/arena_brazier_out"
-    }
-  }
-}
+{"variants":{"crimson=false,lit=true":{"model":"papon:block/arena_brazier"},"crimson=true,lit=true":{"model":"papon:block/arena_brazier_crimson"},"crimson=false,lit=false":{"model":"papon:block/arena_brazier_out"},"crimson=true,lit=false":{"model":"papon:block/arena_brazier_out"}}}

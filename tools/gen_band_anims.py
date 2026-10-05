@@ -741,7 +741,7 @@ def main():
     for a in [fn() for fn in ALL] + floor_variants():
         data['animations']['animation.mariachi.' + a.name] = guard_brows(a.compile())
     with open(OUT, 'w', newline='\n') as f:
-        json.dump(data, f, indent='\t')
+        json.dump(data, f, separators=(',', ':'))
     print(OUT, len(data['animations']), 'animations')
     with open(POSES_OUT, 'w', newline='\n') as f:
         json.dump(POSES, f, separators=(',', ':'))

@@ -739,7 +739,7 @@ def write(name, fns, prefix):
     path = os.path.join(OUT_DIR, name + '.animation.json')
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(path, 'w', newline='\n') as f:
-        json.dump(data, f, indent='\t')
+        json.dump(data, f, separators=(',', ':'))
     return path
 
 
