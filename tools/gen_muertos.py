@@ -6,8 +6,8 @@ everything in it that is new. Writes only its own files (so re-running it never 
             the candles; models/block, blockstates (registry/ModBlocks, boss/Coliseum)
   flag      textures/entity/potato_flag_muertos.png: La Bandera Papa of the dead (purple | black | marigold, the potato a
             calavera in a wreath of marigolds) (client/FlagCloth)
-  sky       textures/environment/muertos_moon.png: the moon after his hammer's bolt, a blue calavera (client/MuertosSky);
-            the moon before it is the potato moon's full phase (gen_sky.py)
+  sky       textures/environment/muertos_moon.png: the Day of the Dead moon (client/MuertosSky), painted by gen_sky.py
+            from the user's sugar skull (tools/src/sugar_skull.webp)
   fx        textures/entity/papel_picado.png (the banners, client/PropRenderer), soul.png (the souls in the rift),
             papon_aura_dead.png (the blue aura round him)
   band      textures/entity/mariachi_muertos.png, arena_fan_muertos.png: the band and the stands as the dead
@@ -806,7 +806,9 @@ if __name__ == '__main__':
     if 'flag' in what:
         save(flag(), 'textures/entity/potato_flag_muertos.png')
     if 'sky' in what:
-        save(dead_moon(), 'textures/environment/muertos_moon.png')
+        # (2026-10-04) the moon is the user's sugar skull now: gen_sky.py paints it (this one's calavera is kept for reference)
+        import gen_sky
+        gen_sky.dead_moon().save(os.path.join(gen_sky.OUT, 'muertos_moon.png'))
     if 'fx' in what:
         save(papel_picado(), 'textures/entity/papel_picado.png')
         save(soul(), 'textures/entity/soul.png')

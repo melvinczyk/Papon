@@ -18,6 +18,12 @@ public final class SerpentPath {
     /** One dive: off the orbit at {@code s0}, down onto the floor at {@code a}, straight to {@code b}, back up. */
     public record Dive(double s0, Vec3 a, Vec3 b) {}
 
+    /**
+     * El Ouroboros: off the orbit at {@code s0}, down onto an ellipse round {@code center} (half-axes {@code ra}, {@code rb}, at
+     * height {@code y}), entered at {@code angle0}, round it {@code laps} times in direction {@code dir}, then back up.
+     */
+    public record Ring(double s0, Vec3 center, double ra, double rb, double y, double angle0, int dir, double laps) {}
+
     private final Vec3 portal, center;
     private final double radius, height;
     private final int dir;
@@ -26,11 +32,16 @@ public final class SerpentPath {
     private final double approachLength;
     private final Curve approachCurve;
     private final List<Piece> dives = new ArrayList<>();
+    private final List<RingPiece> rings = new ArrayList<>();
 
     /** The orbit's weave: up and down this much, once every so many blocks. */
     private static final double WEAVE = 7, WEAVE_LENGTH = 110;
 
     public SerpentPath(Vec3 portal, Vec3 center, double radius, double height, int dir, List<Dive> dives) {
+        this(portal, center, radius, height, dir, dives, List.of());
+    }
+
+    public SerpentPath(Vec3 portal, Vec3 center, double radius, double height, int dir, List<Dive> dives, List<Ring> rings) {
         this.portal = portal;
         this.center = center;
         this.radius = radius;
@@ -44,6 +55,7 @@ public final class SerpentPath {
         approachCurve = new Curve(this::approach);
         approachLength = approachCurve.length;
         for (Dive d : dives) this.dives.add(new Piece(d));
+        for (Ring r : rings) this.rings.add(new RingPiece(r));
     }
 
     public double approachLength() { return approachLength; }
@@ -78,19 +90,91 @@ public final class SerpentPath {
         if (s <= 0) return portal.add(approachTangent.scale(s));
         if (s < approachLength) return approachCurve.at(s);
         for (Piece p : dives) { if (s >= p.s0 && s < p.s0 + p.total) return p.at(s - p.s0); }
+        for (RingPiece p : rings) { if (s >= p.s0 && s < p.s0 + p.total) return p.at(s - p.s0); }
         return orbitAt(s);
     }
 
-    /** Whether {@code s} is inside a dive (low over the floor: it can hit). */
+    /** Whether {@code s} is inside a dive or a ring (low over the floor: it can hit). */
     public boolean diving(double s) {
         for (Piece p : dives) { if (s >= p.s0 + p.l1 * 0.6 && s < p.s0 + p.l1 + p.line + p.l3 * 0.4) return true; }
+        for (RingPiece p : rings) { if (s >= p.s0 + p.l1 * 0.6 && s < p.s0 + p.l1 + p.lap + p.l3 * 0.4) return true; }
         return false;
     }
 
-    /** The length of a dive starting there (to its end), or 0 if there is none. */
+    /** The length of a dive (or ring) starting there (to its end), or 0 if there is none. */
     public double diveLength(double s0) {
         for (Piece p : dives) if (Math.abs(p.s0 - s0) < 1e-6) return p.total;
+        for (RingPiece p : rings) if (Math.abs(p.s0 - s0) < 1e-6) return p.total;
         return 0;
+    }
+
+    /** A ring starting there: how far into it the floor ring starts (the way down), and how long the ring itself is. */
+    public double[] ringSpan(double s0) {
+        for (RingPiece p : rings) if (Math.abs(p.s0 - s0) < 1e-6) return new double[]{p.l1, p.lap};
+        return new double[]{0, 0};
+    }
+
+    /** Whether {@code s} is on a ring's round itself (not the way down or up). */
+    public boolean onRing(double s) {
+        for (RingPiece p : rings) { if (s >= p.s0 + p.l1 && s < p.s0 + p.l1 + p.lap) return true; }
+        return false;
+    }
+
+    private final class RingPiece {
+        final double s0, l1, lap;
+        double l3, total;
+        final Ring ring;
+        final Vec3 q0, t0, start, startTangent;
+        Vec3 q3, t3, end, endTangent;
+        final Curve downCurve, ringCurve;
+        Curve upCurve;
+
+        RingPiece(Ring r) {
+            ring = r;
+            s0 = r.s0();
+            q0 = orbitAt(s0);
+            t0 = orbitTangentAt(s0);
+            start = ringPoint(0);
+            startTangent = ringPoint(0.002).subtract(start).normalize();
+            downCurve = new Curve(this::down);
+            l1 = downCurve.length;
+            ringCurve = new Curve(this::ringPoint, Math.max(64, (int) Math.ceil(r.laps() * 160)));
+            lap = ringCurve.length;
+            end = ringPoint(1);
+            endTangent = end.subtract(ringPoint(0.998)).normalize();
+            l3 = q0.distanceTo(end);
+            for (int i = 0; i < 4; i++) {
+                total = l1 + lap + l3;
+                q3 = orbitAt(s0 + total);
+                t3 = orbitTangentAt(s0 + total);
+                upCurve = new Curve(this::up);
+                l3 = upCurve.length;
+            }
+            total = l1 + lap + l3;
+        }
+
+        Vec3 ringPoint(double u) {
+            double th = ring.angle0() + ring.dir() * u * Math.PI * 2 * ring.laps();
+            return ring.center().add(Math.cos(th) * ring.ra(), ring.y(), Math.sin(th) * ring.rb());
+        }
+
+        Vec3 down(double t) {
+            double k = q0.distanceTo(start) * 1.2;
+            return hermite(q0, t0.scale(k), start, startTangent.scale(k * 0.6), t);
+        }
+
+        Vec3 up(double t) {
+            double k = end.distanceTo(q3) * 1.2;
+            return hermite(end, endTangent.scale(k * 0.6), q3, t3.scale(k), t);
+        }
+
+        Vec3 at(double s) {
+            if (s < l1) return downCurve.at(s);
+            s -= l1;
+            if (s < lap) return ringCurve.at(s);
+            s -= lap;
+            return upCurve.at(Math.min(s, l3));
+        }
     }
 
 
@@ -154,12 +238,17 @@ public final class SerpentPath {
 
     /** A curve sampled by arc length, so the body's segments stay evenly spaced along it. */
     private static final class Curve {
-        private static final int N = 64;
-        final Vec3[] pts = new Vec3[N + 1];
-        final double[] cum = new double[N + 1];
+        final int N;
+        final Vec3[] pts;
+        final double[] cum;
         final double length;
 
-        Curve(java.util.function.DoubleFunction<Vec3> f) {
+        Curve(java.util.function.DoubleFunction<Vec3> f) { this(f, 64); }
+
+        Curve(java.util.function.DoubleFunction<Vec3> f, int n) {
+            N = n;
+            pts = new Vec3[N + 1];
+            cum = new double[N + 1];
             for (int i = 0; i <= N; i++) {
                 pts[i] = f.apply(i / (double) N);
                 cum[i] = i == 0 ? 0 : cum[i - 1] + pts[i].distanceTo(pts[i - 1]);

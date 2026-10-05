@@ -149,6 +149,12 @@ public final class Coliseum {
 
     public double floorY() { return center.getY(); }
 
+    /** His throne in his box over the band stand (box): its seat, where he would sit. */
+    public Vec3 throne() {
+        int zt = (int) Math.round(-(b + CAVEA + 3.5));
+        return Vec3.atBottomCenterOf(center.offset(0, rowHeight(3) + 2, zt));
+    }
+
     public Vec3 centerVec() { return Vec3.atBottomCenterOf(center); }
 
     /** How many times El Coliseo Papa's size this one is. */

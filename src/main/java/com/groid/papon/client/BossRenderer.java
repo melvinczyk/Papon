@@ -53,7 +53,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
                 float time = boss.tickCount + partialTick;
                 boolean dead = boss.isMuertos() || boss.glow() > 0;
                 RenderType swirl = RenderType.energySwirl(dead ? AURA_GUARDIAN : AURA, (time * 0.013F) % 1F, (time * -0.021F) % 1F);
-                for (float grow : new float[]{1.07F, 1.16F}) {
+                for (float grow : boss.isMuertos() && !boss.getBossState().phaseFour() ? new float[]{1.12F} : new float[]{1.07F, 1.16F}) {
                     pose.pushPose();
                     pose.translate(0, 0.9, 0);
                     pose.scale(grow, grow, grow);
@@ -97,7 +97,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
             if (t < clear) return Math.min(1.0F, 0.75F + (t - burst) / 40F) * pulse;
             return Math.max(0.25F, 0.9F - (t - clear) / 30F) * pulse;
         }
-        if (boss.isMuertos()) return (s.muertosMove() ? 0.35F : 0.2F) * pulse;
+        // (2026-10-04, the user: "we can't see his texture... his green aura is masking it") a thin glow at his edges only
+        if (boss.isMuertos()) return (s.muertosMove() ? 0.14F : 0.08F) * pulse;
         if (boss.isPhaseThree() && !s.phaseThree()) return 0.32F * pulse;
         return 0;
     }
@@ -250,7 +251,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         if (entity.isArmored()) {
             // mid-move and untouchable: a golden shimmer running through him
             float k = 0.5F + 0.5F * net.minecraft.util.Mth.sin((entity.tickCount + partialTick) * 0.9F);
-            if (entity.isMuertos()) return software.bernie.geckolib.core.object.Color.ofRGBA(0.6F + 0.15F * k, 0.95F, 1.0F, 1F);
+            if (entity.isMuertos()) return software.bernie.geckolib.core.object.Color.ofRGBA(1.0F, 0.94F + 0.06F * k, 0.82F + 0.12F * k, 1F);
             return software.bernie.geckolib.core.object.Color.ofRGBA(1.0F, 0.86F + 0.1F * k, 0.45F + 0.2F * k, 1F);
         }
         if (entity.getBossState().unstoppable() && !entity.isGhost()) {
@@ -605,6 +606,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
      * the fight, and its shadow would leave his face (and his lines) in the dark.
      */
     private static int keyLight(PaponBossEntity b, int light) {
+        // the Final Guardian in his dark arena: lit as he is, his own colours (NightLight leaves full block light white)
+        if (b.isMuertos()) return net.minecraft.client.renderer.LightTexture.pack(15, net.minecraft.client.renderer.LightTexture.sky(light));
         if (!b.isPhaseTwo() || b.inColiseum() || !b.getBossState().cutscene()) return light;
         return net.minecraft.client.renderer.LightTexture.pack(Math.max(13, net.minecraft.client.renderer.LightTexture.block(light)),
                 net.minecraft.client.renderer.LightTexture.sky(light));

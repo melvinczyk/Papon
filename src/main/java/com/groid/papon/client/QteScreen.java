@@ -32,6 +32,15 @@ public class QteScreen extends Screen {
     }
 
     @Override
+    public void mouseMoved(double x, double y) { QteClient.mouse(x, y); }
+
+    @Override
+    public boolean mouseClicked(double x, double y, int button) {
+        QteClient.mouse(x, y);
+        return true;
+    }
+
+    @Override
     public boolean shouldCloseOnEsc() { return false; }
 
     @Override

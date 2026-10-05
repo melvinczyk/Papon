@@ -41,7 +41,7 @@ import java.util.List;
 public final class QtePlayerPose {
     private QtePlayerPose() {}
 
-    enum Kind { STRUGGLE, SQUEEZE, TANGO, LIMP, SHRED }
+    enum Kind { STRUGGLE, SQUEEZE, TANGO, LIMP, SHRED, DANCE }
 
     private static Field layers;
     private static boolean broken;
@@ -75,6 +75,7 @@ public final class QtePlayerPose {
             BossState s = b.getBossState();
             if (b.heldId() == p.getId() && (s == BossState.QTE_HOLD || s == BossState.QTE_FAIL)) return b;
             if (s == BossState.P3_DUEL && p == net.minecraft.client.Minecraft.getInstance().player && QteClient.duel(b)) return b;
+            if (s == BossState.P4_TANGO && p == net.minecraft.client.Minecraft.getInstance().player && QteClient.dancing(b)) return b;
         }
         return null;
     }
@@ -83,6 +84,7 @@ public final class QtePlayerPose {
     private static Kind kind(PaponBossEntity boss, AbstractClientPlayer p) {
         BossState s = boss.getBossState();
         if (s == BossState.P3_DUEL) return Kind.SHRED;
+        if (s == BossState.P4_TANGO) return Kind.DANCE;
         if (s == BossState.QTE_FAIL) return boss.ticksInState() > 22 ? Kind.LIMP : Kind.STRUGGLE;
         return switch (boss.qteKind()) {
             case 5 -> Kind.SQUEEZE;
@@ -113,6 +115,23 @@ public final class QtePlayerPose {
             pose.mulPose(Axis.ZP.rotationDegrees(8F * Mth.sin(age * 0.5F)));
             pose.translate(0, -0.9, 0);
         } else if (kind == Kind.LIMP) { pose.mulPose(Axis.XP.rotationDegrees(-12F)); }
+        else if (kind == Kind.DANCE) {
+            // your steps (DanceOff): a stride the way you stepped, a whole turn for the spin, a bob on the beat
+            DanceOff d = QteClient.dance();
+            float[] st = d != null ? d.yourStep() : new float[]{-1, 9};
+            float k = Mth.clamp(1F - st[1] / 0.38F, 0F, 1F);
+            float e = k * k * (3 - 2 * k);
+            float bob = d != null ? (float) Math.pow(1 - d.beatPhase(), 3) : 0;
+            pose.translate(0, -0.06F * bob, 0);
+            int mv = (int) st[0];
+            if (mv == DanceOff.SPIN) pose.mulPose(Axis.YP.rotationDegrees(360F * (1 - e)));
+            else if (mv >= 0) {
+                float dx = mv == DanceOff.LEFT ? 1 : mv == DanceOff.RIGHT ? -1 : 0, dz = mv == DanceOff.FWD ? -1 : mv == DanceOff.BACK ? 1 : 0;
+                pose.translate(dx * 0.35F * e, 0, dz * 0.35F * e);
+                pose.mulPose(Axis.XP.rotationDegrees(dz * 10F * e));
+                pose.mulPose(Axis.ZP.rotationDegrees(-dx * 10F * e));
+            }
+        }
         pose.scale(-1F, -1F, 1F);
         pose.scale(0.9375F, 0.9375F, 0.9375F);
         pose.translate(0, -1.501F, 0);
@@ -132,6 +151,7 @@ public final class QtePlayerPose {
         model.prepareMobModel(p, 0, 0, partial);
         model.setupAnim(p, 0, 0, age, Mth.wrapDegrees(headYaw - bodyYaw), pitch);
         posed(model, kind, age, meter);
+        if (kind == Kind.DANCE) dance(model, age);
         var vc = buffers.getBuffer(model.renderType(renderer.getTextureLocation(p)));
         model.renderToBuffer(pose, vc, light, LivingEntityRenderer.getOverlayCoords(p, 0F), 1F, 1F, 1F, 1F);
         if (layers == null) layers = ObfuscationReflectionHelper.findField(LivingEntityRenderer.class, "f_115291_");
@@ -199,6 +219,28 @@ public final class QtePlayerPose {
         m.leftSleeve.copyFrom(m.leftArm);
         m.rightSleeve.copyFrom(m.rightArm);
         m.jacket.copyFrom(m.body);
+    }
+
+    /** Your tango: one hand held up in his (an arm's length off), the other at his shoulder; the legs on your steps. */
+    private static void dance(PlayerModel<AbstractClientPlayer> m, float age) {
+        float d = Mth.DEG_TO_RAD;
+        DanceOff dd = QteClient.dance();
+        float[] st = dd != null ? dd.yourStep() : new float[]{-1, 9};
+        float k = Mth.clamp(1F - st[1] / 0.38F, 0F, 1F);
+        int mv = (int) st[0];
+        set(m.leftArm, -150 * d, 10 * d, -15 * d);
+        set(m.rightArm, -80 * d, -25 * d, 15 * d);
+        float stride = (mv == DanceOff.FWD ? -1 : mv == DanceOff.BACK ? 1 : 0) * 0.7F * k;
+        float side = (mv == DanceOff.LEFT ? 1 : mv == DanceOff.RIGHT ? -1 : 0) * 0.5F * k;
+        set(m.rightLeg, stride, 0, 0.08F - side);
+        set(m.leftLeg, -stride * 0.4F, 0, -0.08F - side * 0.4F);
+        m.head.xRot = -10 * d;
+        m.head.yRot = 30 * d * Mth.sin(age * 0.1F);
+        m.hat.copyFrom(m.head);
+        m.leftPants.copyFrom(m.leftLeg);
+        m.rightPants.copyFrom(m.rightLeg);
+        m.leftSleeve.copyFrom(m.leftArm);
+        m.rightSleeve.copyFrom(m.rightArm);
     }
 
     private static void set(ModelPart part, float x, float y, float z) {

@@ -61,8 +61,13 @@ public final class CrowdSounds {
             case CHANT, CLAP, WAVE -> 0.5F;
             default -> 0.55F;
         };
+        // phase four's fall to the souls: the stands dead silent (the user: "the crowd needs to be silent")
+        boolean hushed = !mc.level.getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class, crowd.getBoundingBox().inflate(160),
+                b -> b.getBossState().p4Hushed()).isEmpty();
+        if (hushed) bed.want = 0;
         // the reactions: one for every pulse the boss sends (a roar over a roar too), the loud ones over his voice
         int pulse = crowd.pulseData();
+        if (hushed) lastPulse = pulse;
         if (crowd.getId() != lastCrowd) {
             lastCrowd = crowd.getId();
             // a fresh crowd (you just arrived): its last reaction still plays if it is the one going on now

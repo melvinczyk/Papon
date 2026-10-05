@@ -3534,30 +3534,6 @@ def b_p4_ignis():
     return a
 
 
-def b_p4_prophecy():
-    """BossState.P4_PROPHECY. A slow walk round, hands clasped behind his back (to p4.moon): "Ten thousand years..." with his
-    head bowed, then up; "...the prophecy might finally be fulfilled." (p4.prophecy) a hand coming round in front of him,
-    open, closing into a fist on "fulfilled"; he stops, looks up at the moon in the fog (p4.moon), and smiles: "Ha... la
-    luna knows it too." (p4.lunaknows), a chuckle in his shoulders, a finger up at it."""
-    years, line, moon, luna, end = (beat('p4.years', 8), beat('p4.prophecy', 102), beat('p4.moon', 186), beat('p4.lunaknows', 212),
-                                    beat('p4.prophecy_end', 270))
-    a = god(B('p4_prophecy', end, 'hold'))
-    behind_r, behind_l = [38, -36, 6], [38, 36, -6]
-    fist = round(line + 3.0, 2)
-    a.rot('arm_r', [(0, PALM_UP_R), (0.6, behind_r, 'easeInOutSine'), (round(line + 0.2, 2), behind_r), (round(line + 0.9, 2), PALM_UP_R, 'easeInOutSine'),
-                    (round(fist - 0.3, 2), [-84, -14, 30]), (fist, [-92, -30, 10], 'easeOutBack'), (round(moon - 0.2, 2), [-90, -30, 10]),
-                    (round(luna + 0.1, 2), POINT_UP_R, 'easeInOutSine'), (round(luna + 1.6, 2), POINT_UP_R), (end, [-20, 0, 16], 'easeInOutSine')], 'lin')
-    stretch(a, 'arm_r', [(0, 1.35), (0.6, 1.1), (round(line + 0.9, 2), 1.3), (fist, 1.2), (round(luna + 0.1, 2), 1.7), (round(luna + 1.6, 2), 1.7), (end, 1)])
-    a.rot('arm_l', [(0, [-14, 0, -28]), (0.6, behind_l, 'easeInOutSine'), (round(moon + 0.4, 2), behind_l), (round(moon + 1.0, 2), [-10, 0, -22], 'easeInOutSine'),
-                    (end, [-10, 0, -22])], 'lin')
-    a.rot('torso', [(0, [-4, 0, 6]), (years, [16, 0, 0], 'easeInOutSine'), (round(years + 2.4, 2), [14, 0, 0]), (round(years + 3.4, 2), [0, 0, 0], 'easeInOutSine'),
-                    (moon, [0, 0, 0]), (round(moon + 0.8, 2), [-26, 0, 0], 'easeInOutSine'), (luna, [-24, 0, 0])]
-          + [(round(luna + 0.15 + 0.14 * i, 2), [-30 if i % 2 else -22, 0, 0]) for i in range(5)] + [(end, [-20, 0, 0])], 'lin')
-    walk_legs(a, 0.4, round(moon - 0.3, 2), 1.6, 18)
-    a.pos('root', [(round(0.4 + 0.4 * i, 2), [0, 0.6 if i % 2 else 0, 0]) for i in range(int((moon - 0.6) / 0.4))] + [(moon, [0, 0, 0])])
-    a.sound(luna, 'chuckle')
-    return a
-
 
 def b_p4_brethren():
     """BossState.P4_BRETHREN. Turned to the stands, arms opening wide to them (0.2-0.8): "My brethren... this is it. This is
@@ -3605,20 +3581,23 @@ def b_p4_halfbaked():
     the floor; up, slowly, into his stance as the wings open (the form controller)."""
     line, burst, flash, clear, end = (beat('p4.halfbaked', 12), beat('p4.burst', 106), beat('p4.flash', 136), beat('p4.clear', 162),
                                       beat('p4.halfbaked_end', 242))
+    name = beat('p4.guardian', 222)
     a = god(B('p4_halfbaked', end, 'hold'))
     wag = [(round(line + 1.0 + 0.18 * i, 2), [CHIN_R[0] - 10, CHIN_R[1] + (8 if i % 2 else -8), 20]) for i in range(5)]
     rise = round(clear + 1.2, 2)
     a.rot('arm_r', [(0, [-40, 0, 62]), (0.5, CHIN_R, 'easeInOutSine'), (line + 0.9, CHIN_R)] + wag
           + [(round(line + 2.4, 2), PALM_UP_R, 'easeInOutSine'), (round(burst - 0.1, 2), PALM_UP_R), (burst, [-130, 30, 110], 'easeOutExpo'),
              (flash, [-140, 30, 118]), (round(flash + 0.4, 2), [-30, 0, 10]), (clear, [-28, 0, 8]), (rise, [-24, 0, 30], 'easeInOutSine'),
-             (end, [-24, 0, 30])], 'lin')
+             (round(name - 0.2, 2), [-24, 0, 30]), (round(name + 0.3, 2), HEART_R, 'easeOutBack'), (round(name + 2.4, 2), HEART_R),
+             (round(name + 3.2, 2), [-60, 0, 70], 'easeInOutSine'), (end, [-60, 0, 70])], 'lin')
     stretch(a, 'arm_r', [(0, 1.3), (0.5, 1.4), (round(line + 2.4, 2), 1.3), (burst, 1.8), (flash, 1.8), (clear, 1.6), (rise, 1), (end, 1)])
     a.rot('arm_l', [(0, [-40, 0, -62]), (0.5, [-10, 0, -20]), (round(burst - 0.1, 2), [-10, 0, -20]), (burst, [-130, -30, -110], 'easeOutExpo'),
                     (flash, [-140, -30, -118]), (round(flash + 0.4, 2), [-60, 0, -60]), (clear, [-60, 0, -64]), (rise, [-24, 0, -30], 'easeInOutSine'),
                     (end, [-24, 0, -30])], 'lin')
     stretch(a, 'arm_l', [(0, 1.3), (0.5, 1), (burst, 1.8), (flash, 1.8), (clear, 1.2), (rise, 1), (end, 1)])
     a.rot('torso', [(0, [-14, 0, 0]), (0.5, [4, 0, 0]), (round(line + 2.4, 2), [0, 0, 4]), (burst, [-34, 0, 0], 'easeOutExpo'), (flash, [-38, 0, 0]),
-                    (round(flash + 0.4, 2), [30, 0, 0]), (clear, [32, 0, 0]), (rise, [-6, 0, 0], 'easeInOutSine'), (end, [-8, 0, 0])], 'lin')
+                    (round(flash + 0.4, 2), [30, 0, 0]), (clear, [32, 0, 0]), (rise, [-6, 0, 0], 'easeInOutSine'), (round(name - 0.2, 2), [-6, 0, 0]),
+                    (round(name + 0.5, 2), [-16, 0, 0], 'easeOutBack'), (end, [-12, 0, 0])], 'lin')
     a.pos('root', [(0, [0, 0, 0]), (flash, [0, 0, 0]), (round(flash + 0.4, 2), [0, -4.5, 0]), (clear, [0, -4.5, 0]), (rise, [0, 0, 0], 'easeInOutSine'),
                    (end, [0, 0, 0])], 'lin')
     for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
@@ -3641,26 +3620,6 @@ def bow_shot(a, t0, draw, loose):
     a.vis('bow_drawn', False, [(draw, True), (loose, False)])
     a.vis('aztec_arrow', False, [(round(t0 + 0.15, 2), True), (loose, False)])
 
-
-def b_p4_bow():
-    """6.0 s (BossState.P4_BOW, 120 t). The bow forms in his left fist (0.4: PaponBossEntity.BOW_FORM), swung up at the moon;
-    his right hand to it, nocking an arrow of light (1.3); the draw, slow, to his cheek, the body leaning back into it (1.7-3.2);
-    the loose (3.3: BOW_LOOSE): the string hand flung back and open; he holds the bow up, watching the arrow go."""
-    a = god(B('p4_bow', 6.0, 'hold'))
-    nock, draw, loose = 1.3, 1.7, 3.3
-    bow_shot(a, nock, draw, loose)
-    a.rot('arm_l', [(0, [-24, 0, -30]), (0.4, [-60, 0, -40]), (0.9, BOW_UP, 'easeOutBack'), (loose, BOW_UP), (round(loose + 0.1, 2), [-142, 0, -12]),
-                    (6.0, [-130, 0, -14])], 'lin')
-    stretch(a, 'arm_l', [(0, 1), (0.9, 1.35), (6.0, 1.35)])
-    a.rot('arm_r', [(0, [-24, 0, 30]), (nock - 0.3, [-60, -20, 20]), (nock, NOCK_R, 'easeOutQuad'), (draw, NOCK_R), (round(loose - 0.05, 2), DRAW_R, 'easeInOutSine'),
-                    (round(loose + 0.15, 2), [-100, 50, 90], 'easeOutExpo'), (round(loose + 1.0, 2), [-60, 20, 60]), (6.0, [-30, 0, 30], 'easeInOutSine')], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (nock, 1.55), (draw, 1.55), (round(loose - 0.05, 2), 1.05), (round(loose + 0.15, 2), 1.3), (6.0, 1)])
-    a.rot('torso', [(0, [-6, 0, 0]), (0.9, [-18, -10, 0]), (draw, [-18, -12, 0]), (round(loose - 0.05, 2), [-26, -22, 0], 'easeInOutSine'),
-                    (round(loose + 0.1, 2), [-20, -14, 0], 'easeOutExpo'), (6.0, [-22, -10, 0])], 'lin')
-    for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
-        a.rot(leg, [(0, [0, 0, 6 * sgn]), (0.9, [20 * sgn, 0, 10 * sgn]), (6.0, [20 * sgn, 0, 10 * sgn])], 'lin')
-    a.sound(nock, 'swing').sound(loose, 'whoosh')
-    return a
 
 
 def b_p4_watch():
@@ -3762,13 +3721,18 @@ def b_p4_goodtime():
     p4.goodtime); leaning in, arms flung wide, "COME ON!!!" then beckoning you in with his right hand, "SHOW ME A GOOD
     TIME!!!", the smirk, one brow up; the eruption (p4.erupt): arms thrown up to the bowl; then down into his stance, fists up."""
     line, erupt = beat('p4.goodtime', 40), beat('p4.erupt', 103)
+    dance = beat('p4.dance', 24)
     end = round(erupt + 6.0, 2)
     a = god(B('p4_goodtime', end, 'hold'))
     walk_legs(a, 0.0, round(line - 0.3, 2), 1.0, 24)
     come = round(line + 1.0, 2)
     beck = [(round(come + 0.25 * i, 2), [-96, -10 if i % 2 else -40, 26 if i % 2 else 10]) for i in range(1, 6)]
     stance = round(erupt + 1.4, 2)
-    a.rot('arm_r', [(0, [-16, 0, 14]), (round(line - 0.2, 2), [-30, 0, 30]), (line, [-96, 0, 86], 'easeOutBack'), (come, [-96, 0, 80])] + beck
+    # (2026-10-04) "This was never a fight, amigo. It is a dance.": a hand opened to you, a turn of the wrist, a finger wagged on "or fall"
+    talk = [(round(dance + 0.4, 2), PALM_UP_R, 'easeInOutSine'), (round(dance + 1.6, 2), [-70, -30, 40], 'easeInOutSine'),
+            (round(dance + 2.6, 2), [-92, -24, 14], 'easeOutBack')] + [(round(dance + 2.8 + 0.18 * i, 2), [-94, -24 + (8 if i % 2 else -8), 14]) for i in range(5)]
+    talk = [k for k in talk if k[0] < line - 0.4]
+    a.rot('arm_r', [(0, [-16, 0, 14])] + talk + [(round(line - 0.2, 2), [-30, 0, 30]), (line, [-96, 0, 86], 'easeOutBack'), (come, [-96, 0, 80])] + beck
           + [(round(erupt - 0.1, 2), [-100, -30, 20]), (erupt, [-170, 0, 36], 'easeOutExpo'), (round(erupt + 0.8, 2), [-168, 0, 34]),
              (stance, [-92, -30, 22], 'easeInOutSine'), (end, [-92, -32, 22])], 'lin')
     stretch(a, 'arm_r', [(0, 1), (line, 1.5), (come, 1.4), (erupt, 1.8), (round(erupt + 0.8, 2), 1.8), (stance, 1.2), (end, 1.2)])
@@ -3996,9 +3960,251 @@ def b_d_luna():
     return a
 
 
-PHASE_FOUR = [b_p4_fall, b_p4_riseup, b_p4_ignis, b_p4_prophecy, b_p4_brethren, b_p4_souls, b_p4_halfbaked, b_p4_bow, b_p4_watch,
+# ---- (2026-10-04) the Final Guardian's story retold (the throne, the prophecy, Moctezuma) and his grand moves
+
+P4_BEAT = 9.28 / 20                  # a beat of Persona Ideal (boss/Fiesta.BEAT), seconds
+
+
+def b_p4_prophecy():
+    """BossState.P4_PROPHECY. A slow walk toward the middle, hands clasped behind his back, head bowed: "Ten thousand years,
+    amigo..." (p4.years); he stops (p4.throne_look), looks up at his throne, a hand lifted toward it: "You see that throne up
+    there?" (p4.throne), the hand comes to his heart on "to keep it warm"; round to you, both hands out flat as if over the
+    stone tablet: "The oldest potatoes carved it in stone..." (p4.carved); "One day a warrior would come..." (p4.warrior): a
+    fist raised slowly, then both arms up and out as if a weight were on them: "carry the whole world on their back"."""
+    years, look, line, carved, warrior, end = (beat('p4.years', 10), beat('p4.throne_look', 119), beat('p4.throne', 133),
+                                               beat('p4.carved', 262), beat('p4.warrior', 368), beat('p4.prophecy_end', 563))
+    a = B('p4_prophecy', end, 'hold')
+    a.scale('blood', [(0, SHOWN), (end, SHOWN)], 'lin')
+    behind_r, behind_l = [38, -36, 6], [38, 36, -6]
+    reach = [-128, -10, 26]
+    heart = round(line + 3.4, 2)
+    tablet_r, tablet_l = [-62, -26, 40], [-62, 26, -40]
+    w = warrior
+    fist = round(w + 2.2, 2)
+    carry = round(w + 5.0, 2)
+    a.rot('arm_r', [(0, PALM_UP_R), (0.6, behind_r, 'easeInOutSine'), (round(look - 0.1, 2), behind_r), (round(line + 0.5, 2), reach, 'easeInOutSine'),
+                    (round(heart - 0.4, 2), [-120, -14, 22]), (heart, HEART_R, 'easeInOutSine'), (round(carved - 0.5, 2), HEART_R),
+                    (round(carved + 0.6, 2), tablet_r, 'easeInOutSine'), (round(carved + 2.6, 2), [-58, -40, 50], 'easeInOutSine'),
+                    (round(w - 0.1, 2), [-50, -20, 30]), (fist, [-128, -20, 30], 'easeInOutSine'), (round(fist + 1.2, 2), [-132, -20, 26]),
+                    (carry, [-160, 0, 54], 'easeInOutSine'), (round(carry + 1.6, 2), [-156, 0, 58]), (end, [-24, 0, 18], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1.3), (0.6, 1.1), (round(line + 0.5, 2), 1.7), (heart, 1.25), (round(carved + 0.6, 2), 1.4), (fist, 1.6), (carry, 1.5), (end, 1)])
+    a.rot('arm_l', [(0, SCAR_L), (0.6, behind_l, 'easeInOutSine'), (round(carved - 0.5, 2), behind_l), (round(carved + 0.6, 2), tablet_l, 'easeInOutSine'),
+                    (round(carved + 2.6, 2), [-58, 40, -50], 'easeInOutSine'), (round(carry - 0.4, 2), [-40, 20, -30]),
+                    (carry, [-160, 0, -54], 'easeInOutSine'), (round(carry + 1.6, 2), [-156, 0, -58]), (end, SCAR_L, 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, 1.3), (0.6, 1.1), (round(carved + 0.6, 2), 1.4), (carry, 1.5), (end, 1.3)])
+    a.rot('torso', [(0, [10, 0, 0]), (years, [18, 0, 0], 'easeInOutSine'), (round(years + 3.0, 2), [14, 0, 0]), (look, [2, 0, 0], 'easeInOutSine'),
+                    (round(look + 0.8, 2), [-22, 0, 0], 'easeInOutSine'), (round(heart + 0.4, 2), [-14, 0, 0]), (carved, [4, 0, 0], 'easeInOutSine'),
+                    (round(carved + 2.6, 2), [8, 0, 0]), (fist, [-6, 0, 0]), (carry, [16, 0, 0], 'easeInOutSine'), (round(carry + 1.6, 2), [18, 0, 0]),
+                    (end, [6, 0, 0], 'easeInOutSine')], 'lin')
+    walk_legs(a, 0.4, round(look - 0.3, 2), 1.7, 16)
+    a.pos('root', [(round(0.4 + 0.42 * i, 2), [0, 0.5 if i % 2 else 0, 0]) for i in range(int((look - 0.6) / 0.42))] + [(look, [0, 0, 0]),
+                   (carry, [0, 0, 0]), (round(carry + 0.4, 2), [0, -1.2, 0], 'easeOutQuad'), (round(carry + 1.6, 2), [0, -1.4, 0]), (end, [0, 0, 0])], 'lin')
+    a.scale('body', pants(0, round(look, 2), 0.5) + [(end, [1, 1, 1])], 'lin')
+    pained(a, 0, round(carved, 2))
+    return a
+
+
+def b_p4_throne():
+    """BossState.P4_THRONE. Head bowed, remembering, a hand over the scar (p4.moctezuma): "I have seen this before..."; at "saw
+    a god" his right hand opens slowly in front of him, palm up, as if holding something precious; "So he opened his gates..."
+    (p4.gates): his arms open wide, a gesture on each thing given away (gold, city, throne), and they drop on "they took
+    everything", his shoulders falling; up at you, hard (p4.mistake): straight, a fist clenched in front of his chest, then a
+    finger at you on "take it from me"; the clouds part on the moon (p4.moon): he looks up; "After all this time..." (p4.prophecy)
+    his hand rises toward it; "Ha... la luna knows it too." (p4.lunaknows) a chuckle in his shoulders, a finger up at it."""
+    moct, gates, mistake, moon, proph, luna, end = (beat('p4.moctezuma', 18), beat('p4.gates', 249), beat('p4.mistake', 395),
+                                                    beat('p4.moon', 573), beat('p4.prophecy', 617), beat('p4.lunaknows', 712),
+                                                    beat('p4.throne_end', 791))
+    a = B('p4_throne', end, 'hold')
+    a.scale('blood', [(0, SHOWN), (end, SHOWN)], 'lin')
+    god_ = round(moct + 5.4, 2)
+    give = [round(gates + 1.2, 2), round(gates + 2.1, 2), round(gates + 3.0, 2)]
+    took = round(gates + 4.4, 2)
+    fist = round(mistake + 0.8, 2)
+    point = round(mistake + 4.6, 2)
+    a.rot('arm_r', [(0, [-14, 0, 18]), (round(god_ - 0.6, 2), [-14, 0, 18]), (god_, [-62, -18, 22], 'easeInOutSine'), (round(god_ + 2.6, 2), [-66, -22, 24]),
+                    (round(gates - 0.4, 2), [-30, 0, 20], 'easeInOutSine'), (give[0], [-90, 0, 60], 'easeOutBack'), (give[1], [-84, 10, 70]),
+                    (give[2], [-96, 0, 82], 'easeOutBack'), (took, [-8, 0, 14], 'easeInQuad'), (round(mistake - 0.3, 2), [-10, 0, 14]),
+                    (fist, [-84, -36, 8], 'easeOutBack'), (round(point - 0.3, 2), [-86, -36, 8]), (point, [-92, -8, 18], 'easeOutBack'),
+                    (round(moon - 0.2, 2), [-90, -8, 18]), (round(moon + 0.8, 2), [-30, 0, 18], 'easeInOutSine'),
+                    (round(proph + 0.6, 2), [-110, -10, 30], 'easeInOutSine'), (round(luna - 0.2, 2), [-112, -10, 30]),
+                    (round(luna + 0.4, 2), POINT_UP_R, 'easeInOutSine'), (round(luna + 2.0, 2), POINT_UP_R), (end, [-24, 0, 18], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (god_, 1.3), (give[0], 1.6), (took, 1), (fist, 1.15), (point, 1.75), (round(moon + 0.8, 2), 1), (round(proph + 0.6, 2), 1.5),
+                         (round(luna + 0.4, 2), 1.7), (end, 1)])
+    a.rot('arm_l', [(0, SCAR_L), (round(gates - 0.4, 2), SCAR_L), (give[0], [-90, 0, -60], 'easeOutBack'), (give[1], [-84, -10, -70]),
+                    (give[2], [-96, 0, -82], 'easeOutBack'), (took, [-8, 0, -14], 'easeInQuad'), (round(mistake + 0.2, 2), SCAR_L, 'easeInOutSine'),
+                    (end, SCAR_L)], 'lin')
+    stretch(a, 'arm_l', [(0, 1.3), (round(gates - 0.4, 2), 1.3), (give[0], 1.6), (took, 1), (round(mistake + 0.2, 2), 1.3), (end, 1.3)])
+    shake = [(round(luna + 0.15 + 0.14 * i, 2), [-30 if i % 2 else -22, 0, 0]) for i in range(5)]
+    a.rot('torso', [(0, [12, 0, 0]), (moct, [20, 0, 0], 'easeInOutSine'), (round(god_ + 2.6, 2), [16, 0, 0]), (round(gates - 0.4, 2), [10, 0, 0]),
+                    (give[2], [2, 0, 0]), (took, [26, 0, 0], 'easeInQuad'), (round(mistake - 0.3, 2), [24, 0, 0]), (fist, [-4, 0, 0], 'easeOutBack'),
+                    (point, [8, 0, 0]), (round(moon - 0.2, 2), [6, 0, 0]), (round(moon + 0.9, 2), [-24, 0, 0], 'easeInOutSine'), (luna, [-24, 0, 0])]
+          + shake + [(end, [-20, 0, 0])], 'lin')
+    a.scale('body', pants(0, round(mistake, 2), 0.4) + [(end, [1, 1, 1])], 'lin')
+    pained(a, 0, round(mistake - 0.2, 2))
+    angry(a, round(mistake + 0.4, 2))
+    a.sound(round(luna, 2), 'chuckle')
+    return a
+
+
+def b_p4_bow():
+    """BossState.P4_BOW. The bow forms in his left fist (0.4: PaponBossEntity.BOW_FORM), swung up at the moon; his right hand to
+    it, nocking an arrow of light (1.3); the draw, slow, to his cheek, the body leaning back into it (1.7-3.2); the loose (3.3:
+    BOW_LOOSE): the string hand flung back and open; he holds the bow up, watching the arrow go; then (p4.bowline) calling his
+    serpents down: the bow thrust high, the other arm sweeping down to the floor in front of him: "Come down!"."""
+    end = beat('p4.bow_end', 205)
+    call = beat('p4.bowline', 112)
+    a = god(B('p4_bow', end, 'hold'))
+    nock, draw, loose = 1.3, 1.7, 3.3
+    bow_shot(a, nock, draw, loose)
+    a.rot('arm_l', [(0, [-24, 0, -30]), (0.4, [-60, 0, -40]), (0.9, BOW_UP, 'easeOutBack'), (loose, BOW_UP), (round(loose + 0.1, 2), [-142, 0, -12]),
+                    (round(call - 0.3, 2), [-130, 0, -14]), (call, [-172, 0, -20], 'easeOutBack'), (round(call + 2.6, 2), [-168, 0, -22]),
+                    (end, [-150, 0, -24])], 'lin')
+    stretch(a, 'arm_l', [(0, 1), (0.9, 1.35), (call, 1.7), (end, 1.5)])
+    a.rot('arm_r', [(0, [-24, 0, 30]), (nock - 0.3, [-60, -20, 20]), (nock, NOCK_R, 'easeOutQuad'), (draw, NOCK_R), (round(loose - 0.05, 2), DRAW_R, 'easeInOutSine'),
+                    (round(loose + 0.15, 2), [-100, 50, 90], 'easeOutExpo'), (round(loose + 1.0, 2), [-60, 20, 60]), (round(call - 0.2, 2), [-40, 0, 40]),
+                    (round(call + 0.5, 2), [-150, 0, 60], 'easeOutBack'), (round(call + 1.4, 2), [-40, -20, 30], 'easeInQuad'),
+                    (round(call + 2.6, 2), [-36, -20, 30]), (end, [-30, 0, 30], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (nock, 1.55), (draw, 1.55), (round(loose - 0.05, 2), 1.05), (round(loose + 0.15, 2), 1.3), (round(call + 0.5, 2), 1.7),
+                         (round(call + 1.4, 2), 1.5), (end, 1)])
+    a.rot('torso', [(0, [-6, 0, 0]), (0.9, [-18, -10, 0]), (draw, [-18, -12, 0]), (round(loose - 0.05, 2), [-26, -22, 0], 'easeInOutSine'),
+                    (round(loose + 0.1, 2), [-20, -14, 0], 'easeOutExpo'), (round(call - 0.3, 2), [-20, -10, 0]), (call, [-30, 0, 0], 'easeOutBack'),
+                    (round(call + 1.4, 2), [6, 0, 0], 'easeInQuad'), (end, [-6, 0, 0])], 'lin')
+    for leg, sgn in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 6 * sgn]), (0.9, [20 * sgn, 0, 10 * sgn]), (end, [20 * sgn, 0, 10 * sgn])], 'lin')
+    a.sound(nock, 'swing').sound(loose, 'whoosh')
+    return a
+
+
+def b_d_ouroboros():
+    """2.0 s loop (BossState.P4_OUROBOROS). High over the middle, calling his serpents round the arena: both arms out wide, the
+    hammer up in one, the other hand turning as if it turned the great wheel of them, the whole of him turning slowly with it."""
+    a = god(B('d_ouroboros', 2.0, True))
+    a.pos('root', [(0, [0, 0, 0]), (1.0, [0, 1.6, 0]), (2.0, [0, 0, 0])])
+    a.rot('root', [(0, [0, -14, 0]), (1.0, [0, 14, 0]), (2.0, [0, -14, 0])])
+    a.rot('torso', [(0, [-14, 0, 6]), (1.0, [-18, 0, -6]), (2.0, [-14, 0, 6])])
+    a.rot('arm_r', [(0, [-150, 0, 70]), (1.0, [-160, 0, 64]), (2.0, [-150, 0, 70])])
+    stretch(a, 'arm_r', [(0, 1.4)])
+    a.rot('arm_l', [(0, [-100, 0, -86]), (0.5, [-110, 30, -80]), (1.0, [-100, 0, -86]), (1.5, [-90, -30, -90]), (2.0, [-100, 0, -86])])
+    stretch(a, 'arm_l', [(0, 1.6)])
+    flying_legs(a, 2.0, 18)
+    return a
+
+
+def b_d_salsa():
+    """8 beats loop (BossState.P4_PISTA, P4_SALSA). Salsa: the basic on 1-2-3, held on 4, then the other foot on 5-6-7, held
+    on 8; the hips swinging the other way to each step (Cuban motion), the shoulders rolling, the left arm out in the frame, the
+    right styling up over his head; on 8 a quick turn of the hand. Every beat a little drop of the knees."""
+    L = round(P4_BEAT * 8, 3)
+    b = lambda i: round(P4_BEAT * i, 3)
+    a = B('d_salsa', L, True)
+    a.scale('body', [(0, [1.04, 1.03, 1.04])], 'lin')
+    a.pos('root', sorted([(b(i + 0.5), [0, 0, 0]) for i in range(8)] + [(b(i), [0, -1.0, 0]) for i in range(8)] + [(L, [0, -1.0, 0])],
+                         key=lambda k: k[0]), 'lin')
+    a.rot('leg_r', [(0, [0, 0, 6]), (b(1), [-34, 0, 6], 'easeOutQuad'), (b(2), [0, 0, 6], 'easeInOutSine'), (b(3), [6, 0, 6]), (b(4), [0, 0, 6]),
+                    (b(5), [20, 0, 6], 'easeOutQuad'), (b(6), [0, 0, 6]), (L, [0, 0, 6])], 'lin')
+    a.rot('leg_l', [(0, [0, 0, -6]), (b(1), [14, 0, -6]), (b(2), [0, 0, -6]), (b(4), [0, 0, -6]), (b(5), [-34, 0, -6], 'easeOutQuad'),
+                    (b(6), [0, 0, -6], 'easeInOutSine'), (b(7), [6, 0, -6]), (L, [0, 0, -6])], 'lin')
+    a.rot('torso', [(b(i), [-4, 10 if i % 2 == 0 else -10, 8 if i % 2 == 0 else -8], 'easeInOutSine') for i in range(8)] + [(L, [-4, 10, 8])], 'lin')
+    a.rot('arm_l', [(b(i), [-84, 20 if i % 2 == 0 else 34, -54], 'easeInOutSine') for i in range(8)] + [(L, [-84, 20, -54])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.3)])
+    a.rot('arm_r', [(0, [-150, -10, 30]), (b(2), [-160, -20, 20], 'easeInOutSine'), (b(4), [-150, -10, 30]), (b(6), [-130, -30, 46], 'easeInOutSine'),
+                    (b(7.5), [-170, 20, 10], 'easeOutBack'), (L, [-150, -10, 30])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.3), (b(7.5), 1.5), (L, 1.3)])
+    for i in (1, 2, 3, 5, 6, 7):
+        a.sound(b(i), 'step')
+    return a
+
+
+def b_d_camino():
+    """1.2 s loop (BossState.P4_CEMPASUCHIL). Over the far end of the marigold path, lobbing sugar skulls onto it: the hammer
+    carried high, the left arm wound back and flung forward underhand, the hips swaying."""
+    a = god(B('d_camino', 1.2, True))
+    a.pos('root', [(0, [0, 0, 0]), (0.5, [0, 1.4, 0]), (1.2, [0, 0, 0])])
+    a.rot('arm_r', [(0, HAM_CARRY), (0.6, [-158, 8, 44]), (1.2, HAM_CARRY)])
+    stretch(a, 'arm_r', [(0, 1.1)])
+    a.rot('arm_l', [(0, [30, 10, -30]), (0.35, [50, 20, -26], 'easeInQuad'), (0.55, [-110, -10, -20], 'easeOutExpo'), (0.8, [-90, 0, -30]),
+                    (1.2, [30, 10, -30], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_l', [(0, 1.2), (0.55, 1.6), (1.2, 1.2)])
+    a.rot('torso', [(0, [-6, 10, 4]), (0.55, [-14, -12, -4], 'easeOutExpo'), (1.2, [-6, 10, 4])], 'lin')
+    flying_legs(a, 1.2, 16)
+    return a
+
+
+def b_d_castillo():
+    """4 beats loop (BossState.P4_CASTILLO). On top of his castillo of fireworks, the showman: fists pumped up on 1 and 3,
+    the hammer and the other hand flung open to the sky on 2 and 4, the hips rolling, the stands his."""
+    L = round(P4_BEAT * 4, 3)
+    b = lambda i: round(P4_BEAT * i, 3)
+    a = god(B('d_castillo', L, True))
+    a.rot('arm_r', [(0, [-176, 0, 18]), (b(1), [-150, 0, 60], 'easeOutBack'), (b(2), [-176, 0, 18], 'easeOutBack'), (b(3), [-150, 0, 60], 'easeOutBack'),
+                    (L, [-176, 0, 18])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.6), (b(1), 1.4), (b(2), 1.6), (b(3), 1.4), (L, 1.6)])
+    a.rot('arm_l', [(0, [-150, 0, -60]), (b(1), [-176, 0, -18], 'easeOutBack'), (b(2), [-150, 0, -60], 'easeOutBack'), (b(3), [-176, 0, -18], 'easeOutBack'),
+                    (L, [-150, 0, -60])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.4), (b(1), 1.6), (b(2), 1.4), (b(3), 1.6), (L, 1.4)])
+    a.rot('torso', [(b(i), [-14, 12 if i % 2 == 0 else -12, 6 if i % 2 == 0 else -6], 'easeInOutSine') for i in range(4)] + [(L, [-14, 12, 6])], 'lin')
+    a.pos('root', sorted([(b(i), [0, -0.8, 0]) for i in range(4)] + [(b(i + 0.5), [0, 0.6, 0]) for i in range(4)] + [(L, [0, -0.8, 0])],
+                         key=lambda k: k[0]), 'lin')
+    flying_legs(a, L, 10)
+    return a
+
+
+def b_d_tango():
+    """4 beats loop (BossState.P4_TANGO, as everyone but his partner sees it). The tango's frame: the left hand up as if holding
+    yours, the right arm round your back; two slow steps forward, a quick-quick-slow back, a snap of the head on 1 and 3."""
+    L = round(P4_BEAT * 4, 3)
+    b = lambda i: round(P4_BEAT * i, 3)
+    a = B('d_tango', L, True)
+    a.scale('body', [(0, [1.04, 1.03, 1.04])], 'lin')
+    a.rot('arm_l', [(0, [-128, 0, -34])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.35)])
+    a.rot('arm_r', [(0, [-74, 34, 18])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.3)])
+    a.rot('leg_r', [(0, [0, 0, 6]), (b(0.5), [-36, 0, 6], 'easeOutQuad'), (b(1), [0, 0, 6]), (b(2), [20, 0, 6], 'easeOutQuad'), (b(2.5), [0, 0, 6]),
+                    (b(3), [24, 0, 6]), (L, [0, 0, 6])], 'lin')
+    a.rot('leg_l', [(0, [0, 0, -6]), (b(1), [0, 0, -6]), (b(1.5), [-36, 0, -6], 'easeOutQuad'), (b(2), [0, 0, -6]), (b(2.25), [20, 0, -6]),
+                    (b(2.75), [0, 0, -6]), (L, [0, 0, -6])], 'lin')
+    a.rot('torso', [(0, [-8, 14, 0]), (b(0.15), [-8, -16, 0], 'easeOutExpo'), (b(2), [-8, -16, 0]), (b(2.15), [-8, 14, 0], 'easeOutExpo'), (L, [-8, 14, 0])], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (b(1), [0, -0.8, 0]), (b(2), [0, 0, 0]), (b(3), [0, -0.8, 0]), (L, [0, 0, 0])], 'lin')
+    return a
+
+
+def b_d_tango_win():
+    """3.0 s (BossState.P4_TANGO_WIN, 60 t). He won the dance: he leans over you in a dip (0.3-1.4), a long look, a smile; and
+    lets go (1.5), straightening, a hand smoothing his hat brim, the other open: and that is how a guardian dances."""
+    a = B('d_tango_win', 3.0, 'hold')
+    a.rot('torso', [(0, [-8, 0, 0]), (0.4, [38, 0, 10], 'easeOutBack'), (1.4, [36, 0, 8]), (1.6, [-6, 0, 0], 'easeOutQuad'), (3.0, [-10, 0, 0])], 'lin')
+    a.rot('arm_r', [(0, [-74, 34, 18]), (0.4, [-40, 30, 20], 'easeOutBack'), (1.4, [-40, 30, 20]), (1.55, [-10, -40, 60], 'easeOutExpo'),
+                    (2.2, [-150, -20, 20], 'easeInOutSine'), (3.0, [-150, -20, 20])], 'lin')
+    stretch(a, 'arm_r', [(0, 1.3), (0.4, 1.5), (1.55, 1.2), (2.2, 1.5), (3.0, 1.5)])
+    a.rot('arm_l', [(0, [-128, 0, -34]), (0.4, [-60, 0, -40], 'easeOutBack'), (1.4, [-60, 0, -40]), (1.6, [-70, 0, -60], 'easeOutQuad'), (3.0, [-60, 10, -50])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.35), (0.4, 1.5), (3.0, 1.3)])
+    a.rot('leg_r', [(0, [0, 0, 6]), (0.4, [-40, 0, 8], 'easeOutBack'), (1.4, [-40, 0, 8]), (1.6, [0, 0, 6]), (3.0, [0, 0, 6])], 'lin')
+    a.sound(0.4, 'whoosh').sound(1.55, 'slam')
+    return a
+
+
+def b_d_tango_lose():
+    """5.5 s (BossState.P4_TANGO_LOSE, 110 t). You out-danced him: he staggers back dizzy, swaying round in a little circle,
+    a hand to his skull, the other groping for balance; a wobble at the knees; he shakes it off at the end."""
+    a = B('d_tango_lose', 5.5, 'hold')
+    sway = [(round(0.3 + 0.5 * i, 2), [10 * math.sin(i * 1.3), 0, 14 * math.cos(i * 1.3)]) for i in range(10)]
+    a.rot('torso', [(0, [0, 0, 0])] + sway + [(5.5, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.rot('arm_r', [(0, [-74, 34, 18]), (0.4, [-150, -50, 0], 'easeOutBack'), (4.8, [-150, -50, 0]), (5.5, [-24, 0, 18], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1.3), (0.4, 1.2), (5.5, 1)])
+    a.rot('arm_l', [(0, [-128, 0, -34])] + [(round(0.4 + 0.45 * i, 2), [-60 - 20 * (i % 2), 0, -70 + 20 * (i % 2)]) for i in range(10)]
+          + [(5.5, [-24, 0, -18], 'easeInOutSine')], 'lin')
+    a.rot('leg_r', [(round(0.3 + 0.5 * i, 2), [14 * math.sin(i * 1.7), 0, 10]) for i in range(10)] + [(5.5, [0, 0, 6])], 'lin')
+    a.rot('leg_l', [(round(0.3 + 0.5 * i, 2), [-14 * math.sin(i * 1.7), 0, -10]) for i in range(10)] + [(5.5, [0, 0, -6])], 'lin')
+    a.pos('root', [(round(0.3 + 0.5 * i, 2), [0, -1.4 if i % 2 else -0.4, 0]) for i in range(10)] + [(5.5, [0, 0, 0])], 'lin')
+    pained(a, 0.3, 4.8)
+    return a
+
+
+PHASE_FOUR = [b_p4_fall, b_p4_riseup, b_p4_ignis, b_p4_prophecy, b_p4_throne, b_p4_brethren, b_p4_souls, b_p4_halfbaked, b_p4_bow, b_p4_watch,
               b_p4_talking, b_p4_walk, b_p4_honor, b_p4_muchachas, b_p4_goodtime, b_d_serpientes, b_d_flechas,
-              b_d_fly, b_d_martillo, b_d_gigante, b_d_grieta, b_d_petalos, b_d_conduct, b_d_danza, b_d_luna]
+              b_d_fly, b_d_martillo, b_d_gigante, b_d_grieta, b_d_petalos, b_d_conduct, b_d_danza, b_d_luna,
+              b_d_ouroboros, b_d_salsa, b_d_camino, b_d_castillo, b_d_tango, b_d_tango_win, b_d_tango_lose]
 
 
 ASCENDED_MOVES = [b_a_fly, b_a_combo, b_a_flash, b_a_comet, b_a_comet_land, b_a_laser, b_a_solar, b_a_conduct, b_a_duel_fly, b_a_shred,

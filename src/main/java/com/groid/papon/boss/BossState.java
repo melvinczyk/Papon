@@ -327,7 +327,31 @@ public enum BossState {
     /** Las Serpientes: Ouros and Boros dive out of the sky in turn, straight across the floor (a long warning line each). */
     P4_SERPIENTES(160),
     /** Flechas del Sol: his bow; arrows of the souls' light shot up, raining back down on rings round you, then a volley. */
-    P4_FLECHAS(130);
+    P4_FLECHAS(130),
+    // ---- (2026-10-04, the final guardian's story and his grand moves; appended: the ordinal is synced)
+    /** Phase four's cutscene, after the prophecy: Moctezuma, who saw a god in Cortés and gave his throne away; "I will not make
+     *  his mistake"; the moon comes out: "...the prophecy might finally be fulfilled." (beats p4.throne_*) */
+    P4_THRONE(400),
+    /** El Ouroboros: Ouros and Boros come down and close a ring round the whole arena, chasing each other's tails; their heads
+     *  breathe jade fire across the floor as they go round (jump it). */
+    P4_OUROBOROS(300),
+    /** La Pista de los Muertos: the floor lights up as a dance floor of coloured tiles; on the beat, tiles flash and then
+     *  erupt in spirit fire, pattern after pattern, while he dances salsa in the middle. */
+    P4_PISTA(240),
+    /** El Camino de Cempasúchil: a path of marigolds winds across the floor; the ectoplasm floods everything else, and the path
+     *  wilts behind you; he lobs sugar skulls onto it. */
+    P4_CEMPASUCHIL(250),
+    /** El Castillo: a fiesta fireworks tower rises in the middle; its wheels light tier by tier and spin spirals of coloured
+     *  sparks across the floor; its crown rains rockets; it bursts. */
+    P4_CASTILLO(260),
+    /** Salsa Caliente: he dances at you on the beat, every step leaving a footprint of fire, cross-body leads, spin kicks. */
+    P4_SALSA(170),
+    /** El Último Tango: the dance-off (QTE kind 7): call and response on the band's beat, the embrace, the dip. */
+    P4_TANGO(520),
+    /** He won the dance: he dips you, and drops you. */
+    P4_TANGO_WIN(60),
+    /** You won the dance: he stands there flustered, dizzy, wide open. */
+    P4_TANGO_LOSE(110);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;
@@ -353,13 +377,18 @@ public enum BossState {
     }
 
     /** Phase four's cutscene: the reopened scar to the first sung word. */
-    public boolean phaseFour() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_GOODTIME.ordinal(); }
+    public boolean phaseFour() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_GOODTIME.ordinal() || this == P4_THRONE; }
 
     /** Phase four's moves. */
-    public boolean muertosMove() { return ordinal() >= P4_MARTILLO.ordinal() && ordinal() <= P4_FLECHAS.ordinal(); }
+    public boolean muertosMove() {
+        return ordinal() >= P4_MARTILLO.ordinal() && ordinal() <= P4_FLECHAS.ordinal() || ordinal() >= P4_OUROBOROS.ordinal();
+    }
 
     /** Phase four's cutscene before the band plays his last song (their music off). */
-    public boolean p4Silent() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_TOBAND.ordinal(); }
+    public boolean p4Silent() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_TOBAND.ordinal() || this == P4_THRONE; }
+
+    /** Phase four's cutscene before the souls: the stands dead silent (the user: "the crowd needs to be silent"). */
+    public boolean p4Hushed() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_BRETHREN.ordinal() || this == P4_THRONE; }
 
     /** The phase-three cutscene, the knockback to "let's dance". */
     public boolean phaseThree() {
