@@ -406,11 +406,12 @@ def aura(face, w, h):
 
 def hammer():
     """Gripped in the right fist (2026-10-05, the user: "sticking right out of his arm, it should be him holding it with his
-    hand"): the shaft runs across the fist, not on from the end of the arm, a knuckle of pommel out of the top of the
-    fist, the femur at 75 degrees to the forearm (gen_boss_anims' d_martillo snaps the wrist down to it for the swings and
-    the slam, so the head still lands on the floor), the head at its end. The bone's pivot is the middle of the fist (arm_r_mesh's fist cube: x -12.5..-8.5, y 3.5..7.5)."""
+    hand"; then: "the handle on his hand with the shaft going up, a -90 degree angle from the handle to the arm"): the shaft
+    runs through the fist at a right angle to the forearm, the head out in front of the knuckles at rest, so with his arm
+    held out it stands up to the sky; the pommel peeks out the other side. gen_boss_anims' d_martillo turns the wrist for
+    the swings and the slam. The bone's pivot is the middle of the fist (arm_r_mesh's fist cube: x -12.5..-8.5, y 3.5..7.5)."""
     gx, gy = -10.5, 5.5
-    return {'name': 'spirit_hammer', 'parent': 'hand_r', 'pivot': [gx, gy, 0], 'rotation': [75, 0, 0], 'cubes': [
+    return {'name': 'spirit_hammer', 'parent': 'hand_r', 'pivot': [gx, gy, 0], 'rotation': [-90, 0, 0], 'cubes': [
         cube([gx - 0.9, gy + 2.6, -0.9], [1.8, 1.6, 1.8], femur),        # the pommel, a knuckle of bone over the fist
         cube([gx - 0.7, gy - 19, -0.7], [1.4, 21.6, 1.4], femur),        # the femur, through the fist
         cube([gx - 1.4, gy - 20.6, -1.4], [2.8, 2.2, 2.8], femur),       # its knob, into the head
