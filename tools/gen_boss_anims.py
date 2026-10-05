@@ -295,6 +295,12 @@ class B(Pinned):
             # phase four's (papon_muertos; the hammer on papon_ascended too): client/BossModel.spiritProps shows them
             'spirit_hammer', 'penacho', 'aztec_bow', 'bow_drawn', 'aztec_arrow', 'scar', 'scar_blood']
 
+    def compile(self):
+        a = super().compile()
+        # the hammer's wrist (d_martillo snaps it): at rest everywhere else, or one animation's angle would stay on the next
+        a['bones'].setdefault('spirit_hammer', {}).setdefault('rotation', {'0.0': {'vector': [0, 0, 0]}})
+        return a
+
 
 ANGRY_R = [0, 0, 18]
 ANGRY_L = [0, 0, -18]
@@ -3834,6 +3840,11 @@ def b_d_martillo():
                     (1.3, [-30, 0, 10 * sgn]), (1.6, [20, 0, 6 * sgn]), (2.2, [-40 if sgn > 0 else 30, 0, 12 * sgn], 'easeInExpo'),
                     (2.6, [-40 if sgn > 0 else 30, 0, 12 * sgn]), (3.2, [0, 0, 5 * sgn])], 'lin')
     a.scale('body', [(0, [1.04, 1.03, 1.04]), (2.2, [1.2, 0.86, 1.2], 'easeInExpo'), (2.5, [1.04, 1.03, 1.04])], 'lin')
+    # the wrist: the hammer is held across the fist (gen_muertos_papon.hammer, 75 degrees off the forearm); it snaps down
+    # toward the arm's line through each swing and the slam, cocked back over his head for the wind-up
+    a.rot('spirit_hammer', [(0, [0, 0, 0]), (0.42, [10, 0, 0]), (0.5, [-40, 0, 0], 'easeOutExpo'), (0.92, [-30, 0, 0]),
+                            (1.0, [-40, 0, 0], 'easeOutExpo'), (1.25, [-20, 0, 0]), (1.6, [15, 0, 0], 'easeOutQuad'), (2.0, [15, 0, 0]),
+                            (2.2, [-55, 0, 0], 'easeInExpo'), (2.6, [-55, 0, 0]), (3.2, [0, 0, 0], 'easeInOutSine')], 'lin')
     a.sound(0.4, 'swing').sound(0.9, 'swing').sound(1.4, 'whoosh').sound(2.2, 'slam')
     return a
 

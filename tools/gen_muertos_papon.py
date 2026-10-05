@@ -405,14 +405,17 @@ def aura(face, w, h):
 
 
 def hammer():
-    """In the right fist (props hang off the fist down the arm's line, like the big spatula)."""
-    return {'name': 'spirit_hammer', 'parent': 'hand_r', 'pivot': [-10, 4.5, 0], 'cubes': [
-        cube([-10.6, 4.5, -0.6], [1.2, 2.0, 1.2], femur),            # the pommel, a knuckle of bone
-        cube([-11.2, 6.2, -1.2], [2.4, 1.6, 2.4], femur),
-        cube([-10.7, -16, -0.7], [1.4, 20.5, 1.4], femur),           # the femur
-        cube([-11.4, -17.5, -1.4], [2.8, 2.2, 2.8], femur),          # its knob, into the head
-        cube([-14.5, -27, -7.5], [9, 9.5, 15], head_face),           # the head: striking ends to the front and back
-        cube([-15.3, -27.8, -8.3], [10.6, 11.1, 16.6], aura),       # the light round it
+    """Gripped in the right fist (2026-10-05, the user: "sticking right out of his arm, it should be him holding it with his
+    hand"): the shaft runs across the fist, not on from the end of the arm, a knuckle of pommel out of the top of the
+    fist, the femur at 75 degrees to the forearm (gen_boss_anims' d_martillo snaps the wrist down to it for the swings and
+    the slam, so the head still lands on the floor), the head at its end. The bone's pivot is the middle of the fist (arm_r_mesh's fist cube: x -12.5..-8.5, y 3.5..7.5)."""
+    gx, gy = -10.5, 5.5
+    return {'name': 'spirit_hammer', 'parent': 'hand_r', 'pivot': [gx, gy, 0], 'rotation': [75, 0, 0], 'cubes': [
+        cube([gx - 0.9, gy + 2.6, -0.9], [1.8, 1.6, 1.8], femur),        # the pommel, a knuckle of bone over the fist
+        cube([gx - 0.7, gy - 19, -0.7], [1.4, 21.6, 1.4], femur),        # the femur, through the fist
+        cube([gx - 1.4, gy - 20.6, -1.4], [2.8, 2.2, 2.8], femur),       # its knob, into the head
+        cube([gx - 4.5, gy - 30, -7.5], [9, 9.5, 15], head_face),        # the head: striking ends to the front and back
+        cube([gx - 5.3, gy - 30.8, -8.3], [10.6, 11.1, 16.6], aura),     # the light round it
     ]}
 
 
@@ -617,7 +620,8 @@ def build():
     global S
     S = Sheet()
     g = json.load(open(os.path.join(ASSETS, 'geo/entity/papon_ascended.geo.json')))['minecraft:geometry'][0]
-    bones = copy.deepcopy(g['bones'])
+    # Ascended's copies of the bones made here (give_ascended_*) are left out: built again below (they were piling up)
+    bones = [b for b in copy.deepcopy(g['bones']) if b['name'] not in ('spirit_hammer', 'scar', 'scar_blood')]
     by = {b['name']: b for b in bones}
     # the eagle wings' glow goes (their rims), the bone takes over the potato
     skin_rects = rect_list(by['body']['cubes'])
