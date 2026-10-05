@@ -3895,7 +3895,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         Component title = Component.translatable(key).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
         Component sub = Component.translatable(key + ".subtitle").withStyle(ChatFormatting.YELLOW, ChatFormatting.ITALIC);
         for (ServerPlayer p : level.players()) {
-            if (p.distanceToSqr(this) < 72 * 72) {
+            if (p.distanceToSqr(this) < 120 * 120) {
                 p.connection.send(new ClientboundSetTitlesAnimationPacket(10, stay, 20));
                 p.connection.send(new ClientboundSetTitleTextPacket(title));
                 p.connection.send(new ClientboundSetSubtitleTextPacket(sub));
@@ -9415,8 +9415,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t >= burn && t < bone) {
             for (int i = 0; i < 4; i++) {
                 double a = random.nextDouble() * Math.PI * 2;
-                Fx.jet(level, position().add(Math.cos(a) * 0.9, random.nextDouble() * getBbHeight(), Math.sin(a) * 0.9),
-                        new Vec3(0, 0.2, 0), 1.2F, 0x40E2FF);
+                // soul fire (the pack's flame sprite is orange: tinted blue it came out green)
+                Vec3 at = position().add(Math.cos(a) * 0.9 * getBbWidth(), random.nextDouble() * getBbHeight(), Math.sin(a) * 0.9 * getBbWidth());
+                level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, at.x, at.y, at.z, 3, 0.15, 0.2, 0.15, 0.06);
             }
             if (t % 6 == 0) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.SOUL_ESCAPE, SoundSource.HOSTILE, 2.0F, 0.6F);
             if (t == burn) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.FIRECHARGE_USE, SoundSource.HOSTILE, 2.0F, 0.5F);
@@ -10283,7 +10284,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Vec3 at = new Vec3(arena.center.getX() + x + 0.5, floor, arena.center.getZ() + z + 0.5);
             if (Math.abs(ord - warn) < 0.7 && (x + z) % 2 == 0) Fx.spark(level, at.add(0, 0.2, 0), 1, 0.2, 0.3F, 0x9FF4FF);
             if (Math.abs(ord - front) < 0.71) {
-                if (n++ % 3 == 0) Fx.jet(level, at.add(0, 0.1, 0), new Vec3(0, 0.6, 0), 1.4F, 0x40E2FF);
+                if (n++ % 3 == 0) {
+                    // a candle of blue soul fire up out of the crack
+                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, at.x, at.y + 0.2, at.z, 6, 0.12, 0.6, 0.12, 0.05);
+                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL, at.x, at.y + 0.5, at.z, 1, 0.1, 0.4, 0.1, 0.02);
+                }
                 for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(0.9, 3.5, 0.9), this::hittable)) {
                     if (!velasHits.add(((long) (out ? 1 : 2) << 40) ^ e.getId())) continue;
                     if (deadHit(e, 0.16F)) {

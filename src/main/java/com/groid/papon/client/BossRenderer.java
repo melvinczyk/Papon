@@ -31,6 +31,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     /** Ascended Papon is drawn bigger than the risen one. */
     private static final float ASCENDED_SCALE = 2.0F;
     private static final ResourceLocation AURA = PaponMod.id("textures/entity/papon_aura.png");
+    /** Phase four's: the same flow in the dead's blue (tools/gen_muertos.py fx; the gold one tinted blue came out green). */
+    private static final ResourceLocation AURA_DEAD = PaponMod.id("textures/entity/papon_aura_dead.png");
     private static final ResourceLocation MUERTOS = PaponMod.id("textures/entity/papon_muertos.png");
     /** El Rey de los Muertos is bigger again. */
     private static final float MUERTOS_SCALE = 2.25F;
@@ -47,7 +49,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
                 float k = aura(boss, partialTick);
                 if (k <= 0) return;
                 float time = boss.tickCount + partialTick;
-                RenderType swirl = RenderType.energySwirl(AURA, (time * 0.013F) % 1F, (time * -0.021F) % 1F);
+                boolean dead = boss.isMuertos() || boss.getBossState() == BossState.P4_TRUEFORM;
+                RenderType swirl = RenderType.energySwirl(dead ? AURA_DEAD : AURA, (time * 0.013F) % 1F, (time * -0.021F) % 1F);
                 for (float grow : new float[]{1.07F, 1.16F}) {
                     pose.pushPose();
                     pose.translate(0, 0.9, 0);
@@ -55,8 +58,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
                     pose.translate(0, -0.9, 0);
                     float f = k * (grow > 1.1F ? 0.6F : 1F);
                     boolean crimson = boss.isPhaseThree() || boss.getBossState() == BossState.P3_DANCE;
-                    boolean dead = boss.isMuertos() || boss.getBossState() == BossState.P4_TRUEFORM;
-                    float cr = dead ? 0.2F : 1F, cg = dead ? 0.85F : crimson ? 0.14F : 0.78F, cb = dead ? 1F : crimson ? 0.16F : 0.32F;
+                    float cr = 1F, cg = dead ? 1F : crimson ? 0.14F : 0.78F, cb = dead ? 1F : crimson ? 0.16F : 0.32F;
                     getRenderer().reRender(model, pose, buffers, boss, swirl, buffers.getBuffer(swirl), partialTick,
                             net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY,
                             Math.min(1F, f * cr), Math.min(1F, f * cg), Math.min(1F, f * cb), 1F);

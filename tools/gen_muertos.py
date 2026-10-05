@@ -8,8 +8,9 @@ everything in it that is new. Writes only its own files (so re-running it never 
             calavera in a wreath of marigolds) (client/FlagCloth)
   sky       textures/environment/muertos_moon.png: the moon after his hammer's bolt, a blue calavera (client/MuertosSky);
             the moon before it is the potato moon's full phase (gen_sky.py)
-  fx        textures/entity/papel_picado.png (the banners, client/MuertosFx), soul.png (the souls in the rift),
-            spirit_giant.png (El Gigante's hologram)
+  fx        textures/entity/papel_picado.png (the banners, client/PropRenderer), soul.png (the souls in the rift),
+            papon_aura_dead.png (the blue aura round him)
+  band      textures/entity/mariachi_muertos.png, arena_fan_muertos.png: the band and the stands as the dead
 
   python tools/gen_muertos.py [blocks] [flag] [sky] [fx]      (all of them with no arguments)
 
@@ -768,6 +769,21 @@ def soul():
     return im
 
 
+def dead_aura():
+    """The aura that swirls round him in phase four (client/BossRenderer): papon_aura.png's flow (gold, almost no blue: tinted
+    blue it came out green) turned to the dead's ectoplasm, its light kept."""
+    import numpy as np
+    a = np.asarray(Image.open(os.path.join(ASSETS, 'textures/entity/papon_aura.png')).convert('RGBA')).astype(float)
+    lum = (0.3 * a[..., 0] + 0.59 * a[..., 1] + 0.11 * a[..., 2]) / 255.0
+    lum = lum / max(1e-6, lum.max())
+    out = np.zeros_like(a)
+    for i, (lo, hi) in enumerate(zip(ECTO_DK, ECTO_HI)):
+        out[..., i] = lo * (1 - lum) + hi * lum
+    out *= np.clip(lum * 1.6, 0, 1)[..., None]
+    out[..., 3] = a[..., 3]
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGBA')
+
+
 if __name__ == '__main__':
     what = set(sys.argv[1:]) or {'blocks', 'flag', 'sky', 'fx', 'band'}
     if 'blocks' in what:
@@ -779,6 +795,7 @@ if __name__ == '__main__':
     if 'fx' in what:
         save(papel_picado(), 'textures/entity/papel_picado.png')
         save(soul(), 'textures/entity/soul.png')
+        save(dead_aura(), 'textures/entity/papon_aura_dead.png')
     if 'band' in what:
         save(turned('mariachi'), 'textures/entity/mariachi_muertos.png')
         save(turned('arena_fan'), 'textures/entity/arena_fan_muertos.png')

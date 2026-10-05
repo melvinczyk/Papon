@@ -1030,12 +1030,12 @@ public final class AutoShot {
         var singer = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(160),
                 m -> m.getRole().singer()).stream().findFirst().orElse(null);
         if (singer != null && j == 48) {
-            Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+            Vec3 f = c.subtract(singer.position()).multiply(1, 0, 1).normalize();
             tpLook(singer.position().add(f.scale(9)).add(0, 1.5, 0), singer.position().add(0, 1.2, 0));
         }
         if (j == 64) shot(mc, "x03_band_of_the_dead");
         if (singer != null && j == 66) {
-            Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+            Vec3 f = c.subtract(singer.position()).multiply(1, 0, 1).normalize();
             Vec3 mouth = singer.position().add(0, singer.getBbHeight() * 0.6, 0);
             tpLook(mouth.add(f.scale(2.6)).add(0, -1.5, 0), mouth);
         }
@@ -1078,7 +1078,11 @@ public final class AutoShot {
             run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", c.x + 6, c.y + 0.2, c.z + 12));
             run("papon bossstate " + st);
         }
-        lookAt(mc, b);
+        // the view on the action: the giant at its end, the floor for the rift, the petals and the candles, else him
+        Entity giant = st.equals("P4_GIGANTE") ? nearest(mc, com.groid.papon.boss.SpiritGiantEntity.class) : null;
+        if (giant != null && u % 80 < 40) lookAtPoint(mc, giant.position().add(0, com.groid.papon.boss.SpiritGiantEntity.HEAD_Y, 0));
+        else if (st.equals("P4_GRIETA") || st.equals("P4_VELAS") || st.equals("P4_PETALOS")) lookAtPoint(mc, mc.player.position().lerp(c, 0.5).add(0, -1, 0));
+        else lookAt(mc, b);
         int len = SHOW_P4_LEN[i];
         int[] shots = {len / 6, 2 * len / 6, 3 * len / 6, 4 * len / 6, 5 * len / 6};
         for (int k = 0; k < shots.length; k++) {
@@ -1349,6 +1353,16 @@ public final class AutoShot {
         run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f %.1f %.1f", at.x, at.y, at.z, yaw, pitch));
     }
 
+    private static void lookAtPoint(Minecraft mc, Vec3 p) {
+        Vec3 d = p.subtract(mc.player.getEyePosition());
+        float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
+        mc.player.setYRot(yaw);
+        mc.player.setXRot(pitch);
+        mc.player.yRotO = yaw;
+        mc.player.xRotO = pitch;
+    }
+
     private static void lookAt(Minecraft mc, Entity e) {
         Vec3 eye = mc.player.getEyePosition();
         Vec3 d = e.position().add(0, e.getBbHeight() * 0.6, 0).subtract(eye);
@@ -1362,7 +1376,7 @@ public final class AutoShot {
 
     @Nullable
     private static <T extends Entity> T nearest(Minecraft mc, Class<T> type) {
-        return mc.level.getEntitiesOfClass(type, mc.player.getBoundingBox().inflate(80)).stream()
+        return mc.level.getEntitiesOfClass(type, mc.player.getBoundingBox().inflate(200)).stream()
                 .min(Comparator.comparingDouble(e -> e.distanceToSqr(mc.player))).orElse(null);
     }
 

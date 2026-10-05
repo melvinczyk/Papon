@@ -133,9 +133,10 @@ public final class MuertosSky {
         }
         Tesselator.getInstance().end();
         // the disc: the potato moon, crossfading into the calavera (a white flash between)
-        RenderSystem.defaultBlendFunc();
+        // the potato moon is drawn as the sky draws it, added on (its black is see-through); the calavera has alpha
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         drawDisc(m, c, right, up, r, POTATO_MOON, 0, 0, 0.25F, 0.5F, 1F, 1F - 0.5F * turned, 1F - 0.2F * turned, k * (1 - Math.max(0, turned - 0.6F) / 0.4F));
+        RenderSystem.defaultBlendFunc();
         if (turned > 0.6F) drawDisc(m, c, right, up, r * 1.05F, DEAD_MOON, 0, 0, 1, 1, 1, 1, 1, k * (turned - 0.6F) / 0.4F);
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);
@@ -263,7 +264,7 @@ public final class MuertosSky {
                 Vec3 p = base.add(PaponBossEntity.petal(a0, arm, sent, t));
                 int[] col = cols[(arm + sent / 6) % cols.length];
                 float spin = (t - sent) * 0.4F + arm;
-                petal(vc, m, p, cam, 0.55F, spin, col[0], col[1], col[2], (int) (230 * fade));
+                petal(vc, m, p, cam, 0.75F, spin, col[0], col[1], col[2], (int) (230 * fade));
             }
         }
     }
@@ -278,10 +279,10 @@ public final class MuertosSky {
         Vec3 ax = right.scale(cs).add(up.scale(sn)), ay = right.scale(-sn).add(up.scale(cs));
         // a teardrop: long along one axis, narrow across
         Vec3 tip = p.add(ay.scale(s)), tail = p.add(ay.scale(-s * 0.7)), l = p.add(ax.scale(-s * 0.4)), rr = p.add(ax.scale(s * 0.4));
-        vc.vertex(m, (float) tip.x, (float) tip.y, (float) tip.z).color(r, g, b, a).endVertex();
-        vc.vertex(m, (float) l.x, (float) l.y, (float) l.z).color(r, g, b, a).endVertex();
-        vc.vertex(m, (float) tail.x, (float) tail.y, (float) tail.z).color(r, g, b, a / 3).endVertex();
-        vc.vertex(m, (float) rr.x, (float) rr.y, (float) rr.z).color(r, g, b, a).endVertex();
+        // both windings: the render type culls back faces, and which side faces the camera depends on the spin
+        for (Vec3[] q : new Vec3[][]{{tip, l, tail, rr}, {tip, rr, tail, l}}) {
+            for (Vec3 v : q) vc.vertex(m, (float) v.x, (float) v.y, (float) v.z).color(r, g, b, v == tail ? a / 3 : a).endVertex();
+        }
     }
 
     /** A flat strip from a to b turned to face the camera, {@code w} wide. */

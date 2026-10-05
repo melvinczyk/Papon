@@ -357,7 +357,7 @@ public final class Cinematic {
         }
         duelWas = false;
         Shot p4 = phaseFourShot(b, s, t);
-        if (p4 != null) return p4;
+        if (p4 != null) return b.isAscended() ? ascendedRoom(b, p4) : p4;
         Shot p3 = phaseThreeShot(b, s, t, f, right);
         if (p3 != null) return b.isAscended() ? ascendedRoom(b, p3) : p3;
         Shot col = coliseumShot(b, s, t, f, right);
@@ -709,6 +709,9 @@ public final class Cinematic {
         com.groid.papon.boss.MariachiEntity singer = band.isEmpty() ? null : band.get(0);
         Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.getYRot()) : new Vec3(0, 0, 1);
         Vec3 stage = band.isEmpty() ? c.add(0, 0, -20) : band.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / band.size());
+        com.groid.papon.boss.ColiseumCrowdEntity crowd = mc.level.getEntitiesOfClass(com.groid.papon.boss.ColiseumCrowdEntity.class,
+                b.getBoundingBox().inflate(160), e -> true).stream().findFirst().orElse(null);
+        double arenaA = crowd != null ? crowd.sizeA() : 29, arenaB = crowd != null ? crowd.sizeB() : 21;
         switch (s) {
             case P4_RISE -> {
                 int moonAt = VoiceLines.beat("p4.moon", 34), line = VoiceLines.beat("p4.rise", 50);
@@ -728,22 +731,24 @@ public final class Cinematic {
                 int forms = VoiceLines.beat("p4.forms", 60), line = VoiceLines.beat("p4.hammer", forms + 12);
                 Vec3 hand = b.position().add(0, h * 1.15, 0).add(Vec3.directionFromRotation(0, b.yBodyRot + 70).scale(1.2 * h / 3.5));
                 if (t < forms + 8) {
-                    Vec3 eye = hand.add(f.scale(4.0)).add(right.scale(-2.0)).add(0, -0.6, 0);
-                    return new Shot(eye, hand, 48 - t * 0.1F, 0, t == 0);
+                    // off his right shoulder, level with the raised fist: the fire spiralling in, the hammer setting
+                    Vec3 eye = hand.add(f.scale(h * 1.4)).add(right.scale(h * 0.9)).add(0, -h * 0.15, 0);
+                    return new Shot(eye, hand.add(0, h * 0.3, 0), 50 - t * 0.1F, 0, t == 0, true);
                 }
-                if (t < line) return new Shot(b.position().add(f.scale(7.5)).add(right.scale(-2.5)).add(0, -1.5, 0), body.add(0, 1.2, 0), 64, 0, t == forms + 8);
-                return new Shot(face.add(f.scale(4.4)).add(right.scale(1.0)), face, 48, 0, t == line);
+                if (t < line) return new Shot(b.position().add(f.scale(h * 2.6)).add(right.scale(-h * 0.8)).add(0, -1.5, 0), body.add(0, h * 0.5, 0), 64, 0, t == forms + 8, true);
+                // him and the hammer, waist up
+                return new Shot(body.add(f.scale(h * 1.9)).add(right.scale(h * 0.4)), body.add(0, h * 0.35, 0), 56, 0, t == line, true);
             }
             case P4_STRIKE -> {
                 int swing = VoiceLines.beat("p4.swing", 30), turn = VoiceLines.beat("p4.turn", 52);
                 if (t < swing) {
                     // over his shoulder, up at the moon
-                    Vec3 eye = b.position().subtract(toMoon.multiply(1, 0, 1).normalize().scale(6)).add(right.scale(2)).add(0, 1.0, 0);
+                    Vec3 eye = b.position().subtract(toMoon.multiply(1, 0, 1).normalize().scale(h * 1.3)).add(right.scale(h * 1.6)).add(0, h * 0.2, 0);
                     return new Shot(eye, b.position().add(toMoon.scale(40)), 66, 0, t == 0, true);
                 }
                 if (t < turn + 40) {
-                    // the moon itself, a long lens: cracking under the bolt, turning
-                    Vec3 eye = b.position().add(0, h * 0.8, 0).subtract(toMoon.scale(4)).add(right.scale(1.5));
+                    // the moon itself, a long lens from beside him (so he is out of the narrow frame): cracking under the bolt, turning
+                    Vec3 eye = b.position().add(0, h * 0.5, 0).add(right.scale(h * 1.6 + 2));
                     float zoom = t < turn ? 24 - (t - swing) * 0.2F : 18 + (t - turn) * 0.2F;
                     float shake = t < turn ? (float) Math.sin(t * 2.3) * 1.2F : 0;
                     return new Shot(eye, moon, zoom, shake, t == swing, true);
@@ -761,17 +766,17 @@ public final class Cinematic {
                     // a skeleton face, close
                     com.groid.papon.boss.MariachiEntity m = band.get(Math.min(band.size() - 1, t < lastRay + 22 ? 0 : 9));
                     Vec3 mf = m.position().add(0, m.getBbHeight() * 0.75, 0);
-                    Vec3 mdir = Vec3.directionFromRotation(0, m.getYRot());
+                    // the band faces the sand (their yaw is not where they face): toward the middle
+                    Vec3 mdir = c.subtract(m.position()).multiply(1, 0, 1).normalize();
                     return new Shot(mf.add(mdir.scale(2.6)).add(0, 0.2, 0), mf, 46, 0, t == lastRay + 6 || t == lastRay + 22);
                 }
                 // the stands, the rays sweeping round them
-                com.groid.papon.boss.ColiseumCrowdEntity crowd = mc.level.getEntitiesOfClass(com.groid.papon.boss.ColiseumCrowdEntity.class,
-                        b.getBoundingBox().inflate(120), e -> true).stream().findFirst().orElse(null);
                 float sweep = Mth.clamp((t - PaponBossEntity.RAYS_STANDS) / (float) (PaponBossEntity.RAYS_STANDS_END - PaponBossEntity.RAYS_STANDS), 0, 1);
                 double phi = ColiseumCrowdRenderer.sweepAngle(sweep) - 0.25;
-                double a = crowd != null ? crowd.sizeA() + 10 : 39, bb = crowd != null ? crowd.sizeB() + 10 : 31;
-                Vec3 look = c.add(Math.cos(phi) * a, 9, Math.sin(phi) * bb);
-                return new Shot(c.add(0, 4, 0), look, 70, 0, t == PaponBossEntity.RAYS_STANDS, true);
+                Vec3 look = c.add(Math.cos(phi) * (arenaA + 10), 9, Math.sin(phi) * (arenaB + 10));
+                // from the far side of the sand (he hangs over the middle: behind the camera, not in front of it)
+                Vec3 eye = c.add(-Math.cos(phi) * arenaA * 0.45, 2.5, -Math.sin(phi) * arenaB * 0.45);
+                return new Shot(eye, look, 70, 0, t == PaponBossEntity.RAYS_STANDS, true);
             }
             case P4_BLUEOUT -> {
                 return new Shot(face.add(f.scale(6.5)).add(0, -0.5, 0), face, 58, 0, t == 0, true);
@@ -781,7 +786,8 @@ public final class Cinematic {
                 if (t < land + 4) {
                     // in over the new coliseum from high outside it, down to him
                     double k = smooth(Math.min(1, t / (double) (land + 4)));
-                    Vec3 from = c.add(yaw(new Vec3(0, 0, -1), -40 + 80 * k).scale(95 - 55 * k)).add(0, 55 - 38 * k, 0);
+                    double far = arenaA + 66, near = arenaA * 0.6;
+                    Vec3 from = c.add(yaw(new Vec3(0, 0, -1), -40 + 80 * k).scale(far + (near - far) * k)).add(0, 55 - 40 * k, 0);
                     return new Shot(from, b.position().add(0, 1, 0), 70, 0, t == 0, true);
                 }
                 if (t < line) {

@@ -3482,7 +3482,8 @@ def b_p4_moonrays():
 def b_p4_reveal():
     """BossState.P4_REVEAL. Down out of the blue into the great calavera, knees up, arms out (to p4.land); the landing on
     one knee, the hammer slammed into the floor beside him; he rises slowly, looking round at it all, arms loose, almost
-    tender; a hand on his chest for "It has been centuries..." (p4.centuries), head bowed, then up; and the arms open to it."""
+    tender, the hammer held out at his side (clear of his face for the close-ups); a hand on his chest for "It has been
+    centuries..." (p4.centuries), head bowed, then up; and the arms open to it."""
     land, line, end = beat('p4.land', 34), beat('p4.centuries', p4_beat('p4.land', 34) + 40), beat('p4.reveal_end', 130)
     a = B('p4_reveal', end, 'hold')
     up = round(land + 0.9, 2)
@@ -3492,7 +3493,7 @@ def b_p4_reveal():
                     (up, [-4, 0, 0], 'easeInOutSine'), (round(line - 0.2, 2), [-6, 0, 0]), (round(line + 0.3, 2), [16, 0, 0], 'easeInOutSine'),
                     (round(line + 2.0, 2), [-10, 0, 0], 'easeInOutSine'), (end, [-14, 0, 0])], 'lin')
     hammer_arm(a, [(0, [-60, 0, 60]), (round(land - 0.05, 2), [-120, 0, 30]), (land, HAM_SLAM, 'easeInExpo'), (round(land + 0.4, 2), HAM_SLAM),
-                   (up, [-120, 0, 50], 'easeInOutSine'), (round(line + 2.0, 2), [-120, 0, 54]), (end, [-112, 0, 80], 'easeInOutSine')],
+                   (up, [-96, 0, 78], 'easeInOutSine'), (round(line + 2.0, 2), [-98, 0, 80]), (end, [-112, 0, 80], 'easeInOutSine')],
                [(0, 1.1), (land, 1.4), (round(land + 0.4, 2), 1.4), (up, 1.1), (end, 1.2)])
     heart = [-82, 52, -6]
     a.rot('arm_l', [(0, [-40, 0, -60]), (land, [10, 0, -70], 'easeOutQuad'), (round(land + 0.4, 2), [10, 0, -66]),

@@ -116,11 +116,25 @@ public final class Coliseum {
         int highest = level.getMinBuildHeight();
         for (int dx = -reach; dx <= reach; dx += 8) {
             for (int dz = -reach; dz <= reach; dz += 8) {
-                highest = Math.max(highest, level.getHeight(Heightmap.Types.MOTION_BLOCKING, Mth.floor(arena.x) + dx, Mth.floor(arena.z) + dz));
+                highest = Math.max(highest, terrainTop(level, Mth.floor(arena.x) + dx, Mth.floor(arena.z) + dz));
             }
         }
         int floor = level.getMaxBuildHeight() - HEIGHT - 6;
         return floor < highest + 12 ? Integer.MIN_VALUE : floor;
+    }
+
+    /**
+     * The top of the ground in a column, looking through our own blocks: the coliseum already standing there (when the
+     * dead's is planned over it) is in the heightmap, and would always leave no room.
+     */
+    private static int terrainTop(ServerLevel level, int x, int z) {
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z) - 1, z);
+        while (p.getY() > level.getMinBuildHeight()) {
+            BlockState s = level.getBlockState(p);
+            if (!s.isAir() && !ModBlocks.isArena(s)) break;
+            p.move(Direction.DOWN);
+        }
+        return p.getY() + 1;
     }
 
     /**
