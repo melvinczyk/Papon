@@ -112,6 +112,24 @@ DIRECTION = {
                             'little moved, speaking gently to old friends, no showing off.' % STAR),
     'prophet': ('animated', NATURAL + 'You are %s, an ancient god speaking to his worshippers: solemn and stirring, the voice '
                             'rising with fervour, slow and full of meaning.' % STAR),
+    # (2026-10-04, phase four retaken: "more depth and emotion, flowing like sentences; when he screams, his voice must show it")
+    'scream': ('excited', NATURAL + 'You are %s, and you are SCREAMING at the top of your lungs: raw, ragged and enormous, '
+                          'the throat tearing, the voice cracking and breaking on the loudest words, pure power and pain pouring out '
+                          'of you. Never calm, never spoken: a real scream.' % STAR),
+    'wounded': ('animated', NATURAL + 'You are %s, badly wounded and deadly serious: out of breath, panting between the words, '
+                            'quiet and hoarse, wincing with pain, but steady and proud. No jokes in it.' % STAR),
+    'grave': ('animated', NATURAL + 'You are %s, an ancient guardian telling the story of your long life: serious, low and '
+                          'heavy with memory, unhurried, every sentence flowing into the next, the weight of ten thousand years in '
+                          'your voice.' % STAR),
+    'dry': ('animated', NATURAL + 'You are %s: dry, deadpan and knowing, a tired half smile in the voice, understated.' % STAR),
+    'awe': ('animated', NATURAL + 'You are %s, quietly overwhelmed: hushed, full of wonder and hope you hardly dare to feel, '
+                        'the voice catching, almost a whisper.' % STAR),
+    'majestic': ('animated', NATURAL + 'You are %s, revealing your true name as a god: deep, slow, resonant and commanding, '
+                             'every word heavy and proud, the voice swelling on the last words.' % STAR),
+    'joy': ('animated', NATURAL + 'You are %s, having the time of your life at a fiesta: delighted, laughing as you talk, '
+                        'bouncing and playful, the pitch leaping up on the fun words.' % STAR),
+    'intense': ('animated', NATURAL + 'You are %s, deadly serious and burning with intensity: low and hard, then rising, '
+                            'every word meant, a challenge thrown down.' % STAR),
 }
 # the directions every line was taken with before the rework: lines not in FRESH keep them (so they are not taken again)
 OLD_DIRECTION = {
@@ -165,14 +183,9 @@ OLD_DIRECTION = {
     )
 }
 
-# the lines taken with the new, more human delivery (the user, 2026-10-04: this session's new lines only)
-FRESH = set(['intro', 'felt', 'notstyle', 'p3_hurt', 'p3_noise', 'p3_power', 'upgrade', 'qte_strong', 'qte_weak', 'qte_crush', 'qte_slip', 'qte_quick', 'qte_slow', 'tango_good', 'tango_bad', 'duel_good', 'duel_bad', 'p3_sombrero', 'p3_volcan', 'p3_calaveras', 'p3_swing'] + [
-    k for k in ['p4_laugh', 'p4_rise', 'p4_hammer', 'p4_strike', 'p4_centuries', 'p4_true', 'p4_fiesta', 'p4_martillo', 'p4_luna', 'p4_gigante',
-                'p4_grieta', 'p4_cierra', 'p4_petalos', 'p4_papel', 'p4_velas', 'p4_danza']] + ['p4_charm%d' % i for i in range(6)]
-    + ['p4_hit%d' % i for i in range(3)] + ['p4_landed%d' % i for i in range(3)]
-    + ['p4_pant', 'p4_scar', 'p4_howgot', 'p4_ignis', 'p4_met', 'p4_years', 'p4_prophecy', 'p4_lunaknows', 'p4_brethren',
-       'p4_grant', 'p4_halfbaked', 'p4_talking', 'p4_honor', 'p4_muchachas', 'p4_twirl', 'p4_goodtime', 'p4_flechas',
-       'p4_serpientes', 'p4_charm6', 'p4_charm7'])
+# the lines taken with the new, more human delivery (the user, 2026-10-04: this session's new lines only; every phase-four
+# line is in it too: they are all taken again, see after LINES)
+FRESH = set(['intro', 'felt', 'notstyle', 'p3_hurt', 'p3_noise', 'p3_power', 'upgrade', 'qte_strong', 'qte_weak', 'qte_crush', 'qte_slip', 'qte_quick', 'qte_slow', 'tango_good', 'tango_bad', 'duel_good', 'duel_bad', 'p3_sombrero', 'p3_volcan', 'p3_calaveras', 'p3_swing'])
 
 # sampling: a little warmer than the model's default (0.9), and each take a little different (voice_modal varies it)
 GEN = {'temperature': 1.0}
@@ -378,58 +391,96 @@ LINES = {
     'p3_landed3': ("FEEL my power!!!", 'shout'),
     'p3_hit2':   ("You scratched a god. How... BRAVE.", 'contempt'),
     'p3_hit3':   ("Impressive. It changes NOTHING.", 'cold'),
-    # ---- (2026-10-04) phase four, Dia de los Muertos: the ritual (he rises laughing, the spirit hammer, the moon struck,
-    # the dead's coliseum, his truest form) and El Rey de los Muertos's fight
-    'p4_laugh':  ("Heh heh heh... HA HA HA HA!", 'evil'),
-    'p4_rise':   ("You think that was ALL? Amigo... the fiesta hasn't even started.", 'sly'),
-    'p4_hammer': ("Death herself... lends me her HAMMER tonight.", 'evil'),
-    'p4_strike': ("Wake up, LUNA!!!", 'shout'),
-    'p4_centuries': ("It has been centuries... since I was brought to my TRUEST form.", 'menace'),
-    'p4_true':   ("Behold... EL REY DE LOS MUERTOS!", 'shout'),
-    'p4_fiesta': ("Now, amigo... we CELEBRATE!", 'shout'),
-    'p4_martillo': ("Feel the weight of the DEAD!", 'shout'),
-    'p4_luna':   ("Luna... show them your light.", 'evil'),
-    'p4_gigante': ("A song for my oldest friend... RISE, GIGANTE!", 'shout'),
-    'p4_grieta': ("The souls are HUNGRY, amigo!", 'evil'),
-    'p4_cierra': ("And... SHUT.", 'cold'),
-    'p4_petalos': ("Marigolds, to guide you HOME!", 'smug'),
-    'p4_papel':  ("Duck, jump... DANCE!", 'sly'),
-    'p4_velas':  ("Light a candle for yourself, amigo.", 'sly'),
-    'p4_danza':  ("My ancestors want a DANCE!", 'smug'),
-    'p4_charm0': ("Every year they leave me flowers. This year... I leave some for YOU.", 'sly'),
-    'p4_charm1': ("The dead know how to PARTY, amigo!", 'shout'),
-    'p4_charm2': ("Centuries of fiestas... and you are the BEST one.", 'smug'),
-    'p4_charm3': ("Don't be scared. Death is just a long SIESTA.", 'sly'),
-    'p4_charm4': ("Listen to them... the dead are cheering for ME.", 'smug'),
-    'p4_charm5': ("Bones don't break, amigo. They DANCE!", 'shout'),
-    'p4_hit0':   ("Ay! You rattled my BONES!", 'pained'),
-    'p4_hit1':   ("You can't kill what is already DEAD!", 'angry'),
-    'p4_hit2':   ("Careful! These bones are ANTIQUES!", 'surprised'),
-    'p4_landed0': ("Welcome to the other SIDE!", 'shout'),
-    'p4_landed1': ("Say hello to my ancestors for me.", 'sly'),
-    'p4_landed2': ("OLE! The dead LOVE that one!", 'shout'),
-    # (2026-10-04) phase four reworked: the reopened scar, Ignis's head, the prophecy, the souls, the Final Guardian
-    'p4_pant':   ("Hah... hah... hah...", 'pained'),
-    'p4_scar':   ("Huh... it reopened, didn't it.", 'pained'),
-    'p4_howgot': ("Do you want to know... how I got this scar?", 'pained'),
-    'p4_ignis':  ("I remember he did a little damage... but nothing notable.", 'sly'),
-    'p4_met':    ("I assume you two have met before, no?", 'smug'),
-    'p4_years':  ("Ten thousand years. Ten thousand years I have been waiting for this moment.", 'menace'),
-    'p4_prophecy': ("After all this time... the prophecy might finally be fulfilled.", 'evil'),
-    'p4_lunaknows': ("Ha... la luna knows it too.", 'sly'),
-    'p4_brethren': ("My brethren... this is it. This is what we were made for.", 'prophet'),
-    'p4_grant':  ("The prophecy will be fulfilled... so grant me your STRENGTH!", 'shout'),
+    # ---- phase four, the Final Guardian (reworked twice on 2026-10-04; this take: the user wanted every line deeper, more
+    # emotion, flowing like real sentences, the screams screamed; and his story: the last guardian of the world, keeping the
+    # throne warm for ten thousand years for the champion the potato prophecy promised, the one strong enough to take it and
+    # look after the world; Moctezuma, who saw a god in Cortes and gave his throne away). Written as speech: whole sentences,
+    # few capitals, an ellipsis only where he really stops.
+    # the fall: wounded, out of breath, the stands dead silent
+    'p4_scar':   ("Huh... it reopened, didn't it.", 'wounded'),
+    'p4_howgot': ("Do you want to know how I got this scar?", 'wounded'),
+    'p4_ignis':  ("He gave it to me, a long time ago. I remember he did a little damage... but nothing notable.", 'grave'),
+    'p4_met':    ("I assume you two have met before, no?", 'dry'),
+    # the prophecy, walking to the middle in the fog
+    'p4_years':  ("Ten thousand years, amigo. Ten thousand years I have been waiting for this moment.", 'grave'),
+    'p4_throne': ("You see that throne up there? I never sat on it to rule. I sat on it to keep it warm.", 'grave'),
+    'p4_carved': ("The oldest potatoes carved it in stone, before the first sun ever rose.", 'prophet'),
+    'p4_warrior': ("One day a warrior would come, strong enough to beat the last guardian of this world, and take the throne, and carry the whole world on their back.", 'prophet'),
+    # the throne: Moctezuma, who gave his away
+    'p4_moctezuma': ("I have seen this before, you know. When the iron men came across the sea, my old friend Moctezuma looked at their captain and saw a god. The Feathered Serpent, come home at last.", 'sad'),
+    'p4_gates':  ("So he opened his gates. He gave them his gold, his city, his throne... and they took everything.", 'sad'),
+    'p4_mistake': ("I will not make his mistake. I will not give you my throne. If you are the one the prophecy speaks of, then you will have to take it from me.", 'intense'),
+    'p4_prophecy': ("After all this time... the prophecy might finally be fulfilled.", 'awe'),
+    'p4_lunaknows': ("Ha... la luna knows it too.", 'warm'),
+    # the souls
+    'p4_brethren': ("My brothers, my sisters... this is it. This is the night we were made for.", 'prophet'),
+    'p4_grant':  ("So lend me your souls, and grant me your STRENGTH!", 'scream'),
+    'p4_feel':   ("Yes... yes, I can feel every one of you... AAAAAAAGH!", 'scream'),
+    # the transformation
     'p4_halfbaked': ("You know... it's not right to go into a fight half baked.", 'sly'),
-    'p4_talking': ("Now we're TALKING!", 'shout'),
-    'p4_honor':  ("Señores... it has been an honor. But I need you to play one last song.", 'sincere'),
-    'p4_muchachas': ("Hey! Where are the muchachas?", 'smug'),
-    'p4_twirl':  ("Ha ha! Still got it!", 'smug'),
-    'p4_goodtime': ("COME ON!!! SHOW ME A GOOD TIME!!!", 'shout'),
-    'p4_flechas': ("The sun's arrows never miss, amigo!", 'smug'),
-    'p4_serpientes': ("My serpents... FEAST!", 'shout'),
-    'p4_charm6': ("Ten thousand years I waited... and the prophecy sent me YOU? I love it.", 'smug'),
+    'p4_burst':  ("RRRAAAAAAAAAAAAAAGH!", 'scream'),
+    'p4_guardian': ("I am Papon... the Final Guardian.", 'majestic'),
+    # the bow, the serpents, the band, the muchachas, you
+    'p4_bow':    ("Ouros! Boros! Come down and meet the one who wants my throne!", 'shout'),
+    'p4_talking': ("Now we're talking!", 'joy'),
+    'p4_honor':  ("Señores... it has been an honor, every single night. But I need you to play one last song for me.", 'sincere'),
+    'p4_muchachas': ("Hey! Where are my muchachas?", 'warm'),
+    'p4_twirl':  ("Ha ha! I still got it!", 'joy'),
+    'p4_dance':  ("This was never a fight, amigo. It is a dance. Keep up with me... or fall.", 'intense'),
+    'p4_goodtime': ("COME ON! SHOW ME A GOOD TIME!", 'scream'),
+    # his moves
+    'p4_martillo': ("Feel the weight of ten thousand years!", 'shout'),
+    'p4_luna':   ("Luna, my love... show them your light.", 'warm'),
+    'p4_gigante': ("Wake up, old friend! Rise, GIGANTE!", 'scream'),
+    'p4_grieta': ("The souls are hungry tonight, amigo. Can you hear them calling you?", 'evil'),
+    'p4_cierra': ("And... shut.", 'dry'),
+    'p4_petalos': ("Marigolds, to guide you home!", 'joy'),
+    'p4_papel':  ("Jump, duck, and dance, amigo!", 'joy'),
+    'p4_velas':  ("Light a candle for yourself, amigo. You are going to need it.", 'sly'),
+    'p4_danza':  ("My ancestors want to dance with you!", 'joy'),
+    'p4_flechas': ("The arrows of the sun never miss!", 'shout'),
+    'p4_serpientes': ("Ouros, Boros... FEAST!", 'scream'),
+    'p4_ouroboros': ("Around and around, like the serpent that eats its own tail! There is no way out, amigo!", 'shout'),
+    'p4_pista':  ("The floor is yours, amigo. Stay on the beat, or burn!", 'joy'),
+    'p4_cempasuchil': ("Follow the marigolds, amigo. They lead the souls home. Everyone else... drowns.", 'evil'),
+    'p4_castillo': ("Light the castillo! Every fiesta ends with fireworks!", 'shout'),
+    'p4_salsa':  ("Uno, dos, tres... and turn!", 'joy'),
+    'p4_gigante_swat': ("Batter up, Gigante!", 'joy'),
+    # the dance-off: El Ultimo Tango
+    'p4_tango':  ("You and me, amigo. One last tango, in front of the dead. Try to keep up!", 'joy'),
+    'p4_tango_good': ("Ooh, look at those feet! Somebody has been practicing!", 'surprised'),
+    'p4_tango_bad': ("No, no, no! You dance like a skeleton with no bones!", 'joy'),
+    'p4_tango_won': ("And that, amigo, is how a guardian dances.", 'sly'),
+    'p4_tango_lost': ("You out-danced me? Ha... maybe the prophecy is true after all.", 'awe'),
+    # taunts, his hurts, his hits that land (quip picks a variant)
+    'p4_charm0': ("Every year they leave me flowers. This year, I will leave some for you.", 'sly'),
+    'p4_charm1': ("The dead know how to party, amigo!", 'joy'),
+    'p4_charm2': ("Ten thousand years of fiestas, and you are the best one yet.", 'warm'),
+    'p4_charm3': ("Don't be scared. Death is just a very long siesta.", 'sly'),
+    'p4_charm4': ("Listen to them. Even the dead are cheering for me.", 'warm'),
+    'p4_charm5': ("Bones don't break, amigo. They dance!", 'joy'),
+    'p4_charm6': ("Ten thousand years I waited, and the prophecy sent me you? I love it.", 'joy'),
     'p4_charm7': ("The old gods are watching, amigo. Give them a show!", 'shout'),
+    'p4_charm8': ("Keep up, amigo! The song doesn't wait for anybody.", 'joy'),
+    'p4_charm9': ("Is this the one who will carry the world? Then show me!", 'intense'),
+    'p4_charm10': ("Feel the rhythm, amigo. Left, right... and dodge!", 'sly'),
+    'p4_charm11': ("My throne is right up there. Come and take it, if you can.", 'sly'),
+    'p4_hit0':   ("Ay! You rattled my bones!", 'surprised'),
+    'p4_hit1':   ("You can't kill what is already dead!", 'shout'),
+    'p4_hit2':   ("Careful! These bones are antiques!", 'surprised'),
+    'p4_hit3':   ("Yes, yes! That is the strength I have been waiting for!", 'joy'),
+    'p4_hit4':   ("Good! Again! Make the prophecy proud!", 'intense'),
+    'p4_landed0': ("Welcome to the other side!", 'joy'),
+    'p4_landed1': ("Say hello to my ancestors for me.", 'sly'),
+    'p4_landed2': ("Olé! The dead love that one!", 'joy'),
+    'p4_landed3': ("You stepped on my feet, amigo. Bad idea.", 'dry'),
+    'p4_landed4': ("Is that the warrior of the prophecy? Get up!", 'intense'),
+    'p4_low':    ("No... not yet. The song is not over yet!", 'wounded'),
+    # his fall in phase four: the prophecy fulfilled
+    'p4_death':  ("So it was true... The throne is yours now, champion. Take care of them... and keep it warm.", 'sincere'),
 }
+
+FRESH |= {k for k in LINES if k.startswith('p4_')}
 
 # what the voice model is given to say, where the written line reads two ways ("lives": he said it like "alive")
 SPOKEN = {
@@ -437,7 +488,7 @@ SPOKEN = {
     'upgrade': "It's about time I gave this thing an upgrade.",     # in capitals it came out "upi-grad"
 }
 
-NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend', 'p4_pant'}          # Whisper cannot judge a scream or a lone word
+NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend', 'p4_burst'}          # Whisper cannot judge a scream or a lone word
 
 
 def norm(s):
@@ -655,8 +706,10 @@ def pick(line, info):
         score -= 12.0 * max(0.0, t['seconds'] / words - 0.55)
         if loud:
             score += 3.0 * min(excl, 3) + 2.0 * min(caps, 3)
-        if mood in ('shout', 'angry'):
+        if mood in ('shout', 'angry', 'scream'):
             score += e['bright'] / 250.0
+        if mood == 'scream':
+            score += 0.4 * min(e['dyn'], 30) + 2.0 * min(stretch, 5)
         if line == 'intro' and 'lives_ok' not in t:
             t['lives_ok'] = bool(lives_ok(path))
         if line == 'intro' and not t['lives_ok']:
@@ -947,54 +1000,77 @@ def beats(lengths):
     b['dance.drop'] = int(round(pickup * 20))
     b['dance.line'] = b['dance.drop'] + 34
     b['dance.end'] = b['dance.line'] + L('dance') + 16
-    # ---- phase four (2026-10-04, reworked to the user's script): the Final Guardian's awakening, every beat from his lines
-    # (PaponBossEntity.tickP4*, client/Cinematic, client/MuertosSky, gen_boss_anims b_p4_*)
-    # P4_FALL: thrown flat (lands t14), panting on his back, up on an elbow, finds the scar: "Huh... it reopened, didn't it."
+    # ---- phase four: the Final Guardian's awakening, every beat from his lines (PaponBossEntity.tickP4*, client/Cinematic,
+    # client/MuertosSky, gen_boss_anims b_p4_*). (2026-10-04, retaken: the user found scenes too fast to carry what they mean, so
+    # every line gets room after it, and the story is longer: the throne kept warm, the prophecy, Moctezuma.) The stands are
+    # dead silent from the fall to the souls; he is badly hurt, panting.
+    # P4_FALL: thrown flat (lands t14), a long moment on his back panting, up on an elbow, finds the scar: "Huh... it reopened..."
     b['p4.land'] = 14
-    b['p4.elbow'] = 44
-    b['p4.look'] = 58
-    b['p4.scar'] = 76
-    b['p4.fall_end'] = b['p4.scar'] + L('p4_scar') + 14
-    # P4_RISEUP: up in two goes, the cough of blood, "Do you want to know... how I got this scar?"
-    b['p4.knee'] = 16
-    b['p4.cough'] = 36
-    b['p4.howgot'] = 52
-    b['p4.riseup_end'] = b['p4.howgot'] + L('p4_howgot') + 12
+    b['p4.elbow'] = 66
+    b['p4.look'] = 86
+    b['p4.scar'] = 112
+    b['p4.fall_end'] = b['p4.scar'] + L('p4_scar') + 34
+    # P4_RISEUP: up in two goes, the cough of blood, a breath, "Do you want to know how I got this scar?"
+    b['p4.knee'] = 22
+    b['p4.cough'] = 52
+    b['p4.howgot'] = 92
+    b['p4.riseup_end'] = b['p4.howgot'] + L('p4_howgot') + 32
     # P4_IGNIS: the reach behind his back, Ignis's head out, held up beside his face for the line, thrown down; at you
-    b['p4.head_out'] = 20
-    b['p4.ignis'] = 34
-    b['p4.throw'] = b['p4.ignis'] + L('p4_ignis') + 4
+    b['p4.head_out'] = 26
+    b['p4.ignis'] = 50
+    b['p4.throw'] = b['p4.ignis'] + L('p4_ignis') + 12
     b['p4.thud'] = b['p4.throw'] + 13
-    b['p4.met'] = b['p4.thud'] + 16
-    b['p4.ignis_end'] = b['p4.met'] + L('p4_met') + 14
-    # P4_PROPHECY: walking, "Ten thousand years..."; the fog rolls in under it; "...the prophecy..."; the moon; the smile
-    b['p4.years'] = 8
+    b['p4.met'] = b['p4.thud'] + 26
+    b['p4.ignis_end'] = b['p4.met'] + L('p4_met') + 34
+    # P4_PROPHECY: walking toward the middle, "Ten thousand years..."; the fog rolls in; he stops, looks up at his throne
+    # (p4.throne_look) and tells you why he sat on it; turns to you: the stone, the warrior
+    b['p4.years'] = 10
     b['p4.fog'] = b['p4.years'] + 30
-    b['p4.prophecy'] = b['p4.years'] + L('p4_years') + 14
-    b['p4.moon'] = b['p4.prophecy'] + L('p4_prophecy') + 4
-    b['p4.lunaknows'] = b['p4.moon'] + 26
-    b['p4.prophecy_end'] = b['p4.lunaknows'] + L('p4_lunaknows') + 14
+    b['p4.throne_look'] = b['p4.years'] + L('p4_years') + 14
+    b['p4.throne'] = b['p4.throne_look'] + 14
+    b['p4.carved'] = b['p4.throne'] + L('p4_throne') + 30
+    b['p4.warrior'] = b['p4.carved'] + L('p4_carved') + 16
+    b['p4.prophecy_end'] = b['p4.warrior'] + L('p4_warrior') + 34
+    # P4_THRONE: Moctezuma (head bowed, remembering), the gates thrown open; then up at you: "I will not make his mistake...";
+    # the clouds part on the moon (p4.moon); "After all this time... the prophecy might finally be fulfilled."; the smile up
+    # at it: "Ha... la luna knows it too."
+    b['p4.moctezuma'] = 18
+    b['p4.gates'] = b['p4.moctezuma'] + L('p4_moctezuma') + 22
+    b['p4.mistake'] = b['p4.gates'] + L('p4_gates') + 34
+    b['p4.moon'] = b['p4.mistake'] + L('p4_mistake') + 26
+    b['p4.prophecy'] = b['p4.moon'] + 44
+    b['p4.lunaknows'] = b['p4.prophecy'] + L('p4_prophecy') + 26
+    b['p4.throne_end'] = b['p4.lunaknows'] + L('p4_lunaknows') + 34
     # P4_BRETHREN: the arms open to the stands; the two lines; the moon turns on the last word
-    b['p4.brethren'] = 14
-    b['p4.grant'] = b['p4.brethren'] + L('p4_brethren') + 10
-    b['p4.turn'] = b['p4.grant'] + L('p4_grant') - 4
-    b['p4.brethren_end'] = b['p4.turn'] + 40
-    # P4_HALFBAKED: the line in the green glow; the burst; the flash (the arena turns behind it); the reveal; the title
-    b['p4.halfbaked'] = 12
-    b['p4.burst'] = b['p4.halfbaked'] + L('p4_halfbaked') + 10
-    b['p4.flash'] = b['p4.burst'] + 30
+    b['p4.brethren'] = 20
+    b['p4.grant'] = b['p4.brethren'] + L('p4_brethren') + 24
+    b['p4.turn'] = b['p4.grant'] + L('p4_grant') - 6
+    b['p4.brethren_end'] = b['p4.turn'] + 60
+    # P4_SOULS: the stands' souls stream into him (SOULS_STANDS..SOULS_STANDS_END), the band's one by one (soulAt); as the
+    # last of them pour in, "Yes... yes, I can feel every one of you... AAAAAGH!"
+    b['p4.feel'] = 214
+    b['p4.souls_end'] = max(260, b['p4.feel'] + L('p4_feel') + 16)
+    # P4_HALFBAKED: the line in the green glow; the scream and the burst; the flash (the arena turns behind it); the landing;
+    # up; "I am Papon... the Final Guardian." with the title
+    b['p4.halfbaked'] = 16
+    b['p4.burst'] = b['p4.halfbaked'] + L('p4_halfbaked') + 18
+    b['p4.flash'] = b['p4.burst'] + max(34, L('p4_burst') - 4)
     b['p4.clear'] = b['p4.flash'] + 26
-    b['p4.title'] = b['p4.clear'] + 8
-    b['p4.halfbaked_end'] = b['p4.clear'] + 80
+    b['p4.guardian'] = b['p4.clear'] + 44
+    b['p4.title'] = b['p4.guardian'] + 4
+    b['p4.halfbaked_end'] = b['p4.guardian'] + L('p4_guardian') + 54
+    # P4_BOW: the bow (PaponBossEntity.BOW_* ticks: formed 8, loosed 66, the moon struck 76, the smoke 86); then the call
+    b['p4.bowline'] = 112
+    b['p4.bow_end'] = b['p4.bowline'] + L('p4_bow') + 16
     # P4_TALKING
     b['p4.talking'] = 6
-    b['p4.talking_end'] = b['p4.talking'] + L('p4_talking') + 18
+    b['p4.talking_end'] = b['p4.talking'] + L('p4_talking') + 24
     # P4_HONOR: soft, to the band; the singer nods; they strike up (the song's downbeat); the trumpets
-    b['p4.honor'] = 10
-    b['p4.nod'] = b['p4.honor'] + L('p4_honor') + 4
-    b['p4.song'] = b['p4.nod'] + 16
-    b['p4.honor_end'] = b['p4.song'] + 44
-    # P4_MUCHACHAS: "Where are the muchachas?", the clap, the dancers rise, he goes to one and twirls her
+    b['p4.honor'] = 14
+    b['p4.nod'] = b['p4.honor'] + L('p4_honor') + 10
+    b['p4.song'] = b['p4.nod'] + 18
+    b['p4.honor_end'] = b['p4.song'] + 48
+    # P4_MUCHACHAS: "Hey! Where are my muchachas?", the clap, the dancers rise, he goes to one and twirls her
     b['p4.muchachas'] = 4
     b['p4.clap'] = b['p4.muchachas'] + L('p4_muchachas') + 2
     b['p4.rise'] = b['p4.clap'] + 10
@@ -1002,10 +1078,12 @@ def beats(lengths):
     b['p4.twirl_line'] = b['p4.twirl'] + 14
     b['p4.dip'] = b['p4.twirl'] + 58                 # the twirl, then a dip, then a few steps together
     b['p4.muchachas_end'] = b['p4.twirl'] + 110
-    # P4_GOODTIME: round to you; "COME ON!!! SHOW ME A GOOD TIME!!!"; the stands erupt; he holds it till the first sung word
-    b['p4.goodtime'] = 40
+    # P4_GOODTIME: round to you, striding in: "This was never a fight, amigo. It is a dance..."; then the scream: "COME ON!
+    # SHOW ME A GOOD TIME!"; the stands erupt; he holds it till the first sung word
+    b['p4.dance'] = 24
+    b['p4.goodtime'] = b['p4.dance'] + L('p4_dance') + 16
     b['p4.erupt'] = b['p4.goodtime'] + L('p4_goodtime')
-    # passes of the song's brass intro from the downbeat to the fight: the rest of the honor, the muchachas, the line, a beat
+    # passes of the song's brass intro from the downbeat to the fight: the rest of the honor, the muchachas, the lines, a beat
     try:
         intro = json.load(open(os.path.join(ASSETS, 'song/persona_ideal.json')))['segments'][0]['length']
         need = (b['p4.honor_end'] - b['p4.song']) + b['p4.muchachas_end'] + b['p4.erupt'] + 30

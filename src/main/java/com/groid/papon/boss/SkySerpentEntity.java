@@ -104,7 +104,13 @@ public class SkySerpentEntity extends Entity {
                 dives.add(new SerpentPath.Dive(l.getDouble(0), new Vec3(l.getDouble(1), l.getDouble(2), l.getDouble(3)),
                         new Vec3(l.getDouble(4), l.getDouble(5), l.getDouble(6))));
             }
-            path = new SerpentPath(portal(), position(), o.x(), o.y(), (int) o.z(), dives);
+            List<SerpentPath.Ring> rings = new ArrayList<>();
+            for (Tag t : key.getList("r", Tag.TAG_LIST)) {
+                ListTag l = (ListTag) t;
+                rings.add(new SerpentPath.Ring(l.getDouble(0), new Vec3(l.getDouble(1), l.getDouble(2), l.getDouble(3)), l.getDouble(4),
+                        l.getDouble(5), l.getDouble(6), l.getDouble(7), (int) l.getDouble(8), l.getDouble(9)));
+            }
+            path = new SerpentPath(portal(), position(), o.x(), o.y(), (int) o.z(), dives, rings);
             pathKey = key;
         }
         return path;
@@ -123,7 +129,7 @@ public class SkySerpentEntity extends Entity {
         ListTag d = new ListTag();
         for (double v : new double[]{s0, a.x, a.y, a.z, b.x, b.y, b.z}) d.add(net.minecraft.nbt.DoubleTag.valueOf(v));
         list.add(d);
-        CompoundTag tag = new CompoundTag();
+        CompoundTag tag = old.copy();
         tag.put("d", list);
         entityData.set(DATA_DIVES, tag);
         SerpentPath p = path();
@@ -138,16 +144,46 @@ public class SkySerpentEntity extends Entity {
         return (int) Math.ceil((lead + down) / SPEED);
     }
 
-    /** Whether the last dive is still going (its body is still low). */
+    /** Whether the last dive (or ring) is still going (its body is still low). */
     public boolean busy() {
         SerpentPath p = path();
         double h = head(0);
         CompoundTag key = entityData.get(DATA_DIVES);
-        ListTag list = key.getList("d", Tag.TAG_LIST);
-        if (list.isEmpty()) return false;
-        double s0 = ((ListTag) list.get(list.size() - 1)).getDouble(0);
-        double end = s0 + p.diveLength(s0) + HEAD + SEGMENT * (SEGMENTS + 1);
-        return h < end;
+        for (String k : new String[]{"d", "r"}) {
+            ListTag list = key.getList(k, Tag.TAG_LIST);
+            if (list.isEmpty()) continue;
+            double s0 = ((ListTag) list.get(list.size() - 1)).getDouble(0);
+            double end = s0 + p.diveLength(s0) + HEAD + SEGMENT * (SEGMENTS + 1);
+            if (h < end) return true;
+        }
+        return false;
+    }
+
+    /**
+     * El Ouroboros: sends it down onto a ring round {@code center} (half-axes {@code ra}, {@code rb}, {@code y} over it), entered
+     * at {@code angle0}, round {@code laps} times in direction {@code dir}; it leaves its orbit {@code lead} blocks of path from
+     * now. Returns [ticks till its head is on the ring, ticks it then spends on it].
+     */
+    public int[] ring(Vec3 center, double ra, double rb, double y, double angle0, int dir, double laps, double lead) {
+        double s0 = head(0) + lead;
+        CompoundTag old = entityData.get(DATA_DIVES).copy();
+        ListTag list = new ListTag();
+        ListTag d = new ListTag();
+        for (double v : new double[]{s0, center.x, center.y, center.z, ra, rb, y, angle0, dir, laps}) d.add(net.minecraft.nbt.DoubleTag.valueOf(v));
+        list.add(d);
+        old.put("r", list);
+        entityData.set(DATA_DIVES, old);
+        double[] span = path().ringSpan(s0);
+        return new int[]{(int) Math.ceil((lead + span[0]) / SPEED), (int) Math.ceil(span[1] / SPEED)};
+    }
+
+    /** Its head now, and where it is heading. */
+    public Vec3 headAt(float partial) { return path().at(head(partial)); }
+
+    public Vec3 heading(float partial) {
+        double h = head(partial);
+        Vec3 d = path().at(h).subtract(path().at(h - 1.5));
+        return d.lengthSqr() < 1e-6 ? new Vec3(1, 0, 0) : d.normalize();
     }
 
     /** Points down its length now (head first), for its dives' hits. */
