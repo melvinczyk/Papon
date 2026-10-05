@@ -39,8 +39,8 @@ final class GiantMesh {
     /** The jaw's hinge (skull units): it opens about the x axis through here. */
     static final float HINGE_Y = -5.6F, HINGE_Z = -0.8F;
 
-    static final Mesh SKULL = build(GiantMesh::skull, -10, 10, -11, 10.5F, -9.5F, 10, 0.45F, GiantMesh::paintSkull);
-    static final Mesh JAW = build(GiantMesh::jaw, -7.5F, 7.5F, -11, -4, -3, 8.5F, 0.4F, GiantMesh::paintJaw);
+    static final Mesh SKULL = build(GiantMesh::skull, -10, 10, -11, 10.5F, -9.5F, 10, 0.55F, GiantMesh::paintSkull);
+    static final Mesh JAW = build(GiantMesh::jaw, -7.5F, 7.5F, -11, -4, -3, 8.5F, 0.48F, GiantMesh::paintJaw);
 
     private GiantMesh() {}
 

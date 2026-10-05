@@ -98,7 +98,15 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
             return Math.max(0.25F, 0.9F - (t - clear) / 30F) * pulse;
         }
         // (2026-10-04, the user: "we can't see his texture... his green aura is masking it") a thin glow at his edges only
-        if (boss.isMuertos()) return (s.muertosMove() ? 0.14F : 0.08F) * pulse;
+        if (boss.isMuertos()) {
+            // (2026-10-05) losing control: in his rage and El Juicio Final it flares; at the end of the world it stutters,
+            // surging and dropping (still thin enough to see him through)
+            if (s == BossState.P4_RAGE || s == BossState.P4_JUICIO) return (0.3F + 0.12F * net.minecraft.util.Mth.sin(t * 0.9F) + 0.08F * net.minecraft.util.Mth.sin(t * 2.3F)) * pulse;
+            float base = (s.muertosMove() ? 0.14F : 0.08F) * pulse;
+            if (boss.p4StageShown() >= 3) base *= 1.25F + 0.55F * Math.max(0F, net.minecraft.util.Mth.sin(t * 0.37F) * net.minecraft.util.Mth.sin(t * 1.13F));
+            else if (boss.p4StageShown() == 2) base *= 1.15F;
+            return base;
+        }
         if (boss.isPhaseThree() && !s.phaseThree()) return 0.32F * pulse;
         return 0;
     }

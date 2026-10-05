@@ -51,7 +51,9 @@ too dark a bake, the potato dome, the gold aura on the singer. Phase-two parts n
 Arrival: excited, but the **mariachi band (13 Papons, varied sizes) is asleep**; he wakes them (whacks the singer); they slowly
 dress, grab instruments; singer (microphone, **lip-synced**) counts off. Song **"Canción del Mariachi" (Antonio Banderas & Los
 Lobos)**. Intro zooms on the guitar; he **apologises for poor hospitality, aura farms, "where were we?"**; fight starts when the
-singer sings; song loops, highs/lows follow the battle. Only Gordo (guitarron) has a chair (dozes off, chair kicked). One potato
+singer sings; song loops, highs/lows follow the battle. (2026-10-05) The singer **counts off "¡Un, dos, tres, cuatro!" in a real
+voice**, expressive and energetic, cloned from the user's reference (`tools/src/voice/singer_reference.mp3`, gitignored: a Castilian
+male voiceover demo). Only Gordo (guitarron) has a chair (dozes off, chair kicked). One potato
 smiley Mexican flag design everywhere, fans with small flags, lively crowd, **potato sun/moon**, a band member lights stage lamps
 at nightfall. Showtime: crowd **heard roaring** at his entrance; **fireworks in flag colours** on the music (user said "red, blue
 and white like the Mexican flag"; built green/white/red: say so if asked); reactions to what the player does (e.g. stealing his
@@ -84,6 +86,13 @@ one; "**COME ON!!! SHOW ME A GOOD TIME!!!**". Crowd silent, him serious/wounded/
 land; screams screamed; grand attacks are most of what he does (serpents circling the arena, salsa, more colour); **dance-off
 QTE, interactive, a tango with you as opponent**; his movement dance-like on the beat; El Gigante really in the arena (thick eye
 lasers, swipes into walls); his texture must be visible (not too dark).
+**Phase four, escalated (2026-10-05)**: a **major escalation and the true climax**: more frequent and intense attacks that **overlap**
+(several threats at once); serpents **last longer, cover more of the arena, get progressively more threatening, part of his
+patterns** (not standalone); **El Gigante a massive 3D physical presence** (proportions, depth, movement, convincing skeleton,
+scale; not a flat effect) whose attacks work **alongside** the serpents and him; built **in stages**, dangerous at first and
+**increasingly chaotic, the boss losing control**; the **final portion combines him, the serpents and the giant** into a
+challenging, spectacular climax. **Fix rendering**: no attack may go invisible, flicker, vanish or distort (the giant potato,
+lasers, piñata, serpents, skeleton...). Keep the existing style and mechanics; no needless performance cost.
 
 **Ending**: after Gerbin's pillow, back at the truck: **Chef Papon a friendly vendor again, menu gives free tacos**.
 **Pillow**: hug "sensually", lick, put on a bed and sleep beside it on your side, hump (hand and bed); natural plump look,
@@ -105,7 +114,8 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
 | Vendor, customers, Gerbin, NPC base, speech, sound cues | `entity/npc/*`, `entity/Speech`, `client/SpeechBubble` |
 | Boss: states, phases, moves | `boss/PaponBossEntity`, `BossState`, `TacoBoss`, `Mechanics`, `Fiesta`, `BossProp`, `BeamEntity`, `FoilPotatoEntity`, `MolotovEntity`, … |
 | Coliseum, crowd, band, songs | `boss/{Coliseum,ColiseumCrowdEntity,CrowdMood,MariachiEntity,BandRole,BandState,Song}`, `block/*` |
-| Phase four extras | `boss/{SkySerpentEntity,SerpentPath,SalsaDancerEntity,SpiritGiantEntity}` |
+| Phase four extras | `boss/{SkySerpentEntity,SerpentPath,SalsaDancerEntity,SpiritGiantEntity}`, `client/{SpiritGiantRenderer,GiantMesh}` |
+| Singer's count-in voice | `tools/gen_singer_voice.py` → `sounds/voice/band/count.ogg`, `voice/singer.json` (`gen_band_anims.count`) |
 | Van / Skyline | `vehicle/CaravanEntity`, `client/CaravanRenderer`, `client/CaravanSounds` |
 | Cutscenes, shake, music, bar, night, fog, sky | `client/{Cinematic,ScreenShake,BossMusic,BossBarRenderer,NightLight,PotatoSky,MuertosSky,MuertosArena,BlurFx,ClientEvents}` |
 | Boss rendering/face | `client/{BossRenderer,BossModel,BossFace,BeamRenderer,PropRenderer}` |
@@ -160,7 +170,21 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   P4_TANGO → P4_TANGO_WIN/LOSE (El Último Tango, QTE kind 7, `client/DanceOff`: call-and-response WASD + SPACE, mouse-led abrazo,
   applause meter). Serpents (2026-10-05): green fire sweeps (`breathe`/`tickBreaths`, now and then between moves:
   `tickPassiveBreath`), P4_ALIENTO (Aliento de Jade), P4_FUSION (La Gran Serpiente: both on one tight ring 30 up, a hunting beam,
-  jumpable shockwaves). `p4Watchdog` puts him back on the sand from any stuck phase-four state. `BossModel.groove` on the beat. Serpents/dancers never saved. Death line `p4_death`.
+  jumpable shockwaves). `p4Watchdog` puts him back on the sand from any stuck phase-four state.
+  **Stages (2026-10-05, `p4Stage()`/`p4StageReached`, saved `P4Stage`, synced `DATA_P4STAGE`)**: 1 the guardian (25%→17%), 2 the
+  storm (→8.5%), 3 the end of the world. Each break is **P4_RAGE** (appended; clutches his skull, screams, `p4_stage2/3`); the third
+  goes straight into **P4_JUICIO** (appended, El Juicio Final, 25 s: serpents ring the floor and breathe via `closeRing` +
+  `tickRingBreaths`, the giant's sweep/track lasers, double slams and a swipe, his arrows and the moon, a spiral of fiesta strikes,
+  then the floor red and only the marigold circles survive the blast; WINDED +110 t after) and comes back every 75 s. Layers that
+  run under his moves: `tickGiantLayer` (stage ≥2: the giant stays, own scheduler: swipe, laser track/sweep, slam, double slam;
+  relocates to your end), `tickGiantHazards` (all giant damage, whoever directs it; P4_GIGANTE only sequences acts),
+  `tickSerpentLayer` (dives on their own from stage 2, `serpentQueue` owed by his moves = the serpents inside his patterns),
+  `tickTrails` (dives leave the floor burning), `tickChaos` (stage 3 eruptions), passive breaths by stage; cooldowns 1.5x/2x.
+  Client: `MuertosSky.bolts` (sky lightning by stage, red moon at 3), `BossRenderer` aura flare/stutter.
+  **El Gigante (rebuilt)**: entity at the arena's middle, `base()` where it stands (tracking range); `V` 0.74; acts add
+  `SLAM_BOTH`, `ROAR`; head turns to `aim` (`look`/`skull`, same sums both sides; beams anchored with `BeamEntity.eye(giant)`);
+  `client/GiantMesh` = SDF sugar skull + jaw by surface nets (AO + petals baked in vertex colours); renderer draws lit solid bone
+  (`entityCutoutNoCull` + white texture, full bright) then one additive pass (shell, eyes, floor cracks). `BossModel.groove` on the beat. Serpents/dancers never saved. Death line `p4_death`.
 - Forms: 1 baked texture, 2 risen (wings/crown/butter), 3 ascended, 4 Final Guardian (`gen_muertos_papon.py`).
 - Ending: DEATH → Gerbin's pillow (`GerbinEntity.reward`) → `TacoVendorEntity.reform` / `welcomeBack` → free taco menu.
 - Coliseum: built in the sky (floor build-limit − 40) into air only, unbreakable `papon:` blocks; plan is a pure function of
@@ -188,6 +212,13 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   entities by reflection. Cutscene clock synced via `DATA_TICKS`; `Cinematic.moveCamera` auto-cuts on jumps; `BOSS_RANGE` 80.
 - Rig conventions: rot X < 0 swings limb forward; `arm_r` Z > 0 / `arm_l` Z < 0 raise outward; position Z < 0 forward (face −Z).
   GeckoLib flips bone X and Z vs Blockbench.
+- **Sodium Extras ("Embeddium++") distance culling** (pack config: 64 blocks round, 32 up/down) runs in
+  `EntityRenderDispatcher.shouldRender`, so a renderer's own `shouldRender` cannot bypass it: `CullingCompat.distanceWhitelist` sets its
+  mixin's `embPlus$checked/whitelisted` on every `papon:` entity and block entity type. Big visuals on small entities: draw by distance
+  (`PropRenderer.shouldRender`), keep the entity near the arena's middle (beams at their midpoint, the giant at the centre) so the
+  server's tracking range (capped by view distance) reaches every player.
+- Voice: `gen_boss_voice.py` with no args retakes every line whose cached signature changed (all of phase four on Windows): to add
+  lines, take and build only them (`g.generate(new)`, `g.FRESH = set(new)`, `g.build(meta)`).
 - iCloud makes `* 2` duplicates under `build/` (namespace `papon 2` build failure):
   `find build -name "* [0-9]" -prune -exec rm -rf {} +`.
 
@@ -280,7 +311,8 @@ Dev in worktrees is fine (`./gradlew compileJava`, `./gradlew runServer` in `run
   run papon tacoline`. Fight: `/papon reveal` or `/papon boss`; `/papon bossstate <STATE>` (P3_KNOCKBACK, P4_FALL, any P3_/P4_
   move forces the form).
 - **Autoshot client** (`./gradlew runClient -Pautoshot[=X]`, shots in `run/screenshots/papon_*.png`, then quits): default (truck,
-  unmasking, phase one), `phase2`, `coliseum`, `phase3` (ends with an Ascended move showcase), `phase4`, `serpents`, `voice`,
+  unmasking, phase one), `phase2`, `coliseum`, `phase3` (ends with an Ascended move showcase), `phase4`, `climax` (the giant from every
+  side, the storm, El Juicio Final), `serpents`, `voice`,
   `nights`, `ending`, `arena`, `pillow`, `drive`, `fight` (3-min AI fight log), `pose`, `state:<STATE>:<form>:<t1,t2,…>`.
 - Walking Crops is not in the dev run: the coupon handoff can only be tested in the real pack. Jarrito handing and chancla need a
   real player.
