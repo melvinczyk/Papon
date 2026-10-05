@@ -119,6 +119,14 @@ public final class MuertosSky {
         buf.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         float hr = turned > 0.5F ? 0.32F : 0.9F, hg = turned > 0.5F ? 1.0F : 0.92F, hb = turned > 0.5F ? 0.78F : 1F;
         float pulse = 0.85F + 0.15F * Mth.sin(t * 0.08F);
+        // (2026-10-05) the end of the world: the dead's moon bleeds red, throbbing
+        float blood = storm(b) >= 3 ? 0.55F + 0.45F * Mth.sin(t * 0.21F) : 0;
+        if (blood > 0) {
+            hr = Mth.lerp(blood, hr, 1F);
+            hg = Mth.lerp(blood, hg, 0.18F);
+            hb = Mth.lerp(blood, hb, 0.22F);
+            pulse *= 1.2F + 0.4F * blood;
+        }
         for (int ring = 0; ring < 2; ring++) {
             float rr = r * (ring == 0 ? 1.9F : 3.2F);
             float a = k * (ring == 0 ? 0.55F : 0.22F) * pulse * (0.6F + 0.4F * turned);
@@ -135,7 +143,7 @@ public final class MuertosSky {
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         drawDisc(m, c, right, up, r, POTATO_MOON, 0, 0, 0.25F, 0.5F, 1F, 1F - 0.5F * turned, 1F - 0.2F * turned, k * (1 - Math.max(0, turned - 0.6F) / 0.4F));
         RenderSystem.defaultBlendFunc();
-        if (turned > 0.6F) drawDisc(m, c, right, up, r * 1.05F, DEAD_MOON, 0, 0, 1, 1, 1, 1, 1, k * (turned - 0.6F) / 0.4F);
+        if (turned > 0.6F) drawDisc(m, c, right, up, r * 1.05F, DEAD_MOON, 0, 0, 1, 1, 1, 1 - 0.35F * blood, 1 - 0.35F * blood, k * (turned - 0.6F) / 0.4F);
         RenderSystem.enableCull();
         RenderSystem.depthMask(true);
         RenderSystem.enableDepthTest();
@@ -169,7 +177,8 @@ public final class MuertosSky {
         PaponBossEntity b = boss();
         if (b == null) return;
         BossState s = b.getBossState();
-        if (s != BossState.P4_SOULS && s != BossState.P4_BOW && s != BossState.P4_PETALOS) return;
+        float storm = storm(b);
+        if (s != BossState.P4_SOULS && s != BossState.P4_BOW && s != BossState.P4_PETALOS && storm < 2) return;
         Minecraft mc = Minecraft.getInstance();
         float partial = event.getPartialTick();
         Vec3 cam = event.getCamera().getPosition();
@@ -183,8 +192,85 @@ public final class MuertosSky {
         if (s == BossState.P4_SOULS) souls(vc, m, b, t, partial, cam);
         if (s == BossState.P4_BOW) arrow(vc, m, b, t, partial, cam);
         if (s == BossState.P4_PETALOS) petals(vc, m, b, t, partial, cam);
+        if (storm >= 2) bolts(vc, m, b, storm, partial, cam);
         buffers.endBatch(RenderType.lightning());
         pose.popPose();
+    }
+
+    // ------------------------------------------------------------------ the storm (2026-10-05: phase four in stages)
+
+    /** How wild the sky is: 0 calm; 2 the storm; 3 the end of the world; 4 his rage and El Juicio Final. */
+    static float storm(PaponBossEntity b) {
+        if (!b.muertosFight()) return 0;
+        BossState s = b.getBossState();
+        if (s == BossState.P4_RAGE || s == BossState.P4_JUICIO) return 4;
+        return b.p4StageShown();
+    }
+
+    private static long lastBolt = -1;
+    /** Client: when the last bolt struck (game ticks + partial), for the flash on the screen. */
+    private static float flashAt = -100;
+
+    /**
+     * Lightning out of the dead's sky down onto the coliseum's rim and into the arena: jade and crimson, jagged, each bolt a few
+     * ticks long, one now and then in the storm, often at the end of the world, all the time in his rage and El Juicio Final;
+     * thunder with each (visual and sound only: it hurts nobody). Every bolt is a pure function of the game tick it belongs to,
+     * so it needs nothing kept.
+     */
+    private static void bolts(VertexConsumer vc, Matrix4f m, PaponBossEntity b, float storm, float partial, Vec3 cam) {
+        Minecraft mc = Minecraft.getInstance();
+        float now = b.level().getGameTime() + partial;
+        int period = storm >= 4 ? 9 : storm >= 3 ? 26 : 70;
+        Vec3 c = b.fightCenter();
+        double a = b.fieldA(), bb = b.fieldB(), floor = b.fieldFloor();
+        for (int back = 0; back < 2; back++) {
+            long n = (long) Math.floor(now / period) - back;
+            float age = now - n * period;
+            java.util.Random rnd = new java.util.Random(n * 7919L + b.getId() * 31L);
+            float off = rnd.nextInt(Math.max(1, period - 6));
+            float life = age - off;
+            if (life < 0 || life > 6) continue;
+            if (n != lastBolt && life < 1.5F) {
+                lastBolt = n;
+                flashAt = now;
+                Vec3 at = c;
+                mc.level.playLocalSound(at.x, at.y + 40, at.z, net.minecraft.sounds.SoundEvents.LIGHTNING_BOLT_THUNDER,
+                        net.minecraft.sounds.SoundSource.WEATHER, 1.6F, 0.6F + rnd.nextFloat() * 0.3F, false);
+            }
+            double th = rnd.nextDouble() * Math.PI * 2;
+            boolean in = storm >= 3 && rnd.nextInt(3) == 0;
+            double k = in ? 0.3 + rnd.nextDouble() * 0.6 : 1.15;
+            Vec3 end = new Vec3(c.x + Math.cos(th) * a * k, floor + (in ? 0 : 18), c.z + Math.sin(th) * bb * k);
+            Vec3 start = end.add((rnd.nextDouble() - 0.5) * 40, 70 + rnd.nextDouble() * 30, (rnd.nextDouble() - 0.5) * 40);
+            boolean crimson = storm >= 3 && rnd.nextBoolean();
+            int cr = crimson ? 255 : 82, cg = crimson ? 58 : 255, cb = crimson ? 58 : 132;
+            float fade = life < 1 ? life : 1 - (life - 1) / 5F;
+            Vec3 prev = start;
+            int segs = 9;
+            for (int i = 1; i <= segs; i++) {
+                double u = i / (double) segs;
+                Vec3 p = start.lerp(end, u);
+                if (i < segs) p = p.add((rnd.nextDouble() - 0.5) * 7 * (1 - u * 0.5), (rnd.nextDouble() - 0.5) * 3, (rnd.nextDouble() - 0.5) * 7 * (1 - u * 0.5));
+                ribbon(vc, m, prev, p, cam, 2.2F, cr, cg, cb, (int) (90 * fade));
+                ribbon(vc, m, prev, p, cam, 0.6F, 255, 255, 255, (int) (230 * fade));
+                // a fork now and then
+                if (i > 2 && i < segs - 1 && rnd.nextInt(4) == 0) {
+                    Vec3 fk = p.add((rnd.nextDouble() - 0.5) * 14, -6 - rnd.nextDouble() * 8, (rnd.nextDouble() - 0.5) * 14);
+                    ribbon(vc, m, p, fk, cam, 0.9F, cr, cg, cb, (int) (70 * fade));
+                    ribbon(vc, m, p, fk, cam, 0.3F, 255, 255, 255, (int) (160 * fade));
+                }
+                prev = p;
+            }
+        }
+    }
+
+    /** The bolt's flash on the screen: a breath of white, gone in a few ticks. */
+    private static float boltFlash(float partial) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return 0;
+        float now = mc.level.getGameTime() + partial;
+        float d = now - flashAt;
+        return d < 0 || d > 5 ? 0 : 0.12F * (1 - d / 5F);
     }
 
     /** How long a soul takes to fly to him, as a share of the stands' sweep (and in ticks for the band's). */
@@ -330,6 +416,11 @@ public final class MuertosSky {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onRenderGui(RenderGuiEvent.Post event) {
+        float flash = boltFlash(event.getPartialTick());
+        if (flash > 0) {
+            GuiGraphics g = event.getGuiGraphics();
+            g.fill(0, 0, g.guiWidth(), g.guiHeight(), ((int) (flash * 255) & 0xFF) << 24 | 0xE8FFF0);
+        }
         float a = blueout(event.getPartialTick());
         if (a <= 0) return;
         GuiGraphics g = event.getGuiGraphics();

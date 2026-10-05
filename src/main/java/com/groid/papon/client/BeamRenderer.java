@@ -35,6 +35,9 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
             // out of his eye as it is drawn this frame (the server only knows roughly where his eyes are)
             Vec3 eye = BossRenderer.eyePos(boss, e.side());
             if (eye != null) from = eye.subtract(base);
+        } else if (e.anchor() >= 0 && e.level().getEntity(e.anchor()) instanceof com.groid.papon.boss.SpiritGiantEntity g) {
+            // out of El Gigante's eye socket, its skull turned as it is drawn this frame
+            from = g.eye(e.side(), partial).subtract(base);
         }
         Vec3 to = e.prevTo.lerp(e.drawTo, partial).subtract(base);
         if (from.distanceToSqr(to) < 1e-4) return;
@@ -46,7 +49,7 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         Matrix4f m = pose.last().pose();
         float w = e.width();
         if (e.mode() == BeamEntity.AIM) {
-            float flick = 0.55F + 0.45F * Mth.sin(time * 1.9F);
+            float flick = 0.75F + 0.25F * Mth.sin(time * 1.2F);         // a pulse, not a flicker
             ribbon(vc, m, from, to, cam, 0.05F + w * 0.06F, r, g, b, (int) (170 * flick), 0);
             return;
         }

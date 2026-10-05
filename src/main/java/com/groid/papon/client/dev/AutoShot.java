@@ -55,6 +55,9 @@ public final class AutoShot {
     private static final boolean PHASE3 = MODE.equals("phase3");
     /** -Pautoshot=phase4: into the coliseum, then a quarter health: phase four's ritual beat by beat, the dead's coliseum, and every move of his truest form. */
     private static final boolean PHASE4 = MODE.equals("phase4");
+    /** -Pautoshot=climax: into the coliseum, then phase four's stages: El Gigante up close from every side, the storm's rage and
+     *  the fight with the giant and the serpents on their own, El Juicio Final (papon_z*.png). */
+    private static final boolean CLIMAX = MODE.equals("climax");
     /** -Pautoshot=nights: into the coliseum, then the flags, the crowd up close, the potato sun, nightfall (the lamplighter), the potato moon. */
     private static final boolean NIGHTS = MODE.equals("nights");
     /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
@@ -111,7 +114,7 @@ public final class AutoShot {
             statePose(mc);
             return;
         }
-        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4) {
+        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4 || CLIMAX) {
             coliseum(mc);
             if (VOICE) voice(mc);
             return;
@@ -389,6 +392,10 @@ public final class AutoShot {
         }
         if (colMark > 0 && PHASE4) {
             phaseFourTour(mc, b, tick - colMark);
+            return;
+        }
+        if (colMark > 0 && CLIMAX) {
+            climaxTour(mc, b, tick - colMark);
             return;
         }
         // the band, member by member, while they play (from the front, a few blocks off)
@@ -1083,6 +1090,76 @@ public final class AutoShot {
             run("gamemode survival");
         }
         if (j >= 120) muertosShowcase(mc, b, j - 120);
+    }
+
+    /**
+     * Phase four's stages, quickly (from the coliseum's fight: his truest form forced, no dead coliseum): El Gigante up out of the
+     * floor and looked at from every side (spectating), the storm's rage and a minute of the fight with the giant and the serpents
+     * fighting on their own, then the end of the world: the rage and El Juicio Final, shot all through.
+     */
+    private static void climaxTour(Minecraft mc, PaponBossEntity b, int k) {
+        BossState s = b.getBossState();
+        if (s.ordinal() != lastState) {
+            lastState = s.ordinal();
+            PaponMod.LOG.info("[autoshot] climax: boss -> {} stage {} (hp {}, fps {})", s, b.p4StageShown(), (int) b.getHealth(), mc.getFps());
+        }
+        Vec3 c = b.arena() != null ? b.arena().centerVec() : b.position();
+        if (k == 2) run("effect give @s regeneration 100000 4 true", "effect give @s resistance 100000 4 true");
+        if (k == 10) run("papon bossstate P4_GIGANTE");
+        var giant = nearest(mc, com.groid.papon.boss.SpiritGiantEntity.class);
+        // the giant from the floor round it (never spectating: a coliseum with nobody in it for 10 s comes down): ahead of it,
+        // ahead and to one side, from the side, right under its ribs, from across the arena, ahead and to the other side
+        if (giant != null && k >= 40 && k < 330) {
+            Vec3 base = giant.base(), f = giant.forward(), r = giant.right();
+            Vec3 head = giant.head(0);
+            double fy = c.y + 0.2;
+            Vec3[][] views = {
+                    {flat(base.add(f.scale(16)), fy), head.add(0, -5, 0)},
+                    {flat(base.add(f.scale(13)).add(r.scale(9)), fy), head.add(0, -7, 0)},
+                    {flat(base.add(f.scale(4)).add(r.scale(-14)), fy), head.add(0, -9, 0)},
+                    {flat(base.add(f.scale(7)), fy), head.add(0, -12, 0)},
+                    {flat(base.add(f.scale(30)), fy), base.add(0, 13, 0)},
+                    {flat(base.add(f.scale(12)).add(r.scale(-8)), fy), head.add(0, -4, 0)},
+            };
+            int v = Math.min(views.length - 1, (k - 40) / 48);
+            if ((k - 40) % 48 == 0) tpLook(views[v][0], views[v][1]);
+            if ((k - 40) % 48 > 0 && (k - 40) % 48 < 40) lookAtPoint(mc, views[v][1]);
+            if ((k - 40) % 48 == 20) shot(mc, String.format("z%02d_giant_view%d_%s", v, v, actName(giant.act())));
+            if ((k - 40) % 48 == 36) shot(mc, String.format("z%02d_giant_view%db_%s", v, v, actName(giant.act())));
+        }
+        if (k == 330) run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", c.x + 6, c.y + 0.2, c.z + 10));
+        // the storm
+        if (k == 400) run("papon bossstate P4_RAGE");
+        if (k > 400 && k < 1500) {
+            if (giant != null && (k / 60) % 2 == 0) lookAtPoint(mc, giant.head(0).add(0, -8, 0));
+            else lookAt(mc, b);
+            if (s == BossState.P4_RAGE && b.ticksInState() == 30) shot(mc, "z10_rage_storm");
+            if ((k - 400) % 90 == 0 && k > 420) shot(mc, String.format("z%02d_storm_%s", 11 + (k - 400) / 90, s.name().toLowerCase(java.util.Locale.ROOT)));
+        }
+        // the end of the world
+        if (k == 1500) run("papon bossstate P4_JUICIO");
+        if (k > 1500) {
+            if (s == BossState.P4_JUICIO) {
+                int t = b.ticksInState();
+                if (t % 40 == 20) lookAtPoint(mc, c.add(0, 4, 0));
+                else if (t % 40 == 0) lookAt(mc, b);
+                if (t % 30 == 10) once(mc, String.format("z%02d_juicio_%03d", 30 + t / 30, t));
+            } else if (s == BossState.P4_RAGE) {
+                lookAt(mc, b);
+                if (b.ticksInState() == 30) once(mc, "z29_rage_end_of_world");
+            } else if (k > 1700) {
+                if ((k - 1700) % 100 == 0) once(mc, String.format("z%02d_end_of_world_%s", 50 + (k - 1700) / 100, s.name().toLowerCase(java.util.Locale.ROOT)));
+                lookAt(mc, b);
+            }
+        }
+        if (k > 1500 + 20 * 60 * 2) mc.stop();
+    }
+
+    private static Vec3 flat(Vec3 p, double y) { return new Vec3(p.x, y, p.z); }
+
+    private static String actName(int act) {
+        String[] n = {"rise", "idle", "charge", "laser", "slam_l", "slam_r", "sink", "swipe_l", "swipe_r", "slam_both", "roar"};
+        return act >= 0 && act < n.length ? n[act] : "act" + act;
     }
 
     /** El Rey de los Muertos's moves, one after another, on you (Resistance V and regeneration keep you up). */

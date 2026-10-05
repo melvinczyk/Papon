@@ -64,8 +64,9 @@ public final class Speech {
         }
     }
 
-    /** The text-to-speech clip for a line of Chef Papon's, or null for anyone else's. */
+    /** The recorded clip for a line of Chef Papon's (or the singer's count-in), or null for anyone else's. */
     public static ResourceLocation voiceOf(String key) {
+        if (key.equals("speech.papon.band.count")) return new ResourceLocation("papon", "voice.band.count");    // the singer's count-in
         for (String who : new String[] {"boss", "boss2", "vendor"}) {
             String prefix = "speech.papon." + who + ".";
             if (key.startsWith(prefix)) return new ResourceLocation("papon", "voice." + who + "." + key.substring(prefix.length()));

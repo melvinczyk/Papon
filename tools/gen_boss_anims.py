@@ -3975,6 +3975,57 @@ def b_d_luna():
     return a
 
 
+
+def b_d_rage():
+    """4.0 s (BossState.P4_RAGE, 80 t: a stage of phase four breaking). Hanging in the air, he clutches his skull in both hands,
+    shaking (it is getting away from him); wrenches them free and flings his arms wide and back, arched, screaming (1.4), the
+    whole of him shuddering; then both fists down and forward at you (3.3), and he holds there, heaving."""
+    a = god(B('d_rage', 4.0, 'hold'))
+    clutch_r, clutch_l = [-150, -40, -20], [-150, 40, 20]
+    wide_r, wide_l = [-150, 0, 100], [-150, 0, -100]
+    fist_r, fist_l = [-80, -16, 18], [-80, 16, -18]
+    for arm, sgn, clutch, wide, fist in (('arm_r', 1, clutch_r, wide_r, fist_r), ('arm_l', -1, clutch_l, wide_l, fist_l)):
+        keys = [(0, [-30, 0, 20 * sgn]), (0.35, clutch, 'easeOutBack')]
+        keys += [(round(0.45 + 0.1 * i, 2), [clutch[0] + (4 if i % 2 else -4), clutch[1], clutch[2] + (3 if i % 2 else -3) * sgn]) for i in range(9)]
+        keys += [(1.4, wide, 'easeOutExpo')]
+        keys += [(round(1.5 + 0.09 * i, 2), [wide[0] + (5 if i % 2 else -5), wide[1], wide[2] + (5 if i % 2 else -5) * sgn]) for i in range(19)]
+        keys += [(3.3, fist, 'easeInExpo'), (3.55, [fist[0] - 6, fist[1], fist[2]]), (4.0, fist)]
+        a.rot(arm, keys, 'lin')
+        stretch(a, arm, [(0, 1.1), (0.35, 1.0), (1.4, 1.7, 'easeOutExpo'), (3.2, 1.7), (3.3, 1.5), (4.0, 1.4)])
+    tor = [(0, [0, 0, 0]), (0.35, [18, 0, 0], 'easeOutQuad')]
+    tor += [(round(0.45 + 0.1 * i, 2), [18 + (3 if i % 2 else -3), 6 if i % 2 else -6, 0]) for i in range(9)]
+    tor += [(1.4, [-34, 0, 0], 'easeOutExpo')]
+    tor += [(round(1.5 + 0.09 * i, 2), [-34 + (3 if i % 2 else -3), 0, 4 if i % 2 else -4]) for i in range(19)]
+    tor += [(3.3, [22, 0, 0], 'easeInExpo'), (4.0, [16, 0, 0])]
+    a.rot('torso', tor, 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (0.35, [1.0, 0.96, 1.0]), (1.4, [1.16, 1.14, 1.16], 'easeOutExpo'), (3.2, [1.1, 1.1, 1.1]),
+                     (3.3, [1.18, 0.92, 1.18], 'easeInExpo'), (3.6, [1.06, 1.05, 1.06]), (4.0, [1.06, 1.05, 1.06])], 'lin')
+    flying_legs(a, 4.0, 20)
+    a.sound(0.35, 'grunt').sound(1.4, 'roar').sound(3.3, 'slam')
+    return a
+
+
+def b_d_juicio():
+    """2.0 s loop (BossState.P4_JUICIO). El Juicio Final: hanging high over the middle, arms out wide, fists clenched and
+    trembling, the head thrown back and snapping forward, the body jolting as the power tears through him (losing control);
+    every other beat a fist driven down at the floor."""
+    a = god(B('d_juicio', 2.0, True))
+    for arm, sgn in (('arm_r', 1), ('arm_l', -1)):
+        keys = [(round(0.1 * i, 2), [-110 + (6 if i % 2 else -6), 0, (96 + (6 if i % 3 == 0 else -2)) * sgn]) for i in range(20)]
+        if arm == 'arm_r':
+            keys = [k for k in keys if not (0.8 <= k[0] <= 1.2)] + [(0.85, [-40, -10, 30], 'easeInExpo'), (1.05, [-36, -10, 26]), (1.25, [-108, 0, 96], 'easeOutQuad')]
+        else:
+            keys = [k for k in keys if not (1.8 <= k[0] <= 2.0) and k[0] > 0.2] + [(0.0, [-110, 0, -96]), (0.1, [-40, 10, -30], 'easeInExpo'), (0.25, [-108, 0, -96], 'easeOutQuad')]
+        keys.sort(key=lambda k: k[0])
+        keys.append((2.0, keys[0][1]))
+        a.rot(arm, keys, 'lin')
+        stretch(a, arm, [(0, 1.6), (1.0, 1.7), (2.0, 1.6)])
+    a.rot('torso', [(round(0.1 * i, 2), [-22 + (8 if i % 4 == 0 else -2 if i % 2 else 3), 5 if i % 3 == 0 else -4, 0]) for i in range(20)] + [(2.0, [-14, 5, 0])], 'lin')
+    a.scale('body', [(0, [1.08, 1.06, 1.08]), (0.5, [1.12, 1.1, 1.12]), (1.0, [1.06, 1.05, 1.06]), (1.5, [1.13, 1.1, 1.13]), (2.0, [1.08, 1.06, 1.08])])
+    flying_legs(a, 2.0, 20)
+    a.sound(0.85, 'grunt')
+    return a
+
 # ---- (2026-10-04) the Final Guardian's story retold (the throne, the prophecy, Moctezuma) and his grand moves
 
 P4_BEAT = 9.28 / 20                  # a beat of Persona Ideal (boss/Fiesta.BEAT), seconds
@@ -4219,7 +4270,7 @@ def b_d_tango_lose():
 PHASE_FOUR = [b_p4_fall, b_p4_riseup, b_p4_ignis, b_p4_prophecy, b_p4_throne, b_p4_brethren, b_p4_souls, b_p4_halfbaked, b_p4_bow, b_p4_watch,
               b_p4_talking, b_p4_walk, b_p4_honor, b_p4_muchachas, b_p4_goodtime, b_d_serpientes, b_d_flechas,
               b_d_fly, b_d_martillo, b_d_gigante, b_d_grieta, b_d_petalos, b_d_conduct, b_d_danza, b_d_luna,
-              b_d_ouroboros, b_d_salsa, b_d_camino, b_d_castillo, b_d_tango, b_d_tango_win, b_d_tango_lose]
+              b_d_ouroboros, b_d_salsa, b_d_camino, b_d_castillo, b_d_tango, b_d_tango_win, b_d_tango_lose, b_d_rage, b_d_juicio]
 
 
 ASCENDED_MOVES = [b_a_fly, b_a_combo, b_a_flash, b_a_comet, b_a_comet_land, b_a_laser, b_a_solar, b_a_conduct, b_a_duel_fly, b_a_shred,

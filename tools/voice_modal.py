@@ -64,7 +64,7 @@ def transcribe(audio_bytes: bytes, language: str = None) -> dict:
 def clone(refs: dict, lines: list, takes: int = 4) -> dict:
     """refs: {name: [audio bytes, transcript]}, the voices to clone (the same speaker, read calm or worked
     up: the clone copies the delivery of the clip it is given).
-    lines: [{'id', 'text', 'ref', 'instruct' (optional), 'gen' (optional sampling kwargs), 'seed0' (optional:
+    lines: [{'id', 'text', 'ref', 'language' / 'stt' (optional: what the TTS speaks and Whisper hears), 'instruct' (optional), 'gen' (optional sampling kwargs), 'seed0' (optional:
     the first take's seed index, to add takes to a line without repeating any)}].
     Returns {id: [{'wav': bytes, 'heard': str, 'seconds': float, 'sim': float}]}."""
     import os
@@ -112,7 +112,7 @@ def clone(refs: dict, lines: list, takes: int = 4) -> dict:
             with tempfile.NamedTemporaryFile(suffix='.wav') as f:
                 f.write(_wav_bytes(wav, sr))
                 f.flush()
-                heard = stt.transcribe(f.name, language='en')['text'].strip()
+                heard = stt.transcribe(f.name, language=line.get('stt', 'en'))['text'].strip()
             sim = None
             if embs[line['ref']] is not None:
                 e = embedding(model.create_voice_clone_prompt(ref_audio=(wav, sr), x_vector_only_mode=True))

@@ -426,7 +426,22 @@ def sun_stone():
     return out
 
 
+def white():
+    """textures/misc/white.png: plain white, for solid shapes drawn in code and coloured per vertex (El Gigante's bones, the
+    piñata's rope); vanilla 1.20.1 has no such texture."""
+    from PIL import Image
+    out = os.path.join(ASSETS, 'textures/misc/white.png')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    Image.new('RGBA', (16, 16), (255, 255, 255, 255)).save(out)
+    return out
+
+
 if __name__ == '__main__':
+    import sys
+    if sys.argv[1:] == ['white']:
+        print(white())
+        raise SystemExit
+    print(white())
     print(splats())
     print(*pillow())
     print(tongue())
