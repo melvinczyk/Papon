@@ -312,7 +312,7 @@ Dev in worktrees is fine (`./gradlew compileJava`, `./gradlew runServer` in `run
   move forces the form).
 - **Autoshot client** (`./gradlew runClient -Pautoshot[=X]`, shots in `run/screenshots/papon_*.png`, then quits): default (truck,
   unmasking, phase one), `phase2`, `coliseum`, `phase3` (ends with an Ascended move showcase), `phase4`, `climax` (the giant from every
-  side, the storm, El Juicio Final), `serpents`, `voice`,
+  side, the storm, El Juicio Final), `phases` (real hits through phase three and into phase four), `serpents`, `voice`,
   `nights`, `ending`, `arena`, `pillow`, `drive`, `fight` (3-min AI fight log), `pose`, `state:<STATE>:<form>:<t1,t2,…>`.
 - Walking Crops is not in the dev run: the coupon handoff can only be tested in the real pack. Jarrito handing and chancla need a
   real player.
