@@ -158,6 +158,22 @@ quality throughout."
      (the user's earlier spec): El Coliseo de los Muertos at twice the size (turned in the transformation's flash), the band and
      the stands as skeletons, his eight moves (the hologram giant's laser, the void of souls, ...), now plus the serpents' dives
      and his sun arrows.
+   - **Phase four, retold (2026-10-04, v0.13.0, the user's notes after playing v0.12.0; see "Phase four, retold" below):**
+     **more cinematography** (scenes were too fast to carry what they mean); **every phase-four line regenerated** with more
+     depth and emotion, **flowing like sentences**, and **his screams screamed**; **more lines** for the fight; his story: he is
+     **the final guardian of the world**; the **potato prophecy** said a warrior would come, defeat him and **take the throne he
+     has kept warm for centuries**, his explicit purpose to keep it warm for **a champion powerful enough to take responsibility
+     for taking care of the world**; a **parallel to Moctezuma seeing Hernán Cortés as Quetzalcoatl**. The bigger arena means
+     **grand, dramatic, ultimate attacks, a majority of what he does** (e.g. **the serpents circling the entire arena**, used
+     for attacks), **creative**, more **Day of the Dead**, **more colours**, **more arena attacks**, **salsa** ones; a **dance-off
+     QTE** (beat him in a dance battle; **interactive, not just pressing buttons**, the guitar QTE as reference; **a tango where
+     you are the opponent**: he sees the fight as a dance you have to keep up with); his movements **like a dance, synced to the
+     song**. Fixes: the transition into phase four: **the crowd silent**, him **serious, wounded, panting**; in the fight **his
+     texture could not be seen** (too dark, the green aura over it); **El Gigante actually in the arena**, a giant threat, **lasers
+     from its eyes, thicker**, its **hands swiping the player into the walls**; **the sun and moon textures** (they "looked
+     stupid"; **the moon: the user's sugar skull**, `tools/src/sugar_skull.webp`, colours free to change); in phase two's hype
+     **fireworks inside the coliseum** that the camera sees, **the crowd going wild**, and **fire pyrotechnics once the singing
+     starts**.
    - **After his fall:** once Gerbin gives you the pillow you **go back to the Taco Truck**; **Chef Papon is a vendor
      again, friendly, back working in the truck, and his vendor menu gives you free tacos**.
 8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
@@ -177,7 +193,7 @@ quality throughout."
 13. **Taco Truck placement:** always on land, **never on water and never on a shore/beach**.
 14. A debug command for **how far away the Taco Truck is** (`/papon distance`).
 
-## What exists (status as of 2026-10-04)
+## What exists (status as of 2026-10-04, v0.13.0)
 
 Done and compiling; tested headless on a dev server (`/papon escort true`): walking, grilling,
 rafting across ~200 blocks of ocean and landing, sleeping at night and waking at dawn, the Jarrito
@@ -245,6 +261,7 @@ player and were not exercised headless.
 | Showtime (v0.9.1): the crowd heard (pulses, loud roars over his voice), flag fireworks on the beat, the cuts to the band mid-fight, the Skyline reveal (montage, RB26 sounds, the underglow switching on, headlight beams), 52 new lines (reactions to what you do, more charm, the potato god), the serenade's guitar off his mouth | `boss/ColiseumCrowdEntity` (`pulse`, `salvo`), `client/CrowdSounds`, `client/FlagFireworks.java`, `PaponBossEntity` (`Cutaway`, `tickCutaway`, `retort`, `watchPlayers`, `tickP3ShowCar`, `backfire`), `BossState.P2_CUTAWAY/P3_SHOWCAR`, `client/Cinematic` (`cutawayShot`, `showcarShot`), `client/SongPlayer.listen`, `vehicle/CaravanEntity` (`setUnderglow`, `idleFor`), `client/CaravanRenderer` (`underglow`, `headlights`), `client/CaravanSounds`, `tools/gen_skyline_sounds.py`, `command/PaponCommand` (`cutaway`) |
 | Boss polish (v0.10.0): damage windows (armored mid-move, WINDED after), cutscene clock synced from the server + auto-cuts + 80-block range + frozen player, the reworked phase-three build-up (beaten knockback, blurry POV glare, ascension reactions, P3_POWER, band chatter, "upgrade"), four new Ascended moves, La Ola wall, band blasts, salsa ring, monolith shade, harder statues, eye beams from the eyes, K/L squeeze + live meter, QTE player poses, input lockout | `boss/PaponBossEntity` (`armored`, `winds`, `tickWinded`, `DATA_TICKS/METER/ARMOR`, `tickP3Power`, `tickP3Sombrero/Volcan/Calaveras/PinataSwing`, `tickOla`), `client/Cinematic` (`jumped`, `BOSS_RANGE`), `client/BlurFx`, `client/QtePlayerPose`, `client/PropRenderer` (`drawSalsaWave`, `drawBandWave`, `drawRing`), `client/BossRenderer` (`eyePos`, `eyeLightning`), `boss/BeamEntity` (`eye`), `tools/gen_props.py` (`sombrero`, `calavera`, `salsa_wave`) |
 | Phase four, the Final Guardian (a quarter health; reworked 2026-10-04): the fall and the reopened scar, Ignis's head, the prophecy in the fog, the moon turning, the souls of the stands and the band, the transformation (El Coliseo de los Muertos in the flash), the bow, Ouros and Boros, Persona Ideal, the muchachas, "show me a good time"; ten moves (the serpents' dives and the sun arrows new) | `boss/PaponBossEntity` (`startPhaseFour`, `tickP4Fall..tickP4GoodTime`, `choosePhaseFour`, `tickP4Serpientes`, `tickSerpentDives`, `tickP4Flechas`), `BossState.P4_*`, `boss/SkySerpentEntity` + `SerpentPath`, `boss/SalsaDancerEntity`, `boss/BossProp` (IGNIS_HEAD), `client/SkySerpentRenderer` + `SerpentModel`, `client/SalsaDancerRenderer`, `client/MuertosSky` (souls, arrow, flash), `client/Cinematic.phaseFourShot`, `client/BossRenderer` (`bonePos`, `facePos`, `ignisHead`), `client/ClientEvents` (fog), `tools/gen_serpents.py`, `tools/gen_salsa.py`, `tools/gen_ignis_head.py`, `tools/gen_p4_sounds.py`, `tools/gen_muertos_papon.py` (penacho, bow, scar), `gen_boss_anims` (`b_p4_*`, `b_d_*`), `gen_song.py --song persona_ideal` |
+| Phase four, retold (v0.13.0): every line retaken (screams, wounds, the story), P4_THRONE (the throne kept warm, the prophecy, Moctezuma), the silent stands, a fuller shot list; the grand moves (El Ouroboros, La Pista de los Muertos, El Camino de Cempasúchil, El Castillo), Salsa Caliente, El Último Tango (the dance-off), El Gigante in the arena (eye lasers, swipes into the wall), his groove on the beat, him lit in his own colours; the sugar-skull moon and the sun stone; fireworks inside the bowl and pyrotechnics in phase two | `boss/PaponBossEntity` (`tickP4Throne`, `tickP4Ouroboros`, `tickP4Pista`, `tickP4Camino`, `tickP4Castillo`, `tickP4Salsa`, `tickP4Tango*`, `tickFlung`, `syncField`), `boss/Fiesta`, `boss/SerpentPath` (`Ring`), `boss/SkySerpentEntity` (`ring`), `boss/SpiritGiantEntity`, `client/MuertosArena`, `client/DanceOff`, `client/SpiritGiantRenderer`, `client/BossModel` (`groove`, `tango`), `client/QtePlayerPose` (DANCE), `client/FlagFireworks` (`inside`, `pyro`), `tools/gen_sky.py`, `gen_boss_voice` (`LINES` p4, `DIRECTION`, beats `p4.*`), `gen_boss_anims` (`b_p4_throne`, `b_d_ouroboros..b_d_tango_lose`) |
 | Phase-two voice: his lines in English in a cloned voice (Qwen3-TTS on Modal), lip-synced, the cutscene timed to them | `tools/gen_boss_voice.py`, `tools/voice_modal.py`, `boss/VoiceLines.java`, `client/BossFace.java`, `client/BossModel.java`, `assets/papon/voice/boss2.json`, `sounds/voice/boss2/` |
 
 ### The boss fight (status 2026-10-02: built; tested headless and with the autoshot client)
@@ -717,6 +734,57 @@ player and were not exercised headless.
   Modal profile melvinczyk. `p4_pant` was taken but sounds like a laugh: panting is `boss.pant` (`tools/gen_p4_sounds.py`).
 - El Coliseo de los Muertos, the band and the stands turned, the dead moon, and the eight earlier moves are as before
   (`Coliseum.dead`, `gen_muertos.py`); the old ritual (hammer bolt, moon rays, blue-out, Catrin hat) is gone.
+
+### Phase four, retold (status 2026-10-04, v0.13.0; check with `./gradlew runClient -Pautoshot=phase4`)
+- **His voice, retaken**: all 72 `p4_*` lines (`gen_boss_voice.LINES`, every one in `FRESH`) written as whole sentences and
+  taken with new moods (`DIRECTION`): `scream` (raw, cracking, top of the lungs: `p4_grant`, `p4_feel`, `p4_burst`, `p4_goodtime`,
+  `p4_gigante`, `p4_serpientes`; the pick adds brightness and loudness swing for it), `wounded` (panting, hoarse), `grave` (an old
+  guardian telling his story), `dry`, `awe`, `majestic`, `joy`, `intense`. Modal profile **zardman1** (the active one on Windows).
+  The old ritual's lines (`p4_laugh`, `p4_rise`, `p4_hammer`, `p4_strike`, `p4_centuries`, `p4_true`, `p4_fiesta`, `p4_pant`) are gone.
+  New: `p4_throne`, `p4_carved`, `p4_warrior`, `p4_moctezuma`, `p4_gates`, `p4_mistake` (the story), `p4_feel`, `p4_burst`,
+  `p4_guardian` ("I am Papon... the Final Guardian."), `p4_bow`, `p4_dance`, the new moves' lines, the tango's, `p4_charm8-11`,
+  `p4_hit3-4`, `p4_landed3-4`, `p4_low`, `p4_death` (his fall in phase four: "the throne is yours now, champion... keep it warm").
+- **The story** (beats `p4.*` in `gen_boss_voice.beats`; every line gets room after it): P4_FALL (thrown flat, a long silence
+  on his back, `p4_scar`) -> P4_RISEUP -> P4_IGNIS -> **P4_PROPHECY** (walking in the fog, `p4_years`; stops and looks up at his
+  throne in his box, `Coliseum.throne` / `PaponBossEntity.throneSpot`: `p4_throne`; to you: `p4_carved`, `p4_warrior`) ->
+  **P4_THRONE** (appended state: Moctezuma, `p4_moctezuma`, `p4_gates`; up at you, `p4_mistake`; the moon out, `p4_prophecy`,
+  `p4_lunaknows`) -> P4_BRETHREN -> P4_SOULS (`p4_feel` as the last souls pour in) -> P4_HALFBAKED (`p4_burst` screamed at the burst,
+  `p4_guardian` with the title) -> P4_BOW (`p4_bow`: calling Ouros and Boros down) -> ... -> P4_GOODTIME (`p4_dance` before the
+  scream). The stands are dead silent from the fall to the souls (`BossState.p4Hushed`, `CrowdSounds`: no bed, no one-shots; no
+  gasps); he pants all through it (`boss.pant`). Shots: `Cinematic.phaseFourShot` (a fuller list per beat: from above on his back,
+  the silent arena on a long lens, the band frozen, the throne over his shoulder and on a long lens, Moctezuma wide in the fog, a
+  dolly, his eyes, the silent stands, under the dead's moon, the scream, his name from below).
+- **The grand moves** (`choosePhaseFour`, weights in `muertosWeight`: they are most of what he does; shared sums in `boss/Fiesta`,
+  drawn by `client/MuertosArena` from the synced `DATA_P4SEED`, `DATA_FIELD` (a, b, floor) and `DATA_CENTER` (the arena's middle:
+  the clients had none, `fightCenter` was his own position)):
+  P4_OUROBOROS (Ouros and Boros down onto a ring round the floor, on opposite sides, chasing each other's tails:
+  `SerpentPath.Ring`, `SkySerpentEntity.ring`; their bodies hurt; their heads breathe jade fire low across the floor in three
+  windows (`BREATHS`): jump it, 12%) · P4_PISTA (the floor a dance floor of 6-block tiles on the band's beat (`Fiesta.BEAT` 9.28 t);
+  nine measures of patterns flash then erupt in coloured spirit fire, 14%; he dances salsa in the middle) · P4_CEMPASUCHIL (a
+  winding path of marigolds blooms across the floor, the ectoplasm floods the rest, 3.5% a quarter second and slowed; the path
+  wilts from its start; he lobs `CALAVERA` skulls onto it ahead of you) · P4_CASTILLO (a fireworks tower in the middle with him on
+  top; four tiers of wheels spin spirals of sparks across the floor at chest height, 8% a spark; the crown rains rockets (`CANDY`
+  props) onto rings; it bursts) · P4_SALSA (close: steps on the beat, cross-body leads past you, a fire footprint behind every step,
+  spin kicks to jump; he is open) · P4_TANGO (the dance-off, below). Strikes mode 3 = a fiesta burst (`fiestaStrike`).
+- **El Gigante, in the arena** (`SpiritGiantEntity`, `client/SpiritGiantRenderer`): it tears up out of the floor at the end you are
+  at, waist deep, skull 26 over the floor, a ribcage and spine, arms by two-bone IK to its hands (`hand(i, partial)`: the same
+  positions on both sides); two eye lasers (3.4 wide, from `eye(side)`); swipes (`SWIPE_L/R`, a band at your distance marked on the
+  floor, `swipeAngle`): caught = 20% and flung across the floor (`fling`, `tickFlung`): reaching the wall is another 12% and stunned.
+- **El Último Tango** (QTE kind 7, `client/DanceOff`; server P4_TANGO -> P4_TANGO_WIN / P4_TANGO_LOSE, `TANGO_TICKS` 440): on the
+  band's beat grid: the count-in; three rounds of call and response (he dances 4, then 6, then 8 steps, you dance them back with
+  W A S D and SPACE for the spin, ±0.13 s, ±0.06 perfect); between the second and third El Abrazo, following his hand round the
+  floor with the mouse (`QteScreen.mouseMoved`); the dip on the last downbeat. The applause meter decides (his steps win the crowd
+  too). His model dances the steps (`BossModel.tango`), yours too (`QtePlayerPose` DANCE), the camera circles the two of you.
+- **His groove** (`BossModel.groove`): through the fight a bounce on every beat of the band's song, hips and shoulders swaying
+  over two beats, a shimmy; bigger while he dances, lighter while he channels. The dances put the hammer away (`DATA_P4PROP` 0).
+- **Seeing him**: the Final Guardian is drawn at full block light (`BossRenderer.keyLight`) and `NightLight` leaves block light 15
+  white in the dead's coliseum; his aura is one thin shell in the fight (0.08-0.14); his armored shimmer a soft gold, not cyan.
+- **The sky** (`tools/gen_sky.py`): the sun a gold sun stone (Tonatiuh: rays, day signs, Ollin, a calm potato face, jade ear spools);
+  the moon the user's sugar skull, silver (all eight phases, earthshine on the dark side); the Day of the Dead moon
+  (`muertos_moon.png`) the same skull in full colour with jade-burning sockets and a glow (gen_muertos.py's `sky` calls it).
+- **Phase two's hype** (`tickHype`): fireworks launched off the podium inside the bowl (`ColiseumCrowdEntity.salvoInside`, bit 0x80
+  of `DATA_SALVO`; `FlagFireworks.inside`), more roars; on the first sung word the stands go FIESTA and fire pyrotechnics go off
+  round the podium on the beat (`ColiseumCrowdEntity.pyro`, `DATA_PYRO`; `FlagFireworks.pyro`/`tickJets`).
 
 ### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
 - **From the kneel on he talks in English, in a cloned voice** (the user's reference: Spanish-accented English,

@@ -352,7 +352,7 @@ final class DanceOff {
         // the applause: a tug of war, him (jade) against you (gold)
         int bw = Math.min(260, w - 80), by = 40;
         g.fill(cx - bw / 2 - 2, by - 2, cx + bw / 2 + 2, by + 10, 0xFF000000);
-        int mid = cx - bw / 2 + (int) (bw * meter());
+        int mid = cx - bw / 2 + (int) (bw * (1 - meter()));
         g.fill(cx - bw / 2, by, mid, by + 8, JADE);
         g.fill(mid, by, cx + bw / 2, by + 8, GOLD);
         g.fill(cx - 1, by - 4, cx + 1, by + 12, 0xFFFFFFFF);
@@ -374,6 +374,7 @@ final class DanceOff {
         g.pose().pushPose();
         g.pose().translate(cx, by + 30, 0);
         float pop = 1.6F + (float) Math.max(0, 0.4 - (t - (s != null ? s.t0 : 0))) * 1.5F;
+        pop = Math.min(pop, w * 0.8F / Math.max(1, font.width(cap)));
         g.pose().scale(pop, pop, 1);
         g.drawString(font, cap.copy().withStyle(ChatFormatting.BOLD), -font.width(cap) / 2 - 2, -4, capCol, true);
         g.pose().popPose();

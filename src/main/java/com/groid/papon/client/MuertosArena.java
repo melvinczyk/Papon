@@ -132,8 +132,8 @@ public final class MuertosArena {
                     double x0 = i * cell, z0 = j * cell;
                     if (!Fiesta.onSand(x0 + cell / 2, z0 + cell / 2, a, bb, 0.5)) continue;
                     float rip = 0.55F + 0.45F * Mth.sin((float) (x0 * 0.35 + z0 * 0.27) + t * 0.18F) * Mth.sin((float) (z0 * 0.31 - x0 * 0.12) - t * 0.13F);
-                    int al = (int) (110 * flood * rip);
-                    quadXZ(vc, m, c.x + x0, y, c.z + z0, c.x + x0 + cell, c.z + z0 + cell, 40, 230, 170, al);
+                    int al = (int) (165 * flood * rip);
+                    quadXZ(vc, m, c.x + x0, y, c.z + z0, c.x + x0 + cell, c.z + z0 + cell, 50, 255, 190, al);
                 }
             }
         }
@@ -148,7 +148,7 @@ public final class MuertosArena {
             double nx = -dz / len * w, nz = dx / len * w;
             boolean gold = ((i * 7919) & 3) == 0;
             int r = 255, g = gold ? 210 : 150, bl = gold ? 60 : 24;
-            int al = 210;
+            int al = 255;
             if (i < wilted) {
                 float k = (float) Math.max(0, 1 - (wilted - i) / 24.0);
                 r = 120;

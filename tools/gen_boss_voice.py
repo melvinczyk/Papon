@@ -1025,10 +1025,10 @@ def beats(lengths):
     # P4_PROPHECY: walking toward the middle, "Ten thousand years..."; the fog rolls in; he stops, looks up at his throne
     # (p4.throne_look) and tells you why he sat on it; turns to you: the stone, the warrior
     b['p4.years'] = 10
-    b['p4.fog'] = b['p4.years'] + 30
     b['p4.throne_look'] = b['p4.years'] + L('p4_years') + 14
     b['p4.throne'] = b['p4.throne_look'] + 14
     b['p4.carved'] = b['p4.throne'] + L('p4_throne') + 30
+    b['p4.fog'] = b['p4.carved'] - 10                 # the fog rolls in once he has shown you the throne (it hid it)
     b['p4.warrior'] = b['p4.carved'] + L('p4_carved') + 16
     b['p4.prophecy_end'] = b['p4.warrior'] + L('p4_warrior') + 34
     # P4_THRONE: Moctezuma (head bowed, remembering), the gates thrown open; then up at you: "I will not make his mistake...";

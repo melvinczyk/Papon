@@ -364,8 +364,8 @@ public final class Cinematic {
             Vec3 side = new Vec3(-across.z, 0, across.x);
             double ang = Math.toRadians(-35 + 70 * Math.sin(b.tickCount * 0.012));
             Vec3 dir = side.scale(Math.cos(ang)).add(across.scale(Math.sin(ang)));
-            double far = 6.5 + b.getBbHeight() * 0.9;
-            return new Shot(mid.add(dir.scale(far)).add(0, 2.4 + b.getBbHeight() * 0.25, 0), mid.add(0, 1.6, 0), 62, 0, cut);
+            double far = 8 + b.getBbHeight() * 1.6;
+            return new Shot(mid.add(dir.scale(far)).add(0, 2.4 + b.getBbHeight() * 0.45, 0), mid.add(0, b.getBbHeight() * 0.35, 0), 64, 0, cut);
         }
         danceWas = false;
         Shot p4 = phaseFourShot(b, s, t);
@@ -861,9 +861,9 @@ public final class Cinematic {
                     return new Shot(eye, body.add(0, h * 0.2, 0), 62, 0, near(t, fog + 20));
                 }
                 if (t < line + 50) {
-                    // behind him, low, past his shoulder up at the throne in his box
-                    Vec3 eye = b.position().subtract(toThrone.scale(h * 2.2)).add(tSide.scale(h * 0.9)).add(0, h * 0.5, 0);
-                    return new Shot(eye, throne, 50, 0, near(t, look), true);
+                    // behind him and well out to his side (clear of his wings), past him up at the throne in his box
+                    Vec3 eye = b.position().subtract(toThrone.scale(h * 3.2)).add(tSide.scale(h * 2.4)).add(0, h * 1.1, 0);
+                    return new Shot(eye, throne.lerp(fp, 0.25), 54, 0, near(t, look), true);
                 }
                 if (t < line + 110) {
                     // the throne itself, a long lens from the sand: gold, empty, kept warm
@@ -871,8 +871,8 @@ public final class Cinematic {
                     return new Shot(eye, throne.add(0, 0.6, 0), 16 - (float) (t - line - 50) * 0.04F, 0, near(t, line + 50), true);
                 }
                 if (t < carved - 6) {
-                    // his face, from beside and below, looking up at it
-                    return new Shot(fp.add(toThrone.scale(h * 1.2)).add(tSide.scale(h * 1.1)).add(0, -h * 0.35, 0), fp.add(toThrone.scale(2)), 46, 0, near(t, line + 110));
+                    // his face from in front and below as he looks up at it
+                    return new Shot(fp.add(toThrone.scale(h * 1.7)).add(tSide.scale(h * 0.6)).add(0, -h * 0.4, 0), fp, 46, 0, near(t, line + 110));
                 }
                 Vec3 you = mc.player.getEyePosition();
                 Vec3 toYou = you.subtract(fp).multiply(1, 0, 1);
@@ -911,11 +911,11 @@ public final class Cinematic {
                     return new Shot(fp.add(f.scale(h * 1.5)).add(right.scale(-h * 0.5)).add(0, -h * 0.4, 0), fp, 42, 0, near(t, moct + 150));
                 }
                 if (t < gates + 80) {
-                    // over his shoulder at his own throne, as he tells how his friend gave his away
+                    // past him, clear of his wings, at his own throne up in the fog, as he tells how his friend gave his away
                     Vec3 throne = b.throneSpot();
                     Vec3 toThrone = throne.subtract(b.position()).multiply(1, 0, 1).normalize();
-                    Vec3 eye = b.position().subtract(toThrone.scale(h * 1.8)).add(new Vec3(-toThrone.z, 0, toThrone.x).scale(-h * 0.8)).add(0, h * 0.85, 0);
-                    return new Shot(eye, throne, 44, 0, near(t, gates), true);
+                    Vec3 eye = b.position().subtract(toThrone.scale(h * 3.0)).add(new Vec3(-toThrone.z, 0, toThrone.x).scale(-h * 2.4)).add(0, h * 1.0, 0);
+                    return new Shot(eye, throne.lerp(fp, 0.35), 50, 0, near(t, gates), true);
                 }
                 if (t < mistake) {
                     double push = Math.min(1, (t - gates - 80) / 70.0);

@@ -92,7 +92,8 @@ public final class Fiesta {
     /** The path: points (x, z offsets) a block apart, from one end of the floor to the other, winding. Cached by key. */
     public static double[][] camino(int seed, double a, double b) {
         long key = seed * 1000003L + Math.round(a * 10) * 1009L + Math.round(b * 10);
-        if (key == caminoKey && caminoPts != null) return caminoPts;
+        Cached got = cached;
+        if (got != null && got.key == key) return got.pts;
         Random r = new Random(seed);
         int n = 7;
         double dir = r.nextBoolean() ? 1 : -1;
@@ -129,13 +130,15 @@ public final class Fiesta {
             }
             carry = d - (s - 1);
         }
-        caminoKey = key;
-        caminoPts = out.toArray(new double[0][]);
-        return caminoPts;
+        double[][] pts2 = out.toArray(new double[0][]);
+        cached = new Cached(key, pts2);
+        return pts2;
     }
 
-    private static long caminoKey = Long.MIN_VALUE;
-    private static double[][] caminoPts;
+    /** The last path worked out (the server and the client thread both ask: one object, swapped whole). */
+    private record Cached(long key, double[][] pts) {}
+
+    private static volatile Cached cached;
 
     /** How much of the path has bloomed (blocks from its start), t ticks into the move. */
     public static double bloomed(double t, int len) { return Math.min(len, t / CAMINO_BLOOM * len); }

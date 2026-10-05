@@ -11011,7 +11011,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         Vec3 dir = who.position().subtract(position()).multiply(1, 0, 1);
         dir = dir.lengthSqr() < 1e-4 ? Vec3.directionFromRotation(0, getYRot()) : dir.normalize();
-        Vec3 spot = inSand(who.position().subtract(dir.scale(4.2)), 2, 0, 0);
+        Vec3 spot = inSand(who.position().subtract(dir.scale(5.5)), 2, 0, 0);
         if (t < 28) flyTo(new Vec3(spot.x, floor, spot.z), 1.6);
         else {
             setFlying(false);

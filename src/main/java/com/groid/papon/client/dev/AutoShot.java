@@ -1011,27 +1011,39 @@ public final class AutoShot {
         if (k == 40) run("papon bossstate P4_FALL");
         if (k > 40 && !com.groid.papon.client.Cinematic.isActive() && !s.phaseFour()) lookAt(mc, b);
         String n = switch (s) {
-            case P4_FALL -> t == 6 ? "w01_thrown" : t == vb("p4.land", 14) + 14 ? "w02_on_his_back" : t == vb("p4.look", 58) + 14 ? "w03_the_scar"
-                    : t == vb("p4.scar", 76) + 16 ? "w04_it_reopened" : null;
-            case P4_RISEUP -> t == 20 ? "w05_struggles_up" : t == vb("p4.cough", 36) + 3 ? "w06_coughs_blood" : t == vb("p4.howgot", 52) + 20 ? "w07_how_i_got_it" : null;
-            case P4_IGNIS -> t == 12 ? "w08_reaches_back" : t == vb("p4.head_out", 20) + 16 ? "w09_ignis_head" : t == vb("p4.ignis", 34) + 50 ? "w10_nothing_notable"
-                    : t == vb("p4.thud", 122) + 2 ? "w11_thud" : t == vb("p4.met", 138) + 12 ? "w12_over_your_shoulder" : t == vb("p4.met", 138) + 40 ? "w13_met_before" : null;
-            case P4_PROPHECY -> t == 40 ? "w14_ten_thousand_years" : t == vb("p4.prophecy", 102) + 40 ? "w15_fog_prophecy"
-                    : t == vb("p4.moon", 186) + 20 ? "w16_moon_through_fog" : t == vb("p4.lunaknows", 212) + 24 ? "w17_luna_knows" : null;
-            case P4_BRETHREN -> t == 40 ? "w18_my_brethren" : t == vb("p4.brethren", 14) + 70 ? "w19_made_for" : t == vb("p4.grant", 114) + 40 ? "w20_grant_strength"
-                    : t == vb("p4.turn", 194) + 4 ? "w21_moon_turning" : t == vb("p4.turn", 194) + 24 ? "w22_moon_turned" : null;
-            case P4_SOULS -> t == 40 ? "w23_souls_pour" : t == 80 ? "w24_stands_turning" : t == 150 ? "w25_band_souls" : t == 208 ? "w26_aglow" : null;
-            case P4_HALFBAKED -> t == 40 ? "w27_half_baked" : t == vb("p4.burst", 106) + 12 ? "w28_burst" : t == vb("p4.clear", 162) + 4 ? "w29_final_guardian"
-                    : t == vb("p4.title", 170) + 20 ? "w30_title" : t == vb("p4.halfbaked_end", 242) - 10 ? "w31_dead_arena" : null;
+            case P4_FALL -> t == 6 ? "w01_thrown" : t == 30 ? "w02a_from_above" : t == vb("p4.land", 14) + 40 ? "w02_on_his_back"
+                    : t == vb("p4.elbow", 66) + 10 ? "w02b_silent_arena" : t == vb("p4.look", 86) + 14 ? "w03_the_scar"
+                    : t == vb("p4.scar", 112) + 16 ? "w04_it_reopened" : t == vb("p4.fall_end", 184) - 10 ? "w04b_band_frozen" : null;
+            case P4_RISEUP -> t == 20 ? "w05_struggles_up" : t == vb("p4.cough", 52) + 3 ? "w06_coughs_blood" : t == vb("p4.cough", 52) + 30 ? "w06b_over_shoulder"
+                    : t == vb("p4.howgot", 92) + 20 ? "w07_how_i_got_it" : null;
+            case P4_IGNIS -> t == 12 ? "w08_reaches_back" : t == vb("p4.head_out", 26) + 16 ? "w09_ignis_head" : t == vb("p4.ignis", 50) + 60 ? "w10a_two_faces"
+                    : t == vb("p4.ignis", 50) + 100 ? "w10_nothing_notable" : t == vb("p4.thud", 184) + 2 ? "w11_thud"
+                    : t == vb("p4.met", 210) + 12 ? "w12_over_your_shoulder" : t == vb("p4.met", 210) + 40 ? "w13_met_before" : null;
+            case P4_PROPHECY -> t == 40 ? "w14_ten_thousand_years" : t == vb("p4.throne_look", 119) - 20 ? "w15_fog"
+                    : t == vb("p4.throne", 133) + 30 ? "w15a_throne_over_shoulder" : t == vb("p4.throne", 133) + 80 ? "w15b_the_throne"
+                    : t == vb("p4.carved", 262) - 20 ? "w15c_looking_up" : t == vb("p4.carved", 262) + 40 ? "w15d_carved"
+                    : t == vb("p4.warrior", 368) + 50 ? "w15e_warrior" : t == vb("p4.prophecy_end", 563) - 20 ? "w15f_carry_the_world" : null;
+            case P4_THRONE -> t == 40 ? "w16a_moctezuma_wide" : t == vb("p4.moctezuma", 18) + 100 ? "w16b_dolly" : t == vb("p4.moctezuma", 18) + 180 ? "w16c_saw_a_god"
+                    : t == vb("p4.gates", 249) + 40 ? "w16d_gates" : t == vb("p4.gates", 249) + 100 ? "w16e_took_everything"
+                    : t == vb("p4.mistake", 395) + 30 ? "w16f_not_his_mistake" : t == vb("p4.mistake", 395) + 110 ? "w16g_take_it"
+                    : t == vb("p4.moon", 573) + 30 ? "w16h_moon" : t == vb("p4.prophecy", 617) + 30 ? "w16i_fulfilled"
+                    : t == vb("p4.lunaknows", 712) + 24 ? "w17_luna_knows" : t == vb("p4.throne_end", 791) - 8 ? "w17b_wide" : null;
+            case P4_BRETHREN -> t == 40 ? "w18_my_brethren" : t == vb("p4.brethren", 20) + 70 ? "w19_silent_stands" : t == vb("p4.grant", 139) + 30 ? "w20_grant_strength"
+                    : t == vb("p4.turn", 189) + 4 ? "w21_moon_turning" : t == vb("p4.turn", 189) + 24 ? "w22_moon_turned" : t == vb("p4.turn", 189) + 50 ? "w22b_under_the_moon" : null;
+            case P4_SOULS -> t == 40 ? "w23_souls_pour" : t == 80 ? "w24_stands_turning" : t == 150 ? "w25_band_souls" : t == 206 ? "w26_aglow"
+                    : t == vb("p4.feel", 214) + 30 ? "w26b_the_scream" : null;
+            case P4_HALFBAKED -> t == 40 ? "w27_half_baked" : t == vb("p4.burst", 112) + 12 ? "w28_burst" : t == vb("p4.clear", 178) + 4 ? "w29_final_guardian"
+                    : t == vb("p4.guardian", 222) + 20 ? "w30_i_am_papon" : t == vb("p4.halfbaked_end", 322) - 10 ? "w31_dead_arena" : null;
             case P4_BOW -> t == 22 ? "w32_bow_forms" : t == 56 ? "w33_draw" : t == com.groid.papon.boss.PaponBossEntity.BOW_HIT - 2 ? "w34_arrow"
-                    : t == com.groid.papon.boss.PaponBossEntity.BOW_SMOKE + 20 ? "w35_sky_torn" : null;
+                    : t == com.groid.papon.boss.PaponBossEntity.BOW_SMOKE + 14 ? "w35_sky_torn" : t == vb("p4.bowline", 112) + 30 ? "w35b_come_down" : null;
             case P4_SERPENTS -> t == 40 ? "w36_out_of_smoke" : t == 100 ? "w37_how_big" : t == 160 ? "w38_boros" : t == 230 ? "w39_circling" : null;
             case P4_TALKING -> t == 14 ? "w40_now_were_talking" : null;
             case P4_TOBAND -> t == 20 ? "w41_to_the_band" : null;
             case P4_HONOR -> t == 50 ? "w42_one_last_song" : t == vb("p4.nod", 112) + 8 ? "w43_singer_nods" : t == vb("p4.song", 128) + 20 ? "w44_trumpets" : null;
             case P4_MUCHACHAS -> t == 30 ? "w45_muchachas" : t == vb("p4.rise", 60) + 30 ? "w46_they_rise" : t == vb("p4.twirl", 112) + 30 ? "w47_twirl"
                     : t == vb("p4.dip", 170) + 10 ? "w48_dip" : null;
-            case P4_GOODTIME -> t == 20 ? "w49_striding" : t == vb("p4.goodtime", 40) + 30 ? "w50_good_time" : t == vb("p4.erupt", 103) + 30 ? "w51_erupts" : null;
+            case P4_GOODTIME -> t == 20 ? "w49_striding" : t == vb("p4.dance", 24) + 60 ? "w49b_its_a_dance" : t == vb("p4.goodtime", 125) + 20 ? "w50_good_time"
+                    : t == vb("p4.erupt", 162) + 30 ? "w51_erupts" : null;
             default -> null;
         };
         if (n != null) once(mc, n);
@@ -1074,9 +1086,9 @@ public final class AutoShot {
     }
 
     /** El Rey de los Muertos's moves, one after another, on you (Resistance V and regeneration keep you up). */
-    private static final String[] SHOW_P4 = {"P4_SERPIENTES", "P4_FLECHAS", "P4_MARTILLO", "P4_LUNA", "P4_GIGANTE", "P4_GRIETA", "P4_PETALOS", "P4_PAPEL",
-            "P4_VELAS", "P4_DANZA"};
-    private static final int[] SHOW_P4_LEN = {260, 170, 100, 160, 260, 230, 200, 200, 190, 200};
+    private static final String[] SHOW_P4 = {"P4_OUROBOROS", "P4_PISTA", "P4_CEMPASUCHIL", "P4_CASTILLO", "P4_GIGANTE", "P4_SALSA", "P4_TANGO",
+            "P4_SERPIENTES", "P4_LUNA", "P4_GRIETA"};
+    private static final int[] SHOW_P4_LEN = {380, 230, 290, 300, 350, 200, 580, 260, 160, 230};
 
     private static void muertosShowcase(Minecraft mc, PaponBossEntity b, int j) {
         int at = 0, i = 0;
@@ -1103,9 +1115,16 @@ public final class AutoShot {
         }
         // the view on the action: the giant at its end, the floor for the rift, the petals and the candles, else him
         Entity giant = st.equals("P4_GIGANTE") ? nearest(mc, com.groid.papon.boss.SpiritGiantEntity.class) : null;
-        if (giant != null && u % 80 < 40) lookAtPoint(mc, giant.position().add(0, com.groid.papon.boss.SpiritGiantEntity.HEAD_Y, 0));
-        else if (st.equals("P4_GRIETA") || st.equals("P4_VELAS") || st.equals("P4_PETALOS")) lookAtPoint(mc, mc.player.position().lerp(c, 0.5).add(0, -1, 0));
-        else lookAt(mc, b);
+        if (st.equals("P4_TANGO")) com.groid.papon.client.QteClient.devPress();
+        if (giant != null && u % 80 < 50) lookAtPoint(mc, giant.position().add(0, com.groid.papon.boss.SpiritGiantEntity.HEAD_Y * 0.6, 0));
+        else if (st.equals("P4_GRIETA") || st.equals("P4_VELAS") || st.equals("P4_PETALOS") || st.equals("P4_PISTA") || st.equals("P4_CEMPASUCHIL"))
+            lookAtPoint(mc, mc.player.position().lerp(c, 0.6).add(0, -2, 0));
+        else if (st.equals("P4_CASTILLO")) lookAtPoint(mc, c.add(0, 9, 0));
+        else if (st.equals("P4_OUROBOROS")) {
+            Entity sp = nearest(mc, com.groid.papon.boss.SkySerpentEntity.class);
+            if (sp instanceof com.groid.papon.boss.SkySerpentEntity se && u > 60) lookAtPoint(mc, se.headAt(0));
+            else lookAt(mc, b);
+        } else lookAt(mc, b);
         int len = SHOW_P4_LEN[i];
         int[] shots = {len / 6, 2 * len / 6, 3 * len / 6, 4 * len / 6, 5 * len / 6};
         for (int k = 0; k < shots.length; k++) {
