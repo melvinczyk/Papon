@@ -81,7 +81,13 @@ S = None
 FACES = {'north': (0, 1), 'south': (0, 1), 'east': (2, 1), 'west': (2, 1), 'up': (0, 2), 'down': (0, 2)}
 
 
-def cube(origin, size, painter, skip=()):
+SHARED = {}
+
+
+def cube(origin, size, painter, skip=(), share=None):
+    """A cube with its faces painted onto the sheet; with {@code share}, cubes of the same key reuse the first one's pixels."""
+    if share is not None and share in SHARED:
+        return {'origin': [round(float(v), 4) for v in origin], 'size': [round(float(v), 4) for v in size], 'uv': SHARED[share]}
     c = {'origin': [round(float(v), 4) for v in origin], 'size': [round(float(v), 4) for v in size], 'uv': {}}
     for face, (a, b) in FACES.items():
         if face in skip:
@@ -94,6 +100,8 @@ def cube(origin, size, painter, skip=()):
         if glow is not None:
             S.glow[y:y + fh, x:x + fw] = glow
         c['uv'][face] = {'uv': [x, y], 'uv_size': [fw, fh]}
+    if share is not None:
+        SHARED[share] = c['uv']
     return c
 
 
@@ -482,17 +490,17 @@ def penacho():
     ]}]
     rows = [
         # (count, length, width, colours base->tip, tilt back, spread degrees, radius)
-        (13, 30, 4, [GOLD, QUETZAL, QUETZAL_HI, QUETZAL, CRIMSON], 22, 200, 7.0),
-        (9, 20, 3, [GOLD, CRIMSON, GOLD_HI, CRIMSON], 12, 160, 6.0),
+        (15, 40, 5, [GOLD, QUETZAL, QUETZAL_HI, QUETZAL, CRIMSON], 24, 210, 7.5),
+        (11, 27, 4, [GOLD, CRIMSON, GOLD_HI, CRIMSON], 14, 170, 6.5),
     ]
     k = 0
-    for count, length, width, colors, tilt, spread, rad in rows:
+    for ri, (count, length, width, colors, tilt, spread, rad) in enumerate(rows):
         for i in range(count):
             phi = math.radians(-spread / 2 + spread * i / (count - 1))       # 0 = straight behind him
             x, z = rad * math.sin(phi), rad * math.cos(phi)
             bones.append({'name': 'penacho_f%d' % k, 'parent': 'penacho', 'pivot': [round(x, 3), 24, round(z, 3)],
                           'rotation': [round(-tilt - 8 * abs(math.sin(phi)), 2), round(-math.degrees(phi), 2), 0],
-                          'cubes': [cube([x - width / 2, 24, z], [width, length, 0], feather_paint(colors))]})
+                          'cubes': [cube([x - width / 2, 24, z], [width, length, 0], feather_paint(colors), share=('penacho', ri))]})
             k += 1
     # jade ear spools
     for sx in (-1, 1):

@@ -108,8 +108,8 @@ public final class ClientEvents {
         var b = foggy();
         if (b == null || event.getMode() != net.minecraft.client.renderer.FogRenderer.FogMode.FOG_TERRAIN) return;
         float k = b.fog();
-        event.setNearPlaneDistance(Mth.lerp(k, event.getNearPlaneDistance(), 1.5F));
-        event.setFarPlaneDistance(Mth.lerp(k, event.getFarPlaneDistance(), 26F));
+        event.setNearPlaneDistance(Mth.lerp(k, event.getNearPlaneDistance(), 0F));
+        event.setFarPlaneDistance(Mth.lerp(k * k * (3 - 2 * k), event.getFarPlaneDistance(), 32F));
         event.setCanceled(true);
     }
 

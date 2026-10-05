@@ -3511,8 +3511,8 @@ def b_p4_ignis():
     out, line, thr, met, end = (beat('p4.head_out', 20), beat('p4.ignis', 34), beat('p4.throw', 109), beat('p4.met', 138), beat('p4.ignis_end', 200))
     a = B('p4_ignis', end, 'hold')
     a.scale('blood', [(0, SHOWN), (end, SHOWN)], 'lin')
-    show = [-128, -6, 40]
-    turn = [(round(line + 0.5 + 0.9 * i, 2), [show[0] + (4 if i % 2 else -4), show[1] + (14 if i % 2 else -10), show[2]]) for i in range(int((thr - line - 1.2) / 0.9))]
+    show = [8, 0, 150]             # raised out to his side, above his shoulder: the head hangs from his fist beside his face
+    turn = [(round(line + 0.5 + 0.9 * i, 2), [show[0] + (10 if i % 2 else -6), show[1], show[2] + (6 if i % 2 else -4)]) for i in range(int((thr - line - 1.2) / 0.9))]
     wind = round(thr - 0.3, 2)
     a.rot('arm_r', [(0, PALM_UP_R), (0.25, [10, -10, 30], 'easeInOutSine'), (0.6, [62, 20, 24], 'easeInOutSine'), (round(out - 0.05, 2), [60, 24, 20]),
                     (round(out + 0.45, 2), show, 'easeOutBack')] + turn + [(wind, [-150, 0, 34], 'easeInOutSine'),

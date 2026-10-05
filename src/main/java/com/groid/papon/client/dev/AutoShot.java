@@ -61,6 +61,9 @@ public final class AutoShot {
     private static final boolean ENDING = MODE.equals("ending");
     /** -Pautoshot=pillow: a bed against a wall; the pillow hugged, licked and humped (third and first person), slouched on the bed, humped there. */
     private static final boolean PILLOW = MODE.equals("pillow");
+    /** -Pautoshot=state:STATE[:FORM]:t1,t2,...  a boss here (form 3 Ascended or 4 the Final Guardian), straight into STATE; the
+     *  cutscene camera's view (or yours) shot at those ticks in it (papon_s_STATE_t.png). For checking one beat quickly. */
+    private static final boolean STATE = MODE.startsWith("state:");
     /** -Pautoshot=serpents: Ouros and Boros out of their smoke over a flat world, from the ground and from the air. */
     private static final boolean SERPENTS = MODE.equals("serpents");
     private static int tick;
@@ -102,6 +105,10 @@ public final class AutoShot {
         }
         if (SERPENTS) {
             serpents(mc);
+            return;
+        }
+        if (STATE) {
+            statePose(mc);
             return;
         }
         if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4) {
@@ -1179,6 +1186,31 @@ public final class AutoShot {
         }
         if (s == BossState.P2_APOLOGY && t == com.groid.papon.boss.VoiceLines.beat("apology.wink", 144) + 6) once(mc, "v_wink");
         if (s == BossState.P2_SEASON && t == com.groid.papon.boss.VoiceLines.beat("season.kiss", 96)) once(mc, "v_chefs_kiss");
+    }
+
+    private static void statePose(Minecraft mc) {
+        String[] parts = MODE.split(":");
+        String st = parts[1];
+        String form = parts.length > 3 ? parts[2] : "3";
+        String[] ticks = parts[parts.length - 1].split(",");
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 18000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "tp @s 4000 200 4000", "papon escort true");
+            case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            case 90 -> run("kill @e[type=papon:papon_boss]", "execute at @s positioned ^ ^ ^8 rotated 180 0 run papon boss", "kill @e[type=papon:caravan]");
+            case 140 -> run("papon bossstate " + (form.equals("4") ? "P4_MARTILLO" : "P3_COMBO"));
+            case 150 -> run("papon bossstate IDLE");
+            case 170 -> run("papon bossstate " + st);
+            default -> {}
+        }
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b == null || tick < 172) return;
+        if (b.getBossState().name().equals(st)) {
+            int t = b.ticksInState();
+            for (String k : ticks) if (Integer.parseInt(k) == t) once(mc, "s_" + st.toLowerCase(java.util.Locale.ROOT) + "_" + k);
+            if (t > Integer.parseInt(ticks[ticks.length - 1]) + 4) mc.stop();
+        } else if (tick > 172 + 20 * 60) mc.stop();
     }
 
     private static void serpents(Minecraft mc) {

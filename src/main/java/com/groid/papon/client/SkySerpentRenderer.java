@@ -162,11 +162,11 @@ public class SkySerpentRenderer extends EntityRenderer<SkySerpentEntity> {
         var cam = Minecraft.getInstance().gameRenderer.getMainCamera();
         VertexConsumer vc = buffers.getBuffer(RenderType.entityTranslucent(SMOKE));
         java.util.Random r = new java.util.Random(e.getId() * 31L);
-        for (int i = 0; i < 40; i++) {
+        for (int i = 0; i < 70; i++) {
             double ang = r.nextDouble() * Math.PI * 2 + time * (0.004 + r.nextDouble() * 0.01) * (i % 2 == 0 ? 1 : -1);
-            double rad = (6 + r.nextDouble() * 22) * (0.5 + 0.5 * k);
-            Vec3 at = c.add(Math.cos(ang) * rad, (r.nextDouble() - 0.5) * 18 * k, Math.sin(ang) * rad);
-            float size = (float) ((10 + r.nextDouble() * 14) * k);
+            double rad = (8 + r.nextDouble() * 38) * (0.5 + 0.5 * k);
+            Vec3 at = c.add(Math.cos(ang) * rad, (r.nextDouble() - 0.5) * 30 * k, Math.sin(ang) * rad);
+            float size = (float) ((16 + r.nextDouble() * 22) * k);
             float spin = time * 0.01F * (r.nextBoolean() ? 1 : -1) + r.nextFloat() * 6;
             int shade = 10 + r.nextInt(18);
             pose.pushPose();
@@ -178,6 +178,29 @@ public class SkySerpentRenderer extends EntityRenderer<SkySerpentEntity> {
             quad(vc, m, pose, size, shade, a);
             pose.popPose();
         }
+        // the summoning light inside it: a sick green glow through the smoke at its heart
+        VertexConsumer glow = buffers.getBuffer(RenderType.entityTranslucentEmissive(SMOKE));
+        for (int i = 0; i < 14; i++) {
+            double ang = r.nextDouble() * Math.PI * 2 + time * 0.02;
+            double rad = r.nextDouble() * 14 * k;
+            Vec3 at = c.add(Math.cos(ang) * rad, (r.nextDouble() - 0.5) * 10 * k, Math.sin(ang) * rad);
+            float size = (float) ((10 + r.nextDouble() * 12) * k);
+            pose.pushPose();
+            pose.translate(at.x, at.y, at.z);
+            pose.mulPose(cam.rotation());
+            pose.mulPose(Axis.ZP.rotation(time * 0.02F + i));
+            float pulse = 0.6F + 0.4F * Mth.sin(time * 0.15F + i);
+            quadColor(glow, pose.last().pose(), pose, size, 50, 230, 110, (int) (120 * k * pulse));
+            pose.popPose();
+        }
+    }
+
+    private static void quadColor(VertexConsumer vc, Matrix4f m, PoseStack pose, float s, int r, int g, int b, int a) {
+        var n = pose.last().normal();
+        vc.vertex(m, -s, -s, 0).color(r, g, b, a).uv(0, 1).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(0xF000F0).normal(n, 0, 1, 0).endVertex();
+        vc.vertex(m, s, -s, 0).color(r, g, b, a).uv(1, 1).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(0xF000F0).normal(n, 0, 1, 0).endVertex();
+        vc.vertex(m, s, s, 0).color(r, g, b, a).uv(1, 0).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(0xF000F0).normal(n, 0, 1, 0).endVertex();
+        vc.vertex(m, -s, s, 0).color(r, g, b, a).uv(0, 0).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(0xF000F0).normal(n, 0, 1, 0).endVertex();
     }
 
     private static void quad(VertexConsumer vc, Matrix4f m, PoseStack pose, float s, int shade, int a) {

@@ -44,28 +44,6 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         withScale(SCALE);
         this.shadowRadius = 0.9F;
         addRenderLayer(new software.bernie.geckolib.renderer.layer.AutoGlowingGeoLayer<>(this));
-        // phase four: Ignis's head in his right fist (spiritProp 4), held up by the hair for you to see
-        addRenderLayer(new software.bernie.geckolib.renderer.layer.BlockAndItemGeoLayer<>(this) {
-            @Override
-            protected net.minecraft.world.item.ItemStack getStackForBone(software.bernie.geckolib.cache.object.GeoBone bone, PaponBossEntity boss) {
-                return bone.getName().equals("hand_r") && boss.spiritProp() == 4
-                        ? new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_IGNIS_HEAD.get()) : null;
-            }
-
-            @Override
-            protected void renderStackForBone(PoseStack pose, software.bernie.geckolib.cache.object.GeoBone bone, net.minecraft.world.item.ItemStack stack,
-                                              PaponBossEntity boss, MultiBufferSource buffers, float partialTick, int light, int overlay) {
-                pose.pushPose();
-                // the fist is at the bone's pivot; the head hangs off it the way the arm points, its crown at the fist
-                pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(180));
-                pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180));
-                pose.scale(0.55F, 0.55F, 0.55F);
-                pose.translate(-0.5, -0.15, -0.5);
-                net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(stack, net.minecraft.world.item.ItemDisplayContext.NONE,
-                        net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, overlay, pose, buffers, boss.level(), boss.getId());
-                pose.popPose();
-            }
-        });
         addRenderLayer(new software.bernie.geckolib.renderer.layer.GeoRenderLayer<>(this) {
             @Override
             public void render(PoseStack pose, PaponBossEntity boss, BakedGeoModel model, RenderType renderType, MultiBufferSource buffers,
@@ -115,11 +93,11 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         if (s == BossState.P4_SOULS) return 0.9F * boss.glow() * pulse;
         if (s == BossState.P4_HALFBAKED) {
             float burst = com.groid.papon.boss.VoiceLines.beat("p4.burst", 106), clear = com.groid.papon.boss.VoiceLines.beat("p4.clear", 162);
-            if (t < burst) return 0.9F * pulse;
-            if (t < clear) return Math.min(1.4F, 0.9F + (t - burst) / 30F) * pulse;
-            return Math.max(0.45F, 1.4F - (t - clear) / 30F) * pulse;
+            if (t < burst) return 0.75F * pulse;
+            if (t < clear) return Math.min(1.0F, 0.75F + (t - burst) / 40F) * pulse;
+            return Math.max(0.25F, 0.9F - (t - clear) / 30F) * pulse;
         }
-        if (boss.isMuertos()) return (s.muertosMove() ? 0.55F : 0.35F) * pulse;
+        if (boss.isMuertos()) return (s.muertosMove() ? 0.35F : 0.2F) * pulse;
         if (boss.isPhaseThree() && !s.phaseThree()) return 0.32F * pulse;
         return 0;
     }
@@ -160,14 +138,23 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     @org.jetbrains.annotations.Nullable
     public static net.minecraft.world.phys.Vec3 bonePos(PaponBossEntity boss, String name) {
         java.util.Map<String, net.minecraft.world.phys.Vec3> m = BONES.get(boss.getId());
-        return m == null ? null : m.get(name);
+        net.minecraft.world.phys.Vec3 p = m == null ? null : m.get(name);
+        return p == null ? null : scaled(boss, p);
     }
 
     /** Between his eyes, as drawn last (or a guess from his box). */
     public static net.minecraft.world.phys.Vec3 facePos(PaponBossEntity boss) {
         net.minecraft.world.phys.Vec3[] e = EYES.get(boss.getId());
-        if (e != null) return e[0].add(e[1]).scale(0.5);
+        if (e != null) return scaled(boss, e[0].add(e[1]).scale(0.5));
         return boss.position().add(0, boss.getBbHeight() * 0.62, 0);
+    }
+
+    /** The tracked bone matrices leave out the render scale (it is applied after them): put it back, about his feet. */
+    private static net.minecraft.world.phys.Vec3 scaled(PaponBossEntity boss, net.minecraft.world.phys.Vec3 p) {
+        float s = boss.isPassenger() ? DRIVING_SCALE : boss.isMuertos() ? MUERTOS_SCALE : boss.isAscended() ? ASCENDED_SCALE
+                : boss.isRisen() ? RISEN_SCALE : SCALE;
+        net.minecraft.world.phys.Vec3 o = boss.position();
+        return o.add(p.subtract(o).scale(s));
     }
 
     /** Where his bleeding hand was drawn last (world), per boss: the point-of-view camera looks at it (Cinematic). */
@@ -425,11 +412,32 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         if (spot > 0) drawSpotlight(entity, pose, buffers, spot, partialTick);
         if (entity.isAscended() && !entity.isMuertos()) eyeLightning(entity, partialTick, buffers);
         else eyesSeen = false;
+        if (entity.spiritProp() == 4) ignisHead(entity, partialTick, pose, buffers);
         float k = rays(entity, partialTick);
         if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
         if (entity.getBossState() == BossState.P3_SOLAR) drawSunStone(entity, pose, buffers, partialTick);
         if (entity.getBossState() == BossState.P3_NOVA) drawStar(entity, pose, buffers, partialTick);
         SpeechBubble.render(entity, entity.getSpeech(), 0.4F, pose, buffers, light, entityRenderDispatcher);
+    }
+
+    /**
+     * Ignis's head in his right fist (phase four, spiritProp 4): hanging from his grip by its crown, upright, its face the way
+     * he faces (to you), turning a little as he shows it off. Drawn where the fist was drawn (BossRenderer.bonePos).
+     */
+    private static void ignisHead(PaponBossEntity b, float partial, PoseStack pose, MultiBufferSource buffers) {
+        net.minecraft.world.phys.Vec3 hand = bonePos(b, "hand_r");
+        if (hand == null) return;
+        net.minecraft.world.phys.Vec3 at = hand.subtract(b.getPosition(partial));
+        float s = 1.25F;
+        pose.pushPose();
+        pose.translate(at.x, at.y - 0.85 * s, at.z);
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180F - b.yBodyRot + 10F * net.minecraft.util.Mth.sin((b.tickCount + partial) * 0.07F)));
+        pose.scale(s, s, s);
+        pose.translate(-0.5, 0, -0.5);
+        net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(
+                new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_IGNIS_HEAD.get()), net.minecraft.world.item.ItemDisplayContext.NONE,
+                net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, pose, buffers, b.level(), b.getId());
+        pose.popPose();
     }
 
     private static final ResourceLocation SUN_STONE = PaponMod.id("textures/entity/sun_stone.png");

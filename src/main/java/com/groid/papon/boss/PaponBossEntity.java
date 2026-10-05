@@ -1161,7 +1161,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             startPhaseFour(level);
             return;
         }
-        if (muertosFight() && tickCount % 40 == 0) keepGuardian(level);
+        if (muertosFight() && !getBossState().phaseFour() && tickCount % 40 == 0) keepGuardian(level);
         switch (getBossState()) {
             case LEAP_OUT -> tickLeap(level);
             case CHUG -> tickChug(level);
@@ -1839,6 +1839,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (form() < 3) entityData.set(DATA_FORM, 3);
             refreshDimensions();
             setHealth(Math.min(getHealth(), getMaxHealth() * PHASE_FOUR_AT - 1));
+            entityData.set(DATA_NIGHT, NIGHT_P3);         // phase three's night, as if he had come through it
             phaseFourDue = true;
             setBossState(BossState.IDLE);
             return;
@@ -9354,7 +9355,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Vec3 at = h != null ? h.position() : position();
             level.playSound(null, at.x, at.y, at.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 1.6F, 0.45F);
             level.playSound(null, at.x, at.y, at.z, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 2.0F, 0.5F);
-            Fx.dust(level, at, 1.0, 10);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, at.x, at.y + 0.2, at.z, 6, 0.4, 0.05, 0.4, 0.02);
             PaponNetwork.shake(level, at, 40, 0.3F, 8);
             crowdReact(level, CrowdMood.GASP, 30);
         }
@@ -9376,7 +9377,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setDeltaMovement(0, getDeltaMovement().y, 0);
         }
         if (t == years) sayPlain("p4_years", 90);
-        if (t >= fog) entityData.set(DATA_FOG, Math.min(0.85F, (t - fog) / 90F * 0.85F));
+        if (t >= fog) entityData.set(DATA_FOG, Math.min(1F, (t - fog) / 90F));
         if (t == fog) level.playSound(null, getX(), getY() + 4, getZ(), SoundEvents.AMBIENT_BASALT_DELTAS_MOOD.value(), SoundSource.HOSTILE, 3.0F, 0.6F);
         if (t == beat("p4.prophecy", 102)) sayPlain("p4_prophecy", 90);
         if (t == moon) {
@@ -9579,7 +9580,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         double moonYaw = Math.atan2(toMoon.z, toMoon.x);
         for (int k = 0; k < 2; k++) {
             double a = moonYaw + (k == 0 ? -0.6 : 0.6);
-            Vec3 portal = c.add(Math.cos(a) * (big * 2 + 110), big * 0.9 + 70, Math.sin(a) * (big * 2 + 110));
+            Vec3 portal = c.add(Math.cos(a) * (big + 95), big * 0.6 + 62, Math.sin(a) * (big + 95));
             double radius = big + (col ? 62 : 40) + k * 16, height = big * 0.6 + (col ? 34 : 26) + k * 14;
             SkySerpentEntity s = SkySerpentEntity.create(level, k, c, portal, radius, height, k == 0 ? 1 : -1);
             if (circling) s.circling();
@@ -9683,7 +9684,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         Vec3 stage = band.isEmpty() ? c.add(0, 0, -20) : band.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / band.size());
         Vec3 in = c.subtract(stage).multiply(1, 0, 1).normalize();
         Vec3 side = new Vec3(-in.z, 0, in.x);
-        for (double s : new double[]{-11, -6.5, 6.5, 11}) out.add(onSand(stage.add(in.scale(9 + Math.abs(s) * 0.15)).add(side.scale(s))));
+        for (double s : new double[]{-12, -6, 6, 12}) out.add(onSand(stage.add(in.scale(17 + Math.abs(s) * 0.2)).add(side.scale(s))));
         return out;
     }
 
@@ -9692,6 +9693,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         int t = stateTicks;
         int clap = beat("p4.clap", 50), rise = beat("p4.rise", 60), twirl = beat("p4.twirl", 112);
         if (t == beat("p4.muchachas", 4)) sayPlain("p4_muchachas", 50);
+        if (t < rise) turnToward(p4Center(), 8F);          // round from the band to the sand, looking for them
         if (t == clap || t == clap + 6) {
             level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 1.6F, 1.6F);
             level.playSound(null, getX(), getY() + 2, getZ(), SoundEvents.ARMOR_STAND_HIT, SoundSource.HOSTILE, 2.0F, 0.8F);
@@ -11060,6 +11062,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (s == BossState.P4_HALFBAKED && isMuertos()) return event.setAndContinue(F_BONE_UNFURL);
             // beaten, on the ground: the wings folded down behind him
             if (s == BossState.P4_FALL || s == BossState.P4_RISEUP || s == BossState.P4_IGNIS) return event.setAndContinue(F_WINGS_FOLDED);
+            // with the band and dancing with the muchachas: folded away
+            if (s == BossState.P4_TOBAND || s == BossState.P4_HONOR || s == BossState.P4_MUCHACHAS) return event.setAndContinue(F_WINGS_FOLDED);
             boolean beat = isFlying() || s == BossState.P2_DIVE || s == BossState.P3_FLASH || s == BossState.P3_COMET || s == BossState.P3_DUEL_FETCH;
             return event.setAndContinue(beat ? F_WINGS_FLY : F_WINGS_IDLE);
         }

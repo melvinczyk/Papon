@@ -244,8 +244,14 @@ public final class MuertosSky {
             ribbon(vc, m, prev, p, cam, size * (0.3F + 0.18F * j), 82, 255, 132, a);
             prev = p;
         }
+        // the head: a soft star of light (two crossed strips, a bright core)
         Vec3 head = at.apply(k);
-        ribbon(vc, m, head.subtract(0, size * 0.5, 0), head.add(0, size * 0.5, 0), cam, size * 1.3F, 214, 255, 220, 230);
+        Vec3 toCam = cam.subtract(head).normalize();
+        Vec3 sx = toCam.cross(new Vec3(0, 1, 0));
+        sx = sx.lengthSqr() < 1e-4 ? new Vec3(1, 0, 0) : sx.normalize();
+        ribbon(vc, m, head.subtract(0, size * 0.7, 0), head.add(0, size * 0.7, 0), cam, size * 0.9F, 82, 255, 132, 150);
+        ribbon(vc, m, head.subtract(sx.scale(size * 0.7)), head.add(sx.scale(size * 0.7)), cam, size * 0.9F, 82, 255, 132, 150);
+        ribbon(vc, m, head.subtract(0, size * 0.3, 0), head.add(0, size * 0.3, 0), cam, size * 0.4F, 230, 255, 236, 240);
     }
 
     /** His arrow of the souls' light, from the bow up into the moon (P4_BOW: loosed, a streak, the moon struck). */
