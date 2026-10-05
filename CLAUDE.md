@@ -1208,6 +1208,12 @@ Several Claude sessions may work on this repo at once. **Never commit straight t
 - **`CLAUDE.md`** — keep both sides' additions; update the status table to reflect the merge.
 - After any conflict resolution: `./gradlew build` must pass before you commit the merge.
 
+## Line count (2026-10-04 refactor)
+Generated asset JSON (geo, animations, models, song and voice data) is written compact, one line per file: never pretty-print it
+again (it was 250k of the repo's 320k lines). `sounds.json` is one sound event per line (`geo_util.read_sounds/write_sounds`);
+`lang/en_us.json` stays one key per line (both are merged by hand). Java one-statement blocks sit on one line
+(`python3.11 tools/compact_java.py <files>`; it changes no bytecode: check with `javap -c` before and after).
+
 ## Building and testing
 
 **Always build the release jar in the main git checkout, `~/Documents/Coding/Papon`, never in a
