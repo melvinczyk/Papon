@@ -9982,6 +9982,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (old == BossState.P4_FLECHAS && isPhaseFour()) entityData.set(DATA_P4PROP, 1);
         if (old == BossState.P4_OUROBOROS) clearOuroboros(level);
+        // back to the hammer between moves (the dances put it away)
+        if ((s == BossState.IDLE || s == BossState.WINDED) && muertosFight() && entityData.get(DATA_P4PROP) == 0) entityData.set(DATA_P4PROP, 1);
         if (old == BossState.P4_GIGANTE && s != old) clearBeams(level);
         if (old == BossState.P4_TANGO && tangoResult < 0 && tangoWho != null && level.getEntity(tangoWho) instanceof ServerPlayer sp) {
             PaponNetwork.qteEnd(sp, false);
@@ -10681,6 +10683,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         double floor = deadFloor();
         if (t == 1) {
             entityData.set(DATA_P4SEED, random.nextInt(1 << 20));
+            entityData.set(DATA_P4PROP, 0);
             pistaHits.clear();
             say("p4_pista", 50);
             crowdReact(level, CrowdMood.CHEER, 60);
@@ -10919,6 +10922,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         double floor = deadFloor();
         if (t == 1) {
             say("p4_salsa", 40);
+            entityData.set(DATA_P4PROP, 0);
             salsaTo = null;
             salsaDash = 99;
         }
@@ -10994,6 +10998,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         Entity we = tangoWho != null ? level.getEntity(tangoWho) : null;
         LivingEntity who = we instanceof LivingEntity le && le.isAlive() ? le : null;
         if (t == 1) {
+            entityData.set(DATA_P4PROP, 0);
             tangoResult = -1;
             tangoScore = 0;
             qteSaid = 0;

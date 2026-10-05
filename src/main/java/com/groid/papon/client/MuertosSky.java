@@ -117,7 +117,7 @@ public final class MuertosSky {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         BufferBuilder buf = Tesselator.getInstance().getBuilder();
         buf.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-        float hr = turned > 0.5F ? 0.25F : 0.9F, hg = turned > 0.5F ? 0.85F : 0.92F, hb = 1F;
+        float hr = turned > 0.5F ? 0.32F : 0.9F, hg = turned > 0.5F ? 1.0F : 0.92F, hb = turned > 0.5F ? 0.78F : 1F;
         float pulse = 0.85F + 0.15F * Mth.sin(t * 0.08F);
         for (int ring = 0; ring < 2; ring++) {
             float rr = r * (ring == 0 ? 1.9F : 3.2F);

@@ -711,5 +711,20 @@
   "speech.papon.boss2.p4_landed3": "You stepped on my feet, amigo. Bad idea.",
   "speech.papon.boss2.p4_landed4": "Is that the warrior of the prophecy? Get up!",
   "speech.papon.boss2.p4_low": "No... not yet. The song is not over yet!",
-  "speech.papon.boss2.p4_death": "So it was true... The throne is yours now, champion. Take care of them... and keep it warm."
+  "speech.papon.boss2.p4_death": "So it was true... The throne is yours now, champion. Take care of them... and keep it warm.",
+  "qte.papon.title.7": "EL ÚLTIMO TANGO",
+  "qte.papon.how.7": "Dance it back on the beat: W S A D, SPACE to spin",
+  "qte.papon.tango.him": "PAPÓN",
+  "qte.papon.tango.you": "TÚ",
+  "qte.papon.tango.applause": "el aplausómetro",
+  "qte.papon.tango.count": "5, 6, 7, 8...",
+  "qte.papon.tango.call": "¡SÍGUEME!",
+  "qte.papon.tango.response": "¡TU TURNO! (W A S D, SPACE)",
+  "qte.papon.tango.embrace": "EL ABRAZO: follow his hand",
+  "qte.papon.tango.dip": "¡EL DIP! (on the beat)",
+  "qte.papon.tango.perfect": "¡PERFECTO!",
+  "qte.papon.tango.good": "¡BIEN!",
+  "qte.papon.tango.miss": "¡PISOTÓN!",
+  "qte.papon.tango.off": "OFF THE BEAT",
+  "qte.papon.tango.held": "Held on: %s%%"
 }
