@@ -107,6 +107,10 @@ DIRECTION = {
                            'and a hint of a smile. Natural word lengths, no stretched vowels.' % STAR),
     'contempt': ('animated', NATURAL + 'You are %s, seething, insulted to the core: contemptuous, the voice tight and '
                              'clipped, then flaring up.' % STAR),
+    'sincere': ('animated', NATURAL + 'You are %s, and for once you mean every word: soft, quiet and sincere, grateful and a '
+                            'little moved, speaking gently to old friends, no showing off.' % STAR),
+    'prophet': ('animated', NATURAL + 'You are %s, an ancient god speaking to his worshippers: solemn and stirring, the voice '
+                            'rising with fervour, slow and full of meaning.' % STAR),
 }
 # the directions every line was taken with before the rework: lines not in FRESH keep them (so they are not taken again)
 OLD_DIRECTION = {
@@ -164,7 +168,10 @@ OLD_DIRECTION = {
 FRESH = set(['intro', 'felt', 'notstyle', 'p3_hurt', 'p3_noise', 'p3_power', 'upgrade', 'qte_strong', 'qte_weak', 'qte_crush', 'qte_slip', 'qte_quick', 'qte_slow', 'tango_good', 'tango_bad', 'duel_good', 'duel_bad', 'p3_sombrero', 'p3_volcan', 'p3_calaveras', 'p3_swing'] + [
     k for k in ['p4_laugh', 'p4_rise', 'p4_hammer', 'p4_strike', 'p4_centuries', 'p4_true', 'p4_fiesta', 'p4_martillo', 'p4_luna', 'p4_gigante',
                 'p4_grieta', 'p4_cierra', 'p4_petalos', 'p4_papel', 'p4_velas', 'p4_danza']] + ['p4_charm%d' % i for i in range(6)]
-    + ['p4_hit%d' % i for i in range(3)] + ['p4_landed%d' % i for i in range(3)])
+    + ['p4_hit%d' % i for i in range(3)] + ['p4_landed%d' % i for i in range(3)]
+    + ['p4_pant', 'p4_scar', 'p4_howgot', 'p4_ignis', 'p4_met', 'p4_years', 'p4_prophecy', 'p4_lunaknows', 'p4_brethren',
+       'p4_grant', 'p4_halfbaked', 'p4_talking', 'p4_honor', 'p4_muchachas', 'p4_twirl', 'p4_goodtime', 'p4_flechas',
+       'p4_serpientes', 'p4_charm6', 'p4_charm7'])
 
 # sampling: a little warmer than the model's default (0.9), and each take a little different (voice_modal varies it)
 GEN = {'temperature': 1.0}
@@ -400,6 +407,27 @@ LINES = {
     'p4_landed0': ("Welcome to the other SIDE!", 'shout'),
     'p4_landed1': ("Say hello to my ancestors for me.", 'sly'),
     'p4_landed2': ("OLE! The dead LOVE that one!", 'shout'),
+    # (2026-10-04) phase four reworked: the reopened scar, Ignis's head, the prophecy, the souls, the Final Guardian
+    'p4_pant':   ("Hah... hah... hah...", 'pained'),
+    'p4_scar':   ("Huh... it reopened, didn't it.", 'pained'),
+    'p4_howgot': ("Do you want to know... how I got this scar?", 'pained'),
+    'p4_ignis':  ("I remember he did a little damage... but nothing notable.", 'sly'),
+    'p4_met':    ("I assume you two have met before, no?", 'smug'),
+    'p4_years':  ("Ten thousand years. Ten thousand years I have been waiting for this moment.", 'menace'),
+    'p4_prophecy': ("After all this time... the prophecy might finally be fulfilled.", 'evil'),
+    'p4_lunaknows': ("Ha... la luna knows it too.", 'sly'),
+    'p4_brethren': ("My brethren... this is it. This is what we were made for.", 'prophet'),
+    'p4_grant':  ("The prophecy will be fulfilled... so grant me your STRENGTH!", 'shout'),
+    'p4_halfbaked': ("You know... it's not right to go into a fight half baked.", 'sly'),
+    'p4_talking': ("Now we're TALKING!", 'shout'),
+    'p4_honor':  ("Señores... it has been an honor. But I need you to play one last song.", 'sincere'),
+    'p4_muchachas': ("Hey! Where are the muchachas?", 'smug'),
+    'p4_twirl':  ("Ha ha! Still got it!", 'smug'),
+    'p4_goodtime': ("COME ON!!! SHOW ME A GOOD TIME!!!", 'shout'),
+    'p4_flechas': ("The sun's arrows never miss, amigo!", 'smug'),
+    'p4_serpientes': ("My serpents... FEAST!", 'shout'),
+    'p4_charm6': ("Ten thousand years I waited... and the prophecy sent me YOU? I love it.", 'smug'),
+    'p4_charm7': ("The old gods are watching, amigo. Give them a show!", 'shout'),
 }
 
 # what the voice model is given to say, where the written line reads two ways ("lives": he said it like "alive")
@@ -408,7 +436,7 @@ SPOKEN = {
     'upgrade': "It's about time I gave this thing an upgrade.",     # in capitals it came out "upi-grad"
 }
 
-NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend'}          # Whisper cannot judge a scream or a lone word
+NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend', 'p4_pant'}          # Whisper cannot judge a scream or a lone word
 
 
 def norm(s):

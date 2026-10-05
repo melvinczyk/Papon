@@ -2222,5 +2222,241 @@
         "name": "papon:voice/boss2/p4_landed2"
       }
     ]
+  },
+  "music.persona_ideal.intro": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/intro",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.verse1": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/verse1",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.chorus1": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/chorus1",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.interlude": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/interlude",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.verse2": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/verse2",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.chorus2": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/chorus2",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.trompetas": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/trompetas",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.verse3": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/verse3",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.trompetas2": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/trompetas2",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.breakdown": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/breakdown",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.climax": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/climax",
+        "stream": true
+      }
+    ]
+  },
+  "music.persona_ideal.ending": {
+    "sounds": [
+      {
+        "name": "papon:music/persona_ideal/ending",
+        "stream": true
+      }
+    ]
+  },
+  "voice.boss2.p4_pant": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_pant"
+      }
+    ]
+  },
+  "voice.boss2.p4_scar": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_scar"
+      }
+    ]
+  },
+  "voice.boss2.p4_howgot": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_howgot"
+      }
+    ]
+  },
+  "voice.boss2.p4_ignis": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_ignis"
+      }
+    ]
+  },
+  "voice.boss2.p4_met": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_met"
+      }
+    ]
+  },
+  "voice.boss2.p4_years": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_years"
+      }
+    ]
+  },
+  "voice.boss2.p4_prophecy": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_prophecy"
+      }
+    ]
+  },
+  "voice.boss2.p4_lunaknows": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_lunaknows"
+      }
+    ]
+  },
+  "voice.boss2.p4_brethren": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_brethren"
+      }
+    ]
+  },
+  "voice.boss2.p4_grant": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_grant"
+      }
+    ]
+  },
+  "voice.boss2.p4_halfbaked": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_halfbaked"
+      }
+    ]
+  },
+  "voice.boss2.p4_talking": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_talking"
+      }
+    ]
+  },
+  "voice.boss2.p4_honor": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_honor"
+      }
+    ]
+  },
+  "voice.boss2.p4_muchachas": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_muchachas"
+      }
+    ]
+  },
+  "voice.boss2.p4_twirl": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_twirl"
+      }
+    ]
+  },
+  "voice.boss2.p4_goodtime": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_goodtime"
+      }
+    ]
+  },
+  "voice.boss2.p4_flechas": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_flechas"
+      }
+    ]
+  },
+  "voice.boss2.p4_serpientes": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_serpientes"
+      }
+    ]
+  },
+  "voice.boss2.p4_charm6": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_charm6"
+      }
+    ]
+  },
+  "voice.boss2.p4_charm7": {
+    "sounds": [
+      {
+        "name": "papon:voice/boss2/p4_charm7"
+      }
+    ]
   }
 }
