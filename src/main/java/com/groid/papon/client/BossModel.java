@@ -44,7 +44,7 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
         super.setCustomAnimations(boss, instanceId, state);
         if (boss.getBossState() == BossState.P3_SERENADE) serenade(boss, state.getPartialTick());
         if (boss.getBossState() == BossState.P3_DUEL || boss.getBossState() == BossState.P4_GIGANTE) shred(boss, state.getPartialTick());
-        if (boss.isMuertos() || boss.getBossState().phaseFour()) spiritProps(boss);
+        if (boss.isMuertos() || boss.getBossState().phaseFour()) spiritProps(boss, state.getPartialTick());
         BossFace.apply(getAnimationProcessor(), boss, state.getPartialTick());
     }
 
@@ -93,17 +93,22 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
      * Phase four's things out of thin air: the spirit hammer while he holds it (PaponBossEntity.spiritProp 1; the guitar
      * when he plays for El Gigante, 2), the Catrin's hat on his truest form. Set every frame: no animation keys them.
      */
-    private void spiritProps(PaponBossEntity boss) {
+    private void spiritProps(PaponBossEntity boss, float partial) {
         int prop = boss.spiritProp();
-        show("spirit_hammer", prop == 1);
-        show("catrin_hat", boss.isMuertos());
-        if (prop == 2) show("p3_guitar", true);
+        float hammer = prop == 1 ? 1 : 0;
+        if (prop == 1 && boss.getBossState() == BossState.P4_HAMMER) {
+            // it sets out of the blue fire in his fist: swelling up past its size and settling (p4.forms)
+            float t = (boss.ticksInState() + partial - com.groid.papon.boss.VoiceLines.beat("p4.forms", 60)) / 7F;
+            hammer = t >= 1 ? 1 : (float) Math.max(0.05, Mth.sin(t * Mth.PI * 0.5F) * (1 + 0.25F * Mth.sin(t * Mth.PI)));
+        }
+        scale("spirit_hammer", hammer);
+        scale("catrin_hat", boss.isMuertos() ? 1 : 0);
+        // the spirit guitar (prop 2) is the requinto bone, shown by d_gigante itself at the size he plays it
     }
 
-    private void show(String name, boolean shown) {
+    private void scale(String name, float k) {
         CoreGeoBone bone = getAnimationProcessor().getBone(name);
         if (bone == null) return;
-        float k = shown ? 1 : 0;
         bone.setScaleX(k);
         bone.setScaleY(k);
         bone.setScaleZ(k);

@@ -53,6 +53,8 @@ public final class AutoShot {
     private static final boolean ARENA = MODE.equals("arena");
     /** -Pautoshot=phase3: phase two into the coliseum and the song, then half health: phase three's cutscene beat by beat, and the night fight. */
     private static final boolean PHASE3 = MODE.equals("phase3");
+    /** -Pautoshot=phase4: into the coliseum, then a quarter health: phase four's ritual beat by beat, the dead's coliseum, and every move of his truest form. */
+    private static final boolean PHASE4 = MODE.equals("phase4");
     /** -Pautoshot=nights: into the coliseum, then the flags, the crowd up close, the potato sun, nightfall (the lamplighter), the potato moon. */
     private static final boolean NIGHTS = MODE.equals("nights");
     /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
@@ -96,7 +98,7 @@ public final class AutoShot {
             pillow(mc);
             return;
         }
-        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3) {
+        if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4) {
             coliseum(mc);
             if (VOICE) voice(mc);
             return;
@@ -370,6 +372,10 @@ public final class AutoShot {
         }
         if (colMark > 0 && PHASE3) {
             phaseThreeTour(mc, b, tick - colMark);
+            return;
+        }
+        if (colMark > 0 && PHASE4) {
+            phaseFourTour(mc, b, tick - colMark);
             return;
         }
         // the band, member by member, while they play (from the front, a few blocks off)
@@ -979,6 +985,106 @@ public final class AutoShot {
     }
 
     private static int p3Mark = -1;
+    private static int p4Mark = -1;
+
+    /** Phase four: the ritual from a quarter health (shots on every beat), the dead's coliseum from outside and in, the band and the stands turned, then each of his moves on you. */
+    private static void phaseFourTour(Minecraft mc, PaponBossEntity b, int k) {
+        BossState s = b.getBossState();
+        int t = b.ticksInState();
+        if (k == 2) {
+            run("gamemode survival", "effect give @s regeneration 100000 4 true");
+            run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~7");
+        }
+        if (k == 40) run("papon bossstate P4_RISE");
+        if (k > 40 && !com.groid.papon.client.Cinematic.isActive() && !s.phaseFour()) lookAt(mc, b);
+        String n = switch (s) {
+            case P4_RISE -> t == 4 ? "w01_jolt" : t == 20 ? "w02_laugh" : t == vb("p4.moon", 34) + 10 ? "w03_moon_out" : t == vb("p4.rise", 50) + 12 ? "w04_was_that_all" : null;
+            case P4_HAMMER -> t == 30 ? "w05_fire_spiral" : t == vb("p4.forms", 60) + 3 ? "w06_hammer_forms" : t == vb("p4.forms", 60) + 18 ? "w07_up_at_him"
+                    : t == vb("p4.hammer", 74) + 14 ? "w08_death_lends" : null;
+            case P4_STRIKE -> t == vb("p4.swing", 30) - 4 ? "w09_wind_up" : t == vb("p4.swing", 30) + 6 ? "w10_bolt" : t == vb("p4.turn", 52) - 4 ? "w11_moon_cracks"
+                    : t == vb("p4.turn", 52) + 20 ? "w12_calavera_moon" : t == vb("p4.turn", 52) + 46 ? "w13_from_the_band" : null;
+            case P4_MOONRAYS -> t == com.groid.papon.boss.PaponBossEntity.rayAt(1) + 2 ? "w14_ray_band" : t == com.groid.papon.boss.PaponBossEntity.rayAt(6) + 4 ? "w15_rays_band2"
+                    : t == com.groid.papon.boss.PaponBossEntity.rayAt(12) + 14 ? "w16_skeleton_face" : t == 110 ? "w17_rays_stands" : t == 132 ? "w18_rays_stands2" : null;
+            case P4_BLUEOUT -> t == 20 ? "w19_blueout" : t == 50 ? "w20_blueout2" : null;
+            case P4_REVEAL -> t == 12 ? "w21_crane_in" : t == vb("p4.land", 34) + 2 ? "w22_landing" : t == vb("p4.land", 34) + 24 ? "w23_looks_round"
+                    : t == vb("p4.centuries", 74) + 20 ? "w24_centuries" : null;
+            case P4_TRUEFORM -> t == 20 ? "w25_burning" : t == vb("p4.bone", 40) + 4 ? "w26_bone" : t == vb("p4.bone", 40) + 16 ? "w27_wings"
+                    : t == vb("p4.true", 62) + 16 ? "w28_behold" : t == vb("p4.drop", 96) + 10 ? "w29_drop" : t == vb("p4.drop", 96) + 34 ? "w30_dead_go_wild" : null;
+            default -> null;
+        };
+        if (n != null) once(mc, n);
+        if (b.muertosFight() && s == BossState.IDLE && p4Mark < 0) p4Mark = k;
+        if (p4Mark < 0) {
+            if (k > 60 * 20 * 6) mc.stop();
+            return;
+        }
+        int j = k - p4Mark;
+        Vec3 c = b.arena() != null ? b.arena().centerVec() : b.position();
+        if (j == 2) PaponBossEntity.devFrozen = true;
+        if (j == 4) run("gamemode spectator");
+        if (j == 6) tpLook(c.add(0, 70, 120), c);
+        if (j == 24) shot(mc, "x01_dead_coliseum_outside");
+        if (j == 26) tpLook(c.add(0, 30, 50), c);
+        if (j == 44) shot(mc, "x02_dead_bowl");
+        if (j == 46) PaponMod.LOG.info("[autoshot] dead coliseum fps {}", mc.getFps());
+        var singer = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(160),
+                m -> m.getRole().singer()).stream().findFirst().orElse(null);
+        if (singer != null && j == 48) {
+            Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+            tpLook(singer.position().add(f.scale(9)).add(0, 1.5, 0), singer.position().add(0, 1.2, 0));
+        }
+        if (j == 64) shot(mc, "x03_band_of_the_dead");
+        if (singer != null && j == 66) {
+            Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+            Vec3 mouth = singer.position().add(0, singer.getBbHeight() * 0.6, 0);
+            tpLook(mouth.add(f.scale(2.6)).add(0, -1.5, 0), mouth);
+        }
+        if (j == 80) shot(mc, "x04_singer_skull");
+        if (j == 82) tpLook(c.add(0, 2, 0), c.add(40, 14, 0));
+        if (j == 98) shot(mc, "x05_stands_dead");
+        if (j == 100) tpLook(c.add(6, 3, 10), b.position().add(0, 2, 0));
+        if (j == 116) shot(mc, "x06_rey_de_los_muertos");
+        if (j == 118) {
+            PaponBossEntity.devFrozen = false;
+            run("gamemode survival");
+        }
+        if (j >= 120) muertosShowcase(mc, b, j - 120);
+    }
+
+    /** El Rey de los Muertos's moves, one after another, on you (Resistance V and regeneration keep you up). */
+    private static final String[] SHOW_P4 = {"P4_MARTILLO", "P4_LUNA", "P4_GIGANTE", "P4_GRIETA", "P4_PETALOS", "P4_PAPEL", "P4_VELAS", "P4_DANZA"};
+    private static final int[] SHOW_P4_LEN = {100, 160, 260, 230, 200, 200, 190, 200};
+
+    private static void muertosShowcase(Minecraft mc, PaponBossEntity b, int j) {
+        int at = 0, i = 0;
+        for (; i < SHOW_P4.length; i++) {
+            if (j < at + SHOW_P4_LEN[i]) break;
+            at += SHOW_P4_LEN[i];
+        }
+        if (i >= SHOW_P4.length) {
+            int u = j - at;
+            if (u == 4) run("kill @e[type=papon:papon_boss]");
+            if (u == 80) once(mc, "y99_his_fall");
+            if (u == 140) once(mc, "y99_back_down");
+            if (u == 160) mc.stop();
+            return;
+        }
+        int u = j - at;
+        String st = SHOW_P4[i];
+        Vec3 c = b.arena() != null ? b.arena().centerVec() : b.position();
+        if (u == 0) {
+            PaponMod.LOG.info("[autoshot] showcase {}", st);
+            run("effect give @s instant_health 1 4 true", "effect give @s resistance 100000 4 true");
+            run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", c.x + 6, c.y + 0.2, c.z + 12));
+            run("papon bossstate " + st);
+        }
+        lookAt(mc, b);
+        int len = SHOW_P4_LEN[i];
+        int[] shots = {len / 6, 2 * len / 6, 3 * len / 6, 4 * len / 6, 5 * len / 6};
+        for (int k = 0; k < shots.length; k++) {
+            if (u == shots[k]) shot(mc, String.format("y%02d_%s_%d", i, st.toLowerCase(java.util.Locale.ROOT), k));
+        }
+    }
 
     private static int vb(String key, int def) {
         return com.groid.papon.boss.VoiceLines.beat(key, def);

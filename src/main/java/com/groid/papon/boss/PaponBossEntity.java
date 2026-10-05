@@ -1797,9 +1797,31 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case SWIPE, UPPERCUT, LEAP, CHARGE_WINDUP, BREATH, THROW, BLINK, GATLING, DASH_COMBO, GRAB, PUNT_RUN, P2_BARRAGE, P2_METEOR,
                  P2_DIVE, VAN_GRAB, CLEAVER_TOSS, BURRITO_TOSS, DRUNK_SWIG, HAYMAKER, COMAL_SLAM, QTE_GRAB, P2_FRY_VOLLEY, P2_MASH, P2_TOT,
                  P2_SNARE, P2_GRAVITY, BRICK, VAN_HOP, P3_COMBO, P3_FLASH, P3_COMET, P3_LASER, P3_SOLAR, P3_MARIACHI, P3_DUEL_FETCH,
-                 P3_PINATA, P3_BRAZIERS, P3_NOVA, P3_NITRO, P3_SOMBRERO, P3_VOLCAN, P3_CALAVERAS, P3_PINATA_SWING -> true;
+                 P3_PINATA, P3_BRAZIERS, P3_NOVA, P3_NITRO, P3_SOMBRERO, P3_VOLCAN, P3_CALAVERAS, P3_PINATA_SWING, P4_MARTILLO, P4_GIGANTE,
+                 P4_GRIETA, P4_PETALOS, P4_PAPEL, P4_VELAS, P4_DANZA, P4_LUNA -> true;
             default -> false;
         };
+        if (s == BossState.P4_RISE) {
+            // phase four from the top, as if a hit had just taken him to a quarter (phase three first, if he was not in it)
+            entityData.set(DATA_PHASE2, true);
+            entityData.set(DATA_PHASE3, true);
+            if (form() < 3) entityData.set(DATA_FORM, 3);
+            refreshDimensions();
+            setHealth(Math.min(getHealth(), getMaxHealth() * PHASE_FOUR_AT - 1));
+            phaseFourDue = true;
+            setBossState(BossState.IDLE);
+            return;
+        }
+        if (s.muertosMove() && !muertosFight()) {
+            // one of his truest form's moves asked for before phase four (dev and testing): straight into the form
+            entityData.set(DATA_PHASE2, true);
+            entityData.set(DATA_PHASE3, true);
+            entityData.set(DATA_PHASE4, true);
+            entityData.set(DATA_FORM, 4);
+            entityData.set(DATA_P4PROP, 1);
+            entityData.set(DATA_MOON, 2);
+            refreshDimensions();
+        }
         if (s.ordinal() >= BossState.P3_COMBO.ordinal() && s != BossState.WINDED && !ascendedFight()) {
             // an Ascended move asked for before phase three: straight into his form (dev and testing)
             entityData.set(DATA_PHASE2, true);

@@ -428,7 +428,25 @@ def build():
         json.dump(geo, f, separators=(',', ':'))
     Image.fromarray(S.img, 'RGBA').save(os.path.join(ASSETS, 'textures/entity/papon_muertos.png'))
     Image.fromarray(S.glow, 'RGBA').save(os.path.join(ASSETS, 'textures/entity/papon_muertos_glowmask.png'))
+    give_ascended_hammer(bones)
     return out
+
+
+def give_ascended_hammer(bones):
+    """The hammer forms in his hand while he is still Ascended (P4_HAMMER, P4_STRIKE: the skeleton comes later), so
+    papon_ascended gets the same spirit_hammer bone, its pixels copied to the same place on its sheet (rows 384 on, empty
+    there). Pinned to 0 in every animation (gen_boss_anims B.pins); client/BossModel shows it."""
+    geo_path = os.path.join(ASSETS, 'geo/entity/papon_ascended.geo.json')
+    geo = json.load(open(geo_path))
+    g = geo['minecraft:geometry'][0]
+    g['bones'] = [b for b in g['bones'] if b['name'] != 'spirit_hammer'] + [copy.deepcopy(b) for b in bones if b['name'] == 'spirit_hammer']
+    with open(geo_path, 'w', newline='\n') as f:
+        json.dump(geo, f, separators=(',', ':'))
+    for name, src in (('papon_ascended.png', S.img), ('papon_ascended_glowmask.png', S.glow)):
+        path = os.path.join(ASSETS, 'textures/entity', name)
+        im = np.asarray(Image.open(path).convert('RGBA')).copy()
+        im[384:] = src[384:]
+        Image.fromarray(im, 'RGBA').save(path)
 
 
 if __name__ == '__main__':

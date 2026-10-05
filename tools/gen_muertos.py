@@ -522,9 +522,263 @@ def flag():
     return im
 
 
+# ===================================================================== the band and the crowd, turned
+
+def turned(name):
+    """mariachi.png / arena_fan.png as the dead (MariachiModel, ColiseumCrowdRenderer): every potato pixel bone (its light and
+    shade kept, gen_muertos_papon.to_bone), the face a sugar skull with glowing blue eyes in its sockets; the band's gold
+    botonadura and trim turned silver, a marigold band on their sombreros; the fans' straw hats and jerseys in the fiesta's
+    colours. Same layout as the living texture (the same geo draws both)."""
+    import types
+    import numpy as np
+    import gen_muertos_papon as gmp
+    tex = os.path.join(ASSETS, 'textures/entity/%s.png' % name)
+    img = np.asarray(Image.open(tex).convert('RGBA')).copy()
+    gmp.S = types.SimpleNamespace(img=img, glow=np.zeros_like(img))
+    g = json.load(open(os.path.join(ASSETS, 'geo/entity/%s.geo.json' % name)))['minecraft:geometry'][0]
+    by = {b['name']: b for b in g['bones']}
+    skin = []
+    for n in ('body', 'leg_r', 'leg_l', 'arm_r', 'arm_l', 'arm_r_mesh', 'arm_l_mesh', 'eyelids', 'cheek_r', 'cheek_l'):
+        if n in by:
+            skin += gmp.rect_list(by[n].get('cubes', []))
+    gmp.bone_over(skin)
+    body = by['body']['cubes'][0]
+    u0, v0 = (int(v) for v in body['uv'])
+    w, h, d = (int(v) for v in body['size'])
+    # the face wiped to bone first (the potato's painted eyes and mouth bar), then the skull painted on
+    for y in range(v0 + d, v0 + d + h):
+        for x in range(u0 + d, u0 + d + w):
+            if img[y, x, 3]:
+                img[y, x, :3] = gmp.to_bone(img[y, x]).astype(np.uint8)
+    gmp.scrub(body)
+    gmp.face_paint(body)
+    gmp.back_paint(body)
+    fx, fy = u0 + d, v0 + d
+    for ex in (-4.5, 4.5):                      # the eyes: a blue light deep in each socket
+        cx, cy = fx + (8 - ex), fy + (24 - 19.5)
+        for yy in range(int(cy) - 1, int(cy) + 1):
+            for xx in range(int(cx) - 1, int(cx) + 1):
+                img[yy, xx, :3] = ECTO
+        img[int(cy) - 1, int(cx) - 1, :3] = ECTO_HI
+    for n in ('lip_up', 'lip_low', 'mouth_in'):
+        if n in by:
+            for (x0, y0, ww, hh) in gmp.rect_list(by[n].get('cubes', [])):
+                img[y0:y0 + hh, x0:x0 + ww, :3] = INK
+                if n != 'mouth_in':
+                    img[y0:y0 + hh, x0:x0 + ww:2, :3] = BONE_DK
+    if 'teeth' in by:
+        for (x0, y0, ww, hh) in gmp.rect_list(by['teeth']['cubes']):
+            img[y0:y0 + hh, x0:x0 + ww, :3] = BONE_HI
+            img[y0:y0 + hh, x0:x0 + ww:2, :3] = BONE_DK
+
+    def recolour(names, fn):
+        for n in names:
+            if n not in by:
+                continue
+            for (x0, y0, ww, hh) in gmp.rect_list(by[n].get('cubes', [])):
+                for y in range(y0, min(img.shape[0], y0 + hh)):
+                    for x in range(x0, min(img.shape[1], x0 + ww)):
+                        if img[y, x, 3]:
+                            img[y, x, :3] = fn(img[y, x], x, y)
+
+    import colorsys
+
+    def hsv(px):
+        return colorsys.rgb_to_hsv(*(c / 255 for c in px[:3]))
+
+    def silver(px, x, y):
+        hh, ss, vv = hsv(px)
+        if 0.08 <= hh <= 0.18 and ss > 0.35 and vv > 0.45:          # gold to silver, a glint of blue
+            k = vv
+            return (int(150 + 90 * k), int(160 + 88 * k), int(176 + 79 * k))
+        if vv < 0.3:                                                  # the black cloth a touch purple
+            return (int(px[0] * 0.9 + 6), int(px[1] * 0.8), int(px[2] * 0.9 + 12))
+        return tuple(px[:3])
+
+    if name == 'mariachi':
+        recolour(('jacket', 'sleeve_r', 'sleeve_l', 'pant_r', 'pant_l', 'jacket_chair', 'jacket_floor', 'shirt', 'shades'), silver)
+        hats = ('sombrero', 'sombrero_floor')
+        recolour(hats, silver)
+        for n in hats:                          # a marigold band round the crown, rosa in every third pixel
+            cubes = by[n].get('cubes', [])
+            if len(cubes) > 2:
+                crown = max(cubes, key=lambda c: c['size'][1])
+                (x0, y0, ww, hh) = gmp.rect_list([crown])[0]
+                cd = int(math.ceil(crown['size'][2]))
+                yb = y0 + cd + int(math.ceil(crown['size'][1])) - 2
+                for x in range(x0, x0 + ww):
+                    if 0 <= yb < img.shape[0] and img[yb, x, 3]:
+                        img[yb, x, :3] = PINK if x % 3 == 0 else MARIGOLD
+    else:
+        def straw(px, x, y):
+            hh, ss, vv = hsv(px)
+            if hh < 0.05 or hh > 0.9:                                  # the red band: rosa mexicano
+                return PINK
+            if 0.2 < hh < 0.5:                                         # the green band: marigold
+                return MARIGOLD
+            k = vv
+            return (int(30 + 40 * k), int(22 + 30 * k), int(40 + 46 * k))   # a black straw hat
+        recolour(('sombrero',), straw)
+
+        def jersey(px, x, y):
+            hh, ss, vv = hsv(px)
+            if ss < 0.2 and vv > 0.7:
+                return BONE_HI
+            return (int(PURPLE[0] * (0.6 + 0.6 * vv)), int(PURPLE[1] * (0.6 + 0.6 * vv)), int(PURPLE[2] * (0.6 + 0.5 * vv)))
+        recolour(('jersey', 'cap'), jersey)
+        recolour(('foam_hat',), lambda px, x, y: MARIGOLD_HI if (x + y) % 5 == 0 else MARIGOLD)
+        recolour(('foam_finger',), lambda px, x, y: BONE_HI if hsv(px)[1] < 0.2 else PINK)
+    return Image.fromarray(img, 'RGBA')
+
+
+# ===================================================================== the sky
+
+def dead_moon():
+    """The moon after his hammer's bolt (client/MuertosSky, drawn over the black sky with alpha): a great calavera of cold blue
+    bone, the flag's emblem without its wreath, cracks of light across it, the eyes burning ectoplasm."""
+    n = 256
+    im = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    rng = random.Random(1102)
+    c = n / 2
+    r = n * 0.47
+    d.ellipse([c - r, c - r, c + r, c + r], fill=(176, 214, 236))
+    px = im.load()
+    for y in range(n):
+        for x in range(n):
+            if px[x, y][3] == 0:
+                continue
+            dx, dy = (x - c) / r, (y - c) / r
+            rim = math.hypot(dx, dy)
+            light = 1.0 - 0.35 * max(0, rim - 0.55) / 0.45 - 0.15 * (dx + dy) * 0.5
+            f = light * (1 + rng.uniform(-0.04, 0.04))
+            px[x, y] = (int(150 * f + 40), int(200 * f + 30), int(232 * f + 22), 255)
+    # craters
+    for _ in range(18):
+        a, rr = rng.uniform(0, math.pi * 2), r * math.sqrt(rng.random()) * 0.85
+        cx, cy, s = c + math.cos(a) * rr, c + math.sin(a) * rr, rng.uniform(4, 13)
+        d.ellipse([cx - s, cy - s, cx + s, cy + s], fill=(120, 160, 196, 255))
+        d.ellipse([cx - s * 0.7, cy - s * 0.7, cx + s * 0.85, cy + s * 0.85], fill=(140, 182, 214, 255))
+    u = n / 34.0
+    cx, cy = c, c + 0.6 * u
+    for side in (-1, 1):                                # the sockets, ringed in petals of light
+        ex = cx + side * 5.6 * u
+        for k in range(12):
+            a = k / 12 * math.pi * 2
+            px_, py_ = ex + math.cos(a) * 4.6 * u, cy - 2.4 * u + math.sin(a) * 4.8 * u
+            d.ellipse([px_ - 1.4 * u, py_ - 1.4 * u, px_ + 1.4 * u, py_ + 1.4 * u], fill=(PINK if k % 2 else MARIGOLD) + (255,))
+        d.ellipse([ex - 3.7 * u, cy - 6.4 * u, ex + 3.7 * u, cy + 1.6 * u], fill=(10, 14, 34, 255))
+        d.ellipse([ex - 1.6 * u, cy - 4.0 * u, ex + 1.6 * u, cy - 0.8 * u], fill=ECTO + (255,))
+        d.ellipse([ex - 0.7 * u, cy - 3.4 * u, ex + 0.3 * u, cy - 2.4 * u], fill=ECTO_HI + (255,))
+    d.polygon([(cx - 1.8 * u, cy + 3.0 * u), (cx + 1.8 * u, cy + 3.0 * u), (cx, cy + 5.8 * u)], fill=(10, 14, 34, 255))
+    d.line([(cx - 8.0 * u, cy + 9.0 * u), (cx + 8.0 * u, cy + 9.0 * u)], fill=(10, 14, 34, 255), width=int(0.8 * u))
+    for k in range(-6, 7):
+        x = cx + k * 1.25 * u
+        d.line([(x, cy + 7.6 * u), (x, cy + 10.4 * u)], fill=(10, 14, 34, 255), width=max(1, int(0.5 * u)))
+    for k in range(6):                                  # the flower on its brow
+        a = k / 6 * math.pi * 2
+        fx_, fy_ = cx + math.cos(a) * 2.0 * u, cy - 11.0 * u + math.sin(a) * 2.0 * u
+        d.ellipse([fx_ - 1.3 * u, fy_ - 1.3 * u, fx_ + 1.3 * u, fy_ + 1.3 * u], fill=PINK + (255,))
+    d.ellipse([cx - 1.1 * u, cy - 12.1 * u, cx + 1.1 * u, cy - 9.9 * u], fill=MARIGOLD_HI + (255,))
+    for side in (-1, 1):                                # swirls on the cheeks
+        sx = cx + side * 10.5 * u
+        d.arc([sx - 2.4 * u, cy + 2 * u, sx + 2.4 * u, cy + 6.8 * u], 0, 300, fill=PURPLE + (255,), width=int(0.7 * u))
+    # the cracks the bolt left: lines of light
+    for _ in range(5):
+        a = rng.uniform(0, math.pi * 2)
+        x, y = c + math.cos(a) * r * 0.98, c + math.sin(a) * r * 0.98
+        for _ in range(7):
+            a2 = math.atan2(c - y, c - x) + rng.uniform(-0.9, 0.9)
+            nx, ny = x + math.cos(a2) * rng.uniform(6, 14), y + math.sin(a2) * rng.uniform(6, 14)
+            d.line([(x, y), (nx, ny)], fill=ECTO_HI + (255,), width=2)
+            x, y = nx, ny
+    return im
+
+
+# ===================================================================== the moves' things
+
+def papel_picado():
+    """Papel Picado's sheets (client/PropRenderer.drawPapel: four in a row, u = colour * 0.25): rosa, marigold, purple, green,
+    a calavera and flowers cut out of each, a fringe of cut triangles at the bottom, the fold along the top for the string."""
+    cw, ch = 48, 40
+    im = Image.new('RGBA', (cw * 4, ch), (0, 0, 0, 0))
+    cols = [(PINK, PINK_HI), (MARIGOLD, MARIGOLD_HI), (PURPLE, PURPLE_HI), ((40, 176, 90), (110, 220, 140))]
+    for i, (col, hi) in enumerate(cols):
+        sheet = Image.new('RGBA', (cw, ch), col + (255,))
+        d = ImageDraw.Draw(sheet)
+        d.rectangle([0, 0, cw - 1, 2], fill=hi + (255,))
+        cut = (0, 0, 0, 0)
+        # the bottom fringe
+        for x in range(0, cw, 4):
+            d.polygon([(x, ch), (x + 4, ch), (x + 2, ch - 4)], fill=cut)
+        # a border of little holes
+        for x in range(3, cw - 2, 4):
+            d.rectangle([x, 5, x + 1, 6], fill=cut)
+        for y in range(9, ch - 8, 4):
+            d.rectangle([3, y, 4, y + 1], fill=cut)
+            d.rectangle([cw - 5, y, cw - 4, y + 1], fill=cut)
+        # the calavera in the middle (its skull cut out, its features left in paper)
+        cx, cy = cw / 2, ch / 2 + 1
+        d.ellipse([cx - 9, cy - 10, cx + 9, cy + 7], fill=cut)
+        d.rectangle([cx - 5, cy + 4, cx + 5, cy + 10], fill=cut)
+        for sx in (-4, 4):
+            d.ellipse([cx + sx - 3, cy - 5, cx + sx + 3, cy + 1], fill=col + (255,))
+        d.polygon([(cx - 1.5, cy + 3), (cx + 1.5, cy + 3), (cx, cy + 5)], fill=col + (255,))
+        for k in range(-4, 5, 2):
+            d.line([(cx + k, cy + 6), (cx + k, cy + 9)], fill=col + (255,), width=1)
+        # flowers either side
+        for fx in (8, cw - 9):
+            for k in range(6):
+                a = k / 6 * math.pi * 2
+                x, y = fx + math.cos(a) * 3, cy + math.sin(a) * 3
+                d.ellipse([x - 1.4, y - 1.4, x + 1.4, y + 1.4], fill=cut)
+        im.alpha_composite(sheet, (i * cw, 0))
+    return im
+
+
+def soul():
+    """A tortured soul out of the rift (client/PropRenderer.drawSoul: translucent, emissive): a long wailing face of blue
+    light, hollow eyes, its mouth stretched open, arms reaching out, the body trailing away into wisps."""
+    w, h = 48, 64
+    big = 4
+    im = Image.new('RGBA', (w * big, h * big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    s = big
+    # the trail: a tapering, wavering tail below
+    for y in range(26 * s, h * s):
+        k = (y - 26 * s) / ((h - 26) * s)
+        half = (11 - 9 * k) * s
+        off = math.sin(k * 7.0) * 4 * s
+        a = int(200 * (1 - k) ** 1.4)
+        d.line([(w * s / 2 + off - half, y), (w * s / 2 + off + half, y)], fill=(80, 210, 255, a))
+    # the arms reaching out and up
+    for side in (-1, 1):
+        pts = [(w * s / 2 + side * 8 * s, 30 * s), (w * s / 2 + side * 18 * s, 22 * s), (w * s / 2 + side * 22 * s, 14 * s)]
+        d.line(pts, fill=(120, 230, 255, 210), width=3 * s)
+        for k in range(3):                                   # the fingers
+            fx, fy = pts[-1]
+            d.line([(fx, fy), (fx + side * (2 + k) * s, fy - (4 - k) * s)], fill=(160, 240, 255, 220), width=s)
+    # the head
+    d.ellipse([w * s / 2 - 11 * s, 4 * s, w * s / 2 + 11 * s, 34 * s], fill=(110, 226, 255, 215))
+    d.ellipse([w * s / 2 - 9 * s, 6 * s, w * s / 2 + 9 * s, 30 * s], fill=(170, 244, 255, 225))
+    for side in (-1, 1):                                     # hollow eyes, sagging
+        d.ellipse([w * s / 2 + side * 4.5 * s - 3 * s, 11 * s, w * s / 2 + side * 4.5 * s + 3 * s, 19 * s], fill=(6, 30, 70, 240))
+    d.ellipse([w * s / 2 - 4 * s, 20 * s, w * s / 2 + 4 * s, 31 * s], fill=(6, 30, 70, 245))   # the wail
+    im = im.resize((w, h), Image.LANCZOS)
+    return im
+
+
 if __name__ == '__main__':
-    what = set(sys.argv[1:]) or {'blocks', 'flag', 'sky', 'fx'}
+    what = set(sys.argv[1:]) or {'blocks', 'flag', 'sky', 'fx', 'band'}
     if 'blocks' in what:
         blocks()
     if 'flag' in what:
         save(flag(), 'textures/entity/potato_flag_muertos.png')
+    if 'sky' in what:
+        save(dead_moon(), 'textures/environment/muertos_moon.png')
+    if 'fx' in what:
+        save(papel_picado(), 'textures/entity/papel_picado.png')
+        save(soul(), 'textures/entity/soul.png')
+    if 'band' in what:
+        save(turned('mariachi'), 'textures/entity/mariachi_muertos.png')
+        save(turned('arena_fan'), 'textures/entity/arena_fan_muertos.png')
