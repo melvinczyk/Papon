@@ -75,9 +75,10 @@ years...**"; story: final guardian of the world, the **potato prophecy** of a wa
 centuries** for a champion to care for the world; **Moctezuma/Cortés-as-Quetzalcoatl parallel**; fog, "**la luna knows it
 too**"; "**My brethren... grant me your strength**": **Día de los Muertos moon** (the user's sugar skull,
 `tools/src/sugar_skull.webp`), crowd souls flow into him (they turn skeletons), then the band's; "**it's not right to go into a
-fight half baked**", "**Papon, The Final Guardian**"; Aztec bow, shoots the moon, **Ouros and Boros** (user said "Oros and
-Bouros": Dungeon Now Loading's Fairkeeper serpents, built as Aztec serpent gods from the user's Quetzalcoatl picture; say so if
-asked) out of black smoke, huge; "**Now we are talking!**"; "**Señores, it has been an honor, but I need you to play one last
+fight half baked**", "**Papon, The Final Guardian**"; Aztec bow, shoots the moon, **Quetzalcóatl and Kukulcán** (first
+"Ouros and Boros"; the user asked for names true to Mexican lore for stone feathered serpents: Teotihuacan's and Chichén Itzá's;
+Dungeon Now Loading's Fairkeeper serpents, repainted from the user's Quetzalcoatl picture) out of black smoke, huge; they **breathe
+green fire** and **fuse** into one for a super attack; "**Now we are talking!**"; "**Señores, it has been an honor, but I need you to play one last
 song**": **"Persona Ideal (Me Tengo Que Ir)"**, brass animated; "**Where are the muchachas?**" skeletal salsa Papons, he twirls
 one; "**COME ON!!! SHOW ME A GOOD TIME!!!**". Crowd silent, him serious/wounded/panting in the transition; scenes slow enough to
 land; screams screamed; grand attacks are most of what he does (serpents circling the arena, salsa, more colour); **dance-off
@@ -157,7 +158,9 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   drawn by `client/MuertosArena` from `DATA_P4SEED/FIELD/CENTER`): P4_OUROBOROS (serpents on a ring, `SerpentPath.Ring`),
   P4_PISTA (beat-tile dance floor), P4_CEMPASUCHIL (marigold path, ectoplasm flood), P4_CASTILLO (fireworks tower), P4_SALSA,
   P4_TANGO → P4_TANGO_WIN/LOSE (El Último Tango, QTE kind 7, `client/DanceOff`: call-and-response WASD + SPACE, mouse-led abrazo,
-  applause meter). `BossModel.groove` on the beat. Serpents/dancers never saved. Death line `p4_death`.
+  applause meter). Serpents (2026-10-05): green fire sweeps (`breathe`/`tickBreaths`, now and then between moves:
+  `tickPassiveBreath`), P4_ALIENTO (Aliento de Jade), P4_FUSION (La Gran Serpiente: both on one tight ring 30 up, a hunting beam,
+  jumpable shockwaves). `p4Watchdog` puts him back on the sand from any stuck phase-four state. `BossModel.groove` on the beat. Serpents/dancers never saved. Death line `p4_death`.
 - Forms: 1 baked texture, 2 risen (wings/crown/butter), 3 ascended, 4 Final Guardian (`gen_muertos_papon.py`).
 - Ending: DEATH → Gerbin's pillow (`GerbinEntity.reward`) → `TacoVendorEntity.reform` / `welcomeBack` → free taco menu.
 - Coliseum: built in the sky (floor build-limit − 40) into air only, unbreakable `papon:` blocks; plan is a pure function of
@@ -172,7 +175,11 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   animation (`B.pins`); only the second controller "form" (`animateForm`, class `F`) keys them; it runs after "main" so it wins.
   `blush` shows only in `chug`, `drink_handle`, `drunk_swig`.
 - **Blockbench multiplies scales** of animations played together: to preview, merge main + form (form's channels replacing).
-- `BossFace.add` for shared bones (it takes last frame's addition back off; plain addition piles up).
+- `BossFace.add` for shared bones (it takes last frame's addition back off; plain addition piles up). Two adders on one unkeyed
+  channel break each other's take-back: `BossModel.setCustomAnimations` resets `body`'s rotation every frame (groove + face).
+- No leash in a coliseum (the dead one is wider than `ARENA_RADIUS`; a ground path never starts while flying: he hung in the air).
+- Voice: phase-four lines all cloned from the `animated` reference (`P4_GEN`); `pick` drops takes more than `SIM_GATE` under the
+  line's best speaker match. Check drift of built lines with `voice_modal.similarity`.
 - **Glowmask removes those pixels from the normal pass**: nothing visible in phase one may be in a glowmask.
 - Props never warp: arms split `arm_*` / `arm_*_mesh` / `hand_*` (`gen_vendor.rig_hands`).
 - Geo cube origins are absolute: build instruments around 0 and move to pivot (`placed`).

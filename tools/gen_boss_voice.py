@@ -128,6 +128,11 @@ DIRECTION = {
                              'every word heavy and proud, the voice swelling on the last words.' % STAR),
     'joy': ('animated', NATURAL + 'You are %s, having the time of your life at a fiesta: delighted, laughing as you talk, '
                         'bouncing and playful, the pitch leaping up on the fun words.' % STAR),
+    # (2026-10-05) phase four's big cries, from the same reference as his monologue: the 'excited' cut at temperature 1.0
+    # gave screams that sounded like another man (the user: "clearly a different tts voice")
+    'cry': ('animated', NATURAL + 'You are %s, crying out with your whole chest: passionate, powerful and full of feeling, the '
+                        'voice swelling and straining on the big words, but always your own warm voice, every sentence carried '
+                        'through to its end like a man in the moment, not a scream.' % STAR),
     'intense': ('animated', NATURAL + 'You are %s, deadly serious and burning with intensity: low and hard, then rising, '
                             'every word meant, a challenge thrown down.' % STAR),
 }
@@ -414,36 +419,41 @@ LINES = {
     'p4_lunaknows': ("Ha... la luna knows it too.", 'warm'),
     # the souls
     'p4_brethren': ("My brothers, my sisters... this is it. This is the night we were made for.", 'prophet'),
-    'p4_grant':  ("So lend me your souls, and grant me your STRENGTH!", 'scream'),
-    'p4_feel':   ("Yes... yes, I can feel every one of you... AAAAAAAGH!", 'scream'),
+    'p4_grant':  ("So lend me your souls, and grant me your STRENGTH!", 'cry'),
+    'p4_feel':   ("Yes... I can feel every one of you. Ten thousand years of your hearts and your songs, burning inside me!", 'cry'),
     # the transformation
     'p4_halfbaked': ("You know... it's not right to go into a fight half baked.", 'sly'),
     'p4_burst':  ("RRRAAAAAAAAAAAAAAGH!", 'scream'),
     'p4_guardian': ("I am Papon... the Final Guardian.", 'majestic'),
     # the bow, the serpents, the band, the muchachas, you
-    'p4_bow':    ("Ouros! Boros! Come down and meet the one who wants my throne!", 'shout'),
+    'p4_bow':    ("Quetzalcóatl! Kukulcán! Come down, and meet the one who wants my throne!", 'cry'),
     'p4_talking': ("Now we're talking!", 'joy'),
     'p4_honor':  ("Señores... it has been an honor, every single night. But I need you to play one last song for me.", 'sincere'),
     'p4_muchachas': ("Hey! Where are my muchachas?", 'warm'),
     'p4_twirl':  ("Ha ha! I still got it!", 'joy'),
     'p4_dance':  ("This was never a fight, amigo. It is a dance. Keep up with me... or fall.", 'intense'),
-    'p4_goodtime': ("COME ON! SHOW ME A GOOD TIME!", 'scream'),
+    'p4_goodtime': ("Come on! Show me a GOOD time!", 'cry'),
     # his moves
-    'p4_martillo': ("Feel the weight of ten thousand years!", 'shout'),
+    'p4_martillo': ("Feel the weight of ten thousand years!", 'cry'),
     'p4_luna':   ("Luna, my love... show them your light.", 'warm'),
-    'p4_gigante': ("Wake up, old friend! Rise, GIGANTE!", 'scream'),
+    'p4_gigante': ("Wake up, old friend! Rise, GIGANTE!", 'cry'),
     'p4_grieta': ("The souls are hungry tonight, amigo. Can you hear them calling you?", 'evil'),
     'p4_cierra': ("And... shut.", 'dry'),
     'p4_petalos': ("Marigolds, to guide you home!", 'joy'),
     'p4_papel':  ("Jump, duck, and dance, amigo!", 'joy'),
     'p4_velas':  ("Light a candle for yourself, amigo. You are going to need it.", 'sly'),
     'p4_danza':  ("My ancestors want to dance with you!", 'joy'),
-    'p4_flechas': ("The arrows of the sun never miss!", 'shout'),
-    'p4_serpientes': ("Ouros, Boros... FEAST!", 'scream'),
-    'p4_ouroboros': ("Around and around, like the serpent that eats its own tail! There is no way out, amigo!", 'shout'),
+    'p4_flechas': ("The arrows of the sun never miss!", 'cry'),
+    'p4_serpientes': ("Quetzalcóatl, Kukulcán... feast!", 'cry'),
+    'p4_ouroboros': ("Around and around you go, amigo. My serpents have you now, and there is no way out!", 'sly'),
+    # the serpents' fire and their fusion (2026-10-05)
+    'p4_aliento': ("Quetzalcóatl, Kukulcán... let them taste the fire of the old gods!", 'cry'),
+    'p4_fusion': ("Brothers of stone, it is time... become ONE!", 'cry'),
+    'p4_fire0':  ("Careful, amigo. They have not eaten in a thousand years.", 'sly'),
+    'p4_fire1':  ("Mind the fire! It burns all the way down to the soul.", 'joy'),
     'p4_pista':  ("The floor is yours, amigo. Stay on the beat, or burn!", 'joy'),
     'p4_cempasuchil': ("Follow the marigolds, amigo. They lead the souls home. Everyone else... drowns.", 'evil'),
-    'p4_castillo': ("Light the castillo! Every fiesta ends with fireworks!", 'shout'),
+    'p4_castillo': ("Light the castillo! Every fiesta ends with fireworks!", 'cry'),
     'p4_salsa':  ("Uno, dos, tres... and turn!", 'joy'),
     'p4_gigante_swat': ("Batter up, Gigante!", 'joy'),
     # the dance-off: El Ultimo Tango
@@ -486,7 +496,15 @@ FRESH |= {k for k in LINES if k.startswith('p4_')}
 SPOKEN = {
     'intro': "Nobody sees my bald head and livs to tell!",
     'upgrade': "It's about time I gave this thing an upgrade.",     # in capitals it came out "upi-grad"
+    # the serpents' names as they sound (the bubble keeps the Nahuatl and Maya spellings)
+    'p4_bow': "Ketsalcoatl! Kookoolkahn! Come down, and meet the one who wants my throne!",
+    'p4_serpientes': "Ketsalcoatl, Kookoolkahn... feast!",
+    'p4_aliento': "Ketsalcoatl, Kookoolkahn... let them taste the fire of the old gods!",
 }
+# phase four from one reference and a touch cooler, so every line of his is the same man (the screams drifted off his voice)
+P4_GEN = {'temperature': 0.9}
+# a take further than this below the line's best speaker match is not him (the drift the user heard)
+SIM_GATE = 0.010
 
 NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend', 'p4_burst'}          # Whisper cannot judge a scream or a lone word
 
@@ -522,6 +540,8 @@ def signature(line):
         ref, direction = OLD_DIRECTION[mood]
         return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction}
     ref, direction = DIRECTION[mood]
+    if line.startswith('p4_'):
+        return {'text': SPOKEN.get(line, text), 'ref': 'animated', 'instruct': direction, 'gen': P4_GEN}
     return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction, 'gen': GEN}
 
 
@@ -643,7 +663,7 @@ def heard_energy(heard):
 
 
 # takes chosen by ear over the automatic pick: line -> take index
-PICKED = {}
+PICKED = {'p4_burst': 1}         # the GPU's screams are thin: the one long roar
 
 
 def lives_ok(path):
@@ -681,6 +701,10 @@ def pick(line, info):
         return PICKED[line], (0,)
     text, mood = LINES[line]
     loud = '!' in text
+    if line.startswith('p4_'):
+        text = SPOKEN.get(line, text)                  # what Whisper should have heard (the names as they sound)
+    sims = [t.get('sim') for t in info['takes'] if t.get('sim')]
+    gate = (max(sims) - SIM_GATE) if sims and line in FRESH else -1
     cands = []
     for k, t in enumerate(info['takes']):
         path = take_path(line, k)
@@ -720,12 +744,13 @@ def pick(line, info):
             score += 4 * min(stretch, 6) + t['seconds']
         # a line written to be shouted: a take Whisper heard as flat (no "!") only if no take was exclaimed
         flat = loud and excl == 0 and line not in NO_CHECK
-        cands.append((t['clipped'], round(min(err, 0.5) * 4) / 4, flat, -score, k))
+        off = (t.get('sim') or 1) < gate                 # not his voice: only if every take is
+        cands.append((off, t['clipped'], round(min(err, 0.5) * 4) / 4, flat, -score, k))
     if not cands:
         return None, None
     # not cut off first, then said right (to a quarter of the words), then exclaimed if it should be, then the liveliest
     best = min(cands)
-    return best[4], best
+    return best[5], best[1:]
 
 
 def trim(y, sr, floor_db=-55, lead=0.05, tail=0.25):
@@ -1127,7 +1152,7 @@ def build(meta):
         with tempfile.TemporaryDirectory() as tmp:
             wav = os.path.join(tmp, 'l.wav')
             soundfile.write(wav, y, sr, subtype='PCM_16')
-            mouth = rhubarb(wav, text)
+            mouth = rhubarb(wav, SPOKEN.get(line, text) if line.startswith('p4_') else text)
         env, pitch, acc = tracks(y, sr)
         soundfile.write(os.path.join(out_dir, line + '.ogg'), y, sr, format='OGG', subtype='VORBIS')
         sounds['voice.boss2.' + line] = {'sounds': [{'name': 'papon:voice/boss2/' + line}]}
