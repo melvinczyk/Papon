@@ -157,8 +157,8 @@ public final class NightLight {
                         tg = 1 - 0.38F * w;
                         tb = 1 - 0.45F * w;
                     }
-                    if (dead && block > 0) {
-                        // the dead's: everything lit by spirit fire and ectoplasm, cold blue
+                    if (dead && block > 0 && block < 15) {
+                        // the dead's: everything lit by spirit fire and ectoplasm, cold blue (15 is his own light: white)
                         float w = bl * n;
                         tr = 1 - 0.45F * w;
                         tg = 1 - 0.08F * w;

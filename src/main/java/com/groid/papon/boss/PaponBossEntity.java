@@ -160,6 +160,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** His arena as the clients need it for the grand moves: half-axes a, b and the floor's height. */
     private static final EntityDataAccessor<org.joml.Vector3f> DATA_FIELD =
             SynchedEntityData.defineId(PaponBossEntity.class, EntityDataSerializers.VECTOR3);
+    /** The middle of his arena (the sand's floor), for the clients: the moon, the grand moves and the throne hang off it. */
+    private static final EntityDataAccessor<org.joml.Vector3f> DATA_CENTER =
+            SynchedEntityData.defineId(PaponBossEntity.class, EntityDataSerializers.VECTOR3);
 
     private static final String ANIM = "animation.papon_boss.";
     private static final RawAnimation LEAP_OUT = once("leap_out");
@@ -623,6 +626,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         entityData.define(DATA_P4ANGLE, 0F);
         entityData.define(DATA_P4SEED, 0);
         entityData.define(DATA_FIELD, new org.joml.Vector3f(30, 22, 0));
+        entityData.define(DATA_CENTER, new org.joml.Vector3f());
     }
 
     /** Client: the held player's meter in a squeeze or duel (0..1). */
@@ -1124,7 +1128,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         tickStrikes(level);
         tickSerpentDives(level);
         tickFlung(level);
-        if (isPhaseFour() && tickCount % 20 == 0) syncField();
+        if ((isPhaseFour() || inColiseum()) && tickCount % 10 == 0) syncField();
         if (!phaseFourDue && isPhaseThree() && !isPhaseFour() && getHealth() <= getMaxHealth() * PHASE_FOUR_AT && getHealth() > 0
                 && getBossState() == BossState.IDLE) {
             phaseFourDue = true;
@@ -3684,6 +3688,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (c != null) c.salvo(beats);
     }
 
+    /** Fireworks off the podium inside the bowl, bursting over the sand (client/FlagFireworks.inside). */
+    private void salvoInside(ServerLevel level, int beats) {
+        ColiseumCrowdEntity c = crowd(level);
+        if (c != null) c.salvoInside(beats);
+    }
+
     /**
      * Every tick: build what is left of the coliseum, keep the van on its floor, keep challengers
      * out of the stands, get the crowd going now and then, and bring it all down if nobody is left
@@ -4184,10 +4194,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 10) say("charm1", 60);
         if (t == 32) {
             crowdRoar(level, 26);
+            salvoInside(level, 2);
             PaponNetwork.shake(level, position(), 48, 0.2F, 14);
         }
         if (t == 60) {
             crowdRoar(level, 12);
+            salvoInside(level, 2);
             PaponNetwork.shake(level, position(), 48, 0.25F, 12);
         }
         if (t == 74) {
@@ -4198,8 +4210,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 78) say("landed1", 70);           // "And the crowd... goes WILD!!!" over the raise-the-roof
         if (t == 80) {
             crowdReact(level, CrowdMood.CHANT, 50);
-            salvo(level, 4);                       // a volley on each pump of the raise-the-roof
+            salvoInside(level, 4);                 // a volley on each pump of the raise-the-roof, inside the bowl
         }
+        if (t == 104) crowdRoar(level, 14);
         if (t >= 80 && t < 120 && (t - 80) % 10 == 0) {
             // raise the roof, on the beat
             Fx.spark(level, position().add(0, getBbHeight() + 0.4, 0), 10, 0.5, 0.3F, 0xFFE07A);
@@ -4212,12 +4225,18 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 150) {
             crowdRoar(level, 70);
             fireworks(level);
+            salvoInside(level, 6);
             PaponNetwork.shake(level, position(), 48, 0.7F, 24);
             Fx.shock(level, position(), 7F, 0xFFE07A);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 3.0F, 0.9F);
         }
         if (left <= 0 || stateTicks > BossState.P2_HYPE_LENGTH + 120) {
-            crowdMood(level, CrowdMood.CHEER);
+            // the first sung word: fire all round the bowl, and the stands lose their minds
+            crowdMood(level, CrowdMood.FIESTA);
+            crowdRoar(level, 60);
+            ColiseumCrowdEntity c = crowd(level);
+            if (c != null) c.pyro(12);
+            salvoInside(level, 4);
             finishCutscene(level);
         }
     }
@@ -9091,12 +9110,18 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /** Where the moon hangs (both sides): over his coliseum's band stand, or over where he fights. */
     public Vec3 moonPos() {
-        Vec3 c = inColiseum() && arena != null ? arena.centerVec() : home != null ? home : position();
+        Vec3 c = fightCenter();
         return c.add(0, Math.sin(MOON_ELEV) * MOON_DIST, -Math.cos(MOON_ELEV) * MOON_DIST);
     }
 
     /** Client: the arena's middle (or his home), the moon's rays aim from there. */
-    public Vec3 fightCenter() { return inColiseum() && arena != null ? arena.centerVec() : home != null ? home : position(); }
+    public Vec3 fightCenter() {
+        if (level().isClientSide) {
+            org.joml.Vector3f v = entityData.get(DATA_CENTER);
+            if (v.lengthSquared() > 0) return new Vec3(v.x(), v.y(), v.z());
+        }
+        return inColiseum() && arena != null ? arena.centerVec() : home != null ? home : position();
+    }
 
     private boolean canStartPhaseFour() {
         BossState s = getBossState();
@@ -9265,7 +9290,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** Where his throne is (his box over the band stand), or a point high over the stage without a coliseum. */
     public Vec3 throneSpot() {
         if (inColiseum() && arena != null) return arena.throne();
-        return p4Center().add(0, 12, -30);
+        if (level().isClientSide && inColiseum()) {
+            return fightCenter().add(0, Coliseum.rowHeight(3) + 2, -Math.round(fieldB() + 2 + 3.5));
+        }
+        return fightCenter().add(0, 12, -30);
     }
 
     /**
@@ -9808,6 +9836,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         home = c;
         p4Rise = c;
+        syncField();
         entityData.set(DATA_NIGHT, 0.92F);
         PaponMod.LOG.info("[boss] into El Coliseo de los Muertos at {} ({} x {})", arena.center, arena.a, arena.b);
     }
@@ -10473,6 +10502,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void syncField() {
         org.joml.Vector3f want = new org.joml.Vector3f((float) fa(), (float) fb(), (float) deadFloor());
         if (!want.equals(entityData.get(DATA_FIELD))) entityData.set(DATA_FIELD, want);
+        Vec3 c = inColiseum() && arena != null ? arena.centerVec() : home != null ? home : null;
+        org.joml.Vector3f cv = c != null ? c.toVector3f() : new org.joml.Vector3f();
+        if (!cv.equals(entityData.get(DATA_CENTER))) entityData.set(DATA_CENTER, cv);
     }
 
     /** A strike of the fiesta's (a footprint of fire, a rocket, a sugar skull): x, y, z, when, radius, share, 3, colour. */

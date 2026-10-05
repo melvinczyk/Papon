@@ -103,7 +103,7 @@ public final class Cinematic {
     }
 
     /** The guitar duel's shot: over the challenger's shoulder at him shredding; no letterbox over the fretboard. */
-    private static boolean duelShot, duelWas;
+    private static boolean duelShot, duelWas, danceWas;
 
     public static boolean povActive() {
         return active && pov != null;
@@ -352,6 +352,22 @@ public final class Cinematic {
             return new Shot(eye, b.position().add(0, b.getBbHeight() * 0.55, 0), 64, 0, cut);
         }
         duelWas = false;
+        if (QteClient.dancing(b) && Minecraft.getInstance().player != null) {
+            // the dance-off: a slow circle round the two of you, a little above, both of you in the frame
+            duelShot = true;
+            boolean cut = !danceWas;
+            danceWas = true;
+            var me = Minecraft.getInstance().player;
+            Vec3 mid = b.position().lerp(me.position(), 0.5);
+            Vec3 across = b.position().subtract(me.position()).multiply(1, 0, 1);
+            across = across.lengthSqr() < 1e-4 ? f : across.normalize();
+            Vec3 side = new Vec3(-across.z, 0, across.x);
+            double ang = Math.toRadians(-35 + 70 * Math.sin(b.tickCount * 0.012));
+            Vec3 dir = side.scale(Math.cos(ang)).add(across.scale(Math.sin(ang)));
+            double far = 6.5 + b.getBbHeight() * 0.9;
+            return new Shot(mid.add(dir.scale(far)).add(0, 2.4 + b.getBbHeight() * 0.25, 0), mid.add(0, 1.6, 0), 62, 0, cut);
+        }
+        danceWas = false;
         Shot p4 = phaseFourShot(b, s, t);
         if (p4 != null) return p4;
         Shot p3 = phaseThreeShot(b, s, t, f, right);
@@ -682,7 +698,10 @@ public final class Cinematic {
      *   P4_RISEUP     low as he struggles up; close for the cough of blood; pushing in on "how I got this scar?"
      *   P4_IGNIS      over his shoulder as he reaches back; Ignis's head held up, close; the two faces; on the sand where it
      *                 lands; over your shoulder, then his smug face: "met before, no?"
-     *   P4_PROPHECY   walking with him in profile; low and wide as the fog rolls in; from behind him up at the moon; his smile
+     *   P4_PROPHECY   walking with him in profile; low and wide as the fog rolls in; past his shoulder up at his throne; the
+     *                 throne on a long lens; his face looking up at it; over your shoulder; a slow circle; his face
+     *   P4_THRONE     wide and low in the fog (Moctezuma); a dolly past him; his face from below; over his shoulder at his
+     *                 throne; up at you, hard; his eyes, closer; the moon out through the fog; his face in its light; wide
      *   P4_BRETHREN   behind him to the stands he addresses; low on him; under his raised arms; the moon turning (long lens)
      *   P4_SOULS      high over the sand, the souls pouring into him; a stand of fans turning to bone; the band's; him aglow
      *   P4_HALFBAKED  his face in the green light; the burst; the flash; low round the Final Guardian in the new arena; wide
@@ -714,44 +733,71 @@ public final class Cinematic {
         double arenaA = crowd != null ? crowd.sizeA() : 29, arenaB = crowd != null ? crowd.sizeB() : 21;
         switch (s) {
             case P4_FALL -> {
-                int land = VoiceLines.beat("p4.land", 14), elbow = VoiceLines.beat("p4.elbow", 44), look = VoiceLines.beat("p4.look", 58),
-                        line = VoiceLines.beat("p4.scar", 76);
+                int land = VoiceLines.beat("p4.land", 14), elbow = VoiceLines.beat("p4.elbow", 66), look = VoiceLines.beat("p4.look", 86),
+                        line = VoiceLines.beat("p4.scar", 112), end = VoiceLines.beat("p4.fall_end", 184);
                 if (t < land + 3) {
                     // side on to his flight, wide: thrown flat across the sand
                     Vec3 eye = b.position().add(right.scale(h * 4.2)).add(f.scale(-h * 1.2)).add(0, h * 0.5, 0);
                     return new Shot(eye, b.position().add(0, h * 0.3, 0), 62, 0, near(t, 0));
                 }
-                if (t < look) {
+                if (t < 40) {
+                    // straight down on him, splayed on the sand, the camera sinking slowly: not a sound from anywhere
+                    double k = (t - land - 3) / (40.0 - land - 3);
+                    Vec3 eye = b.position().add(0, h * (3.6 - 1.2 * k), 0).add(f.scale(0.4));
+                    return new Shot(eye, b.position().add(0, h * 0.1, 0), 64, (float) (k * 6), near(t, land + 3));
+                }
+                if (t < elbow) {
                     // down low beside him on his back, heaving: the panting, a handheld wobble
                     float wob = (float) Math.sin(t * 0.21) * 1.5F;
                     Vec3 eye = b.position().add(right.scale(h * 2.3)).add(f.scale(h * 0.9)).add(0, h * 0.55, 0);
-                    return new Shot(eye, b.position().add(0, h * 0.25, 0), 58, wob, near(t, land + 3));
+                    return new Shot(eye, b.position().add(0, h * 0.25, 0), 58, wob, near(t, 40));
+                }
+                if (t < look) {
+                    // a long lens from across the sand: him small in the middle of his silent arena, the band frozen behind
+                    Vec3 away = b.position().subtract(c).multiply(1, 0, 1);
+                    away = away.lengthSqr() < 1e-3 ? f : away.normalize();
+                    Vec3 eye = b.position().add(away.scale(-Math.min(arenaA * 0.7, 30))).add(0, 3.5, 0);
+                    return new Shot(eye, b.position().add(0, h * 0.4, 0), 24, 0, near(t, elbow), true);
                 }
                 Vec3 scar = BossRenderer.bonePos(b, "scar");
                 Vec3 chest = scar != null ? scar : b.position().add(f.scale(h * 0.35)).add(0, h * 0.3, 0);
                 if (t < line + 4) {
                     // the scar: down over his chest, close, pushing in as it bleeds
-                    double push = Math.min(1, (t - look) / 30.0);
-                    Vec3 eye = chest.add(f.scale(h * (1.35 - push * 0.3))).add(0, h * (0.85 - push * 0.2), 0).add(right.scale(h * 0.3));
-                    return new Shot(eye, chest, 48 - (float) push * 8, 0, near(t, look));
+                    double push = Math.min(1, (t - look) / 40.0);
+                    Vec3 eye = chest.add(f.scale(h * (1.35 - push * 0.35))).add(0, h * (0.85 - push * 0.2), 0).add(right.scale(h * 0.3));
+                    return new Shot(eye, chest, 48 - (float) push * 10, 0, near(t, look));
                 }
                 Vec3 fp = BossRenderer.facePos(b);
-                return new Shot(fp.add(f.scale(h * 1.8)).add(right.scale(h * 0.45)).add(0, h * 0.15, 0), fp, 46, 0, near(t, line + 4));
+                if (t < end - 30 || band.isEmpty()) {
+                    double push = Math.min(1, (t - line - 4) / 60.0);
+                    return new Shot(fp.add(f.scale(h * (1.9 - 0.3 * push))).add(right.scale(h * 0.45)).add(0, h * 0.12, 0), fp, 46, 0, near(t, line + 4));
+                }
+                // the band, frozen, staring at him
+                return new Shot(stage.add(stageFacing.scale(9)).add(0, 2.2, 0), stage.add(0, 1.5, 0), 46, 0, near(t, end - 30), true);
             }
             case P4_RISEUP -> {
-                int cough = VoiceLines.beat("p4.cough", 36), line = VoiceLines.beat("p4.howgot", 52);
+                int cough = VoiceLines.beat("p4.cough", 52), line = VoiceLines.beat("p4.howgot", 92);
                 Vec3 fp = BossRenderer.facePos(b);
                 if (t < cough - 2) {
                     Vec3 eye = b.position().add(f.scale(h * 2.0)).add(right.scale(h * 0.9)).add(0, h * 0.15, 0);
                     return new Shot(eye, b.position().add(0, h * 0.45, 0), 58, 0, near(t, 0));
                 }
-                if (t < line) return new Shot(b.position().add(f.scale(h * 2.0)).add(right.scale(-h * 0.6)).add(0, 0.35, 0), fp.add(0, -h * 0.1, 0), 52, 0, near(t, cough - 2));
-                double push = Math.min(1, (t - line) / 60.0);
-                return new Shot(fp.add(f.scale(h * (2.0 - push * 0.4))).add(0, -h * 0.2, 0), fp, 44, 0, near(t, line));
+                if (t < cough + 22) {
+                    // side on, close: the cough of blood onto the sand
+                    return new Shot(b.position().add(right.scale(-h * 1.9)).add(f.scale(h * 0.9)).add(0, 0.5, 0), fp.add(0, -h * 0.15, 0), 50, 0, near(t, cough - 2));
+                }
+                if (t < line) {
+                    // over his shoulder at you, his breath heaving
+                    Vec3 you = mc.player.position().add(0, 1.2, 0);
+                    Vec3 eye = b.position().subtract(f.scale(h * 1.6)).add(right.scale(h * 0.75)).add(0, h * 0.9, 0);
+                    return new Shot(eye, you, 52, (float) Math.sin(t * 0.2) * 0.8F, near(t, cough + 22));
+                }
+                double push = Math.min(1, (t - line) / 70.0);
+                return new Shot(fp.add(f.scale(h * (2.0 - push * 0.5))).add(0, -h * 0.2, 0), fp, 44 - (float) push * 6, 0, near(t, line));
             }
             case P4_IGNIS -> {
-                int out = VoiceLines.beat("p4.head_out", 20), line = VoiceLines.beat("p4.ignis", 34), throwAt = VoiceLines.beat("p4.throw", 109),
-                        thud = VoiceLines.beat("p4.thud", 122), met = VoiceLines.beat("p4.met", 138);
+                int out = VoiceLines.beat("p4.head_out", 26), line = VoiceLines.beat("p4.ignis", 50), throwAt = VoiceLines.beat("p4.throw", 171),
+                        thud = VoiceLines.beat("p4.thud", 184), met = VoiceLines.beat("p4.met", 210);
                 Vec3 fp = BossRenderer.facePos(b);
                 Vec3 hand = BossRenderer.bonePos(b, "hand_r");
                 if (hand == null) hand = b.position().add(right.scale(-h * 0.4)).add(0, h * 0.8, 0);
@@ -760,14 +806,20 @@ public final class Cinematic {
                     Vec3 eye = b.position().subtract(f.scale(h * 1.1)).add(right.scale(h * 1.1)).add(0, h * 0.7, 0);
                     return new Shot(eye, body, 58, 0, near(t, 0));
                 }
-                if (t < line + 34) {
+                if (t < line + 40) {
                     // the head: Ignis, held up by him, close, its fire still flickering
                     Vec3 eye = hand.add(f.scale(h * 1.7)).add(right.scale(h * 0.5)).add(0, h * 0.1, 0);
                     return new Shot(eye, hand.add(0, -h * 0.15, 0), 44, 0, near(t, out));
                 }
-                if (t < throwAt) {
+                if (t < line + 90) {
+                    // the two faces, a slow arc round them
                     Vec3 mid = fp.lerp(hand, 0.45);
-                    return new Shot(mid.add(f.scale(h * 2.6)).add(right.scale(h * 0.5)), mid, 50, 0, near(t, line + 34));
+                    double ang = -20 + (t - line - 40) * 0.6;
+                    return new Shot(mid.add(yaw(f, ang).scale(h * 2.4)).add(0, h * 0.05, 0), mid, 48, 0, near(t, line + 40));
+                }
+                if (t < throwAt) {
+                    // his face alone: "nothing notable"
+                    return new Shot(fp.add(f.scale(h * 1.6)).add(right.scale(-h * 0.3)).add(0, -h * 0.08, 0), fp, 42, 0, near(t, line + 90));
                 }
                 com.groid.papon.boss.BossProp head = mc.level.getEntitiesOfClass(com.groid.papon.boss.BossProp.class, b.getBoundingBox().inflate(24),
                         p -> p.kind() == com.groid.papon.boss.BossProp.Kind.IGNIS_HEAD).stream().findFirst().orElse(null);
@@ -779,59 +831,156 @@ public final class Cinematic {
                     Vec3 eye = hp.add(away.scale(4.5)).add(new Vec3(-away.z, 0, away.x).scale(1.8)).add(0, 1.0, 0);
                     return new Shot(eye, hp.lerp(fp, t < thud + 8 ? 0.15 : 0.5), 58, 0, near(t, throwAt));
                 }
-                // at you: from behind your shoulder, then close on the smug "no?"
+                // at you: from behind your shoulder, then close on the "no?"
                 Vec3 you = mc.player.getEyePosition();
                 Vec3 toYou = you.subtract(fp).multiply(1, 0, 1);
                 double far = Math.min(toYou.length() * 0.7, h * 4.5);
                 toYou = toYou.normalize();
                 if (t < met + 30) {
-                    // from your side of him, at the head on the sand between you
                     Vec3 eye = fp.add(toYou.scale(far)).add(new Vec3(-toYou.z, 0, toYou.x).scale(h * 0.8)).add(0, -h * 0.1, 0);
                     return new Shot(eye, fp, 50, 0, near(t, met));
                 }
                 return new Shot(fp.add(f.scale(h * 1.7)).add(right.scale(-h * 0.35)), fp, 44, 0, near(t, met + 30));
             }
             case P4_PROPHECY -> {
-                int line2 = VoiceLines.beat("p4.prophecy", 102), moonAt = VoiceLines.beat("p4.moon", 186), luna = VoiceLines.beat("p4.lunaknows", 212);
+                int fog = VoiceLines.beat("p4.fog", 40), look = VoiceLines.beat("p4.throne_look", 119), line = VoiceLines.beat("p4.throne", 133),
+                        carved = VoiceLines.beat("p4.carved", 262), warrior = VoiceLines.beat("p4.warrior", 368);
                 Vec3 fp = BossRenderer.facePos(b);
-                if (t < line2) {
-                    // walking with him, in profile, a little ahead: "Ten thousand years..."
-                    Vec3 eye = body.add(right.scale(h * 3.2)).add(f.scale(h * 1.3)).add(0, h * 0.15, 0);
+                Vec3 throne = b.throneSpot();
+                Vec3 toThrone = throne.subtract(b.position()).multiply(1, 0, 1);
+                toThrone = toThrone.lengthSqr() < 1e-4 ? f : toThrone.normalize();
+                Vec3 tSide = new Vec3(-toThrone.z, 0, toThrone.x);
+                if (t < fog + 20) {
+                    // walking with him in profile, a little ahead: "Ten thousand years..."
+                    Vec3 eye = body.add(right.scale(h * 3.2)).add(f.scale(h * (1.3 + t * 0.004))).add(0, h * 0.15, 0);
                     return new Shot(eye, fp.add(f.scale(0.8)), 50, 0, near(t, 0));
                 }
-                if (t < moonAt) {
+                if (t < look) {
                     // low and wide on the sand as the fog rolls in round him
                     Vec3 eye = b.position().add(f.scale(h * 3.6)).add(right.scale(-h * 1.6)).add(0, 0.4, 0);
-                    return new Shot(eye, body.add(0, h * 0.2, 0), 62, 0, near(t, line2));
+                    return new Shot(eye, body.add(0, h * 0.2, 0), 62, 0, near(t, fog + 20));
                 }
+                if (t < line + 50) {
+                    // behind him, low, past his shoulder up at the throne in his box
+                    Vec3 eye = b.position().subtract(toThrone.scale(h * 2.2)).add(tSide.scale(h * 0.9)).add(0, h * 0.5, 0);
+                    return new Shot(eye, throne, 50, 0, near(t, look), true);
+                }
+                if (t < line + 110) {
+                    // the throne itself, a long lens from the sand: gold, empty, kept warm
+                    Vec3 eye = b.position().add(0, h * 0.8, 0).add(tSide.scale(h * 1.5));
+                    return new Shot(eye, throne.add(0, 0.6, 0), 16 - (float) (t - line - 50) * 0.04F, 0, near(t, line + 50), true);
+                }
+                if (t < carved - 6) {
+                    // his face, from beside and below, looking up at it
+                    return new Shot(fp.add(toThrone.scale(h * 1.2)).add(tSide.scale(h * 1.1)).add(0, -h * 0.35, 0), fp.add(toThrone.scale(2)), 46, 0, near(t, line + 110));
+                }
+                Vec3 you = mc.player.getEyePosition();
+                Vec3 toYou = you.subtract(fp).multiply(1, 0, 1);
+                toYou = toYou.lengthSqr() < 1e-4 ? f : toYou.normalize();
+                if (t < warrior) {
+                    // round to you: over your shoulder at him
+                    Vec3 eye = you.add(toYou.scale(1.4)).add(new Vec3(-toYou.z, 0, toYou.x).scale(1.2)).add(0, 0.3, 0);
+                    return new Shot(eye, fp, 44, 0, near(t, carved - 6));
+                }
+                if (t < warrior + 90) {
+                    // the prophecy: a slow circle round him, the fog in the lights
+                    double ang = (t - warrior) * 0.55;
+                    return new Shot(body.add(yaw(f, ang).scale(h * 3.3)).add(0, h * 0.25, 0), fp, 54, 0, near(t, warrior));
+                }
+                double push = Math.min(1, (t - warrior - 90) / 80.0);
+                return new Shot(fp.add(f.scale(h * (2.0 - 0.5 * push))).add(right.scale(h * 0.25)), fp, 44, 0, near(t, warrior + 90));
+            }
+            case P4_THRONE -> {
+                int moct = VoiceLines.beat("p4.moctezuma", 18), gates = VoiceLines.beat("p4.gates", 249), mistake = VoiceLines.beat("p4.mistake", 395),
+                        moonAt = VoiceLines.beat("p4.moon", 573), proph = VoiceLines.beat("p4.prophecy", 617), luna = VoiceLines.beat("p4.lunaknows", 712);
+                Vec3 fp = BossRenderer.facePos(b);
                 Vec3 flat = toMoon.multiply(1, 0, 1).normalize();
-                if (t < luna + 8) {
+                if (t < moct + 60) {
+                    // wide and low in the fog: him small in the middle of all that sand, head bowed, remembering
+                    Vec3 eye = b.position().add(f.scale(h * 7)).add(right.scale(h * 3)).add(0, 0.8, 0);
+                    return new Shot(eye, body, 40, 0, near(t, 0));
+                }
+                if (t < moct + 150) {
+                    // a slow dolly past him, side on, close
+                    double k = (t - moct - 60) / 90.0;
+                    Vec3 eye = body.add(right.scale(h * 2.0)).add(f.scale(h * (1.2 - 2.0 * k))).add(0, h * 0.1, 0);
+                    return new Shot(eye, fp.add(0, -h * 0.05, 0), 48, 0, near(t, moct + 60));
+                }
+                if (t < gates) {
+                    // his face from below, eyes down: the iron men, the captain he called a god
+                    return new Shot(fp.add(f.scale(h * 1.5)).add(right.scale(-h * 0.5)).add(0, -h * 0.4, 0), fp, 42, 0, near(t, moct + 150));
+                }
+                if (t < gates + 80) {
+                    // over his shoulder at his own throne, as he tells how his friend gave his away
+                    Vec3 throne = b.throneSpot();
+                    Vec3 toThrone = throne.subtract(b.position()).multiply(1, 0, 1).normalize();
+                    Vec3 eye = b.position().subtract(toThrone.scale(h * 1.8)).add(new Vec3(-toThrone.z, 0, toThrone.x).scale(-h * 0.8)).add(0, h * 0.85, 0);
+                    return new Shot(eye, throne, 44, 0, near(t, gates), true);
+                }
+                if (t < mistake) {
+                    double push = Math.min(1, (t - gates - 80) / 70.0);
+                    return new Shot(fp.add(f.scale(h * (1.9 - 0.4 * push))).add(right.scale(h * 0.3)).add(0, -h * 0.05, 0), fp, 44, 0, near(t, gates + 80));
+                }
+                Vec3 you = mc.player.getEyePosition();
+                Vec3 toYou = you.subtract(fp).multiply(1, 0, 1);
+                toYou = toYou.lengthSqr() < 1e-4 ? f : toYou.normalize();
+                if (t < mistake + 70) {
+                    // up at you, hard: from your side, his face filling the frame
+                    Vec3 eye = fp.add(toYou.scale(h * 1.4)).add(new Vec3(-toYou.z, 0, toYou.x).scale(h * 0.25));
+                    return new Shot(eye, fp, 40, 0, near(t, mistake));
+                }
+                if (t < moonAt) {
+                    // his eyes, closer and closer: "...you will have to take it from me"
+                    double push = Math.min(1, (t - mistake - 70) / 80.0);
+                    Vec3 eye = fp.add(toYou.scale(h * (1.1 - 0.35 * push))).add(0, h * 0.05, 0);
+                    return new Shot(eye, fp.add(0, h * 0.06, 0), 34 - (float) push * 6, 0, near(t, mistake + 70));
+                }
+                if (t < proph + 10) {
                     // from behind him up at the moon coming out through the fog
                     Vec3 eye = b.position().subtract(flat.scale(h * 2.4)).add(new Vec3(-flat.z, 0, flat.x).scale(h * 0.9)).add(0, h * 0.8, 0);
                     return new Shot(eye, moon, 52, 0, near(t, moonAt), true);
                 }
-                // his face, from just below, smiling up at it
-                return new Shot(fp.add(flat.scale(h * 1.9)).add(0, -h * 0.4, 0), fp.add(0, h * 0.05, 0), 46, 0, near(t, luna + 8));
+                if (t < luna) {
+                    // his face in the moonlight, from below: wonder
+                    return new Shot(fp.add(flat.scale(h * 1.7)).add(0, -h * 0.45, 0), fp.add(0, h * 0.05, 0), 44, 0, near(t, proph + 10));
+                }
+                if (t < luna + 60) return new Shot(fp.add(flat.scale(h * 1.9)).add(0, -h * 0.4, 0), fp.add(0, h * 0.05, 0), 46, 0, near(t, luna));
+                // wide: the arena in the fog under its moon
+                Vec3 eye = c.add(flat.scale(-arenaA * 0.6)).add(0, 7, 0);
+                return new Shot(eye, b.position().add(flat.scale(30)).add(0, 20, 0), 64, 0, near(t, luna + 60), true);
             }
             case P4_BRETHREN -> {
-                int line = VoiceLines.beat("p4.brethren", 14), grant = VoiceLines.beat("p4.grant", 114), turn = VoiceLines.beat("p4.turn", 194);
+                int line = VoiceLines.beat("p4.brethren", 20), grant = VoiceLines.beat("p4.grant", 139), turn = VoiceLines.beat("p4.turn", 189);
                 Vec3 fp = BossRenderer.facePos(b);
                 if (t < line + 50) {
                     // beside him, a little behind: his arms open to the stands he speaks to
                     Vec3 eye = b.position().add(right.scale(h * 3.4)).subtract(f.scale(h * 1.0)).add(0, h * 0.6, 0);
                     return new Shot(eye, b.position().add(f.scale(12)).add(0, h * 0.7, 0), 70, 0, near(t, 0));
                 }
-                if (t < grant) return new Shot(b.position().add(f.scale(h * 2.8)).add(right.scale(h * 0.9)).add(0, h * 0.25, 0), fp, 56, 0, near(t, line + 50));
+                if (t < line + 90) {
+                    // the stands he speaks to, silent, every face on him
+                    Vec3 stand = b.position().add(f.scale(arenaB + 8)).add(0, 8, 0);
+                    Vec3 eye = b.position().add(f.scale(4)).add(0, h * 0.9, 0);
+                    return new Shot(eye, stand, 34, 0, near(t, line + 50), true);
+                }
+                if (t < grant) return new Shot(b.position().add(f.scale(h * 2.8)).add(right.scale(h * 0.9)).add(0, h * 0.25, 0), fp, 56, 0, near(t, line + 90));
                 if (t < turn - 2) {
                     // under him, up past his raised arms to the sky
                     Vec3 eye = b.position().add(f.scale(h * 2.4)).add(right.scale(-h * 0.8)).add(0, 0.3, 0);
                     return new Shot(eye, fp.add(0, h * 0.5, 0), 66, 0, near(t, grant));
                 }
-                // the moon itself, a long lens: it turns
-                Vec3 eye = b.position().add(0, h * 0.5 + 14, 0).add(right.scale(h * 1.6 + 2));
-                return new Shot(eye, moon, 22, 0, near(t, turn - 2), true);
+                if (t < turn + 34) {
+                    // the moon itself, a long lens: it turns
+                    Vec3 eye = b.position().add(0, h * 0.5 + 14, 0).add(right.scale(h * 1.6 + 2));
+                    return new Shot(eye, moon, 22, 0, near(t, turn - 2), true);
+                }
+                // low behind him, the dead's moon over him
+                Vec3 flat = toMoon.multiply(1, 0, 1).normalize();
+                Vec3 eye = b.position().subtract(flat.scale(h * 3.0)).add(0, 0.6, 0);
+                return new Shot(eye, b.position().add(flat.scale(20)).add(0, 18, 0), 66, 0, near(t, turn + 34), true);
             }
             case P4_SOULS -> {
+                int feel = VoiceLines.beat("p4.feel", 214);
                 if (t < 56) {
                     // high over the sand: the souls pouring out of every stand into him
                     Vec3 eye = c.add(f.scale(-arenaA * 0.5)).add(right.scale(arenaA * 0.3)).add(0, 16, 0);
@@ -849,11 +998,18 @@ public final class Cinematic {
                     Vec3 eye = stage.add(stageFacing.scale(12)).add(0, 3.2, 0);
                     return new Shot(eye, stage.add(0, 1.6, 0), 64, 0, near(t, 112), true);
                 }
-                return new Shot(body.add(f.scale(h * 3.0)).add(0, -h * 0.4, 0), body, 58, 0, near(t, 200));
+                Vec3 fp = BossRenderer.facePos(b);
+                if (t < feel) {
+                    double push = Math.min(1, (t - 200) / 14.0);
+                    return new Shot(fp.add(f.scale(h * (2.0 - 0.3 * push))).add(0, -h * 0.2, 0), fp, 46, 0, near(t, 200));
+                }
+                // the scream: a whip back, the frame shaking
+                double k = Math.min(1, (t - feel) / 8.0);
+                return new Shot(body.add(f.scale(h * (2.0 + 2.6 * k))).add(0, -h * 0.4, 0), body, 70, (float) Math.sin(t * 1.9) * 3F, near(t, feel));
             }
             case P4_HALFBAKED -> {
-                int line = VoiceLines.beat("p4.halfbaked", 12), burst = VoiceLines.beat("p4.burst", 106), flash = VoiceLines.beat("p4.flash", 136),
-                        clear = VoiceLines.beat("p4.clear", 162), title = VoiceLines.beat("p4.title", 170);
+                int line = VoiceLines.beat("p4.halfbaked", 16), burst = VoiceLines.beat("p4.burst", 112), flash = VoiceLines.beat("p4.flash", 152),
+                        guardian = VoiceLines.beat("p4.guardian", 222);
                 Vec3 fp = BossRenderer.facePos(b);
                 if (t < burst) {
                     double push = Math.min(1, t / (double) burst);
@@ -865,18 +1021,24 @@ public final class Cinematic {
                     return new Shot(body.add(f.scale(h * (2.2 + 2.8 * k))).add(0, h * 0.2 * k, 0), body, t < burst + 4 ? 96 : 72,
                             (float) Math.sin(t * 1.7) * 4F, near(t, burst));
                 }
-                if (t < title + 46) {
+                if (t < guardian - 6) {
                     // the new arena: low on the Final Guardian, circling
                     double ang = 25 + (t - flash - 8) * 0.7;
                     Vec3 eye = b.position().add(yaw(f, ang).scale(h * 3.2)).add(0, h * 0.2, 0);
                     return new Shot(eye, body.add(0, h * 0.15, 0), 62, 0, near(t, flash + 8));
                 }
+                if (t < guardian + 54) {
+                    // his name: from below, his face and the penacho against the sky, pushing in
+                    double push = Math.min(1, (t - guardian + 6) / 60.0);
+                    return new Shot(fp.add(f.scale(h * (1.9 - 0.4 * push))).add(0, -h * 0.5, 0), fp.add(0, h * 0.15, 0), 50, 0, near(t, guardian - 6));
+                }
                 // out wide: him in the middle of El Coliseo de los Muertos
                 Vec3 eye = c.add(f.scale(arenaA * 0.55)).add(right.scale(arenaA * 0.2)).add(0, 9, 0);
-                return new Shot(eye, b.position().add(0, h * 0.5, 0), 66, 0, near(t, title + 46), true);
+                return new Shot(eye, b.position().add(0, h * 0.5, 0), 66, 0, near(t, guardian + 54), true);
             }
             case P4_BOW -> {
-                int form = PaponBossEntity.BOW_FORM, loose = PaponBossEntity.BOW_LOOSE, hit = PaponBossEntity.BOW_HIT, smoke = PaponBossEntity.BOW_SMOKE;
+                int form = PaponBossEntity.BOW_FORM, loose = PaponBossEntity.BOW_LOOSE, hit = PaponBossEntity.BOW_HIT, smoke = PaponBossEntity.BOW_SMOKE,
+                        call = VoiceLines.beat("p4.bowline", 112);
                 Vec3 handL = BossRenderer.bonePos(b, "hand_l");
                 if (handL == null) handL = b.position().add(right.scale(h * 0.4)).add(0, h * 0.6, 0);
                 Vec3 flat = toMoon.multiply(1, 0, 1).normalize();
@@ -894,12 +1056,17 @@ public final class Cinematic {
                     return new Shot(eye, moon, t < hit ? 46 - (t - loose) * 1.6F : 26, t >= hit && t < hit + 8 ? (float) Math.sin(t * 2.3) * 2F : 0,
                             t == loose, true);
                 }
-                // the sky torn open: black smoke over the moon's side
                 com.groid.papon.boss.SkySerpentEntity sp = mc.level.getEntitiesOfClass(com.groid.papon.boss.SkySerpentEntity.class,
                         b.getBoundingBox().inflate(200), e -> true).stream().findFirst().orElse(null);
                 Vec3 look = sp != null ? sp.portal() : moon;
-                Vec3 eye = c.add(flat.scale(-arenaA * 0.4)).add(0, 6, 0);
-                return new Shot(eye, look, 64, 0, near(t, smoke), true);
+                if (t < call - 4) {
+                    // the sky torn open: black smoke over the moon's side
+                    Vec3 eye = c.add(flat.scale(-arenaA * 0.4)).add(0, 6, 0);
+                    return new Shot(eye, look, 64, 0, near(t, smoke), true);
+                }
+                // calling them down: from low behind him, the bow up, the smoke beyond
+                Vec3 eye = b.position().subtract(flat.scale(h * 1.8)).add(side.scale(h * 1.1)).add(0, 0.5, 0);
+                return new Shot(eye, b.position().add(flat.scale(10)).add(0, h * 1.6, 0), 68, 0, near(t, call - 4), true);
             }
             case P4_SERPENTS -> {
                 java.util.List<com.groid.papon.boss.SkySerpentEntity> sps = mc.level.getEntitiesOfClass(com.groid.papon.boss.SkySerpentEntity.class,
@@ -993,16 +1160,24 @@ public final class Cinematic {
                 int line = VoiceLines.beat("p4.goodtime", 40), erupt = VoiceLines.beat("p4.erupt", 103);
                 Vec3 fp = BossRenderer.facePos(b);
                 Vec3 you = mc.player.getEyePosition();
-                if (t < line) {
+                int dance = VoiceLines.beat("p4.dance", 24);
+                if (t < dance + 30) {
                     // over your shoulder: him striding at you
                     Vec3 toYou = you.subtract(fp).multiply(1, 0, 1);
                     double far = Math.min(toYou.length() * 0.8, h * 5);
                     toYou = toYou.normalize();
                     return new Shot(fp.add(toYou.scale(far)).add(new Vec3(-toYou.z, 0, toYou.x).scale(h * 0.6)).add(0, -h * 0.15, 0), fp, 54, 0, near(t, 0));
                 }
+                if (t < line) {
+                    // "This was never a fight, amigo. It is a dance.": a slow push on his face, from a touch below
+                    double push = Math.min(1, (t - dance - 30) / 70.0);
+                    return new Shot(fp.add(f.scale(h * (2.2 - 0.6 * push))).add(right.scale(-h * 0.25)).add(0, -h * 0.25, 0), fp, 46, 0, near(t, dance + 30));
+                }
                 if (t < erupt + 4) {
-                    // close: the smirk, from a touch below
-                    return new Shot(fp.add(f.scale(h * 1.7)).add(right.scale(h * 0.2)).add(0, -h * 0.2, 0), fp, 42, 0, near(t, line));
+                    // close: the scream, punched in
+                    float punch = (float) Math.min(1, (t - line) / 6.0);
+                    return new Shot(fp.add(f.scale(h * (1.7 - 0.3 * punch))).add(right.scale(h * 0.2)).add(0, -h * 0.2, 0), fp, 48 - 12 * punch,
+                            (float) Math.sin(t * 2.1) * 1.5F * punch, near(t, line));
                 }
                 // round him as the bowl erupts, till the first word
                 double ang = (t - erupt) * 1.4;

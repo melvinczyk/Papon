@@ -84,8 +84,8 @@ public final class MuertosSky {
     /** Whether the moon shows (and how much: it fades in as the clouds part). */
     private static float shown(PaponBossEntity b, float partial) {
         if (b.moon() <= 0) return 0;
-        if (b.getBossState() == BossState.P4_PROPHECY) {
-            float t = b.ticksInState() + partial, at = VoiceLines.beat("p4.moon", 186);
+        if (b.getBossState() == BossState.P4_THRONE) {
+            float t = b.ticksInState() + partial, at = VoiceLines.beat("p4.moon", 573);
             return Mth.clamp((t - at) / 30F, 0, 1);
         }
         return 1;

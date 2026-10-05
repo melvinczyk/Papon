@@ -50,6 +50,8 @@ public final class QteClient {
     private static int spamCount, spamLeft;
     /** The guitar duel (kind 6), while it runs. */
     @org.jetbrains.annotations.Nullable private static GuitarDuel duel;
+    /** The dance-off (kind 7), while it runs. */
+    @org.jetbrains.annotations.Nullable private static DanceOff dance;
 
     /** The squeeze's meter: how much a right press adds, and how much drains a tick (7-8 presses a second to fill it in time). */
     private static final float SPAM_GAIN = 0.096F, SPAM_DRAIN = 0.025F;
@@ -72,7 +74,8 @@ public final class QteClient {
         spamCount = 0;
         spamLeft = window;
         duel = k == 6 && ks.length >= 3 ? new GuitarDuel(boss, ks[0], ks[1], ks[2]) : null;
-        if (k == 6) grace = PaponBossEntity.QTE_GRACE;
+        dance = k == 7 && ks.length >= 3 ? new DanceOff(boss, ks[0], ks[1], ks[2]) : null;
+        if (k == 6 || k == 7) grace = PaponBossEntity.QTE_GRACE;
         Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                 SoundEvents.NOTE_BLOCK_BELL.get(), 0.6F));
     }
@@ -80,6 +83,19 @@ public final class QteClient {
     /** The guitar duel is on (its own camera, no slow motion). */
     public static boolean duel(PaponBossEntity boss) {
         return active && duel != null && boss.getId() == bossId;
+    }
+
+    /** The dance-off is on with this boss (its own camera; his model and yours dance it). */
+    public static boolean dancing(PaponBossEntity boss) {
+        return active && dance != null && boss.getId() == bossId;
+    }
+
+    @org.jetbrains.annotations.Nullable
+    static DanceOff dance() { return active ? dance : null; }
+
+    /** The mouse over the QTE's screen (GUI pixels): the dance-off's embrace follows it. */
+    static void mouse(double x, double y) {
+        if (dance != null) dance.mouse(x, y);
     }
 
     /** The squeeze's keys: always the same pair, K and L, in turn (the meter no longer moves you to new keys). */
@@ -92,6 +108,7 @@ public final class QteClient {
 
     public static void end(boolean won) {
         duel = null;
+        dance = null;
         active = false;
         locked = true;
         endWon = won;
@@ -102,7 +119,7 @@ public final class QteClient {
 
     /** True while the camera should be on this boss for the QTE (the sequence, and a moment after it). */
     public static boolean focus(PaponBossEntity boss) {
-        return boss.getId() == bossId && (active || endTicks > 14) && duel == null;
+        return boss.getId() == bossId && (active || endTicks > 14) && duel == null && dance == null && kind != 7;
     }
 
     public static boolean active() {
@@ -113,6 +130,10 @@ public final class QteClient {
     public static void devPress() {
         if (duel != null) {
             duel.devPlay();
+            return;
+        }
+        if (dance != null) {
+            dance.devPlay();
             return;
         }
         if (active && !locked && grace <= 0 && kind == 5) {
@@ -153,6 +174,13 @@ public final class QteClient {
             duel.tick();
             if (duel.over() && !locked) locked = true;
             if (++meterTicks % 5 == 0 && !locked) PaponNetwork.qteMeter(bossId, duel.meter());
+            return;
+        }
+        if (dance != null) {
+            if (grace > 0) grace--;
+            dance.tick();
+            if (dance.over() && !locked) locked = true;
+            if (++meterTicks % 4 == 0 && !locked) PaponNetwork.qteMeter(bossId, dance.meter());
             return;
         }
         // slow motion: a slow heartbeat under it all
@@ -199,6 +227,10 @@ public final class QteClient {
         if (grace > 0) return;                       // still the fight's presses: they do not count
         if (duel != null) {
             duel.press(key);
+            return;
+        }
+        if (dance != null) {
+            dance.press(key);
             return;
         }
         if (kind == 5) {
@@ -256,6 +288,16 @@ public final class QteClient {
             g.drawString(font, dt, -font.width(dt) / 2, 0, 0xFFFFFF, true);
             g.pose().popPose();
             duel.render(g, w, h, pt);
+            return;
+        }
+        if (active && dance != null) {
+            Component dt = Component.translatable("qte.papon.title.7").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD);
+            g.pose().pushPose();
+            g.pose().translate(cx, 14, 0);
+            g.pose().scale(1.6F, 1.6F, 1);
+            g.drawString(font, dt, -font.width(dt) / 2, 0, 0xFFFFFF, true);
+            g.pose().popPose();
+            dance.render(g, w, h, pt);
             return;
         }
         if (active || endTicks > 14) vignette(g, w, h, active ? 1F : (endTicks - 14) / 26F);

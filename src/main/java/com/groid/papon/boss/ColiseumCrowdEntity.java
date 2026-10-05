@@ -55,6 +55,8 @@ public class ColiseumCrowdEntity extends Entity {
     private static final EntityDataAccessor<Integer> DATA_SALVO = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     /** Phase four: how far round the bowl the moon's rays have turned the fans to skeletons (0..1; 1 all of them). */
     private static final EntityDataAccessor<Float> DATA_DEAD = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.FLOAT);
+    /** Fire pyrotechnics round the podium on the song's beats: (a counter << 8) | how many beats (client/FlagFireworks). */
+    private static final EntityDataAccessor<Integer> DATA_PYRO = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     /** The coliseum's size (its sand's semi-axes, a << 8 | b): El Coliseo de los Muertos is twice El Coliseo Papa's. */
     private static final EntityDataAccessor<Integer> DATA_SIZE = SynchedEntityData.defineId(ColiseumCrowdEntity.class, EntityDataSerializers.INT);
     /** Ticks from the fan's wind-up starting to the potato leaving his hand (the renderer's throw pose matches). */
@@ -91,6 +93,7 @@ public class ColiseumCrowdEntity extends Entity {
         entityData.define(DATA_LIGHTERS, 0F);
         entityData.define(DATA_PULSE, -1);
         entityData.define(DATA_SALVO, -1);
+        entityData.define(DATA_PYRO, -1);
         entityData.define(DATA_DEAD, 0F);
         entityData.define(DATA_SIZE, Coliseum.A << 8 | Coliseum.B);
     }
@@ -221,8 +224,24 @@ public class ColiseumCrowdEntity extends Entity {
     /** Fireworks off the top of the walls in green, white and red, a volley on each of the next {@code beats} beats of the song. */
     public void salvo(int beats) {
         salvos = (salvos + 1) & 0x7FFFFF;
-        entityData.set(DATA_SALVO, (salvos << 8) | Math.min(255, beats));
+        entityData.set(DATA_SALVO, (salvos << 8) | Math.min(127, beats));
     }
+
+    /** (2026-10-04) Fireworks launched from the podium inside the bowl, bursting over the sand, on the next {@code beats} beats. */
+    public void salvoInside(int beats) {
+        salvos = (salvos + 1) & 0x7FFFFF;
+        entityData.set(DATA_SALVO, (salvos << 8) | 0x80 | Math.min(127, beats));
+    }
+
+    private int pyros;
+
+    /** Fire pyrotechnics: columns of flame up off the podium round the sand and the front of the stage, on the next beats. */
+    public void pyro(int beats) {
+        pyros = (pyros + 1) & 0x7FFFFF;
+        entityData.set(DATA_PYRO, (pyros << 8) | Math.min(255, beats));
+    }
+
+    public int pyroData() { return entityData.get(DATA_PYRO); }
 
     /** Client: the latest salvo (see DATA_SALVO), -1 before the first. */
     public int salvoData() { return entityData.get(DATA_SALVO); }

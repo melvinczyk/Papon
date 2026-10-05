@@ -16,14 +16,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * El Gigante (boss/SpiritGiantEntity): a hologram, so it is all light: a sugar skull built of voxels of blue (petals of
+ * El Gigante (boss/SpiritGiantEntity): a hologram risen out of the arena floor, so it is all light: a sugar skull built of voxels of blue (petals of
  * pink and marigold round its sockets, a flower on its brow, teeth), a hinged jaw, eyes that burn brighter as it charges,
  * and two great hands of bone-light. Additive, scanlines running up it, a flicker. Only its outside faces are drawn; the
  * sockets and the nose are holes you see into.
  */
 public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
     /** One voxel (blocks). */
-    private static final float V = 0.95F;
+    private static final float V = SpiritGiantEntity.V;
     private record Face(float[] p, int r, int g, int b) {}
 
     private static final List<Face> SKULL = new ArrayList<>(), JAW = new ArrayList<>();
@@ -137,62 +137,129 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
 
     // ------------------------------------------------------------------ drawing
 
+    /**
+     * (2026-10-04) In the arena now, waist deep in its floor: the skull over a ribcage and spine of bone-light, collarbones out to
+     * shoulders as wide as a house, arms bent at the elbow down to its hands (SpiritGiantEntity.hand: the same positions the
+     * server hits with), a band on the floor where a swipe is coming, its eyes blazing while the lasers (BeamEntity) burn.
+     */
     @Override
     public void render(SpiritGiantEntity g, float yaw, float partial, PoseStack ps, MultiBufferSource buffers, int light) {
         VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
         Matrix4f m = ps.last().pose();
         Vec3 origin = g.getPosition(partial);
         Vec3 f = g.forward();
-        Vec3 r = new Vec3(-f.z, 0, f.x);
+        Vec3 r = g.right();
         Vec3 up = new Vec3(0, 1, 0);
         float t = g.tickCount + partial;
         float act = g.actTime(partial);
         int a = g.act();
         float present = g.risen(partial);
-        float flicker = (0.85F + 0.15F * Mth.sin(t * 1.9F)) * (0.4F + 0.6F * present);
-        if ((g.tickCount * 7919 % 31) == 0) flicker *= 0.6F;
-        // the skull: bobbing, breathing; the jaw opening for the laser
-        Vec3 head = g.head(partial).subtract(origin).add(0, Mth.sin(t * 0.05F) * 0.3, 0);
-        float jaw = 4F + 2F * Mth.sin(t * 0.07F);
-        if (a == SpiritGiantEntity.CHARGE) jaw = 4F + 22F * Math.min(1, act / 30F);
-        if (a == SpiritGiantEntity.LASER) jaw = 34F + 3F * Mth.sin(t * 2.3F);
+        float flicker = (0.88F + 0.12F * Mth.sin(t * 1.9F)) * (0.45F + 0.55F * present);
+        if ((g.tickCount * 7919 % 31) == 0) flicker *= 0.7F;
+        // the skull: breathing; the jaw working, wide as it roars and fires
+        Vec3 head = g.head(partial).subtract(origin);
+        float jaw = 5F + 3F * Mth.sin(t * 0.07F);
+        if (a == SpiritGiantEntity.CHARGE) jaw = 5F + 18F * Math.min(1, act / 26F);
+        if (a == SpiritGiantEntity.LASER) jaw = 26F + 4F * Mth.sin(t * 2.3F);
+        if (a == SpiritGiantEntity.SWIPE_L || a == SpiritGiantEntity.SWIPE_R || a == SpiritGiantEntity.RISE) jaw = 30F;
         float shake = a == SpiritGiantEntity.LASER ? 0.15F : 0;
         head = head.add((Math.sin(t * 7) * shake), Math.cos(t * 6.1) * shake, 0);
         drawFaces(vc, m, SKULL, head, r, up, f, 0, 0, t, flicker);
         drawFaces(vc, m, JAW, head, r, up, f, jaw, -6.5F, t, flicker);
-        // its eyes: two burning lights in the sockets, brighter as it charges and fires
-        float eye = a == SpiritGiantEntity.CHARGE ? 0.5F + 0.5F * Math.min(1, act / 30F) : a == SpiritGiantEntity.LASER ? 1F : 0.4F;
+        // its eyes: two burning lights in the sockets, blazing as it charges and fires
+        float eye = a == SpiritGiantEntity.CHARGE ? 0.5F + 0.5F * Math.min(1, act / 26F) : a == SpiritGiantEntity.LASER ? 1.3F : 0.55F;
         for (int s : new int[]{-1, 1}) {
-            Vec3 c = head.add(r.scale(s * 3.2 * V)).add(up.scale(-0.2 * V)).add(f.scale(4.0 * V));
-            glow(vc, m, c, 1.6F + 1.6F * eye, 120, 240, 255, (int) (200 * eye * flicker));
-            glow(vc, m, c, 0.6F + 0.8F * eye, 255, 255, 255, (int) (255 * eye * flicker));
+            Vec3 c = g.eye(s, partial).subtract(origin).subtract(f.scale(0.6));
+            glow(vc, m, c, 2.0F + 2.2F * eye, 120, 240, 255, (int) Math.min(255, 220 * eye * flicker));
+            glow(vc, m, c, 0.8F + 1.0F * eye, 255, 255, 255, (int) Math.min(255, 255 * eye * flicker));
         }
-        // its hands
+        // the spine, from under the floor up to the skull, and the ribcage round it
+        double sunk = g.sunk(partial);
+        Vec3 base = new Vec3(0, -4 - sunk, 0);
+        Vec3 neck = head.subtract(up.scale(7.5)).subtract(f.scale(1.5));
+        int verts = 9;
+        for (int k = 0; k < verts; k++) {
+            Vec3 p = base.lerp(neck, k / (double) (verts - 1));
+            Vec3 q = base.lerp(neck, (k + 0.6) / (verts - 1));
+            bone(vc, m, p, q, 1.1F, r, up, CYAN, t, flicker);
+        }
+        for (int k = 0; k < 6; k++) {
+            double y = neck.y - 2.2 - k * 1.7;
+            Vec3 sp = new Vec3(neck.x, y, neck.z).add(f.scale(-0.2));
+            double w = 5.6 - Math.abs(k - 2.2) * 0.6;
+            for (int s : new int[]{-1, 1}) {
+                Vec3 p0 = sp;
+                Vec3 p1 = sp.add(r.scale(s * w * 0.8)).add(f.scale(-0.8)).add(0, -0.4, 0);
+                Vec3 p2 = sp.add(r.scale(s * w)).add(f.scale(2.0)).add(0, -0.9, 0);
+                Vec3 p3 = sp.add(r.scale(s * w * 0.35)).add(f.scale(4.0)).add(0, -1.3, 0);
+                int[] col = k == 0 ? PINK : CYAN;
+                bone(vc, m, p0, p1, 0.45F, r, up, col, t, flicker);
+                bone(vc, m, p1, p2, 0.45F, r, up, col, t, flicker);
+                bone(vc, m, p2, p3, 0.4F, r, up, col, t, flicker);
+            }
+        }
+        // the sternum, with a marigold heart
+        Vec3 st = neck.add(f.scale(4.0)).add(0, -2.6, 0);
+        bone(vc, m, st, st.add(0, -6.5, 0).add(f.scale(-0.4)), 0.6F, r, up, WHITE, t, flicker);
+        glow(vc, m, st.add(0, -3.0, 0).add(f.scale(0.4)), 2.2F, 255, 160, 30, (int) (160 * flicker));
+        // collarbones, arms, hands
         for (int i = 0; i < 2; i++) {
-            Vec3 at = hand(g, i, partial).subtract(origin);
+            Vec3 sh = g.shoulder(i, partial).subtract(origin);
+            bone(vc, m, neck.add(f.scale(1.2)), sh, 0.7F, r, up, CYAN, t, flicker);
+            glow(vc, m, sh, 1.6F, 120, 230, 255, (int) (120 * flicker));
+            Vec3 hand = g.hand(i, partial).subtract(origin);
+            Vec3 elbow = elbow(sh, hand, r.scale(i == 0 ? 1 : -1), f);
+            bone(vc, m, sh, elbow, 1.15F, r, up, CYAN, t, flicker);
+            bone(vc, m, elbow, hand, 0.95F, r, up, CYAN, t, flicker);
+            glow(vc, m, elbow, 1.4F, 120, 230, 255, (int) (110 * flicker));
+            boolean swipe = (a == SpiritGiantEntity.SWIPE_L && i == 0) || (a == SpiritGiantEntity.SWIPE_R && i == 1);
             boolean slam = (a == SpiritGiantEntity.SLAM_L && i == 0) || (a == SpiritGiantEntity.SLAM_R && i == 1);
-            float splay = slam && act > SpiritGiantEntity.SLAM_HIT - 2 && act < 32 ? 1 : 0.35F + 0.15F * Mth.sin(t * 0.1F + i);
-            drawHand(vc, m, at, r, up, f, i == 0 ? 1 : -1, splay, t, flicker);
+            float splay = slam && act > SpiritGiantEntity.SLAM_HIT - 2 && act < 32 ? 1 : swipe ? 0.9F : 0.35F + 0.15F * Mth.sin(t * 0.1F + i);
+            Vec3 along = hand.subtract(elbow).normalize();
+            Vec3 hr = along.cross(up);
+            hr = hr.lengthSqr() < 1e-4 ? r : hr.normalize();
+            Vec3 hup = hr.cross(along).normalize();
+            drawHand(vc, m, hand, hr, hup, along, i == 0 ? 1 : -1, splay, t, flicker * (swipe ? 1.25F : 1F));
+            // the swipe's band, marked on the floor before it comes
+            if (swipe && act < SpiritGiantEntity.SWIPE_FROM + 2) swipeBand(vc, m, g, i, act, f, r, t);
         }
     }
 
-    /** Where hand {@code i} is: on the wall at rest; in a slam up, over in an arc and down onto its mark, and back. */
-    private static Vec3 hand(SpiritGiantEntity g, int i, float partial) {
-        Vec3 rest = g.handRest(i == 0 ? 1 : -1).add(0, (1 - g.risen(partial)) * -30, 0);
-        int a = g.act();
-        boolean slam = (a == SpiritGiantEntity.SLAM_L && i == 0) || (a == SpiritGiantEntity.SLAM_R && i == 1);
-        if (!slam) return rest;
-        float t = g.actTime(partial);
-        Vec3 mark = g.handMark(i).add(0, 0.6, 0);
-        Vec3 high = rest.add(0, 9, 0);
-        if (t < 9) return rest.lerp(high, smooth(t / 9F));
-        if (t < SpiritGiantEntity.SLAM_HIT) {
-            float k = (t - 9) / (SpiritGiantEntity.SLAM_HIT - 9F);
-            Vec3 p = high.lerp(mark, k * k);
-            return p.add(0, Math.sin(k * Math.PI) * 4 * (1 - k), 0);
+    /** The elbow of an arm from {@code sh} to {@code hand} (two bones, UPPER and FORE), bent out and back. */
+    private static Vec3 elbow(Vec3 sh, Vec3 hand, Vec3 out, Vec3 f) {
+        Vec3 d = hand.subtract(sh);
+        double len = Math.max(1e-3, d.length());
+        double l1 = SpiritGiantEntity.UPPER, l2 = SpiritGiantEntity.FORE;
+        Vec3 dir = d.normalize();
+        len = Math.min(len, l1 + l2 - 0.01);
+        double x = (l1 * l1 - l2 * l2 + len * len) / (2 * len);
+        double h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+        Vec3 pole = out.add(f.scale(-0.6)).add(0, -0.4, 0);
+        Vec3 perp = pole.subtract(dir.scale(pole.dot(dir)));
+        perp = perp.lengthSqr() < 1e-6 ? new Vec3(0, -1, 0) : perp.normalize();
+        return sh.add(dir.scale(x)).add(perp.scale(h));
+    }
+
+    /** The band a swipe will sweep: an arc on the floor round it, pulsing as it comes. */
+    private static void swipeBand(VertexConsumer vc, Matrix4f m, SpiritGiantEntity g, int i, float act, Vec3 f, Vec3 r, float t) {
+        double rad = g.swipeRadius();
+        double a0 = SpiritGiantEntity.swipeAngle(i, 0), a1 = SpiritGiantEntity.swipeAngle(i, 99);
+        float k = Mth.clamp(act / SpiritGiantEntity.SWIPE_FROM, 0, 1);
+        int al = (int) ((90 + 110 * (0.5F + 0.5F * Mth.sin(t * 1.4F))) * (0.4F + 0.6F * k));
+        double y = 0.12;
+        int n = 28;
+        double[] rr = {rad - 5.2, rad + 5.2};
+        for (int s = 0; s < n; s++) {
+            double u0 = a0 + (a1 - a0) * s / n, u1 = a0 + (a1 - a0) * (s + 1) / n;
+            Vec3 q0 = f.scale(Math.cos(u0) * rr[0]).add(r.scale(-Math.sin(u0) * rr[0])).add(0, y, 0);
+            Vec3 q1 = f.scale(Math.cos(u0) * rr[1]).add(r.scale(-Math.sin(u0) * rr[1])).add(0, y, 0);
+            Vec3 q2 = f.scale(Math.cos(u1) * rr[1]).add(r.scale(-Math.sin(u1) * rr[1])).add(0, y, 0);
+            Vec3 q3 = f.scale(Math.cos(u1) * rr[0]).add(r.scale(-Math.sin(u1) * rr[0])).add(0, y, 0);
+            int[] c = (s & 1) == 0 ? PINK : CYAN;
+            for (Vec3[] w : new Vec3[][]{{q0, q1, q2, q3}, {q3, q2, q1, q0}}) {
+                for (Vec3 p : w) vc.vertex(m, (float) p.x, (float) p.y, (float) p.z).color(c[0], c[1], c[2], al / 2).endVertex();
+            }
         }
-        if (t < 30) return mark;
-        return mark.lerp(rest, smooth((t - 30) / 10F));
     }
 
     private static float smooth(float k) {
@@ -218,7 +285,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 double wy = o.y + (r.y * x + up.y * y + f.y * z) * V;
                 double wz = o.z + (r.z * x + up.z * y + f.z * z) * V;
                 float scan = 0.7F + 0.3F * Mth.sin((float) wy * 2.2F - t * 0.5F);
-                int al = (int) (64 * scan * flicker);
+                int al = (int) Math.min(255, 100 * scan * flicker);
                 vc.vertex(m, (float) wx, (float) wy, (float) wz).color(face.r(), face.g(), face.b(), al).endVertex();
             }
         }
@@ -246,8 +313,6 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         // the thumb, off the side toward the middle
         Vec3 tb = at.add(r.scale(-side * 3.4 * s)).add(f.scale(0.5 * s));
         bone(vc, m, tb, tb.add(r.scale(-side * 2.2 * s)).add(f.scale(1.8 * s)), 0.6F * s, r, up, CYAN, t, flicker);
-        // the wrist going down out of sight under the floor
-        bone(vc, m, at.add(f.scale(-2 * s)), at.add(f.scale(-3 * s)).add(up.scale(-14)), 1.3F * s, r, up, CYAN, t, flicker * 0.6F);
     }
 
     private static void bone(VertexConsumer vc, Matrix4f m, Vec3 a, Vec3 b, float w, Vec3 r, Vec3 up, int[] c, float t, float flicker) {
@@ -277,7 +342,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
     private static void quadAt(VertexConsumer vc, Matrix4f m, Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3, int[] c, float t, float flicker) {
         for (Vec3 p : new Vec3[]{p0, p1, p2, p3}) {
             float scan = 0.7F + 0.3F * Mth.sin((float) p.y * 2.2F - t * 0.5F);
-            vc.vertex(m, (float) p.x, (float) p.y, (float) p.z).color(c[0], c[1], c[2], (int) (80 * scan * flicker)).endVertex();
+            vc.vertex(m, (float) p.x, (float) p.y, (float) p.z).color(c[0], c[1], c[2], (int) Math.min(255, 120 * scan * flicker)).endVertex();
         }
     }
 
