@@ -155,15 +155,16 @@ public final class SongPlayer {
                 || st == BossState.P3_GLARE && boss.ticksInState() < com.groid.papon.boss.VoiceLines.beat("glare.scare", 114);
     }
 
-    /** Phase four's ritual, the moon to his truest form: the band silent until the dead strike up (P4_TRUEFORM's drop). */
+    /** Phase four's awakening: the band stopped dead from the fall until he asks them for one last song (P4_HONOR's downbeat). */
     private static boolean ritual(PaponBossEntity boss) {
         BossState st = boss.getBossState();
-        if (st == BossState.P4_TRUEFORM) return boss.ticksInState() < com.groid.papon.boss.VoiceLines.beat("p4.drop", 96);
-        return st.phaseFour();
+        if (st == BossState.P4_HONOR) return boss.ticksInState() < com.groid.papon.boss.VoiceLines.beat("p4.song", 128);
+        return st.p4Silent();
     }
 
     /** Passes of the intro before the song moves on: phase two's guitar intro covers his apology; phase three's pickup plays once. */
     private static int passes(Song song) {
+        if (song == Song.get(Song.PERSONA_IDEAL)) return com.groid.papon.boss.VoiceLines.beat("p4.passes", 2);
         return song == Song.get() ? Song.introPasses() : 1;
     }
 
@@ -192,8 +193,13 @@ public final class SongPlayer {
         }
         if (current != null && current.id().equals("serenade")) return;      // the last chord rings on under his lines
         if (playing != null && !playing.fading) {
-            if (st == BossState.P3_KNOCKBACK || st == BossState.P3_GLARE || st == BossState.P4_RISE) playing.windDown();
-            else playing.fadeOut();
+            if (st == BossState.P3_KNOCKBACK || st == BossState.P3_GLARE) playing.windDown();
+            else if (st == BossState.P4_FALL) {
+                // the band stops dead: the needle dragged off the record
+                playing.cut();
+                mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        com.groid.papon.registry.ModSounds.SCRATCH.get(), 1.0F, 0.9F));
+            } else playing.fadeOut();
         }
         playing = null;
         current = null;
@@ -341,8 +347,12 @@ public final class SongPlayer {
             x = y = z = 0;
         }
 
-        void fadeOut() {
+        void fadeOut() { fading = true; }
+
+        /** Stopped dead (gone in a couple of ticks). */
+        void cut() {
             fading = true;
+            level = Math.min(level, 0.3F);
         }
 
         /** The record grinding to a halt: down in pitch as it fades (a second). */
@@ -352,9 +362,7 @@ public final class SongPlayer {
         }
 
         @Override
-        public boolean canStartSilent() {
-            return true;
-        }
+        public boolean canStartSilent() { return true; }
 
         @Override
         public void tick() {

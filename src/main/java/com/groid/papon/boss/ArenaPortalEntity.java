@@ -41,9 +41,7 @@ public class ArenaPortalEntity extends Entity {
     }
 
     /** How open it is, 0..1 (it swirls open over a second). */
-    public float open(float partial) {
-        return Math.min(1F, (tickCount + partial) / 20F);
-    }
+    public float open(float partial) { return Math.min(1F, (tickCount + partial) / 20F); }
 
     @Override
     public void tick() {
@@ -65,9 +63,7 @@ public class ArenaPortalEntity extends Entity {
             discard();
             return;
         }
-        if (tickCount % 80 == 0) {
-            level().playSound(null, getX(), getY() + 1, getZ(), SoundEvents.PORTAL_AMBIENT, SoundSource.BLOCKS, 0.35F, 1.4F);
-        }
+        if (tickCount % 80 == 0) { level().playSound(null, getX(), getY() + 1, getZ(), SoundEvents.PORTAL_AMBIENT, SoundSource.BLOCKS, 0.35F, 1.4F); }
         cooldown.replaceAll((k, v) -> v - 1);
         cooldown.values().removeIf(v -> v <= 0);
         if (target == null || tickCount < 20) return;

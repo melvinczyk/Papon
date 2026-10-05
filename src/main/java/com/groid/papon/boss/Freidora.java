@@ -33,9 +33,7 @@ public final class Freidora {
     private final Vec3 center;
     private int t;
 
-    private Freidora(Vec3 center) {
-        this.center = center;
-    }
+    private Freidora(Vec3 center) { this.center = center; }
 
     /** Opens a fryer in {@code arena}'s sand in {@code p}'s shape (HUNT: round each of {@code players}). */
     public static Freidora start(ServerLevel level, Coliseum arena, Pattern p, List<Vec3> players, RandomSource rng) {
@@ -120,7 +118,5 @@ public final class Freidora {
         level.playSound(null, center.x, center.y, center.z, SoundEvents.SAND_PLACE, SoundSource.BLOCKS, 2.0F, 0.7F);
     }
 
-    public boolean opening() {
-        return t < WARN;
-    }
+    public boolean opening() { return t < WARN; }
 }

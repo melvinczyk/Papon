@@ -61,9 +61,7 @@ final class GuitarDuel {
     }
 
     /** Seconds since the duel started (the real clock: input is judged against it, not the game's ticks). */
-    private double now() {
-        return (System.nanoTime() - startNanos) / 1e9;
-    }
+    private double now() { return (System.nanoTime() - startNanos) / 1e9; }
 
     /**
      * The chart: the band's beats from LEAD to the end, in 6/8 three to a beat; the first stretch on the beats and the
@@ -125,14 +123,10 @@ final class GuitarDuel {
         notes.sort((a, b) -> Double.compare(a.t, b.t));
     }
 
-    boolean over() {
-        return over;
-    }
+    boolean over() { return over; }
 
     /** The rock meter, 0..1 (the server hears how it is going: client/QteClient). */
-    float meter() {
-        return Mth.clamp(meter, 0F, 1F);
-    }
+    float meter() { return Mth.clamp(meter, 0F, 1F); }
 
     /** Every client tick: notes that went past the line unhit are misses; the meter, the end. */
     void tick() {
@@ -218,13 +212,9 @@ final class GuitarDuel {
         Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_GUITAR.get(), pitch, 0.7F));
     }
 
-    void release(int key) {
-        for (int i = 0; i < 4; i++) if (KEYS[i] == key) held[i] = false;
-    }
+    void release(int key) { for (int i = 0; i < 4; i++) if (KEYS[i] == key) held[i] = false; }
 
-    private int multiplier() {
-        return combo >= 30 ? 4 : combo >= 20 ? 3 : combo >= 10 ? 2 : 1;
-    }
+    private int multiplier() { return combo >= 30 ? 4 : combo >= 20 ? 3 : combo >= 10 ? 2 : 1; }
 
     /** The fretboard: a highway narrowing into the distance, four lanes, gems coming down to the frets. */
     void render(GuiGraphics g, int w, int h, float partial) {

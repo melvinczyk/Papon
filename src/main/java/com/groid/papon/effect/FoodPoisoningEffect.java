@@ -12,12 +12,8 @@ import java.util.List;
  * nothing for it.
  */
 public class FoodPoisoningEffect extends MobEffect {
-    public FoodPoisoningEffect() {
-        super(MobEffectCategory.HARMFUL, 0x7FA43A);
-    }
+    public FoodPoisoningEffect() { super(MobEffectCategory.HARMFUL, 0x7FA43A); }
 
     @Override
-    public List<ItemStack> getCurativeItems() {
-        return List.of();
-    }
+    public List<ItemStack> getCurativeItems() { return List.of(); }
 }

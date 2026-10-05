@@ -31,9 +31,7 @@ public class GerbinRenderer extends CrowdRenderer<GerbinEntity> {
             }
 
             @Override
-            protected ItemDisplayContext getTransformTypeForStack(GeoBone bone, ItemStack stack, GerbinEntity g) {
-                return ItemDisplayContext.FIXED;
-            }
+            protected ItemDisplayContext getTransformTypeForStack(GeoBone bone, ItemStack stack, GerbinEntity g) { return ItemDisplayContext.FIXED; }
 
             @Override
             protected void renderStackForBone(PoseStack pose, GeoBone bone, ItemStack stack, GerbinEntity g, MultiBufferSource buffers,

@@ -139,18 +139,25 @@ quality throughout."
      phase two's entrance is the showman ("here is my awesome stadium, everyone is here for ME"); phase three is
      "**I am the ascended potato god, it's time to get serious**". The user loved his charisma and charm: push the
      atmosphere further where it fits.
-   - **Phase four at 25% health, Dia de los Muertos (2026-10-04, the user's spec; see "Phase four" below):** he
-     **summons a spectral hammer** and **shoots blue lightning at the moon**, turning it into a **blue, scary Day of the
-     Dead moon**; the moon **shoots blue rays** that turn the band and the audience into **their truest form, Day of the
-     Dead skeletons**, both **way more lively**; the arena **transforms** into a Day of the Dead place, **blue ectoplasm
-     flowing in the cracks of the floor**, **skeleton themes everywhere**, **twice the size of phase three's arena** (the
-     attacks sized for it); he **looks round at the changes**: "**it has been centuries since I have been brought to my truest
-     form**" (liberties allowed with new lines). His new form is phase three's but a **Day of the Dead skeleton with skeletal
-     wings**, **significantly more powerful**, with **new attacks that are bright, colourful, vibrant** like the celebrations,
-     **replacing phase three's entirely**, **significantly faster and harder**. Two the user named: he **plays the guitar and
-     summons a giant holographic skeleton** standing on the ground below the arena (only its **head and hands** show) whose
-     attack is a **giant thick blue laser**; he **slams the ground and rips open a void** with his hands where **tortured
-     souls try to pull you in**.
+   - **Phase four at 25% health, the final phase (2026-10-04, reworked to the user's script; see "Phase four" below):** Day
+     of the Dead and **Aztec**: he is the potato god in his truest form. Knocked back, badly hurt, the **old scar on his chest
+     reopened and bleeding**, the **crowd shocked**, the **mariachi stopping abruptly**; panting, "**Huh, it reopened, didn't
+     it**"; up, coughing blood: "**Do you want to know how I got this scar?**"; he **pulls Ignis's head from behind his back**
+     (the pack's Ignis trophy, `kubejs/startup_scripts/boss_trophies.js`) and **throws it down with a thud**: "**I remember he did
+     a little damage, but nothing notable**", then at you: "**I assume you two have met before, no?**"; his villain monologue:
+     "**10,000 years...**", "**...the prophecy might finally be fulfilled**", **the arena gets really foggy**, smiling up at the
+     moon: "**la luna knows it too**"; "**My brethren... grant me your strength**": the **moon turns into the Dia de los Muertos
+     moon**, the **souls of the crowd flow into him** and they **turn to skeletons**, then **the mariachi give theirs**; he
+     **glows green**: "**it's not right to go into a fight half baked**", the transformation: "**Papon, The Final Guardian**"; an
+     **Aztec bow**, he **shoots the moon**, and **Oros and Bouros** (Dungeon Now Loading's Fairkeeper **Ouros and Boros**, built
+     as that: say so if asked) come **out of black smoke in the sky** as **Aztec serpent gods** (the user's Quetzalcoatl picture),
+     **huge**; "**Now we are talking!**"; softly to the band, "**Señores, it has been an honor, but I need you to play one last
+     song**": **"Persona Ideal (Me Tengo Que Ir)"** (the user's copy, `tools/src/song/persona_ideal.mp3`, gitignored) with **the
+     brass players animated** on its brass intro; "**Where are the muchachas?**": **skeletal salsa Papons** by the stage, he
+     **twirls one**; at you, smirking: "**COME ON!!! SHOW ME A GOOD TIME!!!**": the fight starts. Kept from the first phase four
+     (the user's earlier spec): El Coliseo de los Muertos at twice the size (turned in the transformation's flash), the band and
+     the stands as skeletons, his eight moves (the hologram giant's laser, the void of souls, ...), now plus the serpents' dives
+     and his sun arrows.
    - **After his fall:** once Gerbin gives you the pillow you **go back to the Taco Truck**; **Chef Papon is a vendor
      again, friendly, back working in the truck, and his vendor menu gives you free tacos**.
 8. **Water:** he must never just float. In deep water he rides his own **llama raft** — not a
@@ -237,7 +244,7 @@ player and were not exercised headless.
 | The body pillow as a soft mesh (squeezed, pressed, folded, slouched), the Makima picture, the hump (in hand and on a bed) | `client/PillowMesh.java`, `client/PillowItemRenderer.java`, `client/PillowLayer.java`, `client/PillowClient.java`, `client/BodyPillowRenderer.java`, `entity/BodyPillowEntity.java`, `item/BodyPillowItem.java`, `gen_extras.panels/pillow` |
 | Showtime (v0.9.1): the crowd heard (pulses, loud roars over his voice), flag fireworks on the beat, the cuts to the band mid-fight, the Skyline reveal (montage, RB26 sounds, the underglow switching on, headlight beams), 52 new lines (reactions to what you do, more charm, the potato god), the serenade's guitar off his mouth | `boss/ColiseumCrowdEntity` (`pulse`, `salvo`), `client/CrowdSounds`, `client/FlagFireworks.java`, `PaponBossEntity` (`Cutaway`, `tickCutaway`, `retort`, `watchPlayers`, `tickP3ShowCar`, `backfire`), `BossState.P2_CUTAWAY/P3_SHOWCAR`, `client/Cinematic` (`cutawayShot`, `showcarShot`), `client/SongPlayer.listen`, `vehicle/CaravanEntity` (`setUnderglow`, `idleFor`), `client/CaravanRenderer` (`underglow`, `headlights`), `client/CaravanSounds`, `tools/gen_skyline_sounds.py`, `command/PaponCommand` (`cutaway`) |
 | Boss polish (v0.10.0): damage windows (armored mid-move, WINDED after), cutscene clock synced from the server + auto-cuts + 80-block range + frozen player, the reworked phase-three build-up (beaten knockback, blurry POV glare, ascension reactions, P3_POWER, band chatter, "upgrade"), four new Ascended moves, La Ola wall, band blasts, salsa ring, monolith shade, harder statues, eye beams from the eyes, K/L squeeze + live meter, QTE player poses, input lockout | `boss/PaponBossEntity` (`armored`, `winds`, `tickWinded`, `DATA_TICKS/METER/ARMOR`, `tickP3Power`, `tickP3Sombrero/Volcan/Calaveras/PinataSwing`, `tickOla`), `client/Cinematic` (`jumped`, `BOSS_RANGE`), `client/BlurFx`, `client/QtePlayerPose`, `client/PropRenderer` (`drawSalsaWave`, `drawBandWave`, `drawRing`), `client/BossRenderer` (`eyePos`, `eyeLightning`), `boss/BeamEntity` (`eye`), `tools/gen_props.py` (`sombrero`, `calavera`, `salsa_wave`) |
-| Phase four, Dia de los Muertos (a quarter health): the rise, the spirit hammer, the bolt into the moon (the blue calavera), its rays turning the band and the stands, the blue-out, El Coliseo de los Muertos (twice the size, swapped in place: night stone, bone, sugar skulls, ectoplasm cracks, an ofrenda), his truest form (the skeleton, bone wings, the Catrin's hat), eight moves, 28 new lines | `boss/PaponBossEntity` (`startPhaseFour`, `tickP4*`, `choosePhaseFour`, `tickStrikes`, `tickSouls`), `BossState.P4_*`, `boss/Coliseum` (`dead`, `swapFrom`, `cracks`), `boss/SpiritGiantEntity`, `block/Ectoplasm*/SoulVoid*/SpiritBrazier*/SugarSkull*/MuertosCandles*`, `client/MuertosSky`, `client/SpiritGiantRenderer`, `client/Cinematic.phaseFourShot`, `client/BossModel.spiritProps`, `tools/gen_muertos.py`, `tools/gen_muertos_papon.py`, `gen_boss_anims` (`b_p4_*`, `b_d_*`) |
+| Phase four, the Final Guardian (a quarter health; reworked 2026-10-04): the fall and the reopened scar, Ignis's head, the prophecy in the fog, the moon turning, the souls of the stands and the band, the transformation (El Coliseo de los Muertos in the flash), the bow, Ouros and Boros, Persona Ideal, the muchachas, "show me a good time"; ten moves (the serpents' dives and the sun arrows new) | `boss/PaponBossEntity` (`startPhaseFour`, `tickP4Fall..tickP4GoodTime`, `choosePhaseFour`, `tickP4Serpientes`, `tickSerpentDives`, `tickP4Flechas`), `BossState.P4_*`, `boss/SkySerpentEntity` + `SerpentPath`, `boss/SalsaDancerEntity`, `boss/BossProp` (IGNIS_HEAD), `client/SkySerpentRenderer` + `SerpentModel`, `client/SalsaDancerRenderer`, `client/MuertosSky` (souls, arrow, flash), `client/Cinematic.phaseFourShot`, `client/BossRenderer` (`bonePos`, `facePos`, `ignisHead`), `client/ClientEvents` (fog), `tools/gen_serpents.py`, `tools/gen_salsa.py`, `tools/gen_ignis_head.py`, `tools/gen_p4_sounds.py`, `tools/gen_muertos_papon.py` (penacho, bow, scar), `gen_boss_anims` (`b_p4_*`, `b_d_*`), `gen_song.py --song persona_ideal` |
 | Phase-two voice: his lines in English in a cloned voice (Qwen3-TTS on Modal), lip-synced, the cutscene timed to them | `tools/gen_boss_voice.py`, `tools/voice_modal.py`, `boss/VoiceLines.java`, `client/BossFace.java`, `client/BossModel.java`, `assets/papon/voice/boss2.json`, `sounds/voice/boss2/` |
 
 ### The boss fight (status 2026-10-02: built; tested headless and with the autoshot client)
@@ -667,53 +674,49 @@ player and were not exercised headless.
   `KeyMapping.releaseAll()`; the duel ignores presses in its first 0.5 s and through the count-in. Duel: gems fall in 0.85 s,
   ±85 ms good, ±40 ms perfect, pass at 82%, miss -0.06, bum note -0.02.
 
-### Phase four, Dia de los Muertos (status 2026-10-04, v0.11.0: built; check with `./gradlew runClient -Pautoshot=phase4`)
-- **Trigger**: a hit that takes him to 25% (`PHASE_FOUR_AT`) in phase three sets `phaseFourDue`; `startPhaseFour` when he is
-  free (not a cutscene, QTE, the duel, the car). `/papon bossstate P4_RISE` forces it (phase three's flags and form first,
-  health to just under a quarter); `/papon bossstate P4_<MOVE>` puts him straight in the form.
-- **The ritual** (`BossState.P4_*`, all cutscene; beats `p4.*` from his lines in `gen_boss_voice.beats`): P4_RISE (up over the
-  middle laughing, `p4_laugh`; the clouds part on the potato moon at `p4.moon`, `DATA_MOON` 1; "You think that was ALL?..."
-  `p4_rise`) -> P4_HAMMER (blue fire spirals into his raised hand; at `p4.forms` it sets into the spirit hammer, `DATA_P4PROP`
-  1, `client/BossModel.spiritProps` swells it in; "Death herself... lends me her HAMMER tonight." `p4_hammer`) -> P4_STRIKE
-  ("Wake up, LUNA!!!", the swing at `p4.swing`, the bolt; at `p4.turn` the moon is the dead's, `DATA_MOON` 2: a blue
-  calavera, `textures/environment/muertos_moon.png`) -> P4_MOONRAYS (a ray onto each band member in turn, `rayAt(i)`,
-  `MariachiEntity.setDead`; then the stands, `ColiseumCrowdEntity.setDead` sweeping 0 to 1 from `RAYS_STANDS`) -> P4_BLUEOUT
-  (the screen floods blue; at t14 `Coliseum.dead` + `swapFrom` turns the old coliseum into the dead's in place, built behind
-  the blue; `enterDeadArena` re-seats everyone) -> P4_REVEAL (down into the great calavera, looking round: "It has been
-  centuries... since I was brought to my TRUEST form." `p4_centuries`) -> P4_TRUEFORM (blue fire, the bone at `p4.bone`:
-  form 4, the bone wings unfurl; "Behold... EL REY DE LOS MUERTOS!" `p4_true`; at `p4.drop`: `DATA_PHASE4`, bar "El Rey de
-  los Muertos", the band of the dead plays, the stands FIESTA, fireworks, the title) -> IDLE ("Now, amigo... we CELEBRATE!").
-- **El Coliseo de los Muertos** (`Coliseum.dead`, `DEAD_SCALE` 2: sand 58 x 42): night-stone tiles and bricks, bone columns,
-  sugar-skull keystones, spirit braziers and candles, an ofrenda behind the band, the great calavera in the floor and
-  `cracks()` (crack cells with their distance from the skull) full of animated `ECTOPLASM`. Flags turn to the dead's
-  (`ArenaFlagBlockEntity.DEAD`, `potato_flag_muertos.png`). With too little room over the terrain for twice the size it
-  stays the same size, restyled.
-- **The band and the stands turned**: `mariachi_muertos.png` / `arena_fan_muertos.png` (`gen_muertos.py band`: the living
-  texture with every potato pixel bone, a sugar-skull face, glowing blue eyes in the sockets; silver botonadura; the fans in
-  black, purple, marigold and rosa); livelier poses for both while dead (`MariachiModel`, `ColiseumCrowdRenderer`).
-- **His truest form** (form 4, `papon_muertos` from `gen_muertos_papon.py`: Ascended burnt to the bone, the sugar-skull face,
-  the Catrin's hat, bone wings with spectral feathers; flies at up to 1.5 b/t). The spirit hammer is a bone on
-  `papon_muertos` **and** on `papon_ascended` (it forms while he is still Ascended; `give_ascended_hammer` copies it and its
-  pixels, rows 384 on); it and `catrin_hat` are in `B.pins` and only `BossModel.spiritProps` shows them. Poses holding the
-  hammer keep it off the floor (its head is 33 px past the shoulder).
-- **The moves** (`choosePhaseFour`, none of the god's; shares are of max health, true damage, `deadHit`): P4_MARTILLO 64t (a
-  blink beside you, forehand 12%, backhand, up, the slam 16% + rings 10% to jump, lightning marks onto where you are going) ;
-  P4_LUNA 130t (four volleys of moon beams onto blue rings, round you, ahead of you, anywhere; 18%) ; P4_GIGANTE 230t (he
-  plays a spirit guitar at one end, `SpiritGiantEntity` rises at the other below the arena, its skull and hands over the
-  wall: its eyes find you, a 4.6-wide laser dragged after you, 16% every 5 t; the hands come down, 28% + stunned; the laser
-  swept across the floor; it sinks) ; P4_GRIETA 200t (he dives in front of you, slams, tears the floor open: a rift of
-  `SOUL_VOID` through you, souls (`BossProp.SOUL`) come for you and drag you to it, the floor pulls; "And... SHUT." he claps
-  it shut, 30% to anyone in it) ; P4_PETALOS 170t (six spiral arms of marigold petals out of his spin, one way then back
-  faster, 7% a petal; `petal()` on both sides) ; P4_PAPEL 170t (papel picado banners sweeping the floor, low (jump) and high
-  (crouch), along and across, 15%) ; P4_VELAS 160t (candles of blue fire up out of the ectoplasm cracks, a front out from the
-  skull and back: stand on the tiles, 16%) ; P4_DANZA 170t (six skeleton dancers ring you and spin through you one by one, a
-  pink line first; hit one and it shatters; 12%). Most are armored and wind him (`armored`, `winds`).
-- **Voice**: 28 lines `p4_*` (`gen_boss_voice.py`, in `FRESH`: the natural delivery), generated on Modal 2026-10-04 (profile
-  zardman1). Fight quips swap to `p4_charm0-5`, `p4_hit0-2`, `p4_landed0-2`. The band blurts `p4_bones`, `p4_ay`.
-- **Animations** (`gen_boss_anims.PHASE_FOUR`): `p4_rise`, `p4_hammer`, `p4_strike`, `p4_moonrays` (also the blue-out),
-  `p4_reveal`, `p4_trueform`, `d_fly`, `d_martillo`, `d_gigante` (the hands are `BossModel.shred`), `d_grieta`, `d_petalos`,
-  `d_conduct` (papel, velas), `d_danza`, `d_luna`. Wings: the form controller's `a_wings_*` (`F_BONE_UNFURL` at the bone).
-- **Textures** (`gen_muertos.py`): `blocks`, `flag`, `sky` (the calavera moon), `fx` (`papel_picado.png`, `soul.png`), `band`.
+### Phase four, the Final Guardian (status 2026-10-04, v0.12.0: reworked; check with `./gradlew runClient -Pautoshot=phase4`)
+- **Trigger**: a hit that takes him to 25% (`PHASE_FOUR_AT`) in phase three sets `phaseFourDue`; `startPhaseFour` when he is free.
+  `/papon bossstate P4_FALL` forces it (phase three's flags, form and night first); `/papon bossstate P4_<MOVE>` puts him in the
+  form. One beat alone: `./gradlew runClient -Pautoshot=state:P4_IGNIS:3:30,60,90` (form 3 or 4, shots at those ticks).
+- **The cutscene** (`BossState.P4_FALL..P4_GOODTIME`, all invulnerable; beats `p4.*` from his lines in `gen_boss_voice.beats`):
+  P4_FALL (flung back onto his back `p4Land/p4Skid`, kept on the sand `onSand`; the band `stop`+`scare`, `SongPlayer` cuts dead
+  with `boss.scratch`; `boss.pant`; the scar bleeds; "Huh... it reopened" `p4_scar`) -> P4_RISEUP (knee, the cough of blood,
+  `p4_howgot`) -> P4_IGNIS (`DATA_P4PROP` 4: Ignis's head in his fist, drawn upright under it by `BossRenderer.ignisHead`;
+  thrown down as `BossProp.IGNIS_HEAD` (`throwDown`), lying on the sand for the rest; `p4_ignis`, `p4_met`) -> P4_PROPHECY (a slow
+  walk to the middle, `p4_years`, `DATA_FOG` 0->1 (`ClientEvents.onRenderFog/onMistColor`), `p4_prophecy`, the potato moon
+  `DATA_MOON` 1, `p4_lunaknows`) -> P4_BRETHREN (`p4_brethren`, `p4_grant`, the moon turns at `p4.turn`: `MuertosSky.turn`) ->
+  P4_SOULS (floating up, `DATA_GLOW`; the stands' souls `ColiseumCrowdEntity.setDead` 0->1, each fan by `ColiseumCrowdRenderer.threshold`,
+  his soul flown into him by `MuertosSky.souls`; then the band's, `soulAt(i)`, `MariachiEntity.setDead`) -> P4_HALFBAKED
+  (`p4_halfbaked`, the burst, the green flash `MuertosSky.blueout`: form 4, `DATA_PHASE4`, bar "Papon, the Final Guardian",
+  fog off, `Coliseum.dead` + `swapFrom` + `enterDeadArena` behind it; the title) -> P4_BOW (`DATA_P4PROP` 3, `BOW_*` ticks, the
+  arrow streak `MuertosSky.arrow`, `spawnSerpents`) -> P4_SERPENTS (their roars) -> P4_TALKING -> P4_TOBAND -> P4_HONOR
+  (`p4_honor`, the singer's `p4_listo`, the band `play(songStart, Song.PERSONA_IDEAL)` at `p4.song`) -> P4_MUCHACHAS (the clap,
+  `SalsaDancerEntity` x4 at `muchachaSpots`, the nearest `twirl`ed: in step with `p4_muchachas`) -> P4_GOODTIME (`p4_goodtime`,
+  the eruption; IDLE on the song's first sung word, `fightAt`: `p4.passes` brass intros after the downbeat).
+- **Ouros and Boros** (`SkySerpentEntity`, never saved; `keepGuardian` calls them back): the entity sits at the arena's middle,
+  the serpent is `SerpentPath` (pure function of distance along it: portal -> Hermite approach -> orbit with a weave; dives:
+  down off the orbit, straight across the floor, back up where it would have been), its head `SPEED` b/t along it since born;
+  both sides work it out from the synced portal/orbit/dives. Drawn by `SkySerpentRenderer` from `SerpentModel` (vanilla parts
+  from `assets/papon/serpent/*.json`), head + `SEGMENTS` + tail laid down the path, a feather ruff every 4th, in its own
+  buffers with the fog pushed out; the black-smoke portal + green glow while it comes through. `-Pautoshot=serpents` /
+  `/papon serpents` to look at them alone.
+- **The muchachas** (`SalsaDancerEntity`, a TacoNpc, never saved): RISE, DANCE (salsa_a/b/c), TWIRLED, MOURN at his fall.
+- **The Final Guardian** (form 4, `gen_muertos_papon.py`): the skeleton with a jade-green glow (eyes, wings, `papon_aura_guardian`),
+  the **penacho** (gold band, sun disc, quetzal fan; feathers share pixels: `cube(share=)`), jade ear spools, the scar burning
+  green; the **bow** (`aztec_bow` > limbs, tips, `bow_string`, `bow_drawn`, `aztec_arrow`; keyed by `p4_bow`, `d_flechas`); the
+  bleeding scar (`scar` > `scar_blood`) is on `papon_ascended` too (`give_ascended_scar`). `BossModel.spiritProps` shows them.
+  **Tracked bone positions** (`BossRenderer.bonePos/facePos`) are scaled back up by the render scale (GeckoLib's matrices leave
+  it out); the camera frames his face, fists and scar with them.
+- **Moves** (`choosePhaseFour`): the eight from before plus P4_SERPIENTES (each serpent dives across the floor through you, a
+  9-wide green warning line from the moment it turns, 22% + flung; `tickSerpentDives` runs on after the move) and P4_FLECHAS
+  (three volleys up and down onto green rings, three straight at you, 14% each; `strikes` mode 2).
+- **The song** "Persona Ideal" (`gen_song.py --song persona_ideal`, htdemucs_6s, cache `tools/.cache/song_p4`): intro (brass)
+  0-24, verse1, chorus1, interlude (low), verse2, chorus2, trompetas, verse3, trompetas2, breakdown (low), climax, ending; the
+  horn track covers the intro (the trumpets play it).
+- **Voice**: 20 new lines (`p4_scar`.. `p4_goodtime`, `p4_flechas`, `p4_serpientes`, `p4_charm6-7`; `prophet`/`sincere` moods),
+  Modal profile melvinczyk. `p4_pant` was taken but sounds like a laugh: panting is `boss.pant` (`tools/gen_p4_sounds.py`).
+- El Coliseo de los Muertos, the band and the stands turned, the dead moon, and the eight earlier moves are as before
+  (`Coliseum.dead`, `gen_muertos.py`); the old ritual (hammer bolt, moon rays, blue-out, Catrin hat) is gone.
 
 ### Phase-two voice (status 2026-10-03: built; check with `./gradlew runClient -Pautoshot=voice`)
 - **From the kneel on he talks in English, in a cloned voice** (the user's reference: Spanish-accented English,
@@ -1204,6 +1207,12 @@ Several Claude sessions may work on this repo at once. **Never commit straight t
   will be shipped from the merge.
 - **`CLAUDE.md`** — keep both sides' additions; update the status table to reflect the merge.
 - After any conflict resolution: `./gradlew build` must pass before you commit the merge.
+
+## Line count (2026-10-04 refactor)
+Generated asset JSON (geo, animations, models, song and voice data) is written compact, one line per file: never pretty-print it
+again (it was 250k of the repo's 320k lines). `sounds.json` is one sound event per line (`geo_util.read_sounds/write_sounds`);
+`lang/en_us.json` stays one key per line (both are merged by hand). Java one-statement blocks sit on one line
+(`python3.11 tools/compact_java.py <files>`; it changes no bytecode: check with `javap -c` before and after).
 
 ## Building and testing
 

@@ -16,14 +16,10 @@ public record TacoLine(BlockPos window, Direction out) {
     public static final double SPACING = 1.5;
     public static final double WALKWAY = 2.0;
 
-    public Vec3 slot(int i) {
-        return Vec3.atBottomCenterOf(window).add(out.getStepX() * i * SPACING, 0, out.getStepZ() * i * SPACING);
-    }
+    public Vec3 slot(int i) { return Vec3.atBottomCenterOf(window).add(out.getStepX() * i * SPACING, 0, out.getStepZ() * i * SPACING); }
 
     /** Right-hand side of the line, looking out from the truck. */
-    public Direction side() {
-        return out.getClockWise();
-    }
+    public Direction side() { return out.getClockWise(); }
 
     /** A point on the walkway {@code along} blocks out from the window. */
     public Vec3 walkway(double along) {
@@ -33,9 +29,7 @@ public record TacoLine(BlockPos window, Direction out) {
     }
 
     /** What people in line look at: the counter, a block and a half up. */
-    public Vec3 counter() {
-        return Vec3.atBottomCenterOf(window).add(-out.getStepX() * 1.2, 1.5, -out.getStepZ() * 1.2);
-    }
+    public Vec3 counter() { return Vec3.atBottomCenterOf(window).add(-out.getStepX() * 1.2, 1.5, -out.getStepZ() * 1.2); }
 
     /** Distance along the line from the window, for a position. */
     public double along(Vec3 pos) {

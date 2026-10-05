@@ -41,26 +41,16 @@ public enum BandRole {
         return id >= 0 && id < all.length ? all[id] : SINGER;
     }
 
-    public boolean singer() {
-        return this == SINGER;
-    }
+    public boolean singer() { return this == SINGER; }
 
     /** The one who falls straight back asleep and has to have his chair kicked. */
-    public boolean dozer() {
-        return this == GUITARRON;
-    }
+    public boolean dozer() { return this == GUITARRON; }
 
     /** Who switches the stage's floodlights on at nightfall (and off at dawn). */
-    public boolean lamplighter() {
-        return this == CORO_3;
-    }
+    public boolean lamplighter() { return this == CORO_3; }
 
-    public boolean coro() {
-        return kind.equals("coro");
-    }
+    public boolean coro() { return kind.equals("coro"); }
 
     /** "grab_guitar" etc.: the singer's requinto uses the guitarists' animations. */
-    public String animKind() {
-        return kind.equals("singer") ? "guitar" : kind;
-    }
+    public String animKind() { return kind.equals("singer") ? "guitar" : kind; }
 }

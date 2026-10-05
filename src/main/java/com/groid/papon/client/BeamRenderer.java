@@ -20,9 +20,7 @@ import org.joml.Matrix4f;
  * along its length; where it lands, a burning splash. Aiming, it is a thin flickering line of the same colour.
  */
 public class BeamRenderer extends EntityRenderer<BeamEntity> {
-    public BeamRenderer(EntityRendererProvider.Context ctx) {
-        super(ctx);
-    }
+    public BeamRenderer(EntityRendererProvider.Context ctx) { super(ctx); }
 
     @Override
     public boolean shouldRender(BeamEntity e, Frustum frustum, double x, double y, double z) {
@@ -102,7 +100,5 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
     }
 
     @Override
-    public ResourceLocation getTextureLocation(BeamEntity e) {
-        return net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS;
-    }
+    public ResourceLocation getTextureLocation(BeamEntity e) { return net.minecraft.client.renderer.texture.TextureAtlas.LOCATION_BLOCKS; }
 }

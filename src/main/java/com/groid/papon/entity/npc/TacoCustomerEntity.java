@@ -94,13 +94,9 @@ public class TacoCustomerEntity extends TacoNpc {
         }
     }
 
-    private RawAnimation loop(String name) {
-        return RawAnimation.begin().thenLoop(kind.anim(name));
-    }
+    private RawAnimation loop(String name) { return RawAnimation.begin().thenLoop(kind.anim(name)); }
 
-    public Customer kind() {
-        return kind;
-    }
+    public Customer kind() { return kind; }
 
     @Override
     protected void defineSynchedData() {
@@ -153,13 +149,9 @@ public class TacoCustomerEntity extends TacoNpc {
     }
 
     /** Papon customers only: 0 none, 1 sombrero, 2 cap. */
-    public int getHat() {
-        return entityData.get(DATA_HAT);
-    }
+    public int getHat() { return entityData.get(DATA_HAT); }
 
-    public void setHat(int hat) {
-        entityData.set(DATA_HAT, Mth.clamp(hat, 0, 2));
-    }
+    public void setHat(int hat) { entityData.set(DATA_HAT, Mth.clamp(hat, 0, 2)); }
 
     @Override
     protected void registerGoals() {
@@ -169,19 +161,13 @@ public class TacoCustomerEntity extends TacoNpc {
     }
 
     @Override
-    protected Speech.Voice voice() {
-        return kind.voice;
-    }
+    protected Speech.Voice voice() { return kind.voice; }
 
     /** The internet's finest always show their names; the Papons only when named. */
     @Override
-    public boolean shouldShowName() {
-        return kind != Customer.PAPON || super.shouldShowName();
-    }
+    public boolean shouldShowName() { return kind != Customer.PAPON || super.shouldShowName(); }
 
-    public CustomerState getCustomerState() {
-        return CustomerState.byId(stateId());
-    }
+    public CustomerState getCustomerState() { return CustomerState.byId(stateId()); }
 
     private void setCustomerState(CustomerState s) {
         if (WanderingPaponEntity.debugEscort && s != getCustomerState()) {
@@ -200,22 +186,16 @@ public class TacoCustomerEntity extends TacoNpc {
         this.orphanTicks = 0;
     }
 
-    public boolean isWaitingInLine() {
-        return getCustomerState() == CustomerState.QUEUED;
-    }
+    public boolean isWaitingInLine() { return getCustomerState() == CustomerState.QUEUED; }
 
     public void beginOrder() {
         setCustomerState(CustomerState.ORDERING);
         Speech.say(this, kind.color, kind.key("order"), false, kind.spanish, kind.orderTicks - 10);
     }
 
-    public void waitForFood() {
-        setCustomerState(CustomerState.WAITING_FOOD);
-    }
+    public void waitForFood() { setCustomerState(CustomerState.WAITING_FOOD); }
 
-    public void receive() {
-        setCustomerState(CustomerState.RECEIVING);
-    }
+    public void receive() { setCustomerState(CustomerState.RECEIVING); }
 
     public void leave() {
         setCustomerState(CustomerState.LEAVING);
@@ -273,9 +253,7 @@ public class TacoCustomerEntity extends TacoNpc {
         if (d2 > SLOT_TOLERANCE * SLOT_TOLERANCE) {
             if (d2 < 2.0 * 2.0) {
                 getMoveControl().setWantedPosition(target.x, target.y, target.z, 0.8);
-            } else if (getNavigation().isDone() || tickCount % 20 == 0) {
-                getNavigation().moveTo(target.x, target.y, target.z, 1.0);
-            }
+            } else if (getNavigation().isDone() || tickCount % 20 == 0) { getNavigation().moveTo(target.x, target.y, target.z, 1.0); }
         } else {
             getNavigation().stop();
             if (getCustomerState() != CustomerState.QUEUED || !getLookControl().isLookingAtTarget()) {
@@ -305,9 +283,7 @@ public class TacoCustomerEntity extends TacoNpc {
             startTalking(p);
             return;
         }
-        if (getNavigation().isDone() || tickCount % 10 == 0) {
-            getNavigation().moveTo(spot.x, spot.y, spot.z, 1.0);
-        }
+        if (getNavigation().isDone() || tickCount % 10 == 0) { getNavigation().moveTo(spot.x, spot.y, spot.z, 1.0); }
     }
 
     /** Whoever we walk up to: the player nearest the line, within reason. */
@@ -341,9 +317,7 @@ public class TacoCustomerEntity extends TacoNpc {
         getNavigation().stop();
         Player p = audience == null ? null : level.getPlayerByUUID(audience);
         if (p != null) face(p.position());
-        for (Customer.Line l : kind.lines) {
-            if (stateTicks == l.at() + 1) speak(l);
-        }
+        for (Customer.Line l : kind.lines) { if (stateTicks == l.at() + 1) speak(l); }
         reactionEffects(level);
         if (stateTicks >= kind.reactTicks) startExit();
     }
@@ -353,9 +327,7 @@ public class TacoCustomerEntity extends TacoNpc {
         if (kind == Customer.PAPON) key = key + lineVariant;
         if (kind == Customer.REVIEWBRAH && l.name().equals("leave")) {
             Speech.say(this, kind.color, key, true, kind.spanish, l.ticks(), rating);
-        } else {
-            Speech.say(this, kind.color, key, true, kind.spanish, l.ticks());
-        }
+        } else { Speech.say(this, kind.color, key, true, kind.spanish, l.ticks()); }
     }
 
     /** Particles the animation cannot do on its own. */
@@ -384,9 +356,7 @@ public class TacoCustomerEntity extends TacoNpc {
                 }
             }
             case REVIEWBRAH -> {
-                if (t == 40) {
-                    level.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), top + 0.2, getZ(), 6, 0.3, 0.2, 0.3, 0);
-                }
+                if (t == 40) { level.sendParticles(ParticleTypes.HAPPY_VILLAGER, getX(), top + 0.2, getZ(), 6, 0.3, 0.2, 0.3, 0); }
             }
             case PAPON -> {
                 if (t == 12) level.sendParticles(ParticleTypes.HEART, getX(), top + 0.2, getZ(), 2, 0.3, 0.1, 0.3, 0);
@@ -407,9 +377,7 @@ public class TacoCustomerEntity extends TacoNpc {
             discard();
             return;
         }
-        if (getNavigation().isDone() || tickCount % 20 == 0) {
-            getNavigation().moveTo(exit.x, exit.y, exit.z, speed);
-        }
+        if (getNavigation().isDone() || tickCount % 20 == 0) { getNavigation().moveTo(exit.x, exit.y, exit.z, speed); }
     }
 
     private double horizontalDistSqr(Vec3 v) {

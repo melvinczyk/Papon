@@ -22,9 +22,7 @@ public class CrowdModel<T extends TacoNpc> extends GeoModel<T> {
     private final ResourceLocation animation;
     private final boolean turnsHead;
 
-    public CrowdModel(String name, String animationFile, boolean turnsHead) {
-        this(name, name, animationFile, turnsHead);
-    }
+    public CrowdModel(String name, String animationFile, boolean turnsHead) { this(name, name, animationFile, turnsHead); }
 
     /** Geo and texture by different names: a mesh-bodied rig borrows its props' texture. */
     public CrowdModel(String geoName, String textureName, String animationFile, boolean turnsHead) {
@@ -35,19 +33,13 @@ public class CrowdModel<T extends TacoNpc> extends GeoModel<T> {
     }
 
     @Override
-    public ResourceLocation getModelResource(T animatable) {
-        return geo;
-    }
+    public ResourceLocation getModelResource(T animatable) { return geo; }
 
     @Override
-    public ResourceLocation getTextureResource(T animatable) {
-        return texture;
-    }
+    public ResourceLocation getTextureResource(T animatable) { return texture; }
 
     @Override
-    public ResourceLocation getAnimationResource(T animatable) {
-        return animation;
-    }
+    public ResourceLocation getAnimationResource(T animatable) { return animation; }
 
     @Override
     public void setCustomAnimations(T animatable, long instanceId, AnimationState<T> state) {

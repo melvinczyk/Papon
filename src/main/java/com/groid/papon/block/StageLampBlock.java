@@ -32,9 +32,7 @@ public class StageLampBlock extends HorizontalDirectionalBlock implements Entity
     }
 
     @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, LIT);
-    }
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) { builder.add(FACING, LIT); }
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext ctx) {
@@ -42,13 +40,9 @@ public class StageLampBlock extends HorizontalDirectionalBlock implements Entity
     }
 
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return SHAPE;
-    }
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) { return SHAPE; }
 
     @Nullable
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new StageLampBlockEntity(pos, state);
-    }
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new StageLampBlockEntity(pos, state); }
 }

@@ -17,9 +17,7 @@ import java.util.List;
  * of the fire, however tough you are.
  */
 public class HabaneroEffect extends MobEffect {
-    public HabaneroEffect() {
-        super(MobEffectCategory.HARMFUL, 0xE0401C);
-    }
+    public HabaneroEffect() { super(MobEffectCategory.HARMFUL, 0xE0401C); }
 
     @Override
     public void applyEffectTick(LivingEntity e, int amplifier) {
@@ -29,12 +27,8 @@ public class HabaneroEffect extends MobEffect {
     }
 
     @Override
-    public boolean isDurationEffectTick(int duration, int amplifier) {
-        return duration % 20 == 0;
-    }
+    public boolean isDurationEffectTick(int duration, int amplifier) { return duration % 20 == 0; }
 
     @Override
-    public List<ItemStack> getCurativeItems() {
-        return List.of();
-    }
+    public List<ItemStack> getCurativeItems() { return List.of(); }
 }

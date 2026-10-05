@@ -26,23 +26,15 @@ import net.minecraft.world.phys.Vec3;
  * round counts) and a nudge back; bursts into mash on whatever it hits. Shields stop it.
  */
 public class PotatoShotEntity extends ThrowableItemProjectile {
-    public PotatoShotEntity(EntityType<? extends PotatoShotEntity> type, Level level) {
-        super(type, level);
-    }
+    public PotatoShotEntity(EntityType<? extends PotatoShotEntity> type, Level level) { super(type, level); }
 
-    public PotatoShotEntity(Level level, LivingEntity shooter) {
-        super(ModEntities.POTATO_SHOT.get(), shooter, level);
-    }
+    public PotatoShotEntity(Level level, LivingEntity shooter) { super(ModEntities.POTATO_SHOT.get(), shooter, level); }
 
     @Override
-    protected Item getDefaultItem() {
-        return Items.BAKED_POTATO;
-    }
+    protected Item getDefaultItem() { return Items.BAKED_POTATO; }
 
     @Override
-    protected float getGravity() {
-        return 0.006F;
-    }
+    protected float getGravity() { return 0.006F; }
 
     @Override
     public void tick() {
@@ -69,9 +61,7 @@ public class PotatoShotEntity extends ThrowableItemProjectile {
         if (!(level() instanceof ServerLevel level)) return;
         Vec3 at = result.getLocation();
         com.groid.papon.fx.Fx.chunks(level, at, 2, 0.18F, com.groid.papon.fx.Fx.POTATO, 0.25);
-        if (random.nextInt(3) == 0) {
-            level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.6F, 1.4F);
-        }
+        if (random.nextInt(3) == 0) { level.playSound(null, at.x, at.y, at.z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 0.6F, 1.4F); }
         discard();
     }
 }

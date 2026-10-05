@@ -12,9 +12,7 @@ import org.joml.Vector3f;
 public class HotSandBlock extends Block {
     private static final DustParticleOptions EMBER = new DustParticleOptions(new Vector3f(1F, 0.55F, 0.12F), 1.2F);
 
-    public HotSandBlock(Properties props) {
-        super(props);
-    }
+    public HotSandBlock(Properties props) { super(props); }
 
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {

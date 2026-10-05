@@ -19,14 +19,10 @@ public class EchoRenderer extends GeoEntityRenderer<PaponEchoEntity> {
     public EchoRenderer(EntityRendererProvider.Context ctx) {
         super(ctx, new DefaultedEntityGeoModel<>(PaponMod.id("papon_boss")) {
             @Override
-            public ResourceLocation getModelResource(PaponEchoEntity e) {
-                return e.isDancer() ? DANCER_GEO : super.getModelResource(e);
-            }
+            public ResourceLocation getModelResource(PaponEchoEntity e) { return e.isDancer() ? DANCER_GEO : super.getModelResource(e); }
 
             @Override
-            public ResourceLocation getTextureResource(PaponEchoEntity e) {
-                return e.isDancer() ? DANCER_TEX : super.getTextureResource(e);
-            }
+            public ResourceLocation getTextureResource(PaponEchoEntity e) { return e.isDancer() ? DANCER_TEX : super.getTextureResource(e); }
         });
         withScale(1.5F);
         this.shadowRadius = 0F;

@@ -32,7 +32,5 @@ public class StunnedEffect extends MobEffect {
     }
 
     @Override
-    public boolean isDurationEffectTick(int duration, int amplifier) {
-        return duration % 8 == 0;
-    }
+    public boolean isDurationEffectTick(int duration, int amplifier) { return duration % 8 == 0; }
 }

@@ -87,7 +87,10 @@ public class BossProp extends Entity {
         SOUL,
         /** Papel Picado (phase four): a string of giant cut-paper banners sweeping the floor: half its length = radius,
          *  travelling along its yaw; the delay slot 0 low (jump it), 1 high (duck it). Moved by the boss. */
-        PAPEL
+        PAPEL,
+        // ---- phase four, reworked (appended)
+        /** Ignis's head (the user's Ignis trophy, kubejs in the pack): thrown down at his feet, where it stays; radius = the floor. */
+        IGNIS_HEAD
     }
 
     /** GUITAR: the pull down on its arc each tick. */
@@ -130,6 +133,16 @@ public class BossProp extends Entity {
         return this;
     }
 
+    /** Thrown down to land on {@code at} in {@code ticks} (an arc under TOSS_G), then lying where it fell. */
+    public BossProp throwDown(Vec3 at, int ticks) {
+        Vec3 d = at.subtract(position());
+        int n = Math.max(1, ticks);
+        setDeltaMovement(new Vec3(d.x / n, (d.y + TOSS_G * n * (n - 1) / 2.0) / n, d.z / n));
+        aim = at;
+        entityData.set(DATA_RADIUS, (float) at.y);
+        return this;
+    }
+
     public BossProp cleaver(Vec3 out, float curve) {
         this.aim = out;
         this.curve = curve;
@@ -167,27 +180,17 @@ public class BossProp extends Entity {
         return this;
     }
 
-    public Kind kind() {
-        return Kind.values()[Mth.clamp(entityData.get(DATA_KIND), 0, Kind.values().length - 1)];
-    }
+    public Kind kind() { return Kind.values()[Mth.clamp(entityData.get(DATA_KIND), 0, Kind.values().length - 1)]; }
 
-    public float radius() {
-        return entityData.get(DATA_RADIUS);
-    }
+    public float radius() { return entityData.get(DATA_RADIUS); }
 
-    public void setRadius(float r) {
-        entityData.set(DATA_RADIUS, r);
-    }
+    public void setRadius(float r) { entityData.set(DATA_RADIUS, r); }
 
     /** MASHER: which layout of holes the plate has (boss/Masher; synced in the fry's delay slot, which it does not use). */
-    public void setVariant(int v) {
-        entityData.set(DATA_DELAY, v);
-    }
+    public void setVariant(int v) { entityData.set(DATA_DELAY, v); }
 
     /** Ticks a fry still hangs before it flies (synced, the renderer shakes it). */
-    public int delay() {
-        return entityData.get(DATA_DELAY);
-    }
+    public int delay() { return entityData.get(DATA_DELAY); }
 
     @Nullable
     public PaponBossEntity owner() {
@@ -234,6 +237,16 @@ public class BossProp extends Entity {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
             }
+            case IGNIS_HEAD -> {
+                if (getY() > radius() + 0.01 || getDeltaMovement().y > 0) {
+                    move();
+                    setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+                    if (getY() <= radius()) {
+                        setPos(getX(), radius(), getZ());
+                        setDeltaMovement(Vec3.ZERO);
+                    }
+                }
+            }
             case CANDY -> {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
@@ -276,6 +289,18 @@ public class BossProp extends Entity {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
             }
+            case IGNIS_HEAD -> {
+                if (getY() > radius() + 0.01 || getDeltaMovement().y > 0) {
+                    move();
+                    setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+                    if (getY() <= radius()) {
+                        setPos(getX(), radius(), getZ());
+                        setDeltaMovement(Vec3.ZERO);
+                    }
+                }
+                if (tickCount % 6 == 0) level().addParticle(net.minecraft.core.particles.ParticleTypes.SMALL_FLAME, getX() + (random.nextDouble() - 0.5) * 0.6,
+                        getY() + 0.9, getZ() + (random.nextDouble() - 0.5) * 0.6, 0, 0.02, 0);
+            }
             case PINATA -> {
                 move();
                 setDeltaMovement(getDeltaMovement().scale(0.9));
@@ -311,13 +336,9 @@ public class BossProp extends Entity {
     }
 
     /** SALSA_WAVE: where its gap is, across it from its middle (blocks). */
-    public double gap() {
-        return (delay() - 1000) / 10.0;
-    }
+    public double gap() { return (delay() - 1000) / 10.0; }
 
-    public void setGap(double across) {
-        entityData.set(DATA_DELAY, 1000 + (int) Math.round(across * 10));
-    }
+    public void setGap(double across) { entityData.set(DATA_DELAY, 1000 + (int) Math.round(across * 10)); }
 
     // ---- the cleaver: out on a curve, then home to his hand
     private void tickCleaver(ServerLevel level, PaponBossEntity boss) {
@@ -458,14 +479,10 @@ public class BossProp extends Entity {
     }
 
     @Override
-    public boolean isPickable() {
-        return false;
-    }
+    public boolean isPickable() { return false; }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double d) {
-        return d < 128 * 128;
-    }
+    public boolean shouldRenderAtSqrDistance(double d) { return d < 128 * 128; }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {}
@@ -474,14 +491,10 @@ public class BossProp extends Entity {
     protected void addAdditionalSaveData(CompoundTag tag) {}
 
     @Override
-    public boolean shouldBeSaved() {
-        return false;
-    }
+    public boolean shouldBeSaved() { return false; }
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return new ClientboundAddEntityPacket(this);
-    }
+    public Packet<ClientGamePacketListener> getAddEntityPacket() { return new ClientboundAddEntityPacket(this); }
 
     @SuppressWarnings("unused")
     private static BlockPos below(Vec3 v) {

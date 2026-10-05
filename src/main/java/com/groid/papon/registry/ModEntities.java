@@ -133,6 +133,24 @@ public final class ModEntities {
                     .updateInterval(2)
                     .build(PaponMod.id("spirit_giant").toString()));
 
+    // Phase four: the muchachas, skeleton salsa dancers by the stage
+    public static final RegistryObject<EntityType<com.groid.papon.boss.SalsaDancerEntity>> SALSA_DANCER = REGISTRY.register("salsa_dancer",
+            () -> EntityType.Builder.<com.groid.papon.boss.SalsaDancerEntity>of(com.groid.papon.boss.SalsaDancerEntity::new, MobCategory.MISC)
+                    .sized(1.3F, 2.4F)
+                    .fireImmune()
+                    .clientTrackingRange(12)
+                    .build(PaponMod.id("salsa_dancer").toString()));
+
+    // Phase four: Ouros and Boros, the feathered serpents circling the arena (the entity sits in the middle; the serpent is a path)
+    public static final RegistryObject<EntityType<com.groid.papon.boss.SkySerpentEntity>> SKY_SERPENT = REGISTRY.register("sky_serpent",
+            () -> EntityType.Builder.<com.groid.papon.boss.SkySerpentEntity>of(com.groid.papon.boss.SkySerpentEntity::new, MobCategory.MISC)
+                    .sized(1.0F, 1.0F)
+                    .fireImmune()
+                    .noSummon()
+                    .clientTrackingRange(32)
+                    .updateInterval(20)
+                    .build(PaponMod.id("sky_serpent").toString()));
+
     // His echoes (Los Tres Chefs): see-through copies of him in the air that throw cleavers
     public static final RegistryObject<EntityType<com.groid.papon.boss.PaponEchoEntity>> PAPON_ECHO = REGISTRY.register("papon_echo",
             () -> EntityType.Builder.<com.groid.papon.boss.PaponEchoEntity>of(com.groid.papon.boss.PaponEchoEntity::new, MobCategory.MISC)

@@ -11,6 +11,7 @@ and points crowd.ambience / crowd.roar in sounds.json at them (several sounds: o
   python3.11 tools/gen_crowd_samples.py      (after gen_crowd.py; needs ffmpeg, numpy, soundfile)
 """
 import json
+from geo_util import read_sounds, write_sounds
 import os
 import re
 import subprocess
@@ -76,13 +77,10 @@ def main():
         y[:int(0.02 * SR)] *= np.linspace(0, 1, int(0.02 * SR))[:, None]
         y[n - k:] *= (np.linspace(1, 0, k) ** 1.5)[:, None]
         print(save(name, level(y, -12)))
-    path = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(path, encoding='utf-8'))
+    sounds = read_sounds()
     sounds['crowd.ambience'] = {'sounds': [{'name': 'papon:crowd/' + b[0], 'stream': True} for b in BEDS]}
     sounds['crowd.roar'] = {'sounds': [{'name': 'papon:crowd/' + r[0]} for r in ROARS]}
-    with open(path, 'w', newline='\n', encoding='utf-8') as f:
-        json.dump(sounds, f, indent=2, ensure_ascii=False)
-        f.write('\n')
+    write_sounds(sounds)
 
 
 if __name__ == '__main__':

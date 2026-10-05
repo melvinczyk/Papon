@@ -30,18 +30,12 @@ import net.minecraft.world.phys.Vec3;
 public class MolotovEntity extends ThrowableItemProjectile {
     private static final double RADIUS = 3.2;
 
-    public MolotovEntity(EntityType<? extends MolotovEntity> type, Level level) {
-        super(type, level);
-    }
+    public MolotovEntity(EntityType<? extends MolotovEntity> type, Level level) { super(type, level); }
 
-    public MolotovEntity(Level level, LivingEntity thrower) {
-        super(ModEntities.MOLOTOV.get(), thrower, level);
-    }
+    public MolotovEntity(Level level, LivingEntity thrower) { super(ModEntities.MOLOTOV.get(), thrower, level); }
 
     @Override
-    protected Item getDefaultItem() {
-        return ModItems.TEQUILA.get();
-    }
+    protected Item getDefaultItem() { return ModItems.TEQUILA.get(); }
 
     @Override
     public void tick() {

@@ -8,6 +8,7 @@ Needs macOS `say`, ffmpeg (pitch) and soundfile (mono Vorbis, so the line comes 
   pip install numpy soundfile && python3 tools/gen_voice.py
 """
 import json
+from geo_util import read_sounds, write_sounds
 import os
 import re
 import subprocess
@@ -30,8 +31,7 @@ def speakable(text):
 
 def main():
     lang = json.load(open(os.path.join(ASSETS, 'lang/en_us.json')))
-    sounds_path = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(sounds_path))
+    sounds = read_sounds()
     for k in [k for k in sounds if k.startswith('voice.')]:
         del sounds[k]
     n = 0
@@ -53,9 +53,7 @@ def main():
             soundfile.write(os.path.join(out_dir, line + '.ogg'), data, rate, format='OGG', subtype='VORBIS')
             sounds['voice.%s.%s' % (who, line)] = {'sounds': [{'name': 'papon:voice/%s/%s' % (who, line)}]}
             n += 1
-    with open(sounds_path, 'w', newline='\n') as f:
-        json.dump(sounds, f, indent=2)
-        f.write('\n')
+    write_sounds(sounds)
     print(n, 'lines voiced')
 
 

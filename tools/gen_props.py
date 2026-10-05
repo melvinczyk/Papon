@@ -111,7 +111,7 @@ class Model:
             model['display'] = self.display
         path = os.path.join(ASSETS, 'models/item/%s.json' % self.name)
         with open(path, 'w', newline='\n') as f:
-            json.dump(model, f, indent=1)
+            json.dump(model, f, separators=(',', ':'))
         return path
 
 

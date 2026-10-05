@@ -233,9 +233,7 @@ public final class QteClient {
                 Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
                         SoundEvents.NOTE_BLOCK_PLING.get(), 1.0F + step * 0.15F));
                 if (step >= keys.length) locked = true;
-            } else {
-                locked = true;
-            }
+            } else { locked = true; }
         }
     }
 

@@ -35,6 +35,7 @@ Needs: pip install modal librosa soundfile numpy; ffmpeg; Rhubarb in tools/.cach
 of 1.13.0); a Modal token for the melvinczyk profile (`python3.11 -m modal token new --profile melvinczyk`).
 """
 import argparse
+from geo_util import read_sounds, write_sounds
 import glob
 import json
 import os
@@ -107,6 +108,10 @@ DIRECTION = {
                            'and a hint of a smile. Natural word lengths, no stretched vowels.' % STAR),
     'contempt': ('animated', NATURAL + 'You are %s, seething, insulted to the core: contemptuous, the voice tight and '
                              'clipped, then flaring up.' % STAR),
+    'sincere': ('animated', NATURAL + 'You are %s, and for once you mean every word: soft, quiet and sincere, grateful and a '
+                            'little moved, speaking gently to old friends, no showing off.' % STAR),
+    'prophet': ('animated', NATURAL + 'You are %s, an ancient god speaking to his worshippers: solemn and stirring, the voice '
+                            'rising with fervour, slow and full of meaning.' % STAR),
 }
 # the directions every line was taken with before the rework: lines not in FRESH keep them (so they are not taken again)
 OLD_DIRECTION = {
@@ -164,7 +169,10 @@ OLD_DIRECTION = {
 FRESH = set(['intro', 'felt', 'notstyle', 'p3_hurt', 'p3_noise', 'p3_power', 'upgrade', 'qte_strong', 'qte_weak', 'qte_crush', 'qte_slip', 'qte_quick', 'qte_slow', 'tango_good', 'tango_bad', 'duel_good', 'duel_bad', 'p3_sombrero', 'p3_volcan', 'p3_calaveras', 'p3_swing'] + [
     k for k in ['p4_laugh', 'p4_rise', 'p4_hammer', 'p4_strike', 'p4_centuries', 'p4_true', 'p4_fiesta', 'p4_martillo', 'p4_luna', 'p4_gigante',
                 'p4_grieta', 'p4_cierra', 'p4_petalos', 'p4_papel', 'p4_velas', 'p4_danza']] + ['p4_charm%d' % i for i in range(6)]
-    + ['p4_hit%d' % i for i in range(3)] + ['p4_landed%d' % i for i in range(3)])
+    + ['p4_hit%d' % i for i in range(3)] + ['p4_landed%d' % i for i in range(3)]
+    + ['p4_pant', 'p4_scar', 'p4_howgot', 'p4_ignis', 'p4_met', 'p4_years', 'p4_prophecy', 'p4_lunaknows', 'p4_brethren',
+       'p4_grant', 'p4_halfbaked', 'p4_talking', 'p4_honor', 'p4_muchachas', 'p4_twirl', 'p4_goodtime', 'p4_flechas',
+       'p4_serpientes', 'p4_charm6', 'p4_charm7'])
 
 # sampling: a little warmer than the model's default (0.9), and each take a little different (voice_modal varies it)
 GEN = {'temperature': 1.0}
@@ -400,6 +408,27 @@ LINES = {
     'p4_landed0': ("Welcome to the other SIDE!", 'shout'),
     'p4_landed1': ("Say hello to my ancestors for me.", 'sly'),
     'p4_landed2': ("OLE! The dead LOVE that one!", 'shout'),
+    # (2026-10-04) phase four reworked: the reopened scar, Ignis's head, the prophecy, the souls, the Final Guardian
+    'p4_pant':   ("Hah... hah... hah...", 'pained'),
+    'p4_scar':   ("Huh... it reopened, didn't it.", 'pained'),
+    'p4_howgot': ("Do you want to know... how I got this scar?", 'pained'),
+    'p4_ignis':  ("I remember he did a little damage... but nothing notable.", 'sly'),
+    'p4_met':    ("I assume you two have met before, no?", 'smug'),
+    'p4_years':  ("Ten thousand years. Ten thousand years I have been waiting for this moment.", 'menace'),
+    'p4_prophecy': ("After all this time... the prophecy might finally be fulfilled.", 'evil'),
+    'p4_lunaknows': ("Ha... la luna knows it too.", 'sly'),
+    'p4_brethren': ("My brethren... this is it. This is what we were made for.", 'prophet'),
+    'p4_grant':  ("The prophecy will be fulfilled... so grant me your STRENGTH!", 'shout'),
+    'p4_halfbaked': ("You know... it's not right to go into a fight half baked.", 'sly'),
+    'p4_talking': ("Now we're TALKING!", 'shout'),
+    'p4_honor':  ("Señores... it has been an honor. But I need you to play one last song.", 'sincere'),
+    'p4_muchachas': ("Hey! Where are the muchachas?", 'smug'),
+    'p4_twirl':  ("Ha ha! Still got it!", 'smug'),
+    'p4_goodtime': ("COME ON!!! SHOW ME A GOOD TIME!!!", 'shout'),
+    'p4_flechas': ("The sun's arrows never miss, amigo!", 'smug'),
+    'p4_serpientes': ("My serpents... FEAST!", 'shout'),
+    'p4_charm6': ("Ten thousand years I waited... and the prophecy sent me YOU? I love it.", 'smug'),
+    'p4_charm7': ("The old gods are watching, amigo. Give them a show!", 'shout'),
 }
 
 # what the voice model is given to say, where the written line reads two ways ("lives": he said it like "alive")
@@ -408,7 +437,7 @@ SPOKEN = {
     'upgrade': "It's about time I gave this thing an upgrade.",     # in capitals it came out "upi-grad"
 }
 
-NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend'}          # Whisper cannot judge a scream or a lone word
+NO_CHECK = {'charm5', 'vendor_exposed', 'groan1', 'groan2', 'ascend', 'p4_pant'}          # Whisper cannot judge a scream or a lone word
 
 
 def norm(s):
@@ -918,30 +947,71 @@ def beats(lengths):
     b['dance.drop'] = int(round(pickup * 20))
     b['dance.line'] = b['dance.drop'] + 34
     b['dance.end'] = b['dance.line'] + L('dance') + 16
-    # ---- phase four (2026-10-04): the ritual, every beat from his lines (PaponBossEntity.tickP4*, client/Cinematic, MuertosSky)
-    # P4_RISE: the laugh from t6; the clouds part on the moon as it ends; "You think that was ALL?"
-    b['p4.moon'] = max(24, 6 + L('p4_laugh') - 6)
-    b['p4.rise'] = b['p4.moon'] + 16
-    b['p4.rise_end'] = max(72, b['p4.rise'] + L('p4_rise') + 8)
-    # P4_HAMMER: blue fire spirals into his hand; it sets into the hammer (forms); "Death herself..."
-    b['p4.forms'] = 60
-    b['p4.hammer'] = b['p4.forms'] + 14
-    b['p4.hammer_end'] = b['p4.hammer'] + L('p4_hammer') + 10
-    # P4_STRIKE: "Wake up, LUNA!!!", the swing on its last word, the bolt; the moon turns
-    b['p4.strike'] = 4
-    b['p4.swing'] = b['p4.strike'] + max(16, L('p4_strike') - 6)
-    b['p4.turn'] = b['p4.swing'] + 22
-    b['p4.strike_end'] = b['p4.turn'] + 58
-    # P4_REVEAL: down into the great calavera (land), looking round it; "It has been centuries..."
-    b['p4.land'] = 34
-    b['p4.centuries'] = b['p4.land'] + 40
-    b['p4.reveal_end'] = b['p4.centuries'] + L('p4_centuries') + 14
-    # P4_TRUEFORM: the blue fire (burn), the bone (bone), "Behold..." (true), the drop: the band of the dead, the title
-    b['p4.burn'] = 8
-    b['p4.bone'] = 40
-    b['p4.true'] = 62
-    b['p4.drop'] = b['p4.true'] + L('p4_true') + 4
-    b['p4.trueform_end'] = b['p4.drop'] + 44
+    # ---- phase four (2026-10-04, reworked to the user's script): the Final Guardian's awakening, every beat from his lines
+    # (PaponBossEntity.tickP4*, client/Cinematic, client/MuertosSky, gen_boss_anims b_p4_*)
+    # P4_FALL: thrown flat (lands t14), panting on his back, up on an elbow, finds the scar: "Huh... it reopened, didn't it."
+    b['p4.land'] = 14
+    b['p4.elbow'] = 44
+    b['p4.look'] = 58
+    b['p4.scar'] = 76
+    b['p4.fall_end'] = b['p4.scar'] + L('p4_scar') + 14
+    # P4_RISEUP: up in two goes, the cough of blood, "Do you want to know... how I got this scar?"
+    b['p4.knee'] = 16
+    b['p4.cough'] = 36
+    b['p4.howgot'] = 52
+    b['p4.riseup_end'] = b['p4.howgot'] + L('p4_howgot') + 12
+    # P4_IGNIS: the reach behind his back, Ignis's head out, held up beside his face for the line, thrown down; at you
+    b['p4.head_out'] = 20
+    b['p4.ignis'] = 34
+    b['p4.throw'] = b['p4.ignis'] + L('p4_ignis') + 4
+    b['p4.thud'] = b['p4.throw'] + 13
+    b['p4.met'] = b['p4.thud'] + 16
+    b['p4.ignis_end'] = b['p4.met'] + L('p4_met') + 14
+    # P4_PROPHECY: walking, "Ten thousand years..."; the fog rolls in under it; "...the prophecy..."; the moon; the smile
+    b['p4.years'] = 8
+    b['p4.fog'] = b['p4.years'] + 30
+    b['p4.prophecy'] = b['p4.years'] + L('p4_years') + 14
+    b['p4.moon'] = b['p4.prophecy'] + L('p4_prophecy') + 4
+    b['p4.lunaknows'] = b['p4.moon'] + 26
+    b['p4.prophecy_end'] = b['p4.lunaknows'] + L('p4_lunaknows') + 14
+    # P4_BRETHREN: the arms open to the stands; the two lines; the moon turns on the last word
+    b['p4.brethren'] = 14
+    b['p4.grant'] = b['p4.brethren'] + L('p4_brethren') + 10
+    b['p4.turn'] = b['p4.grant'] + L('p4_grant') - 4
+    b['p4.brethren_end'] = b['p4.turn'] + 40
+    # P4_HALFBAKED: the line in the green glow; the burst; the flash (the arena turns behind it); the reveal; the title
+    b['p4.halfbaked'] = 12
+    b['p4.burst'] = b['p4.halfbaked'] + L('p4_halfbaked') + 10
+    b['p4.flash'] = b['p4.burst'] + 30
+    b['p4.clear'] = b['p4.flash'] + 26
+    b['p4.title'] = b['p4.clear'] + 8
+    b['p4.halfbaked_end'] = b['p4.clear'] + 80
+    # P4_TALKING
+    b['p4.talking'] = 6
+    b['p4.talking_end'] = b['p4.talking'] + L('p4_talking') + 18
+    # P4_HONOR: soft, to the band; the singer nods; they strike up (the song's downbeat); the trumpets
+    b['p4.honor'] = 10
+    b['p4.nod'] = b['p4.honor'] + L('p4_honor') + 4
+    b['p4.song'] = b['p4.nod'] + 16
+    b['p4.honor_end'] = b['p4.song'] + 44
+    # P4_MUCHACHAS: "Where are the muchachas?", the clap, the dancers rise, he goes to one and twirls her
+    b['p4.muchachas'] = 4
+    b['p4.clap'] = b['p4.muchachas'] + L('p4_muchachas') + 2
+    b['p4.rise'] = b['p4.clap'] + 10
+    b['p4.twirl'] = b['p4.rise'] + 52
+    b['p4.twirl_line'] = b['p4.twirl'] + 14
+    b['p4.dip'] = b['p4.twirl'] + 58                 # the twirl, then a dip, then a few steps together
+    b['p4.muchachas_end'] = b['p4.twirl'] + 110
+    # P4_GOODTIME: round to you; "COME ON!!! SHOW ME A GOOD TIME!!!"; the stands erupt; he holds it till the first sung word
+    b['p4.goodtime'] = 40
+    b['p4.erupt'] = b['p4.goodtime'] + L('p4_goodtime')
+    # passes of the song's brass intro from the downbeat to the fight: the rest of the honor, the muchachas, the line, a beat
+    try:
+        intro = json.load(open(os.path.join(ASSETS, 'song/persona_ideal.json')))['segments'][0]['length']
+        need = (b['p4.honor_end'] - b['p4.song']) + b['p4.muchachas_end'] + b['p4.erupt'] + 30
+        b['p4.passes'] = max(1, int(math.ceil(need / (intro * 20))))
+    except (OSError, KeyError, IndexError):
+        b['p4.passes'] = 2
     return b
 
 
@@ -951,8 +1021,7 @@ def build(meta):
     data = {'rate': RATE, 'lines': {}}
     lang_path = os.path.join(ASSETS, 'lang/en_us.json')
     lang = json.load(open(lang_path, encoding='utf-8'))
-    sounds_path = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(sounds_path, encoding='utf-8'))
+    sounds = read_sounds()
     built_path = os.path.join(ASSETS, 'voice/boss2.json')
     built = json.load(open(built_path, encoding='utf-8')).get('lines', {}) if os.path.exists(built_path) else {}
     # lines with no takes here (a fresh checkout has no cache) keep what is built; only lines gone from LINES go
@@ -997,9 +1066,7 @@ def build(meta):
     os.makedirs(os.path.join(ASSETS, 'voice'), exist_ok=True)
     with open(built_path, 'w', newline='\n') as f:
         json.dump(data, f, separators=(',', ':'))
-    with open(sounds_path, 'w', newline='\n', encoding='utf-8') as f:
-        json.dump(sounds, f, indent=2, ensure_ascii=False)
-        f.write('\n')
+    write_sounds(sounds)
     with open(lang_path, 'w', newline='\n', encoding='utf-8') as f:
         json.dump(lang, f, indent=2, ensure_ascii=False)
         f.write('\n')

@@ -161,7 +161,7 @@ def write_geo():
     path = os.path.join(ASSETS, 'geo/entity/wandering_papon.geo.json')
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as f:
-        json.dump(geo, f, indent='\t')
+        json.dump(geo, f, separators=(',', ':'))
     return path
 
 

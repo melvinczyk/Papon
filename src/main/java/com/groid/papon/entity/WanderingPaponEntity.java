@@ -222,9 +222,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     }
 
     @Override
-    protected PathNavigation createNavigation(Level level) {
-        return new JourneyNavigation(this, level);
-    }
+    protected PathNavigation createNavigation(Level level) { return new JourneyNavigation(this, level); }
 
     @Override
     protected void registerGoals() {
@@ -260,41 +258,25 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
                 origin, destination, (int) journeyLength);
     }
 
-    public PaponState getPaponState() {
-        return PaponState.byId(entityData.get(DATA_STATE));
-    }
+    public PaponState getPaponState() { return PaponState.byId(entityData.get(DATA_STATE)); }
 
     public void setPaponState(PaponState state) {
-        if (state.isSeated() && !getPaponState().isSeated()) {
-            seatYaw = getYRot();
-        }
+        if (state.isSeated() && !getPaponState().isSeated()) { seatYaw = getYRot(); }
         entityData.set(DATA_STATE, state.ordinal());
         stateTicks = 0;
         lonelyTicks = 0;
-        if (state != PaponState.WALKING) {
-            getNavigation().stop();
-        }
-        if (state.isRafting()) {
-            raft.reset();
-        }
-        if (state != PaponState.DRINKING && state != PaponState.SMASHING) {
-            entityData.set(DATA_FLAVOR, -1);
-        }
+        if (state != PaponState.WALKING) { getNavigation().stop(); }
+        if (state.isRafting()) { raft.reset(); }
+        if (state != PaponState.DRINKING && state != PaponState.SMASHING) { entityData.set(DATA_FLAVOR, -1); }
         track();
     }
 
     /** 1.5 while a Jarrito is in him. Applied to walking through the speed attribute, to rafting directly. */
-    public double speedFactor() {
-        return boostTicks > 0 ? BOOST_MULTIPLIER : 1.0;
-    }
+    public double speedFactor() { return boostTicks > 0 ? BOOST_MULTIPLIER : 1.0; }
 
-    public int getFlavorId() {
-        return entityData.get(DATA_FLAVOR);
-    }
+    public int getFlavorId() { return entityData.get(DATA_FLAVOR); }
 
-    public boolean isBoosted() {
-        return entityData.get(DATA_BOOSTED);
-    }
+    public boolean isBoosted() { return entityData.get(DATA_BOOSTED); }
 
     /** Night in a dimension with a day cycle, on dry land, and not woken by a chancla tonight. */
     private boolean shouldSleep() {
@@ -303,9 +285,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     }
 
     @Nullable
-    public BlockPos getDestination() {
-        return destination;
-    }
+    public BlockPos getDestination() { return destination; }
 
     /** Re-aims the journey at (x, z); for /papon target. */
     public void setDestination(BlockPos dest) {
@@ -316,13 +296,9 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         track();
     }
 
-    public boolean isEscorted() {
-        return escorted;
-    }
+    public boolean isEscorted() { return escorted; }
 
-    public double remainingDistance() {
-        return destination == null ? 0 : Math.sqrt(JourneyPlanner.horizontalDistSqr(blockPosition(), destination));
-    }
+    public double remainingDistance() { return destination == null ? 0 : Math.sqrt(JourneyPlanner.horizontalDistSqr(blockPosition(), destination)); }
 
     private boolean hasPlayerWithin(double radius) {
         if (debugEscort) return true;
@@ -341,9 +317,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         super.customServerAiStep();
         ServerLevel server = (ServerLevel) level();
         stateTicks++;
-        if (destination == null) {
-            beginJourney(null);
-        }
+        if (destination == null) { beginJourney(null); }
         escorted = hasPlayerWithin(PaponConfig.ESCORT_RADIUS.get());
         if (level().isDay()) awakeUntilDay = false;
         tickBoost();
@@ -445,9 +419,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             PaponMod.LOG.info("[debug] Papon {} {} at {} - {} blocks left", getUUID().toString().substring(0, 8),
                     getPaponState(), blockPosition().toShortString(), (int) remainingDistance());
         }
-        if (tickCount % 10 == 0) {
-            updateJourneyBar(server);
-        }
+        if (tickCount % 10 == 0) { updateJourneyBar(server); }
     }
 
     private void tickWalking(ServerLevel server) {
@@ -467,9 +439,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
                 setPaponState(PaponState.RAFT_BOARDING);
                 return;
             }
-        } else {
-            deepWaterTicks = 0;
-        }
+        } else { deepWaterTicks = 0; }
         if (shouldSleep()) {
             setPaponState(PaponState.SLEEP_SETUP);
             return;
@@ -481,9 +451,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         }
         if (escorted) {
             lonelyTicks = 0;
-        } else if (++lonelyTicks > PaponConfig.LONELY_DELAY_TICKS.get()) {
-            setPaponState(PaponState.SITTING_DOWN);
-        }
+        } else if (++lonelyTicks > PaponConfig.LONELY_DELAY_TICKS.get()) { setPaponState(PaponState.SITTING_DOWN); }
     }
 
     /**
@@ -545,9 +513,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             open.join(this);
         } else if (TacoTruck.existingNear(server, blockPosition(), 24) == null) {
             TacoTruckScene.open(server, blockPosition(), getDirection(), this);
-        } else {
-            return;
-        }
+        } else { return; }
         onJourneyComplete(server);
     }
 
@@ -563,9 +529,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     }
 
     @Nullable
-    public TacoLine getLine() {
-        return line;
-    }
+    public TacoLine getLine() { return line; }
 
     /** For /papon tacoline: skip the walk, he is already at the truck and getting in line. */
     public void skipToTruck() {
@@ -600,9 +564,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         if (d2 > 0.3 * 0.3) {
             if (d2 < 4) {
                 getMoveControl().setWantedPosition(target.x, target.y, target.z, 0.8);
-            } else if (getNavigation().isDone() || tickCount % 20 == 0) {
-                getNavigation().moveTo(target.x, target.y, target.z, 1.0);
-            }
+            } else if (getNavigation().isDone() || tickCount % 20 == 0) { getNavigation().moveTo(target.x, target.y, target.z, 1.0); }
         } else {
             getNavigation().stop();
             faceCounter();
@@ -620,9 +582,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     // ------------------------------------------------------------------ speech
 
     @Override
-    public String getSpeech() {
-        return entityData.get(DATA_SPEECH);
-    }
+    public String getSpeech() { return entityData.get(DATA_SPEECH); }
 
     @Override
     public void setSpeech(String encoded, int ticks) {
@@ -633,9 +593,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     @Override
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
-        if (DATA_SPEECH.equals(key) && level().isClientSide) {
-            babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech());
-        }
+        if (DATA_SPEECH.equals(key) && level().isClientSide) { babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech()); }
     }
 
     /**
@@ -664,12 +622,8 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
                 speed.addTransientModifier(new AttributeModifier(BOOST_ID, "Jarrito", BOOST_MULTIPLIER - 1.0,
                         AttributeModifier.Operation.MULTIPLY_TOTAL));
             }
-            if (boostTicks == 0) {
-                pendingTired = true;
-            }
-        } else if (speed != null && speed.getModifier(BOOST_ID) != null) {
-            speed.removeModifier(BOOST_ID);
-        }
+            if (boostTicks == 0) { pendingTired = true; }
+        } else if (speed != null && speed.getModifier(BOOST_ID) != null) { speed.removeModifier(BOOST_ID); }
         entityData.set(DATA_BOOSTED, boostTicks > 0);
     }
 
@@ -732,9 +686,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             setPaponState(PaponState.ANGRY_WAKE);
             server.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 1.4, getZ(), 6, 0.5, 0.3, 0.5, 0);
             player.displayClientMessage(Component.translatable("message.papon.chancla_woke").withStyle(ChatFormatting.RED), true);
-        } else {
-            setPaponState(PaponState.SLEEP_FLINCH);
-        }
+        } else { setPaponState(PaponState.SLEEP_FLINCH); }
     }
 
     @Override
@@ -763,14 +715,10 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     private void keepSafe(ServerLevel server) {
         BlockPos here = blockPosition();
         boolean underground = Terrain.isUnderground(server, here);
-        if (onGround() && !underground && Terrain.isDryStandable(server, here)) {
-            lastSafePos = here;
-        }
+        if (onGround() && !underground && Terrain.isDryStandable(server, here)) { lastSafePos = here; }
         undergroundTicks = underground && !getPaponState().atTruck() ? undergroundTicks + 20 : 0;
         inWallTicks = isInWall() ? inWallTicks + 20 : 0;
-        if (getY() < server.getMinBuildHeight() || isInLava() || undergroundTicks >= 60 || inWallTicks >= 20) {
-            rescueToSurface(server);
-        }
+        if (getY() < server.getMinBuildHeight() || isInLava() || undergroundTicks >= 60 || inWallTicks >= 20) { rescueToSurface(server); }
     }
 
     public void rescueToSurface(ServerLevel server) {
@@ -847,9 +795,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
         for (ServerPlayer p : new ArrayList<>(journeyBar.getPlayers())) {
             if (p.level() != server || p.isRemoved() || p.distanceToSqr(this) > 56 * 56) journeyBar.removePlayer(p);
         }
-        for (ServerPlayer p : server.players()) {
-            if (p.distanceToSqr(this) < 40 * 40) journeyBar.addPlayer(p);
-        }
+        for (ServerPlayer p : server.players()) { if (p.distanceToSqr(this) < 40 * 40) journeyBar.addPlayer(p); }
     }
 
     @Override
@@ -859,9 +805,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             return;
         }
         journeyBar.removeAllPlayers();
-        if (reason == RemovalReason.DISCARDED && level() instanceof ServerLevel server) {
-            JourneyData.get(server).forget(getUUID());
-        }
+        if (reason == RemovalReason.DISCARDED && level() instanceof ServerLevel server) { JourneyData.get(server).forget(getUUID()); }
         super.remove(reason);
     }
 
@@ -910,9 +854,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             level().addParticle(ParticleTypes.SMALL_FLAME, gx + (random.nextDouble() - 0.5) * 0.4, gy - 0.05,
                     gz + (random.nextDouble() - 0.5) * 0.3, 0, 0.01, 0);
         }
-        if (random.nextInt(40) == 0) {
-            level().addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, gx, gy + 0.1, gz, 0, 0.02, 0);
-        }
+        if (random.nextInt(40) == 0) { level().addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, gx, gy + 0.1, gz, 0, 0.02, 0); }
     }
 
     @Override
@@ -952,9 +894,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
             case ANGRY_WAKE -> WAKE_ANGRY;
         };
         // Re-entering a one-shot (a second chancla flinch) must restart it, not continue it.
-        if (state != clientLastState && state.duration > 0 && next.equals(current)) {
-            controller.forceAnimationReset();
-        }
+        if (state != clientLastState && state.duration > 0 && next.equals(current)) { controller.forceAnimationReset(); }
         clientLastState = state;
         return event.setAndContinue(next);
     }
@@ -1011,9 +951,7 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return cache;
-    }
+    public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
 
     // ------------------------------------------------------------------ persistence
 
@@ -1094,7 +1032,5 @@ public class WanderingPaponEntity extends PathfinderMob implements GeoEntity, Sp
     @Override public boolean shouldDropExperience() { return false; }
 
     /** Stable id for logging and commands. */
-    public UUID journeyId() {
-        return getUUID();
-    }
+    public UUID journeyId() { return getUUID(); }
 }

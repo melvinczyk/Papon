@@ -19,9 +19,7 @@ public class VendorRenderer extends CrowdRenderer<TacoVendorEntity> {
     private static final String[] DISGUISE = {"toque", "mustache", "stache_mark"};
     private static final String[] HAIR = {"hair", "wisps"};
 
-    public VendorRenderer(EntityRendererProvider.Context ctx) {
-        super(ctx, new CrowdModel<>("taco_vendor", "papon_npc", false), 1.5F, 0.9F, 0.35F);
-    }
+    public VendorRenderer(EntityRendererProvider.Context ctx) { super(ctx, new CrowdModel<>("taco_vendor", "papon_npc", false), 1.5F, 0.9F, 0.35F); }
 
     @Override
     public void preRender(PoseStack pose, TacoVendorEntity v, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,

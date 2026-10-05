@@ -228,6 +228,16 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 lit = LightTexture.FULL_BRIGHT;
                 drawGlow(pose, buffers, 0F, 0.62F, 240, 74, 160, 0.45F + 0.2F * Mth.sin(age * 0.5F));       // a pink halo round it
             }
+            case IGNIS_HEAD -> {
+                // Ignis's head, tumbling as it flies, then where it fell, tipped on its side, facing the way it was thrown
+                stack = new ItemStack(ModItems.FX_IGNIS_HEAD.get());
+                boolean flying = p.getDeltaMovement().lengthSqr() > 1e-4;
+                pose.mulPose(Axis.YP.rotationDegrees(-p.getYRot()));
+                if (flying) pose.mulPose(Axis.XP.rotationDegrees(age * 22F));
+                else pose.mulPose(Axis.ZP.rotationDegrees(14F));
+                pose.scale(1.5F, 1.5F, 1.5F);
+                pose.translate(-0.5, flying ? -0.7 : 0, -0.5);
+            }
             default -> {
                 pose.popPose();
                 return;
@@ -585,9 +595,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
     }
 
     @Override
-    public ResourceLocation getTextureLocation(BossProp p) {
-        return MASH;
-    }
+    public ResourceLocation getTextureLocation(BossProp p) { return MASH; }
 
     /** The piñata's rope, straight up out of sight from the top of it (model space: the item's 16 units are a block). */
     private static void drawRope(PoseStack pose, MultiBufferSource buffers, float up) {

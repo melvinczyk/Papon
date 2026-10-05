@@ -72,7 +72,8 @@ package com.groid.papon.boss;
  * IDLE --> P3_NOVA --> P3_SPENT --> IDLE                     (the supernova: only his shadow is safe; then he is spent)
  * IDLE --> P3_NITRO --> DRIVING --> IDLE                     (the Skyline, nitro on; out through the roof)
  * IDLE --> QTE_GRAB (kind 5) --> QTE_HOLD --> QTE_FAIL | QTE_BROKEN --> IDLE      (the squeeze: spam keys to break out)
- * IDLE --> P4_RISE --> P4_HAMMER --> P4_STRIKE --> P4_MOONRAYS --> P4_BLUEOUT --> P4_REVEAL --> P4_TRUEFORM --> IDLE
+ * IDLE --> P4_FALL --> P4_RISEUP --> P4_IGNIS --> P4_PROPHECY --> P4_BRETHREN --> P4_SOULS --> P4_HALFBAKED --> P4_BOW
+ *      --> P4_SERPENTS --> P4_TALKING --> P4_TOBAND --> P4_HONOR --> P4_MUCHACHAS --> P4_GOODTIME --> IDLE
  *                                                             (a quarter health, Dia de los Muertos: he rises laughing, a
  *                                                              spirit hammer forms in his hand, its lightning turns the moon
  *                                                              into a blue calavera, the moon's rays turn the band and the
@@ -80,7 +81,7 @@ package com.groid.papon.boss;
  *                                                              becomes El Coliseo de los Muertos, twice the size; he looks
  *                                                              round it ("centuries"), and burns down to his truest form:
  *                                                              a sugar-skull skeleton with bone wings. No coliseum: no swap)
- * IDLE --> P4_MARTILLO | P4_GIGANTE | P4_GRIETA | P4_PETALOS | P4_PAPEL | P4_VELAS | P4_DANZA | P4_LUNA --> IDLE
+ * IDLE --> P4_MARTILLO | P4_GIGANTE | P4_GRIETA | P4_PETALOS | P4_PAPEL | P4_VELAS | P4_DANZA | P4_LUNA | P4_SERPIENTES | P4_FLECHAS --> IDLE
  *                                                             (El Rey de los Muertos: the hammer, the hologram giant and its
  *                                                              laser, the rift of souls, the petal spirals, the banners, the
  *                                                              erupting cracks, the dancers, the moon's beams)
@@ -273,20 +274,40 @@ public enum BossState {
     /** La Piñata (reworked): swung on its rope like a wrecking ball through the sand, then smashed into a spiral of candy. */
     P3_PINATA_SWING(220),
     // ---- phase four, Dia de los Muertos (a quarter of his health; appended: the ordinal is synced)
-    /** Hit down to a quarter, he does not fall: he rises over the sand, laughing, and the clouds part on the moon. */
-    P4_RISE(90),
-    /** Hovering, his hand up: a spectral hammer forms in it out of blue fire. */
-    P4_HAMMER(110),
-    /** He swings it at the sky: blue lightning up into the moon, which cracks and turns: a blue calavera. */
-    P4_STRIKE(110),
-    /** The moon's rays: down onto the band, one by one, then round the stands: all of them turned to skeletons. */
-    P4_MOONRAYS(150),
-    /** The moon floods everything blue; behind it the coliseum becomes El Coliseo de los Muertos, twice the size. */
-    P4_BLUEOUT(60),
-    /** The new arena seen: down out of the blue, he lands in the middle of the great calavera and looks round at it all. */
-    P4_REVEAL(130),
-    /** His truest form: the flesh burnt off him in blue fire, a sugar-skull skeleton, the bone wings unfurling. */
-    P4_TRUEFORM(140),
+    // (2026-10-04, reworked: the user's script) the Final Guardian's awakening. Durations are fallbacks: the beats come from
+    // his recorded lines (gen_boss_voice.beats, p4.*), and P4_GOODTIME ends on the song's first sung word.
+    /** Hit down to a quarter: thrown flat on his back, the stands gasp, the band stops dead; panting, he finds the old scar on
+     *  his chest torn open and bleeding: "Huh... it reopened, didn't it." */
+    P4_FALL(150),
+    /** He struggles up, coughing blood: "Do you want to know... how I got this scar?" */
+    P4_RISEUP(110),
+    /** He reaches behind his back and pulls out Ignis's head, holds it up, and throws it down with a thud: "...a little damage,
+     *  but nothing notable." Then at you: "I assume you two have met before, no?" */
+    P4_IGNIS(200),
+    /** The villain's monologue, walking: "Ten thousand years...", "...the prophecy...", the fog rolling in; up at the moon,
+     *  smiling: "Ha... la luna knows it too." */
+    P4_PROPHECY(270),
+    /** Arms wide to the stands: "My brethren... this is it...", "...grant me your STRENGTH!"; the moon turns: the dead's. */
+    P4_BRETHREN(220),
+    /** The souls of the stands stream into him, the fans left as skeletons; then the band's, one by one. He glows green. */
+    P4_SOULS(220),
+    /** Blazing green: "You know... it's not right to go into a fight half baked." His transformation (the arena turns in the
+     *  flash): Papon, the Final Guardian. */
+    P4_HALFBAKED(240),
+    /** An Aztec bow out of the light; he draws and shoots the moon; black smoke tears open in the sky. */
+    P4_BOW(120),
+    /** Ouros and Boros come out of the smoke, colossal, and down onto their orbit round the arena. */
+    P4_SERPENTS(250),
+    /** "Now we're TALKING!" */
+    P4_TALKING(60),
+    /** Over to the band (walking: ends when he is there). */
+    P4_TOBAND(200),
+    /** Softly, to the band: "Señores... it has been an honor. But I need you to play one last song." The band strikes up. */
+    P4_HONOR(190),
+    /** "Hey! Where are the muchachas?": skeleton salsa dancers rise by the stage; he takes one by the hand and twirls her. */
+    P4_MUCHACHAS(200),
+    /** Round to you, smirking: "COME ON!!! SHOW ME A GOOD TIME!!!" The fight starts on the first sung word. */
+    P4_GOODTIME(200),
     /** El Martillo: blinks in beside you, two swings of the spirit hammer, up and down: rings and blue lightning. */
     P4_MARTILLO(64),
     /** El Gigante: he plays; a giant hologram skeleton rises out from under the arena: its mouth's laser, its hands. */
@@ -302,16 +323,18 @@ public enum BossState {
     /** La Danza de los Muertos: skeleton dancers ring you, closing, and spin through you one after another. */
     P4_DANZA(170),
     /** La Luna: the moon answers him: rings of blue on the floor, then its beams down into them, volley after volley. */
-    P4_LUNA(130);
+    P4_LUNA(130),
+    /** Las Serpientes: Ouros and Boros dive out of the sky in turn, straight across the floor (a long warning line each). */
+    P4_SERPIENTES(160),
+    /** Flechas del Sol: his bow; arrows of the souls' light shot up, raining back down on rings round you, then a volley. */
+    P4_FLECHAS(130);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;
 
     public final int duration;
 
-    BossState(int duration) {
-        this.duration = duration;
-    }
+    BossState(int duration) { this.duration = duration; }
 
     public static BossState byId(int id) {
         BossState[] all = values();
@@ -319,29 +342,24 @@ public enum BossState {
     }
 
     /** The intro: he cannot be hurt and the boss bar is hidden. */
-    public boolean intro() {
-        return this == LEAP_OUT || this == CHUG;
-    }
+    public boolean intro() { return this == LEAP_OUT || this == CHUG; }
 
     /** The phase-two cutscene before the dome: he cannot be hurt, and the music stops dead. */
-    public boolean silent() {
-        return this == P2_KNEEL || this == P2_TALK || this == P2_SEASON || this == P2_SCREAM;
-    }
+    public boolean silent() { return this == P2_KNEEL || this == P2_TALK || this == P2_SEASON || this == P2_SCREAM; }
 
     /** Any part of the phase-two cutscene (he cannot be hurt), the guitar solo's moment, and the phase-three cutscene. */
     public boolean cutscene() {
         return silent() || this == P2_ARRIVE || coliseum() || this == P2_SOLO || this == P2_CUTAWAY || phaseThree() || phaseFour();
     }
 
-    /** Phase four's cutscene: the rise to his truest form. */
-    public boolean phaseFour() {
-        return ordinal() >= P4_RISE.ordinal() && ordinal() <= P4_TRUEFORM.ordinal();
-    }
+    /** Phase four's cutscene: the reopened scar to the first sung word. */
+    public boolean phaseFour() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_GOODTIME.ordinal(); }
 
     /** Phase four's moves. */
-    public boolean muertosMove() {
-        return ordinal() >= P4_MARTILLO.ordinal() && ordinal() <= P4_LUNA.ordinal();
-    }
+    public boolean muertosMove() { return ordinal() >= P4_MARTILLO.ordinal() && ordinal() <= P4_FLECHAS.ordinal(); }
+
+    /** Phase four's cutscene before the band plays his last song (their music off). */
+    public boolean p4Silent() { return ordinal() >= P4_FALL.ordinal() && ordinal() <= P4_TOBAND.ordinal(); }
 
     /** The phase-three cutscene, the knockback to "let's dance". */
     public boolean phaseThree() {
@@ -349,9 +367,7 @@ public enum BossState {
     }
 
     /** Through phase three's cutscene, before the band takes the song back: the stands' own song is off. */
-    public boolean bandStopped() {
-        return phaseThree() && this != P3_DANCE;
-    }
+    public boolean bandStopped() { return phaseThree() && this != P3_DANCE; }
 
     /** The coliseum's own beats: the band, the count-in, the apology. */
     public boolean coliseum() {
@@ -366,12 +382,8 @@ public enum BossState {
     }
 
     /** A QTE in progress (he cannot be hurt until it resolves). */
-    public boolean qte() {
-        return this == QTE_HOLD || this == QTE_FAIL;
-    }
+    public boolean qte() { return this == QTE_HOLD || this == QTE_FAIL; }
 
     /** Music and boss bar are on. */
-    public boolean fighting() {
-        return !intro() && this != DEATH && !silent();
-    }
+    public boolean fighting() { return !intro() && this != DEATH && !silent(); }
 }

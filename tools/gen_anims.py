@@ -962,7 +962,7 @@ def build():
         data['animations'][PREFIX + a.name] = a.compile()
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, 'w') as f:
-        json.dump(data, f, indent='\t')
+        json.dump(data, f, separators=(',', ':'))
     return OUT
 
 

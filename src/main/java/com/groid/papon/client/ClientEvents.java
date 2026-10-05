@@ -2,6 +2,8 @@ package com.groid.papon.client;
 
 import com.groid.papon.PaponMod;
 import net.minecraft.client.Minecraft;
+import org.jetbrains.annotations.Nullable;
+import net.minecraft.util.Mth;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
@@ -84,12 +86,40 @@ public final class ClientEvents {
         } else if (s == com.groid.papon.boss.BossState.P2_KNEEL || s == com.groid.papon.boss.BossState.P2_TALK) {
             k = Math.min(1F, t / 40F) * 0.35F;
             r = 0.25F; g = 0.05F; b = 0.05F;
-        } else {
-            return;
-        }
+        } else { return; }
         event.setRed(event.getRed() + (r - event.getRed()) * k);
         event.setGreen(event.getGreen() + (g - event.getGreen()) * k);
         event.setBlue(event.getBlue() + (b - event.getBlue()) * k);
+    }
+
+    /** Phase four's fog (PaponBossEntity.fog): it rolls in thick over the sand through his monologue and the souls. */
+    @Nullable
+    private static com.groid.papon.boss.PaponBossEntity foggy() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) return null;
+        return mc.level.getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class, mc.player.getBoundingBox().inflate(160), b -> b.fog() > 0)
+                .stream().findFirst().orElse(null);
+    }
+
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+    public static void onRenderFog(ViewportEvent.RenderFog event) {
+        var b = foggy();
+        if (b == null || event.getMode() != net.minecraft.client.renderer.FogRenderer.FogMode.FOG_TERRAIN) return;
+        float k = b.fog();
+        event.setNearPlaneDistance(Mth.lerp(k, event.getNearPlaneDistance(), 0F));
+        event.setFarPlaneDistance(Mth.lerp(k * k * (3 - 2 * k), event.getFarPlaneDistance(), 32F));
+        event.setCanceled(true);
+    }
+
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+    public static void onMistColor(ViewportEvent.ComputeFogColor event) {
+        var b = foggy();
+        if (b == null) return;
+        float k = Math.min(1F, b.fog() * 1.2F);
+        // a cold grey mist, lit by the moon
+        event.setRed(Mth.lerp(k, event.getRed(), 0.30F));
+        event.setGreen(Mth.lerp(k, event.getGreen(), 0.36F));
+        event.setBlue(Mth.lerp(k, event.getBlue(), 0.38F));
     }
 
     @SubscribeEvent
@@ -132,9 +162,7 @@ public final class ClientEvents {
     public static void onOverlay(RenderGuiOverlayEvent.Pre event) {
         if (!Cinematic.isActive()) return;
         NamedGuiOverlay o = event.getOverlay();
-        if (o.id().equals(VanillaGuiOverlay.TITLE_TEXT.id()) || o.id().equals(VanillaGuiOverlay.SUBTITLES.id())) {
-            return;
-        }
+        if (o.id().equals(VanillaGuiOverlay.TITLE_TEXT.id()) || o.id().equals(VanillaGuiOverlay.SUBTITLES.id())) { return; }
         event.setCanceled(true);
     }
 

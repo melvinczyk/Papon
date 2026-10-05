@@ -80,41 +80,23 @@ public class BeamEntity extends Entity {
         return this;
     }
 
-    public int anchor() {
-        return entityData.get(ANCHOR);
-    }
+    public int anchor() { return entityData.get(ANCHOR); }
 
-    public int side() {
-        return entityData.get(SIDE);
-    }
+    public int side() { return entityData.get(SIDE); }
 
-    public void setMode(int mode) {
-        entityData.set(MODE, mode);
-    }
+    public void setMode(int mode) { entityData.set(MODE, mode); }
 
-    public void setWidth(float w) {
-        entityData.set(WIDTH, w);
-    }
+    public void setWidth(float w) { entityData.set(WIDTH, w); }
 
-    public int mode() {
-        return entityData.get(MODE);
-    }
+    public int mode() { return entityData.get(MODE); }
 
-    public float width() {
-        return entityData.get(WIDTH);
-    }
+    public float width() { return entityData.get(WIDTH); }
 
-    public int color() {
-        return entityData.get(COLOR);
-    }
+    public int color() { return entityData.get(COLOR); }
 
-    public Vec3 from() {
-        return new Vec3(entityData.get(FX), entityData.get(FY), entityData.get(FZ));
-    }
+    public Vec3 from() { return new Vec3(entityData.get(FX), entityData.get(FY), entityData.get(FZ)); }
 
-    public Vec3 to() {
-        return new Vec3(entityData.get(TX), entityData.get(TY), entityData.get(TZ));
-    }
+    public Vec3 to() { return new Vec3(entityData.get(TX), entityData.get(TY), entityData.get(TZ)); }
 
     @Override
     protected void defineSynchedData() {
@@ -153,14 +135,10 @@ public class BeamEntity extends Entity {
     }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double d) {
-        return d < 192 * 192;
-    }
+    public boolean shouldRenderAtSqrDistance(double d) { return d < 192 * 192; }
 
     @Override
-    public boolean isPickable() {
-        return false;
-    }
+    public boolean isPickable() { return false; }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {}
@@ -169,12 +147,8 @@ public class BeamEntity extends Entity {
     protected void addAdditionalSaveData(CompoundTag tag) {}
 
     @Override
-    public boolean shouldBeSaved() {
-        return false;
-    }
+    public boolean shouldBeSaved() { return false; }
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return new ClientboundAddEntityPacket(this);
-    }
+    public Packet<ClientGamePacketListener> getAddEntityPacket() { return new ClientboundAddEntityPacket(this); }
 }

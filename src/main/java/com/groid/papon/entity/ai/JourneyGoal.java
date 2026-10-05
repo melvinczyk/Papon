@@ -80,19 +80,13 @@ public class JourneyGoal extends Goal {
     }
 
     @Override
-    public boolean canUse() {
-        return papon.getPaponState() == PaponState.WALKING && papon.isEscorted() && papon.getDestination() != null;
-    }
+    public boolean canUse() { return papon.getPaponState() == PaponState.WALKING && papon.isEscorted() && papon.getDestination() != null; }
 
     @Override
-    public boolean canContinueToUse() {
-        return canUse();
-    }
+    public boolean canContinueToUse() { return canUse(); }
 
     @Override
-    public boolean requiresUpdateEveryTick() {
-        return true;
-    }
+    public boolean requiresUpdateEveryTick() { return true; }
 
     @Override
     public void start() {
@@ -158,9 +152,7 @@ public class JourneyGoal extends Goal {
         BlockPos dest = papon.getDestination();
         if (dest == null) return;
         Set<Long> previous = new HashSet<>();
-        if (route != null) {
-            for (int i = routeIndex; i < route.size(); i++) previous.add(RoutePlanner.cellKey(route.get(i)));
-        }
+        if (route != null) { for (int i = routeIndex; i < route.size(); i++) previous.add(RoutePlanner.cellKey(route.get(i))); }
         route = RoutePlanner.plan(level, papon.blockPosition(), dest, deadEnds, previous);
         routeIndex = 0;
         if (route != null && WanderingPaponEntity.debugEscort) {
@@ -312,9 +304,7 @@ public class JourneyGoal extends Goal {
     }
 
     private boolean isBlacklisted(BlockPos pos) {
-        for (BlockPos b : blacklist) {
-            if (JourneyPlanner.horizontalDistSqr(b, pos) < 9) return true;
-        }
+        for (BlockPos b : blacklist) { if (JourneyPlanner.horizontalDistSqr(b, pos) < 9) return true; }
         return false;
     }
 

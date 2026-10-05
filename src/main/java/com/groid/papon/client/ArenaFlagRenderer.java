@@ -88,12 +88,8 @@ public class ArenaFlagRenderer implements BlockEntityRenderer<ArenaFlagBlockEnti
     }
 
     @Override
-    public boolean shouldRenderOffScreen(ArenaFlagBlockEntity flag) {
-        return true;
-    }
+    public boolean shouldRenderOffScreen(ArenaFlagBlockEntity flag) { return true; }
 
     @Override
-    public int getViewDistance() {
-        return 192;
-    }
+    public int getViewDistance() { return 192; }
 }

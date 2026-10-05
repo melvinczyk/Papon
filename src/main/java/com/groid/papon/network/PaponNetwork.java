@@ -229,9 +229,7 @@ public final class PaponNetwork {
         void handle(Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer p = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
-                if (p != null && p.level().getEntity(bossId) instanceof com.groid.papon.boss.PaponBossEntity boss) {
-                    boss.qteInput(p, step, ok);
-                }
+                if (p != null && p.level().getEntity(bossId) instanceof com.groid.papon.boss.PaponBossEntity boss) { boss.qteInput(p, step, ok); }
             });
             ctx.get().setPacketHandled(true);
         }
@@ -241,9 +239,7 @@ public final class PaponNetwork {
     public static void shake(ServerLevel level, Vec3 at, float radius, float magnitude, int ticks) {
         Shake msg = new Shake(at.x, at.y, at.z, radius, magnitude, ticks);
         double reach = radius * 2;
-        for (ServerPlayer p : level.players()) {
-            if (p.distanceToSqr(at) < reach * reach) CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), msg);
-        }
+        for (ServerPlayer p : level.players()) { if (p.distanceToSqr(at) < reach * reach) CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), msg); }
     }
 
     /** A shake for one player only (centred on them): a hit that lands on them, not a quake. */
@@ -277,9 +273,7 @@ public final class PaponNetwork {
         void handle(Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer p = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
-                if (p != null && p.getVehicle() instanceof CaravanEntity van && van.getControllingPassenger() == p) {
-                    van.honk();
-                }
+                if (p != null && p.getVehicle() instanceof CaravanEntity van && van.getControllingPassenger() == p) { van.honk(); }
             });
             ctx.get().setPacketHandled(true);
         }

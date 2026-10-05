@@ -58,6 +58,7 @@ public class PaponMod {
         event.put(ModEntities.CUSTOMER_PAPON.get(), TacoNpc.createAttributes().build());
         event.put(ModEntities.GERBIN.get(), TacoNpc.createAttributes().build());
         event.put(ModEntities.MARIACHI.get(), TacoNpc.createAttributes().build());
+        event.put(ModEntities.SALSA_DANCER.get(), TacoNpc.createAttributes().build());
         event.put(ModEntities.PAPON_BOSS.get(), PaponBossEntity.createAttributes().build());
         event.put(ModEntities.CARAVAN.get(), CaravanEntity.createAttributes().build());
         event.put(ModEntities.FOIL_POTATO.get(), com.groid.papon.boss.FoilPotatoEntity.createAttributes().build());
@@ -78,8 +79,6 @@ public class PaponMod {
             event.accept(ModItems.CARAVAN_KEYS);
             event.accept(ModItems.SKYLINE_FOB);
             event.accept(ModItems.BODY_PILLOW);
-        } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) {
-            ModItems.SPAWN_EGGS.forEach(event::accept);
-        }
+        } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) { ModItems.SPAWN_EGGS.forEach(event::accept); }
     }
 }

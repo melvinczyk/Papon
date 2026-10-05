@@ -34,29 +34,19 @@ public class TequilaItem extends Item {
             .effect(() -> new MobEffectInstance(MobEffects.CONFUSION, 20 * 20), 1F)
             .build();
 
-    public TequilaItem(Properties properties) {
-        super(properties.food(FOOD).stacksTo(16));
-    }
+    public TequilaItem(Properties properties) { super(properties.food(FOOD).stacksTo(16)); }
 
     @Override
-    public UseAnim getUseAnimation(ItemStack stack) {
-        return UseAnim.DRINK;
-    }
+    public UseAnim getUseAnimation(ItemStack stack) { return UseAnim.DRINK; }
 
     @Override
-    public int getUseDuration(ItemStack stack) {
-        return 40;
-    }
+    public int getUseDuration(ItemStack stack) { return 40; }
 
     @Override
-    public SoundEvent getDrinkingSound() {
-        return SoundEvents.GENERIC_DRINK;
-    }
+    public SoundEvent getDrinkingSound() { return SoundEvents.GENERIC_DRINK; }
 
     @Override
-    public SoundEvent getEatingSound() {
-        return SoundEvents.GENERIC_DRINK;
-    }
+    public SoundEvent getEatingSound() { return SoundEvents.GENERIC_DRINK; }
 
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {

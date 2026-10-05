@@ -337,7 +337,7 @@ def pillow():
     }
     mpath = os.path.join(ASSETS, 'models/item/body_pillow.json')
     with open(mpath, 'w', newline='\n') as fh:
-        json.dump(model, fh, indent=2)
+        json.dump(model, fh, separators=(',', ':'))
     return out, mpath
 
 

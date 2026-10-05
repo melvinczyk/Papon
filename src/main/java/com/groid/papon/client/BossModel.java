@@ -29,9 +29,7 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     /** El Rey de los Muertos (tools/gen_muertos_papon.py): Ascended's bones, bone white, a Catrin's hat, the spirit hammer. */
     private static final net.minecraft.resources.ResourceLocation MUERTOS_GEO = PaponMod.id("geo/entity/papon_muertos.geo.json");
 
-    public BossModel() {
-        super(PaponMod.id("papon_boss"));
-    }
+    public BossModel() { super(PaponMod.id("papon_boss")); }
 
     /** Ascended Papon (tools/gen_ascended.py): the same bones, his better potato, white eyes, eagle wings. */
     @Override
@@ -90,20 +88,32 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     }
 
     /**
-     * Phase four's things out of thin air: the spirit hammer while he holds it (PaponBossEntity.spiritProp 1; the guitar
-     * when he plays for El Gigante, 2), the Catrin's hat on his truest form. Set every frame: no animation keys them.
+     * Phase four's things out of thin air, set every frame (no animation shows them): the spirit hammer while he holds it
+     * (PaponBossEntity.spiritProp 1; the guitar when he plays for El Gigante, 2, is the requinto bone, shown by d_gigante),
+     * his Aztec bow (3: swelling in out of the light), the penacho on the Final Guardian, and the scar: torn open and
+     * bleeding from his fall (P4_FALL, the drips running longer) until his truest form, where it burns green.
      */
     private void spiritProps(PaponBossEntity boss, float partial) {
         int prop = boss.spiritProp();
-        float hammer = prop == 1 ? 1 : 0;
-        if (prop == 1 && boss.getBossState() == BossState.P4_HAMMER) {
-            // it sets out of the blue fire in his fist: swelling up past its size and settling (p4.forms)
-            float t = (boss.ticksInState() + partial - com.groid.papon.boss.VoiceLines.beat("p4.forms", 60)) / 7F;
-            hammer = t >= 1 ? 1 : (float) Math.max(0.05, Mth.sin(t * Mth.PI * 0.5F) * (1 + 0.25F * Mth.sin(t * Mth.PI)));
+        BossState s = boss.getBossState();
+        float t = boss.ticksInState() + partial;
+        scale("spirit_hammer", prop == 1 ? 1 : 0);
+        float bow = prop == 3 ? 1 : 0;
+        if (prop == 3 && s == BossState.P4_BOW) {
+            float k = (t - PaponBossEntity.BOW_FORM) / 7F;
+            bow = k >= 1 ? 1 : (float) Math.max(0.05, Mth.sin(k * Mth.PI * 0.5F) * (1 + 0.25F * Mth.sin(k * Mth.PI)));
         }
-        scale("spirit_hammer", hammer);
-        scale("catrin_hat", boss.isMuertos() ? 1 : 0);
-        // the spirit guitar (prop 2) is the requinto bone, shown by d_gigante itself at the size he plays it
+        scale("aztec_bow", bow);
+        scale("penacho", boss.isMuertos() ? 1 : 0);
+        boolean scarred = boss.isMuertos() || s.phaseFour();
+        scale("scar", scarred ? 1 : 0);
+        CoreGeoBone drips = getAnimationProcessor().getBone("scar_blood");
+        if (drips != null) {
+            float run = s == BossState.P4_FALL ? Mth.clamp((t - com.groid.papon.boss.VoiceLines.beat("p4.look", 58) + 20) / 60F, 0.15F, 1) : 1;
+            drips.setScaleX(scarred ? 1 : 0);
+            drips.setScaleZ(scarred ? 1 : 0);
+            drips.setScaleY(scarred ? run : 0);
+        }
     }
 
     private void scale(String name, float k) {

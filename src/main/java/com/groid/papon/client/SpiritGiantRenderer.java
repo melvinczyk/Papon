@@ -39,14 +39,10 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
     }
 
     @Override
-    public ResourceLocation getTextureLocation(SpiritGiantEntity e) {
-        return new ResourceLocation("minecraft", "textures/misc/white.png");
-    }
+    public ResourceLocation getTextureLocation(SpiritGiantEntity e) { return new ResourceLocation("minecraft", "textures/misc/white.png"); }
 
     @Override
-    public boolean shouldRender(SpiritGiantEntity e, net.minecraft.client.renderer.culling.Frustum f, double x, double y, double z) {
-        return true;
-    }
+    public boolean shouldRender(SpiritGiantEntity e, net.minecraft.client.renderer.culling.Frustum f, double x, double y, double z) { return true; }
 
     // ------------------------------------------------------------------ the voxels
 

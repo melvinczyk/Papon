@@ -72,17 +72,11 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
         return e;
     }
 
-    public boolean isDancer() {
-        return entityData.get(DATA_MODE) > 0;
-    }
+    public boolean isDancer() { return entityData.get(DATA_MODE) > 0; }
 
-    public boolean spinning() {
-        return entityData.get(DATA_MODE) == 2;
-    }
+    public boolean spinning() { return entityData.get(DATA_MODE) == 2; }
 
-    public void faceTo(Vec3 at) {
-        face(at);
-    }
+    public void faceTo(Vec3 at) { face(at); }
 
     /** It is about to spin straight through along {@code dir}. */
     public void lungeDir(Vec3 dir) {
@@ -91,18 +85,12 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
         face(position().add(dir));
     }
 
-    public Vec3 lungeDirection() {
-        return lunge;
-    }
+    public Vec3 lungeDirection() { return lunge; }
 
     /** True the first time it touches {@code id} on its way through. */
-    public boolean hitOnce(int id) {
-        return struck.add(id);
-    }
+    public boolean hitOnce(int id) { return struck.add(id); }
 
-    public void vanishNow(ServerLevel level) {
-        vanish(level, false);
-    }
+    public void vanishNow(ServerLevel level) { vanish(level, false); }
 
     @Override
     protected void defineSynchedData() {
@@ -111,14 +99,10 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
     }
 
     @Nullable
-    private LivingEntity target() {
-        return level().getEntity(entityData.get(DATA_TARGET)) instanceof LivingEntity le && le.isAlive() ? le : null;
-    }
+    private LivingEntity target() { return level().getEntity(entityData.get(DATA_TARGET)) instanceof LivingEntity le && le.isAlive() ? le : null; }
 
     @Nullable
-    private PaponBossEntity owner() {
-        return level().getEntity(ownerId) instanceof PaponBossEntity b && b.isAlive() ? b : null;
-    }
+    private PaponBossEntity owner() { return level().getEntity(ownerId) instanceof PaponBossEntity b && b.isAlive() ? b : null; }
 
     private void face(Vec3 at) {
         float yaw = (float) (Mth.atan2(at.z - getZ(), at.x - getX()) * Mth.RAD_TO_DEG) - 90F;
@@ -209,24 +193,16 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
     }
 
     @Override
-    public boolean isPickable() {
-        return true;
-    }
+    public boolean isPickable() { return true; }
 
     @Override
-    public boolean isAttackable() {
-        return true;
-    }
+    public boolean isAttackable() { return true; }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double d) {
-        return d < 128 * 128;
-    }
+    public boolean shouldRenderAtSqrDistance(double d) { return d < 128 * 128; }
 
     @Override
-    public boolean shouldBeSaved() {
-        return false;
-    }
+    public boolean shouldBeSaved() { return false; }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {}
@@ -235,9 +211,7 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
     protected void addAdditionalSaveData(CompoundTag tag) {}
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return new ClientboundAddEntityPacket(this);
-    }
+    public Packet<ClientGamePacketListener> getAddEntityPacket() { return new ClientboundAddEntityPacket(this); }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -245,7 +219,5 @@ public class PaponEchoEntity extends Entity implements GeoEntity {
     }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return cache;
-    }
+    public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }
 }

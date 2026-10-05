@@ -42,6 +42,7 @@ the boss plays and sings exactly that himself, the `serenade` segment); the trum
 Writes song/para_siempre.json and sounds/music/para_siempre/<segment>.ogg ("music.para_siempre.<id>").
 """
 import json
+from geo_util import read_sounds, write_sounds
 import os
 import subprocess
 
@@ -52,7 +53,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
 SONG = __import__('sys').argv[__import__('sys').argv.index('--song') + 1] if '--song' in __import__('sys').argv else 'cancion'
 SRC = os.path.join(ROOT, 'tools/src/song/' + {'cancion': 'cancion_del_mariachi.mp3'}.get(SONG, SONG + '.mp3'))
-CACHE = os.path.join(ROOT, 'tools/.cache/' + {'cancion': 'song', 'para_siempre': 'song_p3'}[SONG])
+CACHE = os.path.join(ROOT, 'tools/.cache/' + {'cancion': 'song', 'para_siempre': 'song_p3', 'persona_ideal': 'song_p4'}[SONG])
+SIX = SONG in ('para_siempre', 'persona_ideal')   # split with htdemucs_6s: a guitar stem of its own, `other` = the brass and strings
 RHUBARB = (sorted(__import__('glob').glob(os.path.join(ROOT, 'tools/.cache/rhubarb/Rhubarb-Lip-Sync-*/rhubarb')))
            or [os.path.join(ROOT, 'tools/.cache/rhubarb/Rhubarb-Lip-Sync-1.13.0-Windows/rhubarb.exe')])[0]
 SR = 44100
@@ -95,6 +97,26 @@ SECTIONS_P3 = [
 if SONG == 'para_siempre':
     SECTIONS = SECTIONS_P3
 
+# "Persona Ideal (Me Tengo Que Ir)" (phase four, --song persona_ideal; tools/src/song/persona_ideal.mp3, the user's
+# copy): his last song, the one he asks the band for. ~128 bpm in 4/4; a brass fanfare opens it (the cutscene: the
+# muchachas, the twirl, "SHOW ME A GOOD TIME"), the fight starts on the first sung line. Two brass solos.
+SECTIONS_P4 = [
+    ('intro',      0, 24, 'intro', 0.62, False),        # the brass fanfare
+    ('verse1',     24, 100, 'mid', 0.72, True),
+    ('chorus1',    100, 176, 'high', 0.88, True),
+    ('interlude',  176, 188, 'low', 0.50, False),       # guitar and bass
+    ('verse2',     188, 276, 'mid', 0.75, True),
+    ('chorus2',    276, 328, 'high', 0.92, True),
+    ('trompetas',  328, 388, 'high', 0.95, False),      # the brass take it
+    ('verse3',     388, 432, 'mid', 0.80, True),
+    ('trompetas2', 432, 472, 'high', 0.96, False),
+    ('breakdown',  472, 480, 'low', 0.45, True),
+    ('climax',     480, 556, 'high', 1.00, True),
+    ('ending',     556, 600, 'end', 0.80, True),        # the brass play it out
+]
+if SONG == 'persona_ideal':
+    SECTIONS = SECTIONS_P4
+
 
 def run(cmd):
     print('$', ' '.join(cmd))
@@ -103,14 +125,14 @@ def run(cmd):
 
 def stems():
     want = [os.path.join(CACHE, n + '.wav') for n in ('vocals', 'other', 'drums', 'bass')
-            + (('guitar',) if SONG == 'para_siempre' else ())]
+            + (('guitar',) if SIX else ())]
     if all(os.path.exists(p) for p in want):
         return
     import torch
     from demucs.apply import apply_model
     from demucs.pretrained import get_model
     x, sr = sf.read(SRC, always_2d=True)
-    model = get_model('htdemucs_6s' if SONG == 'para_siempre' else 'htdemucs')
+    model = get_model('htdemucs_6s' if SIX else 'htdemucs')
     model.eval()
     wav = torch.tensor(x.T, dtype=torch.float32)
     ref = wav.mean(0)
@@ -395,14 +417,13 @@ def main():
     vocals = vocals_lr.mean(1)
     other = sf.read(os.path.join(CACHE, 'other.wav'), always_2d=True)[0].mean(1)
     # Para Siempre: the guitar has its own stem (the strums); `other` is the trumpets and violins (the melody line)
-    guitar = sf.read(os.path.join(CACHE, 'guitar.wav'), always_2d=True)[0].mean(1) if SONG == 'para_siempre' else other
+    guitar = sf.read(os.path.join(CACHE, 'guitar.wav'), always_2d=True)[0].mean(1) if SIX else other
     cues = lipsync()
     b = beats(mix)
     folder = 'song' if SONG == 'cancion' else SONG
     out_dir = os.path.join(ASSETS, 'sounds/music/' + folder)
     os.makedirs(out_dir, exist_ok=True)
-    sounds_path = os.path.join(ASSETS, 'sounds.json')
-    sounds = json.load(open(sounds_path, encoding='utf-8'))
+    sounds = read_sounds()
     for k in [k for k in sounds if k.startswith('music.%s.' % folder)]:
         del sounds[k]
     segs = []
@@ -426,15 +447,13 @@ def main():
                      'level': level, 'energy': energy, 'sung': sung,
                      'beats': int(round(np.searchsorted(b, t1 - 0.05) - np.searchsorted(b, t0 - 0.05)))})
         print('%-10s %7.2f s  %6.2f s  %s' % (sid, t0, t1 - t0, level))
-    with open(sounds_path, 'w', newline='\n', encoding='utf-8') as f:
-        json.dump(sounds, f, indent=2, ensure_ascii=False)
-        f.write('\n')
+    write_sounds(sounds)
     voice = envelope(vocals)
     n = len(voice)
     midi, y16 = lead_line(other)
     midi = np.pad(midi, (0, max(0, n - len(midi))))[:n]
     notes = note_starts(y16, midi, b)
-    if SONG == 'para_siempre':
+    if SIX:
         band = stem_mask(other, n)
         horn = band.copy()
         bow_keys, fiddle = bowing(notes, vocals_lr, b, n, band)
@@ -447,7 +466,7 @@ def main():
     harm = np.pad(harm, (0, max(0, n - len(harm))))[:n]
     print('notes %d, horn %.0f%%, harmony %.0f%%, bow strokes %d' % (len(notes), horn.mean() * 100, (harm > 0.5).mean() * 100, len(bow_keys)))
     data = {
-        'title': {'cancion': 'Canción del Mariachi', 'para_siempre': 'Para Siempre'}[SONG],
+        'title': {'cancion': 'Canción del Mariachi', 'para_siempre': 'Para Siempre', 'persona_ideal': 'Persona Ideal'}[SONG],
         'sounds': 'music.%s.' % folder,
         'segments': segs,
         'beats': [round(float(x), 3) for x in b if x < len(mix) / SR + 1],

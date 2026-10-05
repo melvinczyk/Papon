@@ -28,3 +28,5 @@ decomp block_factorys_bosses "block_factorys_bosses-2.1.2-forge-1.20.1.jar" \
   net/unusual/block_factorys_bosses/client/camera \
   net/unusual/block_factorys_bosses/entity/boss \
   net/unusual/block_factorys_bosses/state
+# Dungeon Now Loading: the Fairkeeper serpents' models (tools/gen_serpents.py reads their geometry)
+decomp dnl "Dungeon Now Loading-forge-1.20.1-2.2.jar" dev/hexnowloading/dungeonnowloading/entity/client

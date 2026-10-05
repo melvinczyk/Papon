@@ -61,6 +61,11 @@ public final class AutoShot {
     private static final boolean ENDING = MODE.equals("ending");
     /** -Pautoshot=pillow: a bed against a wall; the pillow hugged, licked and humped (third and first person), slouched on the bed, humped there. */
     private static final boolean PILLOW = MODE.equals("pillow");
+    /** -Pautoshot=state:STATE[:FORM]:t1,t2,...  a boss here (form 3 Ascended or 4 the Final Guardian), straight into STATE; the
+     *  cutscene camera's view (or yours) shot at those ticks in it (papon_s_STATE_t.png). For checking one beat quickly. */
+    private static final boolean STATE = MODE.startsWith("state:");
+    /** -Pautoshot=serpents: Ouros and Boros out of their smoke over a flat world, from the ground and from the air. */
+    private static final boolean SERPENTS = MODE.equals("serpents");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -96,6 +101,14 @@ public final class AutoShot {
         }
         if (PILLOW) {
             pillow(mc);
+            return;
+        }
+        if (SERPENTS) {
+            serpents(mc);
+            return;
+        }
+        if (STATE) {
+            statePose(mc);
             return;
         }
         if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4) {
@@ -995,21 +1008,30 @@ public final class AutoShot {
             run("gamemode survival", "effect give @s regeneration 100000 4 true");
             run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~ ~7");
         }
-        if (k == 40) run("papon bossstate P4_RISE");
+        if (k == 40) run("papon bossstate P4_FALL");
         if (k > 40 && !com.groid.papon.client.Cinematic.isActive() && !s.phaseFour()) lookAt(mc, b);
         String n = switch (s) {
-            case P4_RISE -> t == 4 ? "w01_jolt" : t == 20 ? "w02_laugh" : t == vb("p4.moon", 34) + 10 ? "w03_moon_out" : t == vb("p4.rise", 50) + 12 ? "w04_was_that_all" : null;
-            case P4_HAMMER -> t == 30 ? "w05_fire_spiral" : t == vb("p4.forms", 60) + 3 ? "w06_hammer_forms" : t == vb("p4.forms", 60) + 18 ? "w07_up_at_him"
-                    : t == vb("p4.hammer", 74) + 14 ? "w08_death_lends" : null;
-            case P4_STRIKE -> t == vb("p4.swing", 30) - 4 ? "w09_wind_up" : t == vb("p4.swing", 30) + 6 ? "w10_bolt" : t == vb("p4.turn", 52) - 4 ? "w11_moon_cracks"
-                    : t == vb("p4.turn", 52) + 20 ? "w12_calavera_moon" : t == vb("p4.turn", 52) + 46 ? "w13_from_the_band" : null;
-            case P4_MOONRAYS -> t == com.groid.papon.boss.PaponBossEntity.rayAt(1) + 2 ? "w14_ray_band" : t == com.groid.papon.boss.PaponBossEntity.rayAt(6) + 4 ? "w15_rays_band2"
-                    : t == com.groid.papon.boss.PaponBossEntity.rayAt(12) + 14 ? "w16_skeleton_face" : t == 110 ? "w17_rays_stands" : t == 132 ? "w18_rays_stands2" : null;
-            case P4_BLUEOUT -> t == 20 ? "w19_blueout" : t == 50 ? "w20_blueout2" : null;
-            case P4_REVEAL -> t == 12 ? "w21_crane_in" : t == vb("p4.land", 34) + 2 ? "w22_landing" : t == vb("p4.land", 34) + 24 ? "w23_looks_round"
-                    : t == vb("p4.centuries", 74) + 20 ? "w24_centuries" : null;
-            case P4_TRUEFORM -> t == 20 ? "w25_burning" : t == vb("p4.bone", 40) + 4 ? "w26_bone" : t == vb("p4.bone", 40) + 16 ? "w27_wings"
-                    : t == vb("p4.true", 62) + 16 ? "w28_behold" : t == vb("p4.drop", 96) + 10 ? "w29_drop" : t == vb("p4.drop", 96) + 34 ? "w30_dead_go_wild" : null;
+            case P4_FALL -> t == 6 ? "w01_thrown" : t == vb("p4.land", 14) + 14 ? "w02_on_his_back" : t == vb("p4.look", 58) + 14 ? "w03_the_scar"
+                    : t == vb("p4.scar", 76) + 16 ? "w04_it_reopened" : null;
+            case P4_RISEUP -> t == 20 ? "w05_struggles_up" : t == vb("p4.cough", 36) + 3 ? "w06_coughs_blood" : t == vb("p4.howgot", 52) + 20 ? "w07_how_i_got_it" : null;
+            case P4_IGNIS -> t == 12 ? "w08_reaches_back" : t == vb("p4.head_out", 20) + 16 ? "w09_ignis_head" : t == vb("p4.ignis", 34) + 50 ? "w10_nothing_notable"
+                    : t == vb("p4.thud", 122) + 2 ? "w11_thud" : t == vb("p4.met", 138) + 12 ? "w12_over_your_shoulder" : t == vb("p4.met", 138) + 40 ? "w13_met_before" : null;
+            case P4_PROPHECY -> t == 40 ? "w14_ten_thousand_years" : t == vb("p4.prophecy", 102) + 40 ? "w15_fog_prophecy"
+                    : t == vb("p4.moon", 186) + 20 ? "w16_moon_through_fog" : t == vb("p4.lunaknows", 212) + 24 ? "w17_luna_knows" : null;
+            case P4_BRETHREN -> t == 40 ? "w18_my_brethren" : t == vb("p4.brethren", 14) + 70 ? "w19_made_for" : t == vb("p4.grant", 114) + 40 ? "w20_grant_strength"
+                    : t == vb("p4.turn", 194) + 4 ? "w21_moon_turning" : t == vb("p4.turn", 194) + 24 ? "w22_moon_turned" : null;
+            case P4_SOULS -> t == 40 ? "w23_souls_pour" : t == 80 ? "w24_stands_turning" : t == 150 ? "w25_band_souls" : t == 208 ? "w26_aglow" : null;
+            case P4_HALFBAKED -> t == 40 ? "w27_half_baked" : t == vb("p4.burst", 106) + 12 ? "w28_burst" : t == vb("p4.clear", 162) + 4 ? "w29_final_guardian"
+                    : t == vb("p4.title", 170) + 20 ? "w30_title" : t == vb("p4.halfbaked_end", 242) - 10 ? "w31_dead_arena" : null;
+            case P4_BOW -> t == 22 ? "w32_bow_forms" : t == 56 ? "w33_draw" : t == com.groid.papon.boss.PaponBossEntity.BOW_HIT - 2 ? "w34_arrow"
+                    : t == com.groid.papon.boss.PaponBossEntity.BOW_SMOKE + 20 ? "w35_sky_torn" : null;
+            case P4_SERPENTS -> t == 40 ? "w36_out_of_smoke" : t == 100 ? "w37_how_big" : t == 160 ? "w38_boros" : t == 230 ? "w39_circling" : null;
+            case P4_TALKING -> t == 14 ? "w40_now_were_talking" : null;
+            case P4_TOBAND -> t == 20 ? "w41_to_the_band" : null;
+            case P4_HONOR -> t == 50 ? "w42_one_last_song" : t == vb("p4.nod", 112) + 8 ? "w43_singer_nods" : t == vb("p4.song", 128) + 20 ? "w44_trumpets" : null;
+            case P4_MUCHACHAS -> t == 30 ? "w45_muchachas" : t == vb("p4.rise", 60) + 30 ? "w46_they_rise" : t == vb("p4.twirl", 112) + 30 ? "w47_twirl"
+                    : t == vb("p4.dip", 170) + 10 ? "w48_dip" : null;
+            case P4_GOODTIME -> t == 20 ? "w49_striding" : t == vb("p4.goodtime", 40) + 30 ? "w50_good_time" : t == vb("p4.erupt", 103) + 30 ? "w51_erupts" : null;
             default -> null;
         };
         if (n != null) once(mc, n);
@@ -1052,8 +1074,9 @@ public final class AutoShot {
     }
 
     /** El Rey de los Muertos's moves, one after another, on you (Resistance V and regeneration keep you up). */
-    private static final String[] SHOW_P4 = {"P4_MARTILLO", "P4_LUNA", "P4_GIGANTE", "P4_GRIETA", "P4_PETALOS", "P4_PAPEL", "P4_VELAS", "P4_DANZA"};
-    private static final int[] SHOW_P4_LEN = {100, 160, 260, 230, 200, 200, 190, 200};
+    private static final String[] SHOW_P4 = {"P4_SERPIENTES", "P4_FLECHAS", "P4_MARTILLO", "P4_LUNA", "P4_GIGANTE", "P4_GRIETA", "P4_PETALOS", "P4_PAPEL",
+            "P4_VELAS", "P4_DANZA"};
+    private static final int[] SHOW_P4_LEN = {260, 170, 100, 160, 260, 230, 200, 200, 190, 200};
 
     private static void muertosShowcase(Minecraft mc, PaponBossEntity b, int j) {
         int at = 0, i = 0;
@@ -1163,6 +1186,64 @@ public final class AutoShot {
         }
         if (s == BossState.P2_APOLOGY && t == com.groid.papon.boss.VoiceLines.beat("apology.wink", 144) + 6) once(mc, "v_wink");
         if (s == BossState.P2_SEASON && t == com.groid.papon.boss.VoiceLines.beat("season.kiss", 96)) once(mc, "v_chefs_kiss");
+    }
+
+    private static void statePose(Minecraft mc) {
+        String[] parts = MODE.split(":");
+        String st = parts[1];
+        String form = parts.length > 3 ? parts[2] : "3";
+        String[] ticks = parts[parts.length - 1].split(",");
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 18000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "tp @s 4000 200 4000", "papon escort true");
+            case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            case 90 -> run("kill @e[type=papon:papon_boss]", "execute at @s positioned ^ ^ ^8 rotated 180 0 run papon boss", "kill @e[type=papon:caravan]");
+            case 140 -> run("papon bossstate " + (form.equals("4") ? "P4_MARTILLO" : "P3_COMBO"));
+            case 150 -> run("papon bossstate IDLE");
+            case 170 -> run("papon bossstate " + st);
+            default -> {}
+        }
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b == null || tick < 172) return;
+        if (b.getBossState().name().equals(st)) {
+            int t = b.ticksInState();
+            for (String k : ticks) if (Integer.parseInt(k) == t) once(mc, "s_" + st.toLowerCase(java.util.Locale.ROOT) + "_" + k);
+            if (t > Integer.parseInt(ticks[ticks.length - 1]) + 4) mc.stop();
+        } else if (tick > 172 + 20 * 60) mc.stop();
+    }
+
+    private static void serpents(Minecraft mc) {
+        Vec3 c = new Vec3(4000.5, 200, 4000.5);
+        switch (tick) {
+            case 40 -> run("gamemode spectator", "time set 18000", "gamerule doDaylightCycle false", "weather clear 100000",
+                    "gamerule doMobSpawning false", "kill @e[type=papon:sky_serpent]", "tp @s 4000.5 200 4000.5 0 -20");
+            case 80 -> run("execute positioned 4000.5 200 4000.5 run papon serpents");
+            case 90 -> tpLook(c, c.add(0, 90, -200));
+            default -> {}
+        }
+        int t = tick - 80;
+        if (t == 40) shot(mc, "s01_portal");
+        if (t == 100) shot(mc, "s02_coming_out");
+        var s = nearest(mc, com.groid.papon.boss.SkySerpentEntity.class);
+        if (s == null) return;
+        // beside its head, a few seconds ahead of it, looking back at it as it comes
+        int[] at = {150, 260, 380, 500};
+        for (int i = 0; i < at.length; i++) {
+            if (t == at[i]) {
+                Vec3 h = s.path().at(s.head(0) + 30 * com.groid.papon.boss.SkySerpentEntity.SPEED);
+                Vec3 h2 = s.path().at(s.head(0) + 31 * com.groid.papon.boss.SkySerpentEntity.SPEED);
+                Vec3 d = h2.subtract(h).normalize();
+                Vec3 side = new Vec3(-d.z, 0, d.x);
+                double dist = i == 3 ? 90 : 34;
+                Vec3 eye = h.add(side.scale(dist)).add(d.scale(dist * 0.7)).add(0, i == 2 ? -26 : 6, 0);
+                tpLook(eye.subtract(0, 1.62, 0), h);
+            }
+            if (t == at[i] + 30) shot(mc, "s0" + (3 + i) + "_head_" + i);
+        }
+        if (t == 560) tpLook(c.add(0, -120, 0), c.add(1, -100, 0));
+        if (t == 600) shot(mc, "s07_from_ground");
+        if (t == 640) mc.stop();
     }
 
     private static void tpLook(Vec3 at, Vec3 look) {

@@ -33,6 +33,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     private static final ResourceLocation AURA = PaponMod.id("textures/entity/papon_aura.png");
     /** Phase four's: the same flow in the dead's blue (tools/gen_muertos.py fx; the gold one tinted blue came out green). */
     private static final ResourceLocation AURA_DEAD = PaponMod.id("textures/entity/papon_aura_dead.png");
+    /** The Final Guardian's: the souls' jade green (gen_muertos.guardian_aura). */
+    private static final ResourceLocation AURA_GUARDIAN = PaponMod.id("textures/entity/papon_aura_guardian.png");
     private static final ResourceLocation MUERTOS = PaponMod.id("textures/entity/papon_muertos.png");
     /** El Rey de los Muertos is bigger again. */
     private static final float MUERTOS_SCALE = 2.25F;
@@ -49,8 +51,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
                 float k = aura(boss, partialTick);
                 if (k <= 0) return;
                 float time = boss.tickCount + partialTick;
-                boolean dead = boss.isMuertos() || boss.getBossState() == BossState.P4_TRUEFORM;
-                RenderType swirl = RenderType.energySwirl(dead ? AURA_DEAD : AURA, (time * 0.013F) % 1F, (time * -0.021F) % 1F);
+                boolean dead = boss.isMuertos() || boss.glow() > 0;
+                RenderType swirl = RenderType.energySwirl(dead ? AURA_GUARDIAN : AURA, (time * 0.013F) % 1F, (time * -0.021F) % 1F);
                 for (float grow : new float[]{1.07F, 1.16F}) {
                     pose.pushPose();
                     pose.translate(0, 0.9, 0);
@@ -87,14 +89,15 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
             if (t < drop) return 0;
             return (t < drop + 20 ? 1.0F - (t - drop) / 20F * 0.55F : 0.45F) * pulse;
         }
-        // phase four: blue fire takes him as he burns down to the bone, and stays round him, flaring through his moves
-        if (s == BossState.P4_TRUEFORM) {
-            float burn = com.groid.papon.boss.VoiceLines.beat("p4.burn", 8), bone = com.groid.papon.boss.VoiceLines.beat("p4.bone", 40);
-            if (t < burn) return 0;
-            return (t < bone ? 0.4F + 0.6F * (t - burn) / (bone - burn) : Math.max(0.4F, 1.2F - (t - bone) / 30F)) * pulse;
+        // phase four: the souls' green light gathering in him, flaring through the transformation, burning on after
+        if (s == BossState.P4_SOULS) return 0.9F * boss.glow() * pulse;
+        if (s == BossState.P4_HALFBAKED) {
+            float burst = com.groid.papon.boss.VoiceLines.beat("p4.burst", 106), clear = com.groid.papon.boss.VoiceLines.beat("p4.clear", 162);
+            if (t < burst) return 0.75F * pulse;
+            if (t < clear) return Math.min(1.0F, 0.75F + (t - burst) / 40F) * pulse;
+            return Math.max(0.25F, 0.9F - (t - clear) / 30F) * pulse;
         }
-        if (s == BossState.P4_HAMMER || s == BossState.P4_STRIKE || s == BossState.P4_RISE) return 0.3F * pulse;
-        if (boss.isMuertos()) return (s.muertosMove() ? 0.55F : 0.35F) * pulse;
+        if (boss.isMuertos()) return (s.muertosMove() ? 0.35F : 0.2F) * pulse;
         if (boss.isPhaseThree() && !s.phaseThree()) return 0.32F * pulse;
         return 0;
     }
@@ -127,6 +130,33 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         return Cinematic.isPovOf(boss) && boss.getBossState() == BossState.P2_KNEEL && t >= 56 && t <= 106;
     }
 
+    /** Bones whose world positions are kept as they are drawn, for the cutscene's camera (phase four: his fists, the scar). */
+    private static final String[] TRACKED = {"hand_r", "hand_l", "scar"};
+    private static final java.util.Map<Integer, java.util.Map<String, net.minecraft.world.phys.Vec3>> BONES = new java.util.HashMap<>();
+
+    /** Where one of the TRACKED bones was drawn last (world), or null. */
+    @org.jetbrains.annotations.Nullable
+    public static net.minecraft.world.phys.Vec3 bonePos(PaponBossEntity boss, String name) {
+        java.util.Map<String, net.minecraft.world.phys.Vec3> m = BONES.get(boss.getId());
+        net.minecraft.world.phys.Vec3 p = m == null ? null : m.get(name);
+        return p == null ? null : scaled(boss, p);
+    }
+
+    /** Between his eyes, as drawn last (or a guess from his box). */
+    public static net.minecraft.world.phys.Vec3 facePos(PaponBossEntity boss) {
+        net.minecraft.world.phys.Vec3[] e = EYES.get(boss.getId());
+        if (e != null) return scaled(boss, e[0].add(e[1]).scale(0.5));
+        return boss.position().add(0, boss.getBbHeight() * 0.62, 0);
+    }
+
+    /** The tracked bone matrices leave out the render scale (it is applied after them): put it back, about his feet. */
+    private static net.minecraft.world.phys.Vec3 scaled(PaponBossEntity boss, net.minecraft.world.phys.Vec3 p) {
+        float s = boss.isPassenger() ? DRIVING_SCALE : boss.isMuertos() ? MUERTOS_SCALE : boss.isAscended() ? ASCENDED_SCALE
+                : boss.isRisen() ? RISEN_SCALE : SCALE;
+        net.minecraft.world.phys.Vec3 o = boss.position();
+        return o.add(p.subtract(o).scale(s));
+    }
+
     /** Where his bleeding hand was drawn last (world), per boss: the point-of-view camera looks at it (Cinematic). */
     private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> HANDS = new java.util.HashMap<>();
 
@@ -146,6 +176,13 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
             var wl = el.get().getWorldPosition();
             EYES.put(entity.getId(), new net.minecraft.world.phys.Vec3[]{new net.minecraft.world.phys.Vec3(wr.x, wr.y, wr.z),
                     new net.minecraft.world.phys.Vec3(wl.x, wl.y, wl.z)});
+        }
+        java.util.Map<String, net.minecraft.world.phys.Vec3> at = BONES.computeIfAbsent(entity.getId(), k -> new java.util.HashMap<>());
+        for (String n : TRACKED) {
+            model.getBone(n).ifPresent(bone -> {
+                var w = bone.getWorldPosition();
+                at.put(n, new net.minecraft.world.phys.Vec3(w.x, w.y, w.z));
+            });
         }
         if (!handInView(entity)) {
             HANDS.remove(entity.getId());
@@ -188,6 +225,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         capturing = !reRender;
         model.getBone("hand_blood").ifPresent(bone -> bone.setTrackingMatrices(true));
         model.getBone("eye_r").ifPresent(bone -> bone.setTrackingMatrices(true));
+        for (String n : TRACKED) model.getBone(n).ifPresent(bone -> bone.setTrackingMatrices(true));
         model.getBone("eye_l").ifPresent(bone -> bone.setTrackingMatrices(true));
         super.preRender(pose, entity, model, buffers, buffer, reRender, partialTick, light, overlay, r, g, b, a);
     }
@@ -227,9 +265,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     }
 
     @Override
-    protected float getDeathMaxRotation(PaponBossEntity entity) {
-        return 0;
-    }
+    protected float getDeathMaxRotation(PaponBossEntity entity) { return 0; }
 
     /** How strong the light rays bursting out of him are: when he bakes golden, and through the scream. */
     private static float rays(PaponBossEntity boss, float partialTick) {
@@ -374,11 +410,32 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         if (spot > 0) drawSpotlight(entity, pose, buffers, spot, partialTick);
         if (entity.isAscended() && !entity.isMuertos()) eyeLightning(entity, partialTick, buffers);
         else eyesSeen = false;
+        if (entity.spiritProp() == 4) ignisHead(entity, partialTick, pose, buffers);
         float k = rays(entity, partialTick);
         if (k > 0) drawRays(pose, buffers, k, entity.tickCount + partialTick, entity.getBbHeight() * 0.6F);
         if (entity.getBossState() == BossState.P3_SOLAR) drawSunStone(entity, pose, buffers, partialTick);
         if (entity.getBossState() == BossState.P3_NOVA) drawStar(entity, pose, buffers, partialTick);
         SpeechBubble.render(entity, entity.getSpeech(), 0.4F, pose, buffers, light, entityRenderDispatcher);
+    }
+
+    /**
+     * Ignis's head in his right fist (phase four, spiritProp 4): hanging from his grip by its crown, upright, its face the way
+     * he faces (to you), turning a little as he shows it off. Drawn where the fist was drawn (BossRenderer.bonePos).
+     */
+    private static void ignisHead(PaponBossEntity b, float partial, PoseStack pose, MultiBufferSource buffers) {
+        net.minecraft.world.phys.Vec3 hand = bonePos(b, "hand_r");
+        if (hand == null) return;
+        net.minecraft.world.phys.Vec3 at = hand.subtract(b.getPosition(partial));
+        float s = 1.25F;
+        pose.pushPose();
+        pose.translate(at.x, at.y - 0.85 * s, at.z);
+        pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180F - b.yBodyRot + 10F * net.minecraft.util.Mth.sin((b.tickCount + partial) * 0.07F)));
+        pose.scale(s, s, s);
+        pose.translate(-0.5, 0, -0.5);
+        net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(
+                new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_IGNIS_HEAD.get()), net.minecraft.world.item.ItemDisplayContext.NONE,
+                net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, pose, buffers, b.level(), b.getId());
+        pose.popPose();
     }
 
     private static final ResourceLocation SUN_STONE = PaponMod.id("textures/entity/sun_stone.png");

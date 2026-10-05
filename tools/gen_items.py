@@ -69,7 +69,7 @@ def save_json(obj, rel):
     path = os.path.join(ASSETS, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as f:
-        json.dump(obj, f, indent=2)
+        json.dump(obj, f, separators=(',', ':'))
         f.write('\n')
     return path
 

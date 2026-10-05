@@ -97,9 +97,7 @@ public final class Speech {
 
     /** A character's talking sound: one blip every few ticks at a jittered pitch. */
     public record Voice(SoundEvent sound, float pitch, float volume, int every) {
-        public Voice(SoundEvent sound, float pitch, float volume) {
-            this(sound, pitch, volume, 6);
-        }
+        public Voice(SoundEvent sound, float pitch, float volume) { this(sound, pitch, volume, 6); }
 
         public void blip(Entity e, int ticksLeft) {
             if (ticksLeft % every != 0) return;

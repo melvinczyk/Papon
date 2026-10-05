@@ -12,14 +12,10 @@ import java.util.List;
 
 /** Handed to a Walking Crops Papon (see CommonEvents) to start the Taco Quest. */
 public class TacoCouponItem extends Item {
-    public TacoCouponItem(Properties properties) {
-        super(properties);
-    }
+    public TacoCouponItem(Properties properties) { super(properties); }
 
     @Override
-    public boolean isFoil(ItemStack stack) {
-        return true;
-    }
+    public boolean isFoil(ItemStack stack) { return true; }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {

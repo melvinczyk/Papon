@@ -51,37 +51,25 @@ public class JarritoItem extends Item {
         this.flavor = flavor;
     }
 
-    public Flavor flavor() {
-        return flavor;
-    }
+    public Flavor flavor() { return flavor; }
 
     @Override
-    public UseAnim getUseAnimation(ItemStack stack) {
-        return UseAnim.DRINK;
-    }
+    public UseAnim getUseAnimation(ItemStack stack) { return UseAnim.DRINK; }
 
     @Override
-    public int getUseDuration(ItemStack stack) {
-        return 32;
-    }
+    public int getUseDuration(ItemStack stack) { return 32; }
 
     @Override
-    public SoundEvent getDrinkingSound() {
-        return SoundEvents.GENERIC_DRINK;
-    }
+    public SoundEvent getDrinkingSound() { return SoundEvents.GENERIC_DRINK; }
 
     @Override
-    public SoundEvent getEatingSound() {
-        return SoundEvents.GENERIC_DRINK;
-    }
+    public SoundEvent getEatingSound() { return SoundEvents.GENERIC_DRINK; }
 
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
         boolean creative = entity instanceof Player p && p.getAbilities().instabuild;
         ItemStack rest = super.finishUsingItem(stack, level, entity);
-        if (entity instanceof ServerPlayer sp) {
-            sp.awardStat(net.minecraft.stats.Stats.ITEM_USED.get(this));
-        }
+        if (entity instanceof ServerPlayer sp) { sp.awardStat(net.minecraft.stats.Stats.ITEM_USED.get(this)); }
         if (creative) return rest;
         if (rest.isEmpty()) return new ItemStack(Items.GLASS_BOTTLE);
         if (entity instanceof Player p && !p.getInventory().add(new ItemStack(Items.GLASS_BOTTLE))) {
@@ -93,8 +81,6 @@ public class JarritoItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("item.papon.jarrito.tooltip").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
-        if (flavor == Flavor.YELLOW) {
-            tooltip.add(Component.translatable("item.papon.jarrito_yellow.tooltip").withStyle(ChatFormatting.DARK_RED));
-        }
+        if (flavor == Flavor.YELLOW) { tooltip.add(Component.translatable("item.papon.jarrito_yellow.tooltip").withStyle(ChatFormatting.DARK_RED)); }
     }
 }

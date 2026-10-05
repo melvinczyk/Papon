@@ -106,9 +106,7 @@ public class TacoVendorEntity extends TacoNpc {
     }
 
     @Override
-    protected Speech.Voice voice() {
-        return new Speech.Voice(SoundEvents.WANDERING_TRADER_AMBIENT, 0.9F, 0.55F, 4);
-    }
+    protected Speech.Voice voice() { return new Speech.Voice(SoundEvents.WANDERING_TRADER_AMBIENT, 0.9F, 0.55F, 4); }
 
     @Override
     protected void defineSynchedData() {
@@ -117,9 +115,7 @@ public class TacoVendorEntity extends TacoNpc {
     }
 
     /** Beaten and back at work, all smiles: the free menu. */
-    public boolean isFriendly() {
-        return entityData.get(DATA_FRIENDLY);
-    }
+    public boolean isFriendly() { return entityData.get(DATA_FRIENDLY); }
 
     /**
      * Chef Papon, beaten (PaponBossEntity's fall): back behind his counter at {@code at}, the same truck,
@@ -243,9 +239,7 @@ public class TacoVendorEntity extends TacoNpc {
         }
     }
 
-    public VendorState getVendorState() {
-        return VendorState.byId(stateId());
-    }
+    public VendorState getVendorState() { return VendorState.byId(stateId()); }
 
     private void setVendorState(VendorState s) {
         if (WanderingPaponEntity.debugEscort && s != getVendorState()) {
@@ -256,9 +250,7 @@ public class TacoVendorEntity extends TacoNpc {
     }
 
     @Nullable
-    public TacoLine getLine() {
-        return line;
-    }
+    public TacoLine getLine() { return line; }
 
     /** Opens for business at a truck, with these customers already in line, front first. */
     public void open(TacoLine line, List<? extends Entity> customers) {
@@ -284,26 +276,16 @@ public class TacoVendorEntity extends TacoNpc {
     }
 
     /** Line position of someone, or -1. */
-    public int positionOf(UUID id) {
-        return queue.indexOf(id);
-    }
+    public int positionOf(UUID id) { return queue.indexOf(id); }
 
-    public int queueSize() {
-        return queue.size();
-    }
+    public int queueSize() { return queue.size(); }
 
-    public int servedCount() {
-        return served;
-    }
+    public int servedCount() { return served; }
 
-    public int totalCount() {
-        return total;
-    }
+    public int totalCount() { return total; }
 
     /** True while a player is in line, so the line is moving. */
-    public boolean isServing() {
-        return serving;
-    }
+    public boolean isServing() { return serving; }
 
     // ------------------------------------------------------------------ the line
 
@@ -340,9 +322,7 @@ public class TacoVendorEntity extends TacoNpc {
                     setVendorState(VendorState.IDLE);
                     break;
                 }
-                if (stateTicks == c.kind().orderTicks - 22) {
-                    line(ChatFormatting.GOLD, "order" + random.nextInt(3), false, true, 40);
-                }
+                if (stateTicks == c.kind().orderTicks - 22) { line(ChatFormatting.GOLD, "order" + random.nextInt(3), false, true, 40); }
                 if (stateTicks >= c.kind().orderTicks) {
                     setVendorState(VendorState.COOKING);
                     c.waitForFood();
@@ -360,9 +340,7 @@ public class TacoVendorEntity extends TacoNpc {
                 }
             }
             case SERVING -> {
-                if (stateTicks == 18) {
-                    line(ChatFormatting.GOLD, "serve" + random.nextInt(3), false, true, 36);
-                }
+                if (stateTicks == 18) { line(ChatFormatting.GOLD, "serve" + random.nextInt(3), false, true, 36); }
                 if (stateTicks >= Customer.SERVE) {
                     if (head instanceof TacoCustomerEntity c) {
                         c.leave();
@@ -377,21 +355,15 @@ public class TacoVendorEntity extends TacoNpc {
                     setVendorState(VendorState.IDLE);
                     break;
                 }
-                if (stateTicks == 34) {
-                    line(ChatFormatting.GOLD, "inspect", false, true, 50);
-                }
-                if (stateTicks == 92) {
-                    line(ChatFormatting.GOLD, "suspicious", false, true, 40);
-                }
+                if (stateTicks == 34) { line(ChatFormatting.GOLD, "inspect", false, true, 50); }
+                if (stateTicks == 92) { line(ChatFormatting.GOLD, "suspicious", false, true, 40); }
                 if (stateTicks >= VendorState.INSPECTING.duration) {
                     setVendorState(VendorState.FRAUD);
                     fraud(level, w);
                 }
             }
             case FRAUD -> {
-                if (stateTicks == 12) {
-                    level.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 2.6, getZ(), 12, 0.8, 0.4, 0.8, 0);
-                }
+                if (stateTicks == 12) { level.sendParticles(ParticleTypes.ANGRY_VILLAGER, getX(), getY() + 2.6, getZ(), 12, 0.8, 0.4, 0.8, 0); }
                 if (stateTicks >= VendorState.FRAUD.duration) setVendorState(VendorState.EXPOSED);
             }
             case FURIOUS -> {
@@ -428,23 +400,17 @@ public class TacoVendorEntity extends TacoNpc {
 
     private void assignSlots(List<Entity> members) {
         int wanderAt = -1;
-        for (int i = 0; i < members.size(); i++) {
-            if (members.get(i) instanceof WanderingPaponEntity) wanderAt = i;
-        }
+        for (int i = 0; i < members.size(); i++) { if (members.get(i) instanceof WanderingPaponEntity) wanderAt = i; }
         for (int i = 0; i < members.size(); i++) {
             Entity e = members.get(i);
             if (e instanceof TacoCustomerEntity c) {
                 c.setLineSlot(getUUID(), line, i);
-            } else if (e instanceof WanderingPaponEntity w) {
-                w.setLineSlot(getUUID(), line, i, served, total);
-            }
+            } else if (e instanceof WanderingPaponEntity w) { w.setLineSlot(getUUID(), line, i, served, total); }
         }
     }
 
     /** Where the player should stand: right behind the last one in line. */
-    public Vec3 playerSlot() {
-        return line == null ? position() : line.slot(queue.size());
-    }
+    public Vec3 playerSlot() { return line == null ? position() : line.slot(queue.size()); }
 
     private boolean playerInLine(ServerLevel level) {
         if (WanderingPaponEntity.debugEscort) return true;
@@ -483,21 +449,15 @@ public class TacoVendorEntity extends TacoNpc {
                         .withStyle(ChatFormatting.GOLD)
                 : Component.translatable("status.papon.line.join").withStyle(ChatFormatting.RED);
         Vec3 spot = playerSlot();
-        for (ServerPlayer p : level.players()) {
-            if (p.distanceToSqr(spot) < 48 * 48) p.displayClientMessage(msg, true);
-        }
-        if (!serving) {
-            level.sendParticles(ParticleTypes.HAPPY_VILLAGER, spot.x, spot.y + 0.2, spot.z, 10, 0.45, 0.05, 0.45, 0);
-        }
+        for (ServerPlayer p : level.players()) { if (p.distanceToSqr(spot) < 48 * 48) p.displayClientMessage(msg, true); }
+        if (!serving) { level.sendParticles(ParticleTypes.HAPPY_VILLAGER, spot.x, spot.y + 0.2, spot.z, 10, 0.45, 0.05, 0.45, 0); }
     }
 
     private void cookingEffects(ServerLevel level) {
         if (tickCount % 6 != 0) return;
         Vec3 g = position().add(-line.out().getStepX() * 2.6, 1.2, -line.out().getStepZ() * 2.6);
         level.sendParticles(ParticleTypes.SMOKE, g.x, g.y, g.z, 3, 0.25, 0.05, 0.25, 0.01);
-        if (random.nextInt(3) == 0) {
-            level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, g.x, g.y + 0.3, g.z, 1, 0.1, 0.05, 0.1, 0.01);
-        }
+        if (random.nextInt(3) == 0) { level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, g.x, g.y + 0.3, g.z, 1, 0.1, 0.05, 0.1, 0.01); }
     }
 
     // ------------------------------------------------------------------ the fraud
@@ -550,9 +510,7 @@ public class TacoVendorEntity extends TacoNpc {
                     // the caption: a bubble over the shiny head, and the cutscene's subtitle
                     Speech.say(this, ChatFormatting.GRAY, "status.papon.norwood", false, false, 40);
                 }
-                if (t >= 60 && t < 90 && t % 6 == 0) {
-                    level.sendParticles(ParticleTypes.END_ROD, getX(), top, getZ(), 2, 0.4, 0.05, 0.4, 0.01);
-                }
+                if (t >= 60 && t < 90 && t % 6 == 0) { level.sendParticles(ParticleTypes.END_ROD, getX(), top, getZ(), 2, 0.4, 0.05, 0.4, 0.01); }
                 if (t >= VendorState.UNMASK.duration) setVendorState(VendorState.REALIZE);
             }
             case REALIZE -> {
@@ -561,9 +519,7 @@ public class TacoVendorEntity extends TacoNpc {
                 if (t >= VendorState.REALIZE.duration) setVendorState(VendorState.RAGE);
             }
             case RAGE -> {
-                if (t < 34 && t % 5 == 0) {
-                    level.sendParticles(ParticleTypes.SMOKE, getX(), top, getZ(), 4, 0.3, 0.05, 0.3, 0.03);
-                }
+                if (t < 34 && t % 5 == 0) { level.sendParticles(ParticleTypes.SMOKE, getX(), top, getZ(), 4, 0.3, 0.05, 0.3, 0.03); }
                 if (t == 34) {      // the roar
                     line(ChatFormatting.DARK_RED, "rage", true, true, 50);
                     level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 2.5F, 0.8F);
@@ -571,9 +527,7 @@ public class TacoVendorEntity extends TacoNpc {
                     level.sendParticles(ParticleTypes.LARGE_SMOKE, getX(), top + 0.5, getZ(), 8, 0.4, 0.2, 0.4, 0.06);
                     PaponNetwork.shake(level, position(), 16, 0.45F, 30);
                 }
-                if (t > 34 && t % 3 == 0) {
-                    level.sendParticles(ParticleTypes.CLOUD, getX(), top + 0.2, getZ(), 2, 0.2, 0.1, 0.2, 0.05);
-                }
+                if (t > 34 && t % 3 == 0) { level.sendParticles(ParticleTypes.CLOUD, getX(), top + 0.2, getZ(), 2, 0.2, 0.1, 0.2, 0.05); }
                 if (t >= VendorState.RAGE.duration) TacoBoss.startFight(level, this);
             }
             default -> {}

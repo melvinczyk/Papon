@@ -1,6 +1,1 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "papon:item/taco_pollo"
-  }
-}
+{"parent":"minecraft:item/generated","textures":{"layer0":"papon:item/taco_pollo"}}

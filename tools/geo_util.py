@@ -133,5 +133,21 @@ def write_geo(name, bones, tex_w, tex_h, bounds=(3, 3.5, 1.5)):
     path = os.path.join(ASSETS, 'geo/entity/%s.geo.json' % name)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', newline='\n') as f:
-        json.dump(geo, f, indent='\t')
+        json.dump(geo, f, separators=(',', ':'))
     return path
+
+
+SOUNDS = os.path.join(ASSETS, 'sounds.json')
+
+
+def read_sounds():
+    """assets/papon/sounds.json (every generator that adds sound events reads and writes it through these two)."""
+    return json.load(open(SOUNDS, encoding='utf-8'))
+
+
+def write_sounds(sounds):
+    """sounds.json, one sound event to a line (it is merged by hand: a line per event keeps the merges readable)."""
+    with open(SOUNDS, 'w', newline='\n', encoding='utf-8') as f:
+        f.write('{\n' + ',\n'.join('  %s: %s' % (json.dumps(k, ensure_ascii=False), json.dumps(v, ensure_ascii=False, separators=(', ', ': ')))
+                                     for k, v in sounds.items()) + '\n}\n')
+

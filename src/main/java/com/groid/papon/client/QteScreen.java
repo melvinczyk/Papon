@@ -13,9 +13,7 @@ import org.lwjgl.glfw.GLFW;
  * still gets you the pause menu.
  */
 public class QteScreen extends Screen {
-    public QteScreen() {
-        super(Component.empty());
-    }
+    public QteScreen() { super(Component.empty()); }
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
@@ -34,14 +32,10 @@ public class QteScreen extends Screen {
     }
 
     @Override
-    public boolean shouldCloseOnEsc() {
-        return false;
-    }
+    public boolean shouldCloseOnEsc() { return false; }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {

@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "papon:block/soul_void"
-    }
-  }
-}
+{"variants":{"":{"model":"papon:block/soul_void"}}}

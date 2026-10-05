@@ -62,7 +62,7 @@ def write_json(rel, data):
     path = os.path.join(ASSETS, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', newline='\n') as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f, separators=(',', ':'))
 
 
 def cube_all(name, tex=None):
@@ -769,6 +769,21 @@ def soul():
     return im
 
 
+def guardian_aura():
+    """The Final Guardian's aura (phase four, reworked: the souls he took burn jade green in him): papon_aura.png's flow in
+    green, its light kept."""
+    import numpy as np
+    a = np.asarray(Image.open(os.path.join(ASSETS, 'textures/entity/papon_aura.png')).convert('RGBA')).astype(float)
+    lum = (0.3 * a[..., 0] + 0.59 * a[..., 1] + 0.11 * a[..., 2]) / 255.0
+    lum = lum / max(1e-6, lum.max())
+    out = np.zeros_like(a)
+    for i, (lo, hi) in enumerate(zip((8, 110, 50), (214, 255, 220))):
+        out[..., i] = lo * (1 - lum) + hi * lum
+    out *= np.clip(lum * 1.6, 0, 1)[..., None]
+    out[..., 3] = a[..., 3]
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), 'RGBA')
+
+
 def dead_aura():
     """The aura that swirls round him in phase four (client/BossRenderer): papon_aura.png's flow (gold, almost no blue: tinted
     blue it came out green) turned to the dead's ectoplasm, its light kept."""
@@ -796,6 +811,7 @@ if __name__ == '__main__':
         save(papel_picado(), 'textures/entity/papel_picado.png')
         save(soul(), 'textures/entity/soul.png')
         save(dead_aura(), 'textures/entity/papon_aura_dead.png')
+        save(guardian_aura(), 'textures/entity/papon_aura_guardian.png')
     if 'band' in what:
         save(turned('mariachi'), 'textures/entity/mariachi_muertos.png')
         save(turned('arena_fan'), 'textures/entity/arena_fan_muertos.png')

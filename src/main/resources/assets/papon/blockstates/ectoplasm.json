@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "papon:block/ectoplasm"
-    }
-  }
-}
+{"variants":{"":{"model":"papon:block/ectoplasm"}}}

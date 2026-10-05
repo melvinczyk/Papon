@@ -139,14 +139,10 @@ public class FxParticle extends TextureSheetParticle {
     }
 
     @Override
-    protected int getLightColor(float partialTick) {
-        return mode.bright ? 0xF000F0 : super.getLightColor(partialTick);
-    }
+    protected int getLightColor(float partialTick) { return mode.bright ? 0xF000F0 : super.getLightColor(partialTick); }
 
     @Override
-    public ParticleRenderType getRenderType() {
-        return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
-    }
+    public ParticleRenderType getRenderType() { return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT; }
 
     public record Provider(SpriteSet sprites, Mode mode) implements ParticleProvider<FxOptions> {
         @Override

@@ -35,14 +35,10 @@ public class FryingOilBlock extends Block {
     private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 12, 16);
     private static final VoxelShape FLOOR = Block.box(0, 0, 0, 16, 7, 16);
 
-    public FryingOilBlock(Properties props) {
-        super(props);
-    }
+    public FryingOilBlock(Properties props) { super(props); }
 
     @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {
-        return SHAPE;
-    }
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) { return SHAPE; }
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext ctx) {

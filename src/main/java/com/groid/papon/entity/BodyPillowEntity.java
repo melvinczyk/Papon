@@ -69,19 +69,13 @@ public class BodyPillowEntity extends Entity {
                 e -> e.bed().equals(head)).stream().findFirst().orElse(null);
     }
 
-    public BlockPos bed() {
-        return entityData.get(DATA_BED);
-    }
+    public BlockPos bed() { return entityData.get(DATA_BED); }
 
     /** The way the bed points, foot to head. */
-    public Direction facing() {
-        return Direction.from2DDataValue(entityData.get(DATA_FACING));
-    }
+    public Direction facing() { return Direction.from2DDataValue(entityData.get(DATA_FACING)); }
 
     /** The side of the bed it lies on (to the right of someone lying in it, head on the pillow end). */
-    public Direction side() {
-        return facing().getCounterClockWise();
-    }
+    public Direction side() { return facing().getCounterClockWise(); }
 
     /** On the mattress, halfway along the bed, off to its side (where it lies while someone sleeps in the bed). */
     public Vec3 restingPlace() {
@@ -129,9 +123,7 @@ public class BodyPillowEntity extends Entity {
     // ---- climbing on the bed with her
 
     @Override
-    protected boolean canAddPassenger(Entity passenger) {
-        return getPassengers().isEmpty() && passenger instanceof Player;
-    }
+    protected boolean canAddPassenger(Entity passenger) { return getPassengers().isEmpty() && passenger instanceof Player; }
 
     @Override
     public boolean shouldRiderSit() {
@@ -187,19 +179,13 @@ public class BodyPillowEntity extends Entity {
     }
 
     @Override
-    public boolean isPickable() {
-        return true;
-    }
+    public boolean isPickable() { return true; }
 
     @Override
-    public boolean isPushable() {
-        return false;
-    }
+    public boolean isPushable() { return false; }
 
     @Override
-    public ItemStack getPickResult() {
-        return new ItemStack(ModItems.BODY_PILLOW.get());
-    }
+    public ItemStack getPickResult() { return new ItemStack(ModItems.BODY_PILLOW.get()); }
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {

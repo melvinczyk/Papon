@@ -97,9 +97,7 @@ public final class JourneyPlanner {
                 double a = toward + n * Mth.TWO_PI / steps;
                 int x = around.getX() + (int) Math.round(Math.cos(a) * r);
                 int z = around.getZ() + (int) Math.round(Math.sin(a) * r);
-                if (level.getWorldBorder().isWithinBounds(x, z) && isInlandOnMap(level, x, z)) {
-                    return new BlockPos(x, level.getSeaLevel(), z);
-                }
+                if (level.getWorldBorder().isWithinBounds(x, z) && isInlandOnMap(level, x, z)) { return new BlockPos(x, level.getSeaLevel(), z); }
             }
         }
         return from;

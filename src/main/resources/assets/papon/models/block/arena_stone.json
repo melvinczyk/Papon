@@ -1,6 +1,1 @@
-{
-  "parent": "minecraft:block/cube_all",
-  "textures": {
-    "all": "papon:block/arena_stone"
-  }
-}
+{"parent":"minecraft:block/cube_all","textures":{"all":"papon:block/arena_stone"}}

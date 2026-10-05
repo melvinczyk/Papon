@@ -95,21 +95,13 @@ public class ColiseumCrowdEntity extends Entity {
         entityData.define(DATA_SIZE, Coliseum.A << 8 | Coliseum.B);
     }
 
-    public float dead() {
-        return entityData.get(DATA_DEAD);
-    }
+    public float dead() { return entityData.get(DATA_DEAD); }
 
-    public void setDead(float k) {
-        entityData.set(DATA_DEAD, k);
-    }
+    public void setDead(float k) { entityData.set(DATA_DEAD, k); }
 
-    public int sizeA() {
-        return entityData.get(DATA_SIZE) >> 8;
-    }
+    public int sizeA() { return entityData.get(DATA_SIZE) >> 8; }
 
-    public int sizeB() {
-        return entityData.get(DATA_SIZE) & 0xFF;
-    }
+    public int sizeB() { return entityData.get(DATA_SIZE) & 0xFF; }
 
     public void setSize(int a, int b) {
         entityData.set(DATA_SIZE, a << 8 | b);
@@ -117,9 +109,7 @@ public class ColiseumCrowdEntity extends Entity {
     }
 
     /** Its seats (the coliseum's size). */
-    public List<Coliseum.Seat> seatList() {
-        return Coliseum.seats(seed(), sizeA(), sizeB());
-    }
+    public List<Coliseum.Seat> seatList() { return Coliseum.seats(seed(), sizeA(), sizeB()); }
 
     /** Client: ticks since the fan in seat {@code i} started a throw, or -1 if he is not throwing. */
     public int throwTicks(int i) {
@@ -185,34 +175,20 @@ public class ColiseumCrowdEntity extends Entity {
         level.playSound(null, from.x, from.y, from.z, SoundEvents.SNOWBALL_THROW, SoundSource.NEUTRAL, 0.9F, 0.7F + random.nextFloat() * 0.3F);
     }
 
-    public float lighters() {
-        return entityData.get(DATA_LIGHTERS);
-    }
+    public float lighters() { return entityData.get(DATA_LIGHTERS); }
 
-    public void setLighters(float f) {
-        entityData.set(DATA_LIGHTERS, f);
-    }
+    public void setLighters(float f) { entityData.set(DATA_LIGHTERS, f); }
 
-    public void setSeed(int seed) {
-        entityData.set(DATA_SEED, seed);
-    }
+    public void setSeed(int seed) { entityData.set(DATA_SEED, seed); }
 
-    public int seed() {
-        return entityData.get(DATA_SEED);
-    }
+    public int seed() { return entityData.get(DATA_SEED); }
 
-    public CrowdMood mood() {
-        return CrowdMood.byId(entityData.get(DATA_MOOD));
-    }
+    public CrowdMood mood() { return CrowdMood.byId(entityData.get(DATA_MOOD)); }
 
     /** Client: the mood before this one, and how long this one has lasted. */
-    public CrowdMood previousMood() {
-        return CrowdMood.byId(prevMood);
-    }
+    public CrowdMood previousMood() { return CrowdMood.byId(prevMood); }
 
-    public int moodTicks() {
-        return moodTicks;
-    }
+    public int moodTicks() { return moodTicks; }
 
     /** The standing mood (what they go back to after a reaction). */
     public void setMood(CrowdMood m) {
@@ -221,9 +197,7 @@ public class ColiseumCrowdEntity extends Entity {
     }
 
     /** A burst of something for a while, then back to the standing mood. */
-    public void react(CrowdMood m, int ticks) {
-        react(m, ticks, false);
-    }
+    public void react(CrowdMood m, int ticks) { react(m, ticks, false); }
 
     /** As {@link #react(CrowdMood, int)}; {@code loud}: the whole bowl, over anything (his entrance, the big moments). */
     public void react(CrowdMood m, int ticks, boolean loud) {
@@ -242,9 +216,7 @@ public class ColiseumCrowdEntity extends Entity {
     private int salvos;
 
     /** Client: the latest pulse (see DATA_PULSE), -1 before the first. */
-    public int pulseData() {
-        return entityData.get(DATA_PULSE);
-    }
+    public int pulseData() { return entityData.get(DATA_PULSE); }
 
     /** Fireworks off the top of the walls in green, white and red, a volley on each of the next {@code beats} beats of the song. */
     public void salvo(int beats) {
@@ -253,13 +225,9 @@ public class ColiseumCrowdEntity extends Entity {
     }
 
     /** Client: the latest salvo (see DATA_SALVO), -1 before the first. */
-    public int salvoData() {
-        return entityData.get(DATA_SALVO);
-    }
+    public int salvoData() { return entityData.get(DATA_SALVO); }
 
-    public boolean reacting() {
-        return reactTicks > 0;
-    }
+    public boolean reacting() { return reactTicks > 0; }
 
     @Override
     public void tick() {
@@ -277,21 +245,15 @@ public class ColiseumCrowdEntity extends Entity {
             prevMood = lastMood < 0 ? now : lastMood;
             lastMood = now;
             moodTicks = 0;
-        } else {
-            moodTicks++;
-        }
+        } else { moodTicks++; }
         if (!level().isClientSide && reactTicks > 0 && --reactTicks == 0) entityData.set(DATA_MOOD, base.ordinal());
     }
 
     @Override
-    public AABB getBoundingBoxForCulling() {
-        return getBoundingBox().inflate(sizeA() + 24, Coliseum.HEIGHT + 4, sizeB() + 24);
-    }
+    public AABB getBoundingBoxForCulling() { return getBoundingBox().inflate(sizeA() + 24, Coliseum.HEIGHT + 4, sizeB() + 24); }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double d) {
-        return d < 200 * 200;
-    }
+    public boolean shouldRenderAtSqrDistance(double d) { return d < 200 * 200; }
 
     @Override public boolean hurt(DamageSource source, float amount) { return false; }
     @Override public boolean isPickable() { return false; }
@@ -317,7 +279,5 @@ public class ColiseumCrowdEntity extends Entity {
     }
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return new ClientboundAddEntityPacket(this);
-    }
+    public Packet<ClientGamePacketListener> getAddEntityPacket() { return new ClientboundAddEntityPacket(this); }
 }

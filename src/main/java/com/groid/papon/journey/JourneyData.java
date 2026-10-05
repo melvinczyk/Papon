@@ -62,22 +62,16 @@ public class JourneyData extends SavedData {
         setDirty();
     }
 
-    public void forget(UUID id) {
-        if (journeys.remove(id) != null) setDirty();
-    }
+    public void forget(UUID id) { if (journeys.remove(id) != null) setDirty(); }
 
-    public Map<UUID, Journey> journeys() {
-        return Collections.unmodifiableMap(journeys);
-    }
+    public Map<UUID, Journey> journeys() { return Collections.unmodifiableMap(journeys); }
 
     public void addTruck(BlockPos pos) {
         trucks.add(pos.immutable());
         setDirty();
     }
 
-    public List<BlockPos> trucks() {
-        return Collections.unmodifiableList(trucks);
-    }
+    public List<BlockPos> trucks() { return Collections.unmodifiableList(trucks); }
 
     @Override
     public CompoundTag save(CompoundTag tag) {

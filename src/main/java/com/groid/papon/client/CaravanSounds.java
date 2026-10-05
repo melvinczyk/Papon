@@ -66,9 +66,7 @@ public final class CaravanSounds {
         }
 
         @Override
-        public boolean canStartSilent() {
-            return true;
-        }
+        public boolean canStartSilent() { return true; }
 
         @Override
         public void tick() {

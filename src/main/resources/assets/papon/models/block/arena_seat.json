@@ -1,8 +1,1 @@
-{
-  "parent": "minecraft:block/cube_bottom_top",
-  "textures": {
-    "top": "papon:block/arena_seat_top",
-    "side": "papon:block/arena_stone",
-    "bottom": "papon:block/arena_stone"
-  }
-}
+{"parent":"minecraft:block/cube_bottom_top","textures":{"top":"papon:block/arena_seat_top","side":"papon:block/arena_stone","bottom":"papon:block/arena_stone"}}

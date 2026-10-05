@@ -32,9 +32,7 @@ import java.util.UUID;
 public class CaravanKeysItem extends Item {
     protected static final String VAN = "Van";
 
-    public CaravanKeysItem(Properties properties) {
-        super(properties.stacksTo(1));
-    }
+    public CaravanKeysItem(Properties properties) { super(properties.stacksTo(1)); }
 
     @Override
     public InteractionResult useOn(UseOnContext ctx) {

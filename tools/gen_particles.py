@@ -107,7 +107,7 @@ def save(im, name):
 def write(kind, tex):
     path = os.path.join(ASSETS, 'particles/%s.json' % kind)
     with open(path, 'w', newline='\n') as f:
-        json.dump({'textures': tex}, f, indent=2)
+        json.dump({'textures': tex}, f, separators=(',', ':'))
     print(path, len(tex))
 
 

@@ -1,7 +1,1 @@
-{
-  "variants": {
-    "": {
-      "model": "papon:block/muertos_stone"
-    }
-  }
-}
+{"variants":{"":{"model":"papon:block/muertos_stone"}}}
