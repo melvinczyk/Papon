@@ -36,6 +36,7 @@ ANIM_FILES = {
     'gerbin': 'gerbin',
     'papon_boss': 'papon_boss',
     'papon_ascended': 'papon_boss',
+    'papon_muertos': 'papon_boss',
     'caravan': 'caravan',
     'skyline': 'caravan',
     'mariachi': 'mariachi',

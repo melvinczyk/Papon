@@ -295,6 +295,12 @@ class B(Pinned):
             # phase four's (papon_muertos; the hammer on papon_ascended too): client/BossModel.spiritProps shows them
             'spirit_hammer', 'penacho', 'aztec_bow', 'bow_drawn', 'aztec_arrow', 'scar', 'scar_blood']
 
+    def compile(self):
+        a = super().compile()
+        # the hammer's wrist (d_martillo snaps it): at rest everywhere else, or one animation's angle would stay on the next
+        a['bones'].setdefault('spirit_hammer', {}).setdefault('rotation', {'0.0': {'vector': [0, 0, 0]}})
+        return a
+
 
 ANGRY_R = [0, 0, 18]
 ANGRY_L = [0, 0, -18]
@@ -3834,6 +3840,12 @@ def b_d_martillo():
                     (1.3, [-30, 0, 10 * sgn]), (1.6, [20, 0, 6 * sgn]), (2.2, [-40 if sgn > 0 else 30, 0, 12 * sgn], 'easeInExpo'),
                     (2.6, [-40 if sgn > 0 else 30, 0, 12 * sgn]), (3.2, [0, 0, 5 * sgn])], 'lin')
     a.scale('body', [(0, [1.04, 1.03, 1.04]), (2.2, [1.2, 0.86, 1.2], 'easeInExpo'), (2.5, [1.04, 1.03, 1.04])], 'lin')
+    # the wrist: the hammer is held at a right angle to the forearm (gen_muertos_papon.hammer); for the swings it turns the
+    # head out along the blow, at the top of the wind-up it hangs down his back, and for the slam it whips forward in line
+    # with the arm so the head meets the floor
+    a.rot('spirit_hammer', [(0, [0, 0, 0]), (0.42, [0, 0, 0]), (0.5, [50, 0, 0], 'easeOutExpo'), (0.92, [40, 0, 0]),
+                            (1.0, [50, 0, 0], 'easeOutExpo'), (1.25, [30, 0, 0]), (1.6, [0, 0, 0], 'easeOutQuad'), (2.0, [0, 0, 0]),
+                            (2.2, [70, 0, 0], 'easeInExpo'), (2.6, [70, 0, 0]), (3.2, [0, 0, 0], 'easeInOutSine')], 'lin')
     a.sound(0.4, 'swing').sound(0.9, 'swing').sound(1.4, 'whoosh').sound(2.2, 'slam')
     return a
 
@@ -3860,6 +3872,9 @@ def b_d_grieta():
     tears it open (2.2), arms wrenched apart, roaring; he holds it open on his knees, arms wide, shaking with the strain,
     glaring at you (to 8.9); "¡Ciérrate!" (8.9) and both palms clapped together (9.3): shut; up (to 10)."""
     a = god(B('d_grieta', 10.0, 'hold'))
+    # the hammer in his right fist turned down along the arm for the smash and the prying (held upright otherwise)
+    a.rot('spirit_hammer', [(0, [0, 0, 0]), (0.6, [0, 0, 0]), (0.7, [70, 0, 0], 'easeInExpo'), (1.0, [90, 0, 0], 'easeOutQuad'),
+                            (9.4, [90, 0, 0]), (10.0, [0, 0, 0], 'easeInOutSine')], 'lin')
     a.pos('root', [(0, [0, 2, 0]), (0.6, [0, 0, 0]), (0.7, [0, -4.4, 0], 'easeInQuad'), (9.4, [0, -4.4, 0]), (10.0, [0, 0, 0], 'easeInOutSine')], 'lin')
     a.rot('leg_r', [(0, [10, 0, 6]), (0.7, [-84, 0, 10], 'easeInQuad'), (9.4, [-84, 0, 10]), (10.0, [0, 0, 6], 'easeInOutSine')], 'lin')
     a.rot('leg_l', [(0, [10, 0, -6]), (0.7, [-84, 0, -10], 'easeInQuad'), (9.4, [-84, 0, -10]), (10.0, [0, 0, -6], 'easeInOutSine')], 'lin')

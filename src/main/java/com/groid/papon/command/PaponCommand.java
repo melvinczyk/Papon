@@ -105,7 +105,7 @@ public final class PaponCommand {
                         .executes(c -> cutaway(c, StringArgumentType.getString(c, "who"))))));
     }
 
-    /** Ouros and Boros out of their smoke, to circle here (a look at them without the fight). */
+    /** Quetzalcoatl and Kukulcan out of their smoke, to circle here (a look at them without the fight). */
     private static int serpents(CommandContext<CommandSourceStack> c) {
         ServerLevel level = c.getSource().getLevel();
         net.minecraft.world.phys.Vec3 at = c.getSource().getPosition();

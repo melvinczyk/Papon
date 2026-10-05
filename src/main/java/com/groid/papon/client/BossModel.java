@@ -40,6 +40,15 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     @Override
     public void setCustomAnimations(PaponBossEntity boss, long instanceId, AnimationState<PaponBossEntity> state) {
         super.setCustomAnimations(boss, instanceId, state);
+        // No animation keys the body's rotation, and both the groove and BossFace add onto it: put it back to rest each
+        // frame, or each one's take-back misses the other's addition and the potato spins further every frame.
+        CoreGeoBone body = getAnimationProcessor().getBone("body");
+        if (body != null) {
+            var rest = body.getInitialSnapshot();
+            body.setRotX(rest.getRotX());
+            body.setRotY(rest.getRotY());
+            body.setRotZ(rest.getRotZ());
+        }
         if (boss.getBossState() == BossState.P3_SERENADE) serenade(boss, state.getPartialTick());
         if (boss.getBossState() == BossState.P3_DUEL || boss.getBossState() == BossState.P4_GIGANTE) shred(boss, state.getPartialTick());
         if (boss.isMuertos() || boss.getBossState().phaseFour()) spiritProps(boss, state.getPartialTick());

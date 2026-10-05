@@ -30,6 +30,7 @@ public final class CrowdSounds {
     private static float roarSwell;
     private static int lastCrowd = -1;
     private static long lastBeat = Long.MIN_VALUE;
+    private static int finaleRoar = 120;
 
     private CrowdSounds() {}
 
@@ -65,6 +66,18 @@ public final class CrowdSounds {
         boolean hushed = !mc.level.getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class, crowd.getBoundingBox().inflate(160),
                 b -> b.getBossState().p4Hushed()).isEmpty();
         if (hushed) bed.want = 0;
+        // the finale (phase four's fight, and its cutscene once the souls are given): the dead stands are the loudest
+        // they have been all night, a bed that never drops low and a roar now and then of their own
+        boolean finale = !hushed && !mc.level.getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class, crowd.getBoundingBox().inflate(160),
+                b -> b.isPhaseFour() || b.getBossState().phaseFour()).isEmpty();
+        if (finale) {
+            bed.want = Math.min(1F, Math.max(bed.want * 1.6F, near * 0.7F));
+            if (--finaleRoar <= 0) {
+                finaleRoar = 200 + mc.level.random.nextInt(160);
+                play(mc, "crowd.roar", near * 1.3F, 0.9F + mc.level.random.nextFloat() * 0.1F, true);
+                roarSwell = Math.max(roarSwell, 0.7F);
+            }
+        }
         // the reactions: one for every pulse the boss sends (a roar over a roar too), the loud ones over his voice
         int pulse = crowd.pulseData();
         if (hushed) lastPulse = pulse;
@@ -86,7 +99,7 @@ public final class CrowdSounds {
                     default -> null;
                 };
                 if (one != null) {
-                    float v = near * (m == CrowdMood.CHEER ? 0.7F : 1.0F) * (loud ? 1.5F : 1.0F);
+                    float v = near * (m == CrowdMood.CHEER ? 0.7F : 1.0F) * (loud ? 1.5F : 1.0F) * (finale ? 1.5F : 1F);
                     play(mc, one, v, 0.94F + mc.level.random.nextFloat() * 0.12F, loud);
                     if (loud && m == CrowdMood.ROAR) roarSwell = 1F;          // the whole bowl: the bed swells with it
                 }
@@ -102,7 +115,7 @@ public final class CrowdSounds {
         if (b != lastBeat) {
             boolean first = lastBeat == Long.MIN_VALUE;
             lastBeat = b;
-            if (!first && mood == CrowdMood.CHANT && b % 2 == 0) play(mc, "crowd.chant", near * 0.9F, 1.0F, false);
+            if (!first && mood == CrowdMood.CHANT && b % 2 == 0) play(mc, "crowd.chant", near * (finale ? 1.4F : 0.9F), 1.0F, finale);
             if (!first && mood == CrowdMood.FIESTA && b % 2 == 1) play(mc, "crowd.clap", near * 0.6F, 1.05F, false);
             if (!first && mood == CrowdMood.CLAP) play(mc, "crowd.clap", near * 0.7F, 0.95F + mc.level.random.nextFloat() * 0.1F, false);
         }

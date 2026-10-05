@@ -229,14 +229,14 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 drawGlow(pose, buffers, 0F, 0.62F, 240, 74, 160, 0.45F + 0.2F * Mth.sin(age * 0.5F));       // a pink halo round it
             }
             case IGNIS_HEAD -> {
-                // Ignis's head, tumbling as it flies, then where it fell, tipped on its side, facing the way it was thrown
+                // Ignis's head: thrown down upright (no tumbling: the user wanted it to drop, not spin), then where it fell,
+                // tipped on its side, facing the way it was thrown. Landed by height, not by speed (the client's motion can lag).
                 stack = new ItemStack(ModItems.FX_IGNIS_HEAD.get());
-                boolean flying = p.getDeltaMovement().lengthSqr() > 1e-4;
+                float drop = Mth.clamp((float) (p.getY() - p.radius()) / 1.5F, 0F, 1F);
                 pose.mulPose(Axis.YP.rotationDegrees(-p.getYRot()));
-                if (flying) pose.mulPose(Axis.XP.rotationDegrees(age * 22F));
-                else pose.mulPose(Axis.ZP.rotationDegrees(14F));
+                pose.mulPose(Axis.ZP.rotationDegrees(14F * (1F - drop)));
                 pose.scale(1.5F, 1.5F, 1.5F);
-                pose.translate(-0.5, flying ? -0.7 : 0, -0.5);
+                pose.translate(-0.5, -0.7 * drop, -0.5);
             }
             default -> {
                 pose.popPose();

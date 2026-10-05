@@ -39,6 +39,11 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> REVEAL = sound("boss.reveal");
     // phase four (tools/gen_p4_sounds.py): his panting on his back, the band stopping dead
     public static final RegistryObject<SoundEvent> PANT = sound("boss.pant");
+    public static final RegistryObject<SoundEvent> CINE_SOULS = sound("boss.cine_souls");
+    public static final RegistryObject<SoundEvent> CINE_SOUL = sound("boss.cine_soul");
+    public static final RegistryObject<SoundEvent> CINE_ABSORB = sound("boss.cine_absorb");
+    public static final RegistryObject<SoundEvent> CINE_MOON = sound("boss.cine_moon");
+    public static final RegistryObject<SoundEvent> CINE_SWELL = sound("boss.cine_swell");
     public static final RegistryObject<SoundEvent> SCRATCH = sound("boss.scratch");
 
     private static RegistryObject<SoundEvent> sound(String name) {

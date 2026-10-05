@@ -706,7 +706,7 @@ public final class Cinematic {
      *   P4_SOULS      high over the sand, the souls pouring into him; a stand of fans turning to bone; the band's; him aglow
      *   P4_HALFBAKED  his face in the green light; the burst; the flash; low round the Final Guardian in the new arena; wide
      *   P4_BOW        the bow forming in his fist; down the arrow at the moon; up the streak; the sky torn open
-     *   P4_SERPENTS   their heads out of the smoke; from the sand craning up at Ouros; a long lens on Boros; high over it all
+     *   P4_SERPENTS   their heads out of the smoke; from the sand craning up at Quetzalcoatl; a long lens on Kukulcan; high over it all
      *   P4_TALKING .. P4_GOODTIME  his face; walking to the band; the two-shot with the singer; the trumpets' fanfare; the
      *                 muchachas rising; the twirl and the dip; him striding at you, the smirk, the bowl erupting round him
      */
@@ -1088,7 +1088,7 @@ public final class Cinematic {
                     return new Shot(eye, headA, 78, 0, near(t, 56), true);
                 }
                 if (t < 190) {
-                    // a long lens on Boros's gold mask
+                    // a long lens on Kukulcan's gold mask
                     Vec3 eye = c.add(0, 34, 0).add(headB.subtract(c).multiply(1, 0, 1).scale(0.3));
                     return new Shot(eye, headB, 30, 0, near(t, 124), true);
                 }

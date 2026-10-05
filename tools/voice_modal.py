@@ -121,3 +121,31 @@ def clone(refs: dict, lines: list, takes: int = 4) -> dict:
             print(line['id'], k, round(len(wav) / sr, 2), sim and round(sim, 3), '|', heard, flush=True)
     cache.commit()
     return out
+
+
+@app.function(image=image, gpu='L40S', volumes={'/data': cache}, timeout=1800)
+def similarity(refs: dict, clips: dict) -> dict:
+    """refs: {name: [audio bytes, transcript]}; clips: {id: audio bytes} (any format ffmpeg reads).
+    Returns {id: {ref name: cosine similarity of the speaker vectors}}: which built lines drifted off his voice."""
+    import os
+    os.environ['HF_HOME'] = '/data/hf'
+    import torch
+    from qwen_tts import Qwen3TTSModel
+
+    model = Qwen3TTSModel.from_pretrained(TTS_MODEL, device_map='cuda:0', dtype=torch.bfloat16, attn_implementation='sdpa')
+
+    def embedding(audio):
+        p = model.create_voice_clone_prompt(ref_audio=audio, x_vector_only_mode=True)
+        it = (p if isinstance(p, (list, tuple)) else [p])[0]
+        fields = it.items() if isinstance(it, dict) else ((n, getattr(it, n, None)) for n in dir(it) if not n.startswith('__'))
+        for name, v in fields:
+            if torch.is_tensor(v) and ('spk' in name or 'speaker' in name or 'xvec' in name or 'embed' in name):
+                return v.detach().float().flatten().cpu()
+        return None
+
+    embs = {name: embedding(_load(audio)) for name, (audio, _) in refs.items()}
+    out = {}
+    for cid, audio in clips.items():
+        e = embedding(_load(audio))
+        out[cid] = {n: float(torch.nn.functional.cosine_similarity(e, r, dim=0)) for n, r in embs.items()}
+    return out
