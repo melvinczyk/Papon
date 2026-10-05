@@ -60,7 +60,10 @@ public final class AutoShot {
     private static final boolean CLIMAX = MODE.equals("climax");
     /** -Pautoshot=phases: into the coliseum's fight, then real hits (not /papon bossstate) take him to half health and to a
      *  quarter: phase three's whole cutscene and phase four's must follow on their own (papon_p*.png, every state logged). */
-    private static final boolean PHASES = MODE.equals("phases");
+    private static final boolean PHASES = MODE.equals("phases") || MODE.equals("phasesdown");
+    /** -Pautoshot=phasesdown: the same, but first you leave so his coliseum comes down (as after the user's reload): phase three
+     *  must wait for it to go up again and play in full, not its ground version. */
+    private static final boolean PHASES_DOWN = MODE.equals("phasesdown");
     /** -Pautoshot=nights: into the coliseum, then the flags, the crowd up close, the potato sun, nightfall (the lamplighter), the potato moon. */
     private static final boolean NIGHTS = MODE.equals("nights");
     /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
@@ -1170,6 +1173,13 @@ public final class AutoShot {
                 b.isPhaseThree(), b.isPhaseFour(), b.form());
         if (!com.groid.papon.client.Cinematic.isActive()) lookAt(mc, b);
         float max = b.getMaxHealth();
+        if (PHASES_DOWN) {
+            // away from it (below it, on the ground) until it comes down, then back to him on the ground
+            if (k == 20) run("effect give @s slow_falling 60 0 true", "tp @s ~ ~-190 ~");
+            if (k < 20 * 20) return;
+            if (k == 20 * 20) run("execute as @e[type=papon:papon_boss,limit=1] at @s run tp @p ~ ~1 ~6");
+            k -= 20 * 20;
+        }
         if (k == 60) run(String.format(java.util.Locale.ROOT, "data merge entity @e[type=papon:papon_boss,limit=1] {Health:%.1ff}", max * 0.52F));
         if (k >= 80 && k % 20 == 0 && !b.isPhaseThree() && !s.phaseThree() && b.getHealth() > max * 0.5F)
             run("damage @e[type=papon:papon_boss,limit=1] 30 minecraft:player_attack by @s");
