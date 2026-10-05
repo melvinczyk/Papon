@@ -52,7 +52,7 @@ public class ArenaPortalRenderer extends EntityRenderer<ArenaPortalEntity> {
             stars.vertex(m, x0, y0, 0).endVertex();
             stars.vertex(m, 0, 0, 0).endVertex();
         }
-        VertexConsumer rim = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer rim = buffers.getBuffer(PaponRenderTypes.glow());
         float pulse = 0.75F + 0.25F * Mth.sin(time * 0.3F);
         for (int i = 0; i < SEGMENTS; i++) {
             float a0 = Mth.TWO_PI * i / SEGMENTS, a1 = Mth.TWO_PI * (i + 1) / SEGMENTS;

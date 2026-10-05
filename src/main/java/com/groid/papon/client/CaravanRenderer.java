@@ -74,7 +74,7 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
     private static void underglow(CaravanEntity van, float partial, PoseStack pose, MultiBufferSource buffers) {
         float age = van.underglowAge(partial);
         if (age < 0) return;
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         pose.pushPose();
         pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-Mth.rotLerp(partial, van.yBodyRotO, van.yBodyRot)));
         org.joml.Matrix4f m = pose.last().pose();
@@ -112,7 +112,7 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         int on = van.engineTicks;
         if (on < 6 && (on == 1 || on == 2 || on == 4)) return;
         float k = on < 6 ? 0.6F : 1F;
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         pose.pushPose();
         pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-Mth.rotLerp(partial, van.yBodyRotO, van.yBodyRot)));
         org.joml.Matrix4f m = pose.last().pose();

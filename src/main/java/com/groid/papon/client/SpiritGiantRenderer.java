@@ -110,7 +110,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         sk.draw(new Solid(bone, fr));
 
         // ---- the light: one additive buffer
-        VertexConsumer glow = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
         int shell = (int) Math.min(255, 26 * fr.glow);
         skull(glow, fr, GiantMesh.SKULL, 0, true, shell);
         skull(glow, fr, GiantMesh.JAW, fr.jaw, true, shell);

@@ -223,6 +223,11 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   version. Now: a coliseum loaded with him below it is entered at once (`resumeArena`), phases three and four wait for the
   coliseum unless there is no room for one (`arenaFailed`), and tickIdle rebuilds it at once when a phase is due.
   `-Pautoshot=phases` / `phasesdown` check the real-damage path.
+- **Glows never write depth**: vanilla `RenderType.lightning()` does, so a glow drawn before the crowd punched a hole in it (the
+  stands missing behind phase three's spotlight). Use `PaponRenderTypes.glow()` for every additive effect; phase three's spotlight
+  is queued in `BossRenderer.render` and drawn at AFTER_PARTICLES (`drawSpotlights`) so its light lies over the finished stands.
+- Cutscene shots choosing a side with a dot product against the arena's middle can flip every frame when the middle is on the
+  line (P4_HONOR did: the camera swapped sides constantly); pick sides from something fixed (the stage's facing).
 - Voice: `gen_boss_voice.py` with no args retakes every line whose cached signature changed (all of phase four on Windows): to add
   lines, take and build only them (`g.generate(new)`, `g.FRESH = set(new)`, `g.build(meta)`).
 - iCloud makes `* 2` duplicates under `build/` (namespace `papon 2` build failure):

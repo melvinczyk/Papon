@@ -650,7 +650,7 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
                 FlagCloth.draw(fp, flagVc, 0.7F, 0.4F, d.light(), d.time(), d.phase(), d.amp(), true, d.nx(), d.ny());
             }
         }
-        if (!flames.isEmpty()) drawFlames(buffers.getBuffer(RenderType.lightning()), t);
+        if (!flames.isEmpty()) drawFlames(buffers.getBuffer(PaponRenderTypes.glow()), t);
     }
 
     /**

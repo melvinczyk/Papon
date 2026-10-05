@@ -1106,30 +1106,34 @@ public final class Cinematic {
                 return new Shot(eye, body.add(f.scale(5)), 58, 0, near(t, 0));
             }
             case P4_HONOR -> {
-                int nod = VoiceLines.beat("p4.nod", 112), song = VoiceLines.beat("p4.song", 128);
-                Vec3 fp = BossRenderer.facePos(b);
+                // (2026-10-05, the user: "the camera needs to be steady instead of constantly switching") one unbroken shot: side
+                // on to the two of them from the sand, pushing in slowly while he asks for one last song; when the brass comes in
+                // it pans, unhurried, onto the trumpets. It used to cut four times (one shot under a second), and its side was
+                // chosen against the arena's middle, which lies almost on the line between him and the singer: the camera flipped
+                // from one side of them to the other as he swayed, cutting every time.
+                int song = VoiceLines.beat("p4.song", 128);
                 Vec3 sf = singer != null ? singer.position().add(0, singer.getBbHeight() * 0.72, 0) : stage.add(0, 1.5, 0);
-                Vec3 out = singer != null ? c.subtract(singer.position()).multiply(1, 0, 1).normalize() : stageFacing;
-                if (t < 60) {
-                    // the two of them side on, from the sand: him and the singer, close
-                    Vec3 mid = fp.lerp(sf, 0.5);
-                    Vec3 across = sf.subtract(fp).multiply(1, 0, 1);
-                    Vec3 perp = across.lengthSqr() < 1e-4 ? right : new Vec3(-across.z, 0, across.x).normalize();
-                    if (perp.dot(c.subtract(mid)) < 0) perp = perp.scale(-1);
-                    return new Shot(mid.add(perp.scale(10)).add(0, 1.8, 0), mid, 50, 0, near(t, 0), true);
+                Vec3 hf = b.position().add(0, h * 0.62, 0);               // his face's height off his feet (the tracked bone sways)
+                Vec3 mid = hf.lerp(sf, 0.5);
+                Vec3 across = sf.subtract(hf).multiply(1, 0, 1);
+                Vec3 perp = across.lengthSqr() < 1e-4 ? right : new Vec3(-across.z, 0, across.x).normalize();
+                Vec3 fixedSide = new Vec3(-stageFacing.z, 0, stageFacing.x);  // the stage's own side: never changes in the scene
+                if (perp.dot(fixedSide) < 0) perp = perp.scale(-1);
+                float push = Mth.clamp(t / (float) Math.max(1, song), 0F, 1F);
+                push = push * push * (3 - 2 * push);
+                // wide enough for both of them and his wings, a little round toward the singer's side so his face shows
+                Vec3 toSinger = across.lengthSqr() < 1e-4 ? f : across.normalize();
+                Vec3 eye = mid.add(perp.scale(14.0 - 3.0 * push)).add(toSinger.scale(2.5)).add(0, 3.2 - 0.6 * push, 0);
+                Vec3 look = mid;
+                if (t > song) {
+                    java.util.List<com.groid.papon.boss.MariachiEntity> horns = band.stream().filter(m -> m.getRole().instrument.equals("trumpet")).toList();
+                    Vec3 at = horns.isEmpty() ? stage : horns.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / horns.size());
+                    float pan = Mth.clamp((t - song) / 40F, 0F, 1F);
+                    pan = pan * pan * (3 - 2 * pan);
+                    look = mid.lerp(at.add(0, 1.4, 0), pan);
+                    eye = eye.add(at.subtract(mid).multiply(1, 0, 1).scale(0.12 * pan));
                 }
-                if (t < nod) {
-                    // his face, soft, from the stage's edge
-                    return new Shot(fp.add(f.scale(h * 1.8)).add(right.scale(h * 0.4)).add(0, -h * 0.1, 0), fp, 46, 0, near(t, 60), true);
-                }
-                if (t < song) return new Shot(sf.add(out.scale(7.0)).add(0, -0.4, 0), sf.add(0, -0.2, 0), 40, 0, near(t, nod), true);
-                // the trumpets: the brass fanfare
-                java.util.List<com.groid.papon.boss.MariachiEntity> horns = band.stream().filter(m -> m.getRole().instrument.equals("trumpet")).toList();
-                Vec3 at = horns.isEmpty() ? stage : horns.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / horns.size());
-                Vec3 hout = c.subtract(at).multiply(1, 0, 1).normalize();
-                Vec3 side = new Vec3(-hout.z, 0, hout.x);
-                Vec3 eye = at.add(hout.scale(7.0)).add(side.scale(2.0 - (t - song) * 0.05)).add(0, 1.4, 0);
-                return new Shot(eye, at.add(0, 1.4, 0), 52, 0, near(t, song), true);
+                return new Shot(eye, look, 50 - 4 * push, 0, near(t, 0), true);
             }
             case P4_MUCHACHAS -> {
                 int clap = VoiceLines.beat("p4.clap", 50), twirl = VoiceLines.beat("p4.twirl", 112), dip = VoiceLines.beat("p4.dip", 170);

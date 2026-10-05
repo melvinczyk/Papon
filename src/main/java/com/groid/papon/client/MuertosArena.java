@@ -47,7 +47,7 @@ public final class MuertosArena {
         pose.pushPose();
         pose.translate(-cam.x, -cam.y, -cam.z);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         Matrix4f m = pose.last().pose();
         float t = b.ticksInState() + partial;
         Vec3 c = b.fightCenter();
@@ -59,7 +59,7 @@ public final class MuertosArena {
             case P4_CASTILLO -> castillo(vc, m, b, t, c, floor, a, bb, cam);
             default -> {}
         }
-        buffers.endBatch(RenderType.lightning());
+        buffers.endBatch(PaponRenderTypes.glow());
         pose.popPose();
     }
 

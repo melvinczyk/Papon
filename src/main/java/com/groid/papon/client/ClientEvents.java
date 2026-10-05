@@ -44,7 +44,7 @@ public final class ClientEvents {
 
     /** The crowd renderer culls its fans against the level's own frustum. */
     @SubscribeEvent
-    public static void onRenderStage(net.minecraftforge.client.event.RenderLevelStageEvent event) {
+    public static void onRenderSpotlights(net.minecraftforge.client.event.RenderLevelStageEvent event) {
         if (event.getStage() == net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_SKY) {
             ColiseumCrowdRenderer.frustum = event.getFrustum();
         }
@@ -125,6 +125,13 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onFov(ViewportEvent.ComputeFov event) {
         if (Cinematic.isActive()) event.setFOV(Cinematic.fov());
+    }
+
+    /** Phase three's spotlight, over the finished world (BossRenderer.drawSpotlights). */
+    @SubscribeEvent
+    public static void onRenderStage(net.minecraftforge.client.event.RenderLevelStageEvent event) {
+        if (event.getStage() != net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
+        BossRenderer.drawSpotlights(event.getPoseStack(), event.getCamera().getPosition(), event.getPartialTick());
     }
 
     @SubscribeEvent

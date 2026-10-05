@@ -45,7 +45,7 @@ public class BeamRenderer extends EntityRenderer<BeamEntity> {
         int c = e.color();
         int r = c >> 16 & 255, g = c >> 8 & 255, b = c & 255;
         float time = e.tickCount + partial;
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         Matrix4f m = pose.last().pose();
         float w = e.width();
         if (e.mode() == BeamEntity.AIM) {

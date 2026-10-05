@@ -186,14 +186,14 @@ public final class MuertosSky {
         pose.pushPose();
         pose.translate(-cam.x, -cam.y, -cam.z);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         Matrix4f m = pose.last().pose();
         float t = b.ticksInState() + partial;
         if (s == BossState.P4_SOULS) souls(vc, m, b, t, partial, cam);
         if (s == BossState.P4_BOW) arrow(vc, m, b, t, partial, cam);
         if (s == BossState.P4_PETALOS) petals(vc, m, b, t, partial, cam);
         if (storm >= 2) bolts(vc, m, b, storm, partial, cam);
-        buffers.endBatch(RenderType.lightning());
+        buffers.endBatch(PaponRenderTypes.glow());
         pose.popPose();
     }
 

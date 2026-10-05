@@ -302,7 +302,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
 
     /** Golden shafts of light out of his middle in every direction, turning (the dragon's death, his way). */
     static void drawRays(PoseStack pose, MultiBufferSource buffers, float k, float time, float height) {
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         net.minecraft.util.RandomSource r = net.minecraft.util.RandomSource.create(1945L);
         pose.pushPose();
         pose.translate(0, height, 0);
@@ -362,7 +362,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
      */
     private void eyeLightning(PaponBossEntity boss, float partial, MultiBufferSource buffers) {
         if (!eyesSeen) return;
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         int seed = boss.tickCount / 2;
         for (int e = 0; e < 2; e++) {
             if (e == 0 ? !eyeRSeen : !eyeLSeen) continue;
@@ -416,7 +416,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     public void render(PaponBossEntity entity, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
         float spot = spot(entity, partialTick);
         super.render(entity, yaw, partialTick, pose, buffers, spot > 0.5F ? net.minecraft.client.renderer.LightTexture.FULL_BRIGHT : keyLight(entity, light));
-        if (spot > 0) drawSpotlight(entity, pose, buffers, spot, partialTick);
+        if (spot > 0 && SPOTS.size() < 4) SPOTS.add(new Spot(entity, spot));        // drawn after the world: drawSpotlights
         if (entity.isAscended() && !entity.isMuertos()) eyeLightning(entity, partialTick, buffers);
         else eyesSeen = false;
         if (entity.spiritProp() == 4) ignisHead(entity, partialTick, pose, buffers);
@@ -494,7 +494,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         float t = b.ticksInState() + partial;
         float k = t < 130 ? net.minecraft.util.Mth.clamp((t - 10) / 120F, 0, 1) : Math.max(0, 1F - (t - 130) / 6F) * 1.6F;
         if (k <= 0) return;
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         pose.pushPose();
         pose.translate(0, b.getBbHeight() * 0.5, 0);
         if (t > 100 && t < 130) {
@@ -550,6 +550,31 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
      * one round a brighter core, brightest where it meets the ground), the pool of light on the sand under him,
      * and dust turning in it. Additive, so it only shows against the dark.
      */
+    private record Spot(PaponBossEntity b, float k) {}
+
+    /** The spotlights asked for this frame (render), drawn once everything else is (ClientEvents, AFTER_PARTICLES). */
+    private static final java.util.List<Spot> SPOTS = new java.util.ArrayList<>();
+
+    /**
+     * (2026-10-05) The beam is drawn last, over the finished picture: drawn with the boss it went down before the stands, so the
+     * fans behind it were missing (its depth) or drawn over it. Now the stands, the band and the sand are all there behind it,
+     * and its light lies over them.
+     */
+    static void drawSpotlights(PoseStack pose, net.minecraft.world.phys.Vec3 cam, float partial) {
+        if (SPOTS.isEmpty()) return;
+        MultiBufferSource.BufferSource buffers = net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource();
+        for (Spot s : SPOTS) {
+            if (!s.b().isAlive()) continue;
+            net.minecraft.world.phys.Vec3 at = s.b().getPosition(partial);
+            pose.pushPose();
+            pose.translate(at.x - cam.x, at.y - cam.y, at.z - cam.z);
+            drawSpotlight(s.b(), pose, buffers, s.k(), partial);
+            pose.popPose();
+        }
+        buffers.endBatch(PaponRenderTypes.glow());
+        SPOTS.clear();
+    }
+
     private static void drawSpotlight(PaponBossEntity b, PoseStack pose, MultiBufferSource buffers, float k, float partial) {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         net.minecraft.world.phys.Vec3 at = b.getPosition(partial);
@@ -558,7 +583,7 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
         float ground = hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS ? 0F : (float) (hit.getLocation().y - at.y) + 0.03F;
         float top = ground + 30F;
         float scale = b.isRisen() ? 1.15F : 1F;
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         org.joml.Matrix4f m = pose.last().pose();
         float flick = 0.94F + 0.06F * net.minecraft.util.Mth.sin((b.tickCount + partial) * 0.9F);
         // seen from inside the beam (or close to it) it would wash everything behind it out: fade it

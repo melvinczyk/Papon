@@ -37,7 +37,7 @@ public class StageLampRenderer implements BlockEntityRenderer<StageLampBlockEnti
         ps.mulPose(Axis.YP.rotationDegrees(yaw));
         ps.translate(0, 0, 0.3);
         ps.mulPose(Axis.XP.rotationDegrees(TILT));
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         Matrix4f m = ps.last().pose();
         int a0 = (int) (64 * flicker), a1 = 0;
         for (int i = 0; i < SIDES; i++) {

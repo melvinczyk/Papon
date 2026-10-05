@@ -285,7 +285,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
             vtx(vc, m, n, d, u0, 1, lit);
         }
         // the string, glowing gold
-        VertexConsumer glow = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
         for (float side : new float[]{-1, 1}) {
             glow.vertex(m, -ax * half, y1 + 0.05F, -az * half).color(255, 210, 90, 200).endVertex();
             glow.vertex(m, ax * half, y1 + 0.05F, az * half).color(255, 210, 90, 200).endVertex();
@@ -359,7 +359,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
         // the holes lit green on the sand below it
         float h = p.radius();
         if (h > 0.6F) {
-            VertexConsumer glow = buffers.getBuffer(RenderType.lightning());
+            VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
             float pulse = 0.35F + 0.2F * Mth.sin(age * 0.4F);
             Matrix4f g = pose.last().pose();
             float hw = (float) com.groid.papon.boss.Masher.HOLE;
@@ -425,7 +425,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
 
     /** A soft glow round a prop (additive, a flat disc turned to the camera), in the prop's pose space. */
     private static void drawGlow(PoseStack pose, MultiBufferSource buffers, float y, float rad, int r, int g, int b, float k) {
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         pose.pushPose();
         pose.translate(0, y, 0);
         pose.mulPose(Minecraft.getInstance().getEntityRenderDispatcher().cameraOrientation());
@@ -451,7 +451,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
         float r = p.radius();
         if (r <= 0.2F) return;
         boolean horn = p.delay() == 0;
-        VertexConsumer vc = buffers.getBuffer(RenderType.lightning());
+        VertexConsumer vc = buffers.getBuffer(PaponRenderTypes.glow());
         Matrix4f m = pose.last().pose();
         double heading = Math.toRadians(p.getYRot()), span = Math.toRadians(70);
         int segs = Math.max(12, (int) (r * span * 2 / 0.5));

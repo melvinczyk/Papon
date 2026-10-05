@@ -1189,6 +1189,7 @@ public final class AutoShot {
         if (p4At > 0 && k > p4At + 20 && k % 20 == 0 && !b.isPhaseFour() && !s.phaseFour() && b.getHealth() > max * 0.25F)
             run("damage @e[type=papon:papon_boss,limit=1] 30 minecraft:player_attack by @s");
         if (s.phaseFour() && b.ticksInState() == 30) once(mc, "p_" + s.name().toLowerCase(java.util.Locale.ROOT));
+        if (s == BossState.P4_HONOR && b.ticksInState() % 20 == 5) once(mc, String.format("p_p4_honor_%03d", b.ticksInState()));
         if (b.muertosFight() && s == BossState.IDLE && p4At > 0) {
             once(mc, "p_muertos_fight");
             mc.stop();
