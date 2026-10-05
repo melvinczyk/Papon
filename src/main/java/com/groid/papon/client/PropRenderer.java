@@ -153,7 +153,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 pose.translate(0, -1.6, 0);
                 pose.scale(6.0F, 6.0F, 6.0F);
                 pose.translate(0, 0.45, 0);
-                drawRope(pose, buffers, 30F / 6F);
+                drawRope(pose, buffers, 30F / 6F, light);
             }
             case CANDY -> {
                 stack = new ItemStack(ModItems.FX_CANDY.get());
@@ -585,32 +585,46 @@ public class PropRenderer extends EntityRenderer<BossProp> {
         }
     }
 
-    /** The mash wave is a ring far wider than its entity: draw it whenever it is near enough to see. */
+    /**
+     * Drawn whenever it is near enough to see. Most props are drawn far bigger than their 0.6-block box (the mash wave's ring,
+     * the giant potato, the piñata 6x on its 30-block rope, the monoliths, the sombreros, a rolling spud as tall as two of
+     * you), so the box's own frustum test (and Embeddium's, which goes by the chunk sections the box is in) dropped them
+     * whenever their middle went out of view or into a section it thought hidden: they flickered at the screen's edges.
+     * There are only ever a few dozen of them.
+     */
     @Override
     public boolean shouldRender(BossProp p, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
-        if (p.kind() == BossProp.Kind.GIANT_SPUD || p.kind() == BossProp.Kind.MASHER) return p.distanceToSqr(x, y, z) < 192 * 192;
-        if (p.kind() == BossProp.Kind.MASH || p.kind() == BossProp.Kind.SALSA_RING || p.kind() == BossProp.Kind.BAND_WAVE
-                || p.kind() == BossProp.Kind.SALSA_WAVE || p.kind() == BossProp.Kind.SOMBRERO) return p.distanceToSqr(x, y, z) < 128 * 128;
-        return super.shouldRender(p, frustum, x, y, z);
+        double far = p.kind() == BossProp.Kind.GIANT_SPUD || p.kind() == BossProp.Kind.MASHER ? 192 : 160;
+        return p.distanceToSqr(x, y, z) < far * far;
     }
 
     @Override
     public ResourceLocation getTextureLocation(BossProp p) { return MASH; }
 
-    /** The piñata's rope, straight up out of sight from the top of it (model space: the item's 16 units are a block). */
-    private static void drawRope(PoseStack pose, MultiBufferSource buffers, float up) {
-        VertexConsumer vc = buffers.getBuffer(RenderType.debugQuads());
-        Matrix4f m = pose.last().pose();
+    /** The piñata's rope, straight up out of sight from the top of it (model space: the item's 16 units are a block): a thin
+     *  solid post, lit (it was a debug-quads strip, which a shader pack or the translucency sort could drop or smear). */
+    private static void drawRope(PoseStack pose, MultiBufferSource buffers, float up, int light) {
+        VertexConsumer vc = buffers.getBuffer(RenderType.entitySolid(WHITE));
+        PoseStack.Pose last = pose.last();
+        Matrix4f m = last.pose();
+        Matrix3f n = last.normal();
         float w = 0.03F;
-        for (int side = 0; side < 2; side++) {
-            float dx = side == 0 ? w : 0, dz = side == 0 ? 0 : w;
-            for (int face = 0; face < 2; face++) {
-                float s = face == 0 ? 1 : -1;
-                vc.vertex(m, -dx * s, 0.45F, -dz * s).color(150, 118, 72, 255).endVertex();
-                vc.vertex(m, dx * s, 0.45F, dz * s).color(150, 118, 72, 255).endVertex();
-                vc.vertex(m, dx * s, up, dz * s).color(120, 94, 58, 255).endVertex();
-                vc.vertex(m, -dx * s, up, -dz * s).color(120, 94, 58, 255).endVertex();
-            }
+        float[][] sides = {{w, 0, 1, 0}, {-w, 0, -1, 0}, {0, w, 0, 1}, {0, -w, 0, -1}};
+        for (float[] sd : sides) {
+            // each face of the post: the two corners on this side, facing out
+            float ax = sd[0] != 0 ? sd[0] : -w, az = sd[1] != 0 ? sd[1] : -w;
+            float bx = sd[0] != 0 ? sd[0] : w, bz = sd[1] != 0 ? sd[1] : w;
+            float nx = sd[2], nz = sd[3];
+            rope(vc, m, n, ax, 0.45F, az, 150, 118, 72, light, nx, nz);
+            rope(vc, m, n, bx, 0.45F, bz, 150, 118, 72, light, nx, nz);
+            rope(vc, m, n, bx, up, bz, 120, 94, 58, light, nx, nz);
+            rope(vc, m, n, ax, up, az, 120, 94, 58, light, nx, nz);
         }
+    }
+
+    private static final ResourceLocation WHITE = com.groid.papon.PaponMod.id("textures/misc/white.png");
+
+    private static void rope(VertexConsumer vc, Matrix4f m, Matrix3f n, float x, float y, float z, int r, int g, int b, int light, float nx, float nz) {
+        vc.vertex(m, x, y, z).color(r, g, b, 255).uv(0.5F, 0.5F).overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(n, nx, 0, nz).endVertex();
     }
 }

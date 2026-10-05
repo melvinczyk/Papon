@@ -51,7 +51,6 @@ public class BeamEntity extends Entity {
 
     public static BeamEntity create(ServerLevel level, Vec3 from, Vec3 to, float width, int color) {
         BeamEntity b = new BeamEntity(ModEntities.BEAM.get(), level);
-        b.setPos(from.x, from.y, from.z);
         b.set(from, to);
         b.entityData.set(WIDTH, width);
         b.entityData.set(COLOR, color);
@@ -70,7 +69,11 @@ public class BeamEntity extends Entity {
         entityData.set(TX, (float) to.x);
         entityData.set(TY, (float) to.y);
         entityData.set(TZ, (float) to.z);
-        setPos(from.x, from.y, from.z);
+        // the entity itself halfway along (only the ends are drawn from): a server sends an entity only to players within its
+        // tracking range of where it is, and a beam out of El Gigante's eyes at the far end of the arena, or a statue's, starts
+        // further from you than that; its middle is never far from anyone it can reach
+        Vec3 mid = from.add(to).scale(0.5);
+        setPos(mid.x, mid.y, mid.z);
     }
 
     /** Out of {@code boss}'s eye ({@code side} 1 right, -1 left). */
