@@ -484,11 +484,14 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
         return Mth.clamp(1.0F + (1.08F - r.width) * 0.55F + (r.ordinal() % 2 == 0 ? 0.03F : -0.03F), 0.84F, 1.14F);
     }
 
-    /** The animations' cues, the band's way: the gasp in his own voice, no villager grumble (his lines say it). */
+    /** Vocal cues the band never makes: their recorded Spanish lines say it (no villager or animal grunts, yawns, sighs). */
+    private static final java.util.Set<String> MUTE = java.util.Set.of("grumble", "yelp", "sigh", "yawn", "grunt", "gulp", "hmm", "hype", "cheer");
+
+    /** The animations' cues, the band's way: the gasp in his own voice, nothing that isn't a recorded voice or foley. */
     @Override
     protected <T extends TacoNpc> void onSoundCue(software.bernie.geckolib.core.keyframe.event.SoundKeyframeEvent<T> event) {
         String cue = event.getKeyframeData().getSound();
-        if (cue.equals("grumble")) return;
+        if (MUTE.contains(cue)) return;
         if (cue.equals("gasp")) {
             level().playLocalSound(getX(), getEyeY(), getZ(), net.minecraft.sounds.SoundEvent.createVariableRangeEvent(com.groid.papon.PaponMod.id("voice.band.gasp")),
                     net.minecraft.sounds.SoundSource.NEUTRAL, 0.8F, voicePitch() * (0.96F + random.nextFloat() * 0.08F), false);

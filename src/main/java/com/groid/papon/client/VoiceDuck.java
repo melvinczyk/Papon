@@ -21,8 +21,8 @@ import net.minecraft.client.Minecraft;
 public final class VoiceDuck {
     /** Effects and the crowd under his voice, and under the band's. */
     private static final float UNDER = 0.22F, UNDER_BAND = 0.6F;
-    /** The music under his voice. */
-    private static final float MUSIC_UNDER = 0.5F;
+    /** The music under his voice (2026-10-06: 0.5 lost the excitement through his cutscenes; his lines still read over it). */
+    private static final float MUSIC_UNDER = 0.8F;
     private static final double RANGE = 64;
 
     private static float level = 1F, musicLevel = 1F, bandLevel = 1F;
@@ -65,7 +65,7 @@ public final class VoiceDuck {
         float want = talking ? UNDER : band ? UNDER_BAND : 1F;
         level += (want - level) * (want < level ? 0.6F : 0.1F);
         float mw = talking ? MUSIC_UNDER : 1F;
-        musicLevel += (mw - musicLevel) * (mw < musicLevel ? 0.5F : 0.08F);
+        musicLevel += (mw - musicLevel) * (mw < musicLevel ? 0.3F : 0.12F);
         float bw = talking ? 0.6F : 1F;
         bandLevel += (bw - bandLevel) * (bw < bandLevel ? 0.5F : 0.1F);
     }

@@ -14081,7 +14081,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** Client: on the way back from the band stand with the guitar (the duel's fetch, second leg). */
     private boolean duelPhaseClient() { return entityData.get(DATA_GUITAR); }
 
-    private void onSoundCue(SoundKeyframeEvent<PaponBossEntity> event) { SoundCues.play(this, event.getKeyframeData().getSound()); }
+    /** Cues that map to villager noises: he is voiced, so never those (the "hmm" while the band woke up). */
+    private static final java.util.Set<String> MUTE_CUES = java.util.Set.of("hmm", "sob", "nervous", "hype", "cheer", "gasp", "grumble");
+
+    private void onSoundCue(SoundKeyframeEvent<PaponBossEntity> event) {
+        String cue = event.getKeyframeData().getSound();
+        if (!MUTE_CUES.contains(cue)) SoundCues.play(this, cue);
+    }
 
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() { return cache; }

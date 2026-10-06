@@ -26,7 +26,7 @@ import org.jetbrains.annotations.Nullable;
 @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID, value = Dist.CLIENT)
 public final class SoundMix {
     /** How loud the fight's sound effects are next to him (they were drowning him out). */
-    private static final float FIGHT = 0.6F;
+    private static final float FIGHT = 0.5F;
     /** The band's voices: under the music (played at volume 1 with a 48-block reach: sounds.json attenuation_distance). */
     private static final float BAND = 0.62F;
     private static final double NEAR = 56;
