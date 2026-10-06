@@ -343,7 +343,7 @@ public final class SongPlayer {
             delay = 0;
             relative = true;
             attenuation = Attenuation.NONE;
-            volume = 0.95F;
+            volume = 1.0F;
             x = y = z = 0;
         }
 
@@ -386,7 +386,7 @@ public final class SongPlayer {
                 // muffled: down, and a slow wobble in the pitch, as if through his ringing ears
                 pitch = 1F - (1F - muffle) * (0.04F + 0.03F * net.minecraft.util.Mth.sin(winding0++ * 0.12F));
             }
-            volume = Math.max(0.001F, 0.95F * level * VoiceDuck.get() * muffle);     // under him while he talks
+            volume = Math.max(0.001F, level * VoiceDuck.music() * muffle);     // a little under him while he talks
         }
     }
 }

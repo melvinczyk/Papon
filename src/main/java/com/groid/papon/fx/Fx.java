@@ -151,6 +151,11 @@ public final class Fx {
         send(level, ModParticles.SMOKE.get(), -1, at.x, at.y, at.z, size, 1.6F, color, 0.85F, 24, 0, count, spread, 0, 0.03, 0);
     }
 
+    /** A bank of mist drifting with velocity v (phase four's fog rolling in), {@code life} ticks. */
+    public static void mist(ServerLevel level, Vec3 at, Vec3 v, float size, int color, int life) {
+        send(level, ModParticles.SMOKE.get(), -1, at.x, at.y, at.z, size, 1.5F, color, 0.42F, life, 0, 0, 0, v.x, v.y, v.z);
+    }
+
     public static void flash(ServerLevel level, Vec3 at, float size) {
         send(level, ModParticles.FLASH.get(), -1, at.x, at.y, at.z, size, 1.4F, WHITE, 1F, 8, 0, 0, 0, 0, 0, 0);
     }

@@ -252,7 +252,7 @@ def build():
 
     import geo_util
     sounds = geo_util.read_sounds()
-    sounds['voice.band.count'] = {'sounds': [{'name': 'papon:voice/band/count'}]}
+    sounds['voice.band.count'] = {'sounds': [{'name': 'papon:voice/band/count', 'attenuation_distance': 48}]}
     geo_util.write_sounds(sounds)
     print('words at', placed, 'clip %.2f s' % (len(out) / SR))
 

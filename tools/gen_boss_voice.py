@@ -1065,23 +1065,24 @@ def beats(lengths):
     b['p4.thud'] = b['p4.throw'] + 13
     b['p4.met'] = b['p4.thud'] + 26
     b['p4.ignis_end'] = b['p4.met'] + L('p4_met') + 34
-    # P4_PROPHECY: walking toward the middle, "Ten thousand years..."; the fog rolls in; he stops, looks up at his throne
-    # (p4.throne_look) and tells you why he sat on it; turns to you: the stone, the warrior
+    # P4_PROPHECY: walking toward the middle, "Ten thousand years..."; he stops, looks up at his throne (p4.throne_look) and
+    # tells you why he sat on it; turns to you: the stone, the warrior. In daylight (2026-10-05: the fog comes with the moon)
     b['p4.years'] = 10
     b['p4.throne_look'] = b['p4.years'] + L('p4_years') + 14
     b['p4.throne'] = b['p4.throne_look'] + 14
     b['p4.carved'] = b['p4.throne'] + L('p4_throne') + 30
-    b['p4.fog'] = b['p4.carved'] - 10                 # the fog rolls in once he has shown you the throne (it hid it)
     b['p4.warrior'] = b['p4.carved'] + L('p4_carved') + 16
     b['p4.prophecy_end'] = b['p4.warrior'] + L('p4_warrior') + 34
     # P4_THRONE: Moctezuma (head bowed, remembering), the gates thrown open; then up at you: "I will not make his mistake...";
-    # the clouds part on the moon (p4.moon); "After all this time... the prophecy might finally be fulfilled."; the smile up
-    # at it: "Ha... la luna knows it too."
+    # the moon in the day sky, dark (p4.moon); the mist rolls in and the light drains away while it is unlit; it lights
+    # (p4.moonlit) and night takes the arena; in its light "After all this time... the prophecy might finally be fulfilled.";
+    # the smile up at it: "Ha... la luna knows it too."
     b['p4.moctezuma'] = 18
     b['p4.gates'] = b['p4.moctezuma'] + L('p4_moctezuma') + 22
     b['p4.mistake'] = b['p4.gates'] + L('p4_gates') + 34
     b['p4.moon'] = b['p4.mistake'] + L('p4_mistake') + 26
-    b['p4.prophecy'] = b['p4.moon'] + 44
+    b['p4.moonlit'] = b['p4.moon'] + 120
+    b['p4.prophecy'] = b['p4.moonlit'] + 46
     b['p4.lunaknows'] = b['p4.prophecy'] + L('p4_prophecy') + 26
     b['p4.throne_end'] = b['p4.lunaknows'] + L('p4_lunaknows') + 34
     # P4_BRETHREN: the arms open to the stands; the two lines; the moon turns on the last word

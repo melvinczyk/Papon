@@ -898,7 +898,8 @@ public final class Cinematic {
             }
             case P4_THRONE -> {
                 int moct = VoiceLines.beat("p4.moctezuma", 18), gates = VoiceLines.beat("p4.gates", 249), mistake = VoiceLines.beat("p4.mistake", 395),
-                        moonAt = VoiceLines.beat("p4.moon", 573), proph = VoiceLines.beat("p4.prophecy", 617), luna = VoiceLines.beat("p4.lunaknows", 712);
+                        moonAt = VoiceLines.beat("p4.moon", 573), proph = VoiceLines.beat("p4.prophecy", 617), luna = VoiceLines.beat("p4.lunaknows", 712),
+                        lit = VoiceLines.beat("p4.moonlit", moonAt + 120);
                 Vec3 fp = BossRenderer.facePos(b);
                 Vec3 flat = toMoon.multiply(1, 0, 1).normalize();
                 if (t < moct + 60) {
@@ -941,10 +942,26 @@ public final class Cinematic {
                     Vec3 eye = fp.add(toYou.scale(h * (1.1 - 0.35 * push))).add(0, h * 0.05, 0);
                     return new Shot(eye, fp.add(0, h * 0.06, 0), 34 - (float) push * 6, 0, near(t, mistake + 70));
                 }
-                if (t < proph + 10) {
-                    // from behind him up at the moon coming out through the fog
+                if (t < moonAt + 44) {
+                    // from behind him up at the moon, there in the day sky, dark
                     Vec3 eye = b.position().subtract(flat.scale(h * 2.4)).add(new Vec3(-flat.z, 0, flat.x).scale(h * 0.9)).add(0, h * 0.8, 0);
                     return new Shot(eye, moon, 52, 0, near(t, moonAt), true);
+                }
+                if (t < lit - 14) {
+                    // wide and low from the rim of the sand: the mist rolling in toward him across it, the light going
+                    double k = (t - moonAt - 44) / (double) Math.max(1, lit - 14 - moonAt - 44);
+                    Vec3 eye = c.subtract(flat.scale(arenaB * 0.85)).add(new Vec3(-flat.z, 0, flat.x).scale(arenaA * (0.35 - 0.2 * k))).add(0, 1.6 + 2.5 * k, 0);
+                    return new Shot(eye, b.position().add(0, h * 0.6, 0).lerp(moon, 0.08 + 0.12 * k), 60, 0, near(t, moonAt + 44), true);
+                }
+                if (t < lit + 34) {
+                    // a long lens on the moon as it lights, the glow spreading in from its rim
+                    Vec3 eye = b.position().subtract(flat.scale(h * 1.6)).add(0, h * 1.1, 0);
+                    return new Shot(eye, moon, 22, 0, near(t, lit - 14), true);
+                }
+                if (t < proph + 10) {
+                    // him, small under it, the night come down over the arena
+                    Vec3 eye = b.position().subtract(flat.scale(h * 5.0)).add(new Vec3(-flat.z, 0, flat.x).scale(h * 1.6)).add(0, h * 0.5, 0);
+                    return new Shot(eye, b.position().add(0, h, 0).lerp(moon, 0.25), 56, 0, near(t, lit + 34), true);
                 }
                 if (t < luna) {
                     // his face in the moonlight, from below: wonder

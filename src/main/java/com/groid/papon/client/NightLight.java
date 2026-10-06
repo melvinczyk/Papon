@@ -96,13 +96,13 @@ public final class NightLight {
     public static void onRenderStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY) return;
         float n = night(event.getPartialTick());
-        if (n <= 0) {
-            dirty = false;
-            return;
+        if (n <= 0) dirty = false;
+        else {
+            darkenLightmap(n);
+            dirty = true;
+            coverSky(event.getPoseStack(), n);
         }
-        darkenLightmap(n);
-        dirty = true;
-        coverSky(event.getPoseStack(), n);
+        // the moon: in the day sky too (phase four's moonrise: it is up, dark, before the night comes)
         MuertosSky.drawMoon(event.getPoseStack(), event.getPartialTick());
     }
 

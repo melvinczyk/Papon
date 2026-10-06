@@ -1863,7 +1863,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (form() < 3) entityData.set(DATA_FORM, 3);
             refreshDimensions();
             setHealth(Math.min(getHealth(), getMaxHealth() * PHASE_FOUR_AT - 1));
-            entityData.set(DATA_NIGHT, NIGHT_P3);         // phase three's night, as if he had come through it
+            entityData.set(DATA_NIGHT, 0F);               // daylight until his moon
             phaseFourDue = true;
             setBossState(BossState.IDLE);
             return;
@@ -4660,7 +4660,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         double d = horizontalDist(to);
         double f = returnFrom <= 0.1 ? 1 : Mth.clamp(1 - d / returnFrom, 0, 1);
         lightsOut(level, (int) Math.floor(f * 0.8 * braziers.size()));
-        entityData.set(DATA_NIGHT, (float) (f * 0.6));
+        entityData.set(DATA_NIGHT, (float) (f * 0.35));
         if (d < 0.6 || stateTicks > 400) {
             getNavigation().stop();
             getMoveControl().setWantedPosition(getX(), getY(), getZ(), 0);
@@ -5180,7 +5180,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /**
      * The singer's pickup, alone (2 s); the band crashes in on the downbeat and with it the fire, crimson, round
      * the whole bowl at once; fireworks, the place shaking. He rolls his shoulders, cracks his neck, and very
-     * quietly: "Now... let's DANCE." The rest of the fight is at night, in his spotlight.
+     * quietly: "Now... let's DANCE." The stage lights come back up: the rest of phase three is in daylight (night is phase four's).
      */
     private void tickP3Dance(ServerLevel level) {
         int t = stateTicks;
@@ -5226,8 +5226,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
     }
 
-    /** How dark the coliseum stays through phase three (the braziers and his spotlight light it). */
-    private static final float NIGHT_P3 = 0.8F;
+    /**
+     * How dark the coliseum stays through phase three once his serenade is over: not at all (2026-10-05, the user: "the arena
+     * needs to remain daytime until the pre-Phase 4 moon cinematic"; the night is phase four's). The serenade's blackout
+     * (P3_BLACKOUT .. P3_GO, his spotlight) is the stage going dark for him; the light comes back up on "Now... let's DANCE."
+     */
+    private static final float NIGHT_P3 = 0F;
 
     public boolean isPhaseThree() { return entityData.get(DATA_PHASE3); }
 
@@ -8455,7 +8459,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         BossProp masher = masherId != null && level.getEntity(masherId) instanceof BossProp b ? b : null;
         if (t == 1) {
             masher = BossProp.create(level, BossProp.Kind.MASHER, this, c.add(0, 46, 0)).life(BossState.P2_MASHER.duration + 4);
-            masher.setYRot(random.nextFloat() * 90F);
+            // square to the sand within 20 degrees either way: the plate covers it kerb to kerb at any of its turns (turned
+            // anywhere up to 90 degrees it left the ends of the oval bare, up to 6 blocks of safe sand)
+            masher.setYRot((random.nextFloat() - 0.5F) * 30F);
             masher.setVariant(random.nextInt(Masher.VARIANTS));
             masher.setRadius(46F);
             level.addFreshEntity(masher);
@@ -8497,7 +8503,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 // up it goes, and the holes are somewhere else: the grid slides, the plate turns
                 variant = (variant + 1 + random.nextInt(Masher.VARIANTS - 1)) % Masher.VARIANTS;
                 masher.setVariant(variant);
-                yaw = Mth.wrapDegrees(yaw + (random.nextBoolean() ? 1 : -1) * (12F + random.nextFloat() * 18F));
+                float turn = 12F + random.nextFloat() * 8F;
+                yaw = yaw + (yaw > 0 ? -turn : yaw < 0 ? turn : (random.nextBoolean() ? turn : -turn));
+                yaw = Mth.clamp(yaw, -20F, 20F);
                 masher.setYRot(yaw);
                 level.playSound(null, c.x, c.y + 8, c.z, SoundEvents.PISTON_EXTEND, SoundSource.HOSTILE, 3.0F, 0.5F);
                 level.playSound(null, c.x, c.y + 8, c.z, SoundEvents.CHAIN_PLACE, SoundSource.HOSTILE, 3.0F, 0.6F);
@@ -8724,9 +8732,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         double floor = arena.floorY();
         int side = (v % 2 == 0) == (getZ() < c.z) ? 1 : -1;        // the first volley comes from his side of the bowl
         double shift = v == 1 ? 4.5 : (v == 2 ? 2.25 : 0) + random.nextInt(2) * 1.0;
-        for (int k = -2; k <= 2; k++) {
+        for (int k = -3; k <= 3; k++) {
+            // lanes right out to the ends of the oval (it stopped 6 blocks short of them: safe sand at both ends)
             double x = k * 9 + shift;
-            if (Math.abs(x) > Coliseum.A - 6) continue;
+            if (Math.abs(x) > Coliseum.A - 3) continue;
             double edge = Coliseum.B * Math.sqrt(1 - (x / Coliseum.A) * (x / Coliseum.A)) - 2.5;
             Vec3 from = new Vec3(c.x + x, floor, c.z - side * edge), to = new Vec3(c.x + x, floor, c.z + side * edge);
             int delay = 22;
@@ -9354,13 +9363,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /**
-     * P4_PROPHECY: a slow walk toward the middle, his hand over the scar: "Ten thousand years..."; the fog rolls in over the
-     * sand; he stops and looks up at his throne in his box: "You see that throne up there? I never sat on it to rule. I sat on
+     * P4_PROPHECY: a slow walk toward the middle, his hand over the scar: "Ten thousand years..."; in daylight still (the fog
+     * comes with the moon); he stops and looks up at his throne in his box: "You see that throne up there? I never sat on it to rule. I sat on
      * it to keep it warm."; round to you: the stone the oldest potatoes carved, the warrior it promised.
      */
     private void tickP4Prophecy(ServerLevel level) {
         int t = stateTicks;
-        int years = beat("p4.years", 10), fog = beat("p4.fog", 40), look = beat("p4.throne_look", 119), carved = beat("p4.carved", 262);
+        int years = beat("p4.years", 10), look = beat("p4.throne_look", 119), carved = beat("p4.carved", 262);
         // (2026-10-05, the user: "more lively, hyping themselves up for the last song") the shock wears off as his story
         // starts: no fear left, up on their toes, each in his own time (silent: the stands are hushed till the souls)
         if (t == 20) for (MariachiEntity m : band(level)) m.hype(random.nextInt(50));
@@ -9376,8 +9385,6 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t >= look && t < carved - 10) turnToward(throneSpot(), 3F);
         else if (t >= carved - 10 && target != null) turnToward(target.position(), 3F);
         if (t == years) sayPlain("p4_years", 100);
-        if (t >= fog) entityData.set(DATA_FOG, Math.min(1F, (t - fog) / 110F));
-        if (t == fog) level.playSound(null, getX(), getY() + 4, getZ(), SoundEvents.AMBIENT_BASALT_DELTAS_MOOD.value(), SoundSource.HOSTILE, 3.0F, 0.6F);
         if (t == beat("p4.throne", 133)) sayPlain("p4_throne", 100);
         if (t == carved) sayPlain("p4_carved", 100);
         if (t == beat("p4.warrior", 368)) sayPlain("p4_warrior", 170);
@@ -9389,15 +9396,18 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /**
      * P4_THRONE: Moctezuma. Head bowed, remembering: the iron men across the sea, his old friend who saw a god in their captain
-     * and gave him everything; up at you, hard: "I will not make his mistake... you will have to take it from me." The clouds
-     * part on the moon: "After all this time... the prophecy might finally be fulfilled."; the smile up at it: "la luna knows."
+     * and gave him everything; up at you, hard: "I will not make his mistake... you will have to take it from me." Then the
+     * moonrise (2026-10-05, the user's order, all in daylight until now): the moon is there in the sky, dark (p4.moon); while it
+     * is still unlit the mist rolls in off the stands across the sand toward him, as if it drew it, and the day drains out of
+     * the sky; the moon lights (p4.moonlit) and night takes the arena. In its light: "After all this time... the prophecy might
+     * finally be fulfilled."; the smile up at it: "la luna knows."
      */
     private void tickP4Throne(ServerLevel level) {
         int t = stateTicks;
         getNavigation().stop();
         setDeltaMovement(0, getDeltaMovement().y, 0);
         LivingEntity target = getTarget();
-        int mistake = beat("p4.mistake", 395), moon = beat("p4.moon", 573);
+        int mistake = beat("p4.mistake", 395), moon = beat("p4.moon", 573), lit = beat("p4.moonlit", moon + 120);
         if (t < mistake - 10) {
             if (target != null) turnToward(target.position().add(Vec3.directionFromRotation(0, yBodyRot + 70).scale(6)), 1.5F);
         } else if (t < moon && target != null) turnToward(target.position(), 5F);
@@ -9406,15 +9416,47 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == mistake) sayPlain("p4_mistake", 160);
         if (t == mistake + 2) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.HOSTILE, 2.0F, 0.6F);
         if (t == moon) {
+            // the moon, there in the day sky and dark (client/MuertosSky draws it unlit until p4.moonlit)
             entityData.set(DATA_MOON, 1);
-            entityData.set(DATA_NIGHT, 0.92F);
             entityData.set(DATA_SPOT, false);
+            level.playSound(null, getX(), getY() + 4, getZ(), SoundEvents.AMBIENT_BASALT_DELTAS_MOOD.value(), SoundSource.HOSTILE, 3.0F, 0.6F);
+            level.playSound(null, getX(), getY() + 20, getZ(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.HOSTILE, 2.0F, 0.4F);
+        }
+        if (t >= moon && t <= lit + 20) {
+            // the mist rolls in under the dark moon, thickening over 5 s; the day drains away behind it, and the rest at the light
+            double k = Mth.clamp((t - moon) / 100.0, 0, 1);
+            entityData.set(DATA_FOG, (float) (k * k * (3 - 2 * k)));
+            double d = Mth.clamp((t - moon - 16) / (double) Math.max(1, lit - moon - 16), 0, 1);
+            entityData.set(DATA_NIGHT, t >= lit ? 0.92F : (float) (0.7 * d * d * (3 - 2 * d)));
+            if (t < moon + 110 && t % 2 == 0) mistIn(level);
+        }
+        if (t == lit) {
+            // the moon lights: night takes the arena
+            cine(level, ModSounds.CINE_MOON.get(), position().add(0, 12, 0), 0.8F);
             level.playSound(null, getX(), getY() + 20, getZ(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.HOSTILE, 4.0F, 0.5F);
+            level.playSound(null, getX(), getY() + 20, getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 3.0F, 0.5F);
+            PaponNetwork.shake(level, position(), 120, 0.25F, 20);
         }
         if (t >= moon) face(moonPos());
         if (t == beat("p4.prophecy", 617)) sayPlain("p4_prophecy", 90);
         if (t == beat("p4.lunaknows", 712)) sayPlain("p4_lunaknows", 60);
         if (t >= beat("p4.throne_end", BossState.P4_THRONE.duration)) setBossState(BossState.P4_BRETHREN);
+    }
+
+    /**
+     * The mist coming in off the stands: banks of it from all round the rim of the sand, drifting low toward the middle (the
+     * fog itself, ClientEvents.onRenderFog, thickens with DATA_FOG).
+     */
+    private void mistIn(ServerLevel level) {
+        if (arena == null) return;
+        Vec3 c = arena.centerVec();
+        for (int i = 0; i < 10; i++) {
+            double a = random.nextDouble() * Math.PI * 2;
+            double r = 0.92 + random.nextDouble() * 0.12;
+            Vec3 at = new Vec3(c.x + Math.cos(a) * arena.a * r, arena.floorY() + 0.4 + random.nextDouble() * 1.2, c.z + Math.sin(a) * arena.b * r);
+            Vec3 v = c.subtract(at).multiply(1, 0, 1).normalize().scale(0.16 + random.nextDouble() * 0.08);
+            Fx.mist(level, at, v, 3.2F + random.nextFloat() * 2.4F, 0xB8C4C8, 90);
+        }
     }
 
     /** P4_BRETHREN: arms open to the stands of his own; the moon turns to the dead's on "...STRENGTH!" */
