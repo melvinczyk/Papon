@@ -41,6 +41,7 @@ public final class ClientEvents {
         BossMusic.tick();
         CrowdSounds.tick();
         FlagFireworks.tick();
+        PyroShow.tick();
         PotatoSky.tick();
     }
 
@@ -134,6 +135,7 @@ public final class ClientEvents {
     public static void onRenderStage(net.minecraftforge.client.event.RenderLevelStageEvent event) {
         if (event.getStage() != net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
         BossRenderer.drawSpotlights(event.getPoseStack(), event.getCamera().getPosition(), event.getPartialTick());
+        PyroShow.render(event.getPoseStack(), event.getCamera().getPosition(), event.getPartialTick());
     }
 
     @SubscribeEvent

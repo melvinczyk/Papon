@@ -704,6 +704,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     public void setBossState(BossState s) {
         BossState old = getBossState();
+        if (s != old && inColiseum() && level() instanceof ServerLevel sl) pyroCue(sl, s);
         if (WanderingDebug.on() && s != old) {
             PaponMod.LOG.info("[debug] boss {} -> {} (hp {}/{})", old, s, (int) getHealth(), (int) getMaxHealth());
         }
@@ -3763,6 +3764,22 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (c != null) c.salvo(beats);
     }
 
+    /**
+     * (2026-10-06) The stage pyrotechnics on his big moves (client/PyroShow): the columns on his side of the bowl as an arena move
+     * starts; the whole ring chasing round as the stage breaks in phase four and at El Juicio Final.
+     */
+    private void pyroCue(ServerLevel level, BossState s) {
+        int kind = switch (s) {
+            case ARENA_FRYER, ARENA_OLA, ARENA_STAMPEDE, P2_METEOR, P2_MASHER, P2_GRAVITY, P3_SOLAR, P3_NOVA, P3_VOLCAN, P3_MARIACHI,
+                 P3_COMET, P4_OUROBOROS, P4_PISTA, P4_SALSA, P4_FUSION, P4_ALIENTO -> ColiseumCrowdEntity.PYRO_ACCENT;
+            case P4_RAGE, P4_JUICIO -> ColiseumCrowdEntity.PYRO_CHASE;
+            default -> -1;
+        };
+        if (kind < 0) return;
+        ColiseumCrowdEntity c = crowd(level);
+        if (c != null) c.pyro(kind, 0);
+    }
+
     /** Fireworks off the podium inside the bowl, bursting over the sand (client/FlagFireworks.inside). */
     private void salvoInside(ServerLevel level, int beats) {
         ColiseumCrowdEntity c = crowd(level);
@@ -4328,7 +4345,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowdMood(level, CrowdMood.FIESTA);
             crowdRoar(level, 60);
             ColiseumCrowdEntity c = crowd(level);
-            if (c != null) c.pyro(12);
+            if (c != null) c.pyro(ColiseumCrowdEntity.PYRO_SHOW, 24);
             salvoInside(level, 4);
             finishCutscene(level);
         }
@@ -5252,7 +5269,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 crowdMood(level, CrowdMood.CHEER);
                 crowdReact(level, CrowdMood.ROAR, 70);
                 ColiseumCrowdEntity crowd = crowd(level);
-                if (crowd != null) crowd.setLighters(0F);
+                if (crowd != null) {
+                    crowd.setLighters(0F);
+                    crowd.pyro(ColiseumCrowdEntity.PYRO_SHOW, 16);        // the god's own: crimson and gold (client/PyroShow)
+                }
             }
             PaponNetwork.shake(level, position(), 48, 0.8F, 26);
             Fx.shock(level, position(), 8F, 0xFF2A34);
@@ -9943,6 +9963,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowdMood(level, CrowdMood.FIESTA);
             crowdRoar(level, 80);
             salvo(level, 12);
+            ColiseumCrowdEntity crowd = crowd(level);
+            if (crowd != null) crowd.pyro(ColiseumCrowdEntity.PYRO_SHOW, 24);      // the dead's spirit fire (client/PyroShow)
             Fx.shock(level, position(), 12F, 0x52FF84);
             PaponNetwork.shake(level, position(), 80, 0.6F, 20);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 3.0F, 0.7F);

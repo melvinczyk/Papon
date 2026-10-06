@@ -32,13 +32,7 @@ public final class FlagFireworks {
 
     private static final List<Rocket> rockets = new ArrayList<>();
     private static int lastSalvo = -1;
-    private static int lastPyro = -1;
     private static int lastCrowd = -1;
-
-    /** A fire pyrotechnic: a column of flame up off the podium, from {@code at}, starting {@code start}, for {@code len} ticks. */
-    private record Jet(Vec3 at, long start, int len, boolean big) {}
-
-    private static final List<Jet> jets = new ArrayList<>();
 
     private FlagFireworks() {}
 
@@ -52,23 +46,17 @@ public final class FlagFireworks {
         ColiseumCrowdEntity crowd = mc.level.getEntitiesOfClass(ColiseumCrowdEntity.class, mc.player.getBoundingBox().inflate(RANGE), e -> true)
                 .stream().min(Comparator.comparingDouble(e -> e.distanceToSqr(mc.player))).orElse(null);
         if (crowd != null) {
-            int s = crowd.salvoData(), p = crowd.pyroData();
+            int s = crowd.salvoData();
             if (crowd.getId() != lastCrowd) {
                 lastCrowd = crowd.getId();
                 lastSalvo = s;
-                lastPyro = p;
             }
             if (s != lastSalvo) {
                 lastSalvo = s;
                 if (s >= 0 && (s & 0x80) != 0) inside(mc, crowd, s & 0x7F, now);
                 else if (s >= 0) schedule(mc, crowd, s & 0x7F, now);
             }
-            if (p != lastPyro) {
-                lastPyro = p;
-                if (p >= 0) pyro(mc, crowd, p & 0xFF, now);
-            }
         }
-        tickJets(mc, now);
         for (var it = rockets.iterator(); it.hasNext(); ) {
             Rocket r = it.next();
             long age = now - r.launch;
@@ -133,54 +121,6 @@ public final class FlagFireworks {
                 int k = (i + j) % 4;
                 rockets.add(new Rocket(from, to, launch + (j % 2), col[k], k == 3 ? WHITE : GOLD, last ? 1 : (j % 3 == 0 ? 2 : j % 3 == 1 ? 1 : 4), last));
             }
-        }
-    }
-
-    /**
-     * (2026-10-04, the user: "we need to see fire pyrotechnics go off once the singing starts") Columns of flame off the
-     * podium all round the sand and along the front of the stage, on the beat: first all at once with the first sung word,
-     * then chasing round the bowl, beat after beat.
-     */
-    private static void pyro(Minecraft mc, ColiseumCrowdEntity crowd, int beats, long now) {
-        if (beats <= 0) return;
-        List<Double> at = beatsAhead(beats, 0);
-        at.add(0, 0.0);
-        Vec3 c = crowd.position();
-        double a = crowd.sizeA(), b = crowd.sizeB();
-        int n = 16;
-        for (int i = 0; i < at.size(); i++) {
-            long start = now + Math.round(at.get(i));
-            for (int j = 0; j < n; j++) {
-                boolean all = i == 0;
-                if (!all && (j + i) % 4 != 0) continue;
-                double ang = j * Math.PI * 2 / n + i * 0.2;
-                Vec3 p = c.add(Math.cos(ang) * (a + 1.2), Coliseum.PODIUM + 0.2, Math.sin(ang) * (b + 1.2));
-                jets.add(new Jet(p, start, all ? 18 : 10, all));
-            }
-        }
-    }
-
-    private static void tickJets(Minecraft mc, long now) {
-        for (var it = jets.iterator(); it.hasNext(); ) {
-            Jet j = it.next();
-            long age = now - j.start;
-            if (age < 0) continue;
-            if (age >= j.len) {
-                it.remove();
-                continue;
-            }
-            if (age == 0) {
-                mc.level.playLocalSound(j.at.x, j.at.y, j.at.z, SoundEvents.BLAZE_SHOOT, SoundSource.AMBIENT, j.big ? 3.0F : 2.0F, 0.6F, false);
-                mc.level.playLocalSound(j.at.x, j.at.y, j.at.z, SoundEvents.FIRECHARGE_USE, SoundSource.AMBIENT, 2.0F, 0.7F, false);
-            }
-            var r = mc.level.random;
-            float up = j.big ? 1.1F : 0.85F;
-            for (int i = 0; i < (j.big ? 10 : 7); i++) {
-                mc.level.addParticle(ParticleTypes.FLAME, true, j.at.x + r.nextGaussian() * 0.18, j.at.y, j.at.z + r.nextGaussian() * 0.18,
-                        r.nextGaussian() * 0.03, up * (0.7 + r.nextFloat() * 0.5), r.nextGaussian() * 0.03);
-            }
-            if (age % 3 == 0) mc.level.addParticle(ParticleTypes.LAVA, true, j.at.x, j.at.y + 0.5, j.at.z, 0, 0.5, 0);
-            if (age > j.len - 4) mc.level.addParticle(ParticleTypes.LARGE_SMOKE, true, j.at.x, j.at.y + 7, j.at.z, 0, 0.1, 0);
         }
     }
 
