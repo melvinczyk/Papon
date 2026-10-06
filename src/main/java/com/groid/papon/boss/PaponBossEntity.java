@@ -4123,7 +4123,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     /**
-     * The singer counts them in (4 s): "¡Uno...! ¡...dos! ¡Uno, dos, tres!", the stands clapping
+     * The singer counts them in (5.6 s): "¡Un... dos... tres... CUATRO!" at half time, the stands clapping
      * along; on the downbeat the band hits it, fireworks go up off the walls and the place erupts.
      */
     private void tickCount(ServerLevel level) {
@@ -4134,7 +4134,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             for (MariachiEntity m : band(level)) m.count(songStart);
         }
         if (singer != null) turnToward(singer.position(), 6F);
-        if (t == 40) crowdMood(level, CrowdMood.CLAP);
+        if (t == 36) crowdMood(level, CrowdMood.CLAP);
         if (t >= BossState.P2_COUNT.duration) {
             for (MariachiEntity m : band(level)) m.play(songStart);
             bandWoken = true;
@@ -5141,13 +5141,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         Vec3 back = van.forward().scale(-1);
         for (double side : new double[]{-0.42, 0.42}) {
             Vec3 pipe = van.local(side, 0.32, -CaravanEntity.HALF_LENGTH - 0.15);
-            level.sendParticles(ParticleTypes.FLAME, pipe.x, pipe.y, pipe.z, 0, back.x, 0.02, back.z, 0.35 * size);
+            Fx.far(level, ParticleTypes.FLAME, pipe.x, pipe.y, pipe.z, 0, back.x, 0.02, back.z, 0.35 * size);
             for (int i = 0; i < 5; i++) {
                 double k = 0.15 + 0.12 * i;
-                level.sendParticles(ParticleTypes.FLAME, pipe.x + back.x * k, pipe.y, pipe.z + back.z * k, 1, 0.04, 0.04, 0.04, 0.02);
+                Fx.far(level, ParticleTypes.FLAME, pipe.x + back.x * k, pipe.y, pipe.z + back.z * k, 1, 0.04, 0.04, 0.04, 0.02);
             }
             Fx.spark(level, pipe.add(back.scale(0.3)), 3, 0.1, 0.25F, 0xB050FF);
-            level.sendParticles(ParticleTypes.SMOKE, pipe.x + back.x * 0.6, pipe.y, pipe.z + back.z * 0.6, 2, 0.05, 0.05, 0.05, 0.01);
+            Fx.far(level, ParticleTypes.SMOKE, pipe.x + back.x * 0.6, pipe.y, pipe.z + back.z * 0.6, 2, 0.05, 0.05, 0.05, 0.01);
         }
         level.playSound(null, van.getX(), van.getY(), van.getZ(), ModSounds.SKYLINE_BACKFIRE.get(), SoundSource.HOSTILE, 1.6F * size,
                 0.85F + random.nextFloat() * 0.3F);
@@ -6221,7 +6221,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (who instanceof Player p && t % 20 == 0) Mechanics.root(p, 40);
         if (t % 4 == 0) {
             Vec3 at = position().add(Vec3.directionFromRotation(0, getYRot()).scale(1.0)).add(0, getBbHeight() * 0.4, 0);
-            level.sendParticles(ParticleTypes.NOTE, at.x, at.y, at.z, 2, 0.6, 0.4, 0.6, 1.0);
+            Fx.far(level, ParticleTypes.NOTE, at.x, at.y, at.z, 2, 0.6, 0.4, 0.6, 1.0);
         }
         if (t % 6 == 0) {
             level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.NOTE_BLOCK_GUITAR.value(), SoundSource.HOSTILE, 0.8F,
@@ -8406,8 +8406,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     /**
      * La Freidora: up off the sand and down in a double stomp (0.7 s, 1.2 s): at the first the sand cracks and
-     * glows in a pattern (rings, halves, a checkerboard, a cross, or a pool under each of you), and 1.5 s later
-     * it is frying oil for 5.5 s while he carries on. "¡A LA PARRILLA!"
+     * glows in a pattern over the whole floor (rings, halves, a checkerboard, a cross, or all of it but for islands away
+     * from you), and 1.5 s later it is frying oil for 10 s while he carries on. "¡A LA PARRILLA!"
      */
     private void tickArenaFryer(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
@@ -8416,8 +8416,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 14 && arena != null && freidora == null) {
             List<Vec3> players = level.getEntitiesOfClass(ServerPlayer.class, arena.bounds(), this::hittable).stream().map(p -> p.position()).toList();
             Freidora.Pattern[] all = Freidora.Pattern.values();
-            Freidora.Pattern p = farTicks > 80 ? Freidora.Pattern.HUNT : all[random.nextInt(all.length)];
-            if (p == Freidora.Pattern.HUNT && players.isEmpty()) p = Freidora.Pattern.RINGS;     // nobody to put a pool under
+            // kept his distance: the whole floor but for islands away from you
+            Freidora.Pattern p = farTicks > 80 ? Freidora.Pattern.ISLANDS : all[random.nextInt(all.length)];
             freidora = Freidora.start(level, arena, p, players, random);
             landImpact(level, position(), 3.0F, 0F, 0.4F);
             PaponNetwork.shake(level, position(), 40, 0.6F, 14);
@@ -9333,7 +9333,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Vec3 at = h != null ? h.position() : position();
             level.playSound(null, at.x, at.y, at.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 1.6F, 0.45F);
             level.playSound(null, at.x, at.y, at.z, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 2.0F, 0.5F);
-            level.sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, at.x, at.y + 0.2, at.z, 6, 0.4, 0.05, 0.4, 0.02);
+            Fx.far(level, net.minecraft.core.particles.ParticleTypes.POOF, at.x, at.y + 0.2, at.z, 6, 0.4, 0.05, 0.4, 0.02);
             PaponNetwork.shake(level, at, 40, 0.3F, 8);
             crowdReact(level, CrowdMood.GASP, 30);
         }
@@ -9767,7 +9767,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 level.addFreshEntity(d);
                 muchachas.add(d.getUUID());
                 Fx.shock(level, at, 2.5F, 0x52FF84);
-                level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, at.x, at.y + 0.5, at.z, 30, 0.4, 0.8, 0.4, 0.03);
+                Fx.far(level, net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, at.x, at.y + 0.5, at.z, 30, 0.4, 0.8, 0.4, 0.03);
             }
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.ZOMBIE_VILLAGER_CONVERTED, SoundSource.HOSTILE, 2.0F, 1.2F);
             crowdRoar(level, 30);
@@ -10682,7 +10682,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
             for (int i = 0; i < 3; i++) {
                 Vec3 p = m.lerp(at, random.nextDouble());
-                level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, p.x, p.y, p.z, 3, 0.7, 0.7, 0.7, 0.03);
+                Fx.far(level, ParticleTypes.SOUL_FIRE_FLAME, p.x, p.y, p.z, 3, 0.7, 0.7, 0.7, 0.03);
             }
             // where it strikes the floor: a splash of flame, a scorch trail, the roar of it
             for (int i = 0; i < 3; i++) {
@@ -11439,7 +11439,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
             if (now % 3 == 0) {
                 double u = (out + random.nextDouble() * (lit - out)) / len;
-                level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, ax + (bx - ax) * u, floor + 0.4, az + (bz - az) * u, 4, 0.6, 0.2, 0.6, 0.01);
+                Fx.far(level, ParticleTypes.SOUL_FIRE_FLAME, ax + (bx - ax) * u, floor + 0.4, az + (bz - az) * u, 4, 0.6, 0.2, 0.6, 0.01);
             }
             for (LivingEntity e : victims(level, Math.max(fa(), fb()) + 4)) {
                 if (e.getY() > floor + 1.2) continue;
@@ -11523,7 +11523,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 if (fire) {
                     if (t % 3 == 0) {
                         Vec3 p = from.lerp(to, random.nextDouble());
-                        level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, p.x, p.y + 0.3, p.z, 4, 0.4, 0.3, 0.4, 0.02);
+                        Fx.far(level, ParticleTypes.SOUL_FIRE_FLAME, p.x, p.y + 0.3, p.z, 4, 0.4, 0.3, 0.4, 0.02);
                         Fx.scorch(level, new Vec3(p.x, floor, p.z), 1.2F, 120);
                     }
                     for (LivingEntity e : victims(level, Math.max(fa(), fb()) + 4)) {
@@ -11859,7 +11859,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 if (Fiesta.onCamino(path, e.getX() - c.x, e.getZ() - c.z, t)) continue;
                 if (deadHit(e, 0.035F)) {
                     e.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 30, 1));
-                    level.sendParticles(ParticleTypes.SOUL, e.getX(), floor + 0.4, e.getZ(), 4, 0.3, 0.2, 0.3, 0.02);
+                    Fx.far(level, ParticleTypes.SOUL, e.getX(), floor + 0.4, e.getZ(), 4, 0.3, 0.2, 0.3, 0.02);
                 }
             }
         }
@@ -12117,7 +12117,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowdMood(level, CrowdMood.CLAP);
         }
         if (who instanceof Player p && t % 20 == 0) Mechanics.root(p, 40);
-        if (t > 30 && t % 9 == 0) level.sendParticles(ParticleTypes.NOTE, getX(), getY() + getBbHeight() + 0.3, getZ(), 1, 0.4, 0.2, 0.4, 1.0);
+        if (t > 30 && t % 9 == 0) Fx.far(level, ParticleTypes.NOTE, getX(), getY() + getBbHeight() + 0.3, getZ(), 1, 0.4, 0.2, 0.4, 1.0);
         boolean gone = !(who instanceof Player) && t > 40;
         if (t > 30 && (tangoResult >= 0 || gone || t > 30 + TANGO_TICKS + 80)) {
             if (who instanceof ServerPlayer sp) PaponNetwork.qteEnd(sp, tangoResult == 1);
@@ -12163,7 +12163,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowdRoar(level, 50);
             salvo(level, 4);
         }
-        if (t % 10 == 0) level.sendParticles(ParticleTypes.CRIT, getX(), getY() + getBbHeight() + 0.2, getZ(), 4, 0.5, 0.1, 0.5, 0.05);
+        if (t % 10 == 0) Fx.far(level, ParticleTypes.CRIT, getX(), getY() + getBbHeight() + 0.2, getZ(), 4, 0.5, 0.1, 0.5, 0.05);
         if (t >= BossState.P4_TANGO_LOSE.duration) {
             think = 2;
             setBossState(BossState.IDLE);
@@ -12608,8 +12608,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (Math.abs(ord - front) < 0.71) {
                 if (n++ % 3 == 0) {
                     // a candle of blue soul fire up out of the crack
-                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, at.x, at.y + 0.2, at.z, 6, 0.12, 0.6, 0.12, 0.05);
-                    level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL, at.x, at.y + 0.5, at.z, 1, 0.1, 0.4, 0.1, 0.02);
+                    Fx.far(level, net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, at.x, at.y + 0.2, at.z, 6, 0.12, 0.6, 0.12, 0.05);
+                    Fx.far(level, net.minecraft.core.particles.ParticleTypes.SOUL, at.x, at.y + 0.5, at.z, 1, 0.1, 0.4, 0.1, 0.02);
                 }
                 for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(0.9, 3.5, 0.9), this::hittable)) {
                     if (!velasHits.add(((long) (out ? 1 : 2) << 40) ^ e.getId())) continue;

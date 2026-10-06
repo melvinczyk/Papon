@@ -371,7 +371,7 @@ public final class AutoShot {
             case P2_WAKE -> t == 8 ? "c08_windup" : t == 15 ? "c08b_whack" : t == 20 ? "c09_singer_up" : t == 27 ? "c09b_singer_top" : t == 42 ? "c10_band_wakes" : t == 62 ? "c10b_satisfied" : null;
             case P2_WAIT -> t == 30 ? "c11_wait" : t == 110 ? "c12_band_dressing" : t == 190 ? "c13_band_dressing2" : t == 250 ? "c13b_wait" : null;
             case P2_KICK -> t == 13 ? "c14_kick" : null;
-            case P2_COUNT -> t == 6 ? "c15_count_uno" : t == 44 ? "c16_count_tres" : t == 76 ? "c17_downbeat" : null;
+            case P2_COUNT -> t == 38 ? "c15_count_uno" : t == 75 ? "c16_count_tres" : t == 94 ? "c16b_count_cuatro" : t == 110 ? "c17_downbeat" : null;
             case P2_SHOWTIME -> t == 8 ? "c18_guitar_close" : t == 40 ? "c19_guitar_tilt" : t == 66 ? "c20_singer_aura" : null;
             case P2_APOLOGY -> t == 30 ? "c21_walk_over" : t == 80 ? "c22_apology" : t == 135 ? "c23_aura_farm" : t == 172 ? "c24_aura_farm2" : null;
             case P2_RESUME -> t == 10 ? "c25_where_were_we" : null;

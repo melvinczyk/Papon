@@ -97,7 +97,7 @@ public class SalsaDancerEntity extends TacoNpc {
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.SOUL_ESCAPE, net.minecraft.sounds.SoundSource.NEUTRAL, 1.6F, 1.2F);
         }
         if (s == State.RISE && stateTicks < 30 && stateTicks % 3 == 0) {
-            level.sendParticles(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, getX(), getY() + 0.3, getZ(), 4, 0.4, 0.2, 0.4, 0.02);
+            com.groid.papon.fx.Fx.far(level, net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, getX(), getY() + 0.3, getZ(), 4, 0.4, 0.2, 0.4, 0.02);
         }
         if (s.duration > 0 && stateTicks >= s.duration) dance();
         // a click of the heels and a whoop now and then

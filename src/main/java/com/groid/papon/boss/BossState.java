@@ -162,7 +162,7 @@ public enum BossState {
     P2_WAKE(70),
     P2_WAIT(0),
     P2_KICK(30),
-    P2_COUNT(80),
+    P2_COUNT(112),
     P2_SHOWTIME(70),
     P2_APOLOGY(178),
     P2_RESUME(0),

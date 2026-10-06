@@ -572,7 +572,7 @@ public final class Cinematic {
             case P2_COUNT -> {
                 if (singer == null) return null;
                 Vec3 sf = singer.position().add(0, singer.getBbHeight() * 0.68, 0);
-                double push = Math.min(1, t / 70.0);
+                double push = Math.min(1, t / 100.0);
                 return new Shot(sf.add(stageFacing.scale(3.4 - push * 1.4)).add(stageSide.scale(0.7)), sf, 44 - (float) push * 6, 0, t == 0);
             }
             case P2_SHOWTIME -> {

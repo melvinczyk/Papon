@@ -382,8 +382,9 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
             }
             case COUNT -> {
                 // (2026-10-05) "¡Un, dos, tres, cuatro!" in his own voice (sound voice.band.count, the user's reference): the
-                // clip starts 2.0 s in, its four words on the four beats before the downbeat (tools/gen_singer_voice.py)
-                if (t == 40) say("count", 44);
+                // clip starts 1.7 s in, its four words at half time, every other beat, "cuatro" over before the downbeat
+                // (tools/gen_singer_voice.py)
+                if (t == 34) say("count", 74);
             }
             default -> {}
         }

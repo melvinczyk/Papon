@@ -360,14 +360,14 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             lookPitch += (want[1] - lookPitch) * k;
             if (random.nextInt(2) == 0) {
                 Vec3 h = head(0);
-                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, h.x + (random.nextDouble() - 0.5) * 12,
+                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, true, h.x + (random.nextDouble() - 0.5) * 12,
                         h.y + (random.nextDouble() - 0.5) * 12, h.z + (random.nextDouble() - 0.5) * 12, 0, 0.05, 0);
             }
             // where it comes up through the floor: wisps of the dead
             if (risen(0) > 0.05F && random.nextInt(3) == 0) {
                 Vec3 b = base();
                 double a = random.nextDouble() * Math.PI * 2;
-                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL, b.x + Math.cos(a) * 7.5, b.y + 0.3, b.z + Math.sin(a) * 5.5,
+                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL, true, b.x + Math.cos(a) * 7.5, b.y + 0.3, b.z + Math.sin(a) * 5.5,
                         0, 0.06 + random.nextDouble() * 0.05, 0);
             }
             return;
