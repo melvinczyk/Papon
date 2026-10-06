@@ -1122,15 +1122,19 @@ def beats(lengths):
     b['p4.dip'] = b['p4.twirl'] + 58                 # the twirl, then a dip, then a few steps together
     b['p4.muchachas_end'] = b['p4.twirl'] + 110
     # P4_GOODTIME: round to you, striding in: "This was never a fight, amigo. It is a dance..."; then the scream: "COME ON!
-    # SHOW ME A GOOD TIME!"; the stands erupt; he holds it till the first sung word
+    # SHOW ME A GOOD TIME!"; the stands erupt; the first sung word right on its heels
     b['p4.dance'] = 24
     b['p4.goodtime'] = b['p4.dance'] + L('p4_dance') + 16
     b['p4.erupt'] = b['p4.goodtime'] + L('p4_goodtime')
-    # passes of the song's brass intro from the downbeat to the fight: the rest of the honor, the muchachas, the lines, a beat
+    # passes of the song's brass intro from the downbeat to the fight: the rest of the honor, the muchachas, the lines, a
+    # breath. (2026-10-05) No more standing about after his scream waiting on the band (rounded up with a margin, it was ~12
+    # s): the leftover of the last pass goes to his dance with her after the dip (or comes off it, up to 24 ticks), so the
+    # singer comes in just as he finishes
     try:
-        intro = json.load(open(os.path.join(ASSETS, 'song/persona_ideal.json')))['segments'][0]['length']
-        need = (b['p4.honor_end'] - b['p4.song']) + b['p4.muchachas_end'] + b['p4.erupt'] + 30
-        b['p4.passes'] = max(1, int(math.ceil(need / (intro * 20))))
+        intro = json.load(open(os.path.join(ASSETS, 'song/persona_ideal.json')))['segments'][0]['length'] * 20
+        need = (b['p4.honor_end'] - b['p4.song']) + b['p4.muchachas_end'] + b['p4.erupt'] + 6
+        b['p4.passes'] = max(1, int(math.ceil((need - 24) / intro)))
+        b['p4.muchachas_end'] += max(-24, int(math.floor(b['p4.passes'] * intro - need)))
     except (OSError, KeyError, IndexError):
         b['p4.passes'] = 2
     return b
