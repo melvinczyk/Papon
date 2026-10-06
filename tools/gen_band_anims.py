@@ -382,46 +382,51 @@ SINGER_VOICE = os.path.join(ROOT, 'src/main/resources/assets/papon/voice/singer.
 
 
 def count():
-    """4.0 s (the singer). Steps up to the microphone and throws his fist up over his head, leaning back for the breath;
-    then "¡Un, dos, tres, cuatro!" in his own voice (tools/gen_singer_voice.py: sounds/voice/band/count.ogg, played 2.0 s
-    in), one word on each of the four beats before the downbeat: a fist pump and a stomp on every number, the whole of him
-    thrown into "¡CUATRO!", and his hand down onto the requinto for the first strum (4.0). The mouth follows the
-    recording's loudness (voice/singer.json)."""
+    """5.6 s (the singer, BandState.COUNT). Steps up to the microphone and throws his fist up over his head, leaning back
+    for the breath; then "¡Un... dos... tres... CUATRO!" in his own voice (tools/gen_singer_voice.py:
+    sounds/voice/band/count.ogg, played 1.7 s in), at half time, one word every other beat: a fist pump and a stomp on
+    every number, the whole of him thrown into "¡CUATRO!", held while it rings, and his hand down onto the requinto for the
+    first strum on the downbeat (5.6). The mouth follows the recording's loudness (voice/singer.json) right to the end of
+    "cuatro" (it was cut off at "tres": the count used to run into the downbeat)."""
     voice = json.load(open(SINGER_VOICE, encoding='utf-8'))['count']
     words = voice['words']
     rate = voice['rate']
     env = voice['env']
-    a = state(M('count', 4.0, 'hold'), True, True, shades=True)
+    D = round(len(env) / rate, 2)       # the downbeat (the envelope runs from the count's start to it)
+    a = state(M('count', D, 'hold'), True, True, shades=True)
     up = [-172, 0, -10]
     keys = [(0, [-30, 26, -10]), (0.5, [-40, 20, -12]), (1.1, up, 'easeOutBack'), (1.7, [-178, 0, -8])]
     for i, c in enumerate(words):
         last = i == len(words) - 1
         keys += [(round(c - 0.1, 2), [-178, 0, -8], 'easeOutQuad'), (round(c, 2), [-132 if not last else -158, 0, -16], 'easeOutBack'),
                  (round(c + 0.16, 2), [-160 if not last else -176, 0, -10])]
-    keys += [(3.72, [-150, 0, -12]), (3.86, REQ['low']['rot'], 'easeInOutSine'), (4.0, REQ['low']['rot'])]
+    # "cuatro" held up high while it rings, then down onto the requinto for the downbeat
+    keys += [(round(D - 0.5, 2), [-166, 0, -10]), (round(D - 0.28, 2), [-150, 0, -12]),
+             (round(D - 0.14, 2), REQ['low']['rot'], 'easeInOutSine'), (D, REQ['low']['rot'])]
     a.rot('arm_l', keys, 'lin')
-    stretch(a, 'arm_l', [(0, 1.2), (1.1, 1.45), (3.72, 1.45), (3.86, REQ['low']['k'])])
+    stretch(a, 'arm_l', [(0, 1.2), (1.1, 1.45), (round(D - 0.28, 2), 1.45), (round(D - 0.14, 2), REQ['low']['k'])])
     sr = REQ['strum']['rot']
-    a.rot('arm_r', [(0, sr), (3.7, sr), (3.88, [sr[0] - 18, sr[1], sr[2]], 'easeOutQuad'), (4.0, [sr[0] + 10, sr[1], sr[2]], 'easeInQuad')], 'lin')
+    a.rot('arm_r', [(0, sr), (round(D - 0.3, 2), sr), (round(D - 0.12, 2), [sr[0] - 18, sr[1], sr[2]], 'easeOutQuad'),
+                    (D, [sr[0] + 10, sr[1], sr[2]], 'easeInQuad')], 'lin')
     stretch(a, 'arm_r', [(0, REQ['strum']['k'])])
     stomps = [0.25, 0.55] + list(words)
     a.rot('leg_r', [(0, [0, 0, 0])] + [k for c in stomps for k in
-                                      ((round(c - 0.1, 2), [-18, 0, 0]), (round(c, 2), [0, 0, 0], 'easeInQuad'))] + [(4.0, [0, 0, 0])], 'lin')
+                                      ((round(c - 0.1, 2), [-18, 0, 0]), (round(c, 2), [0, 0, 0], 'easeInQuad'))] + [(D, [0, 0, 0])], 'lin')
     a.pos('root', [(0, [0, 0, 0])] + [k for c in stomps for k in
-                                     ((round(c - 0.08, 2), [0, 0.9, 0]), (round(c, 2), [0, 0, 0], 'easeInQuad'))] + [(4.0, [0, 0, 0])], 'lin')
+                                     ((round(c - 0.08, 2), [0, 0.9, 0]), (round(c, 2), [0, 0, 0], 'easeInQuad'))] + [(D, [0, 0, 0])], 'lin')
     # back for the breath, into each number, and the whole of him into the fourth
     tk = [(0, [0, 0, 0]), (0.6, [-2, 0, 0]), (1.2, [9, 0, 0], 'easeOutQuad'), (1.85, [10, 0, 0])]
     for i, c in enumerate(words):
         last = i == len(words) - 1
         tk += [(round(c - 0.06, 2), [6, 0, 0]), (round(c + 0.08, 2), [-14 if last else -7, 0, -4 if i % 2 else 4], 'easeOutQuad')]
-    tk += [(3.72, [-12, 0, 0]), (3.88, [-10, 0, 0]), (4.0, [6, 0, 0], 'easeInQuad')]
+    tk += [(round(D - 0.3, 2), [-12, 0, 0]), (round(D - 0.12, 2), [-10, 0, 0]), (D, [6, 0, 0], 'easeInQuad')]
     a.rot('torso', tk, 'lin')
-    a.scale('body', [(0, [1, 1, 1]), (1.2, [1.04, 1.05, 1.04], 'easeOutQuad'), (1.9, [1.05, 1.06, 1.05]), (round(words[0], 2), [1, 1, 1]),
-                     (4.0, [1, 1, 1])], 'lin')
-    # the mouth: the recording's loudness, from the breath before the first word to the downbeat
-    mk = [(0, 0), (1.15, 0.9, 'easeOutQuad'), (1.6, 0.3)]
-    t0 = 1.9
-    n = int((4.0 - t0) * rate)
+    a.scale('body', [(0, [1, 1, 1]), (1.2, [1.04, 1.05, 1.04], 'easeOutQuad'), (round(words[0] - 0.12, 2), [1.05, 1.06, 1.05]),
+                     (round(words[0], 2), [1, 1, 1]), (D, [1, 1, 1])], 'lin')
+    # the mouth: the breath, then the recording's loudness from just before the first word to the downbeat
+    mk = [(0, 0), (1.15, 0.9, 'easeOutQuad'), (1.45, 0.3)]
+    t0 = round(words[0] - 0.25, 2)
+    n = int((D - t0) * rate)
     for k in range(n + 1):
         t = round(t0 + k / rate, 2)
         i = int(round(t * rate))
@@ -431,7 +436,7 @@ def count():
     for c in words:
         a.sound(round(c, 2), 'count')
     for b, sg in (('brow_r', 1), ('brow_l', -1)):
-        a.pos(b, [(0, [0, 0.6, 0]), (1.2, [0, 1.1, 0]), (round(words[-1], 2), [0, 1.3, 0]), (4.0, [0, 0.5, 0])])
+        a.pos(b, [(0, [0, 0.6, 0]), (1.2, [0, 1.1, 0]), (round(words[-1], 2), [0, 1.3, 0]), (D, [0, 0.5, 0])])
     return a
 
 

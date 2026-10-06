@@ -22,7 +22,7 @@ Lengths of one-shots are state durations in Java (GerbinState, BossState); keep 
           grab_lunge (AI-held; lunge 0.45), grab_combo 4.5 (torch 0.8-2.2, salt 2.5-3.4, throw 3.95),
           p2_kneel 6.0, p2_talk 3.5, p2_season 5.0 (shaker 0.6-3.3, golden at 4.0), p2_scream 3.5 (scream 0.75), p2_arrive 2.5 (no coliseum), fly (loop),
           the coliseum: p2_arrive_sky 5.0 (lands 1.8, snap 3.7), p2_notice 3.0, p2_march (loop), p2_wake 3.5
-          (clangs 0.85 / 1.6 / 2.1), p2_wait (loop), p2_kick 1.5 (kick 0.6), p2_count 4.0, p2_groove (loop, a bar),
+          (clangs 0.85 / 1.6 / 2.1), p2_wait (loop), p2_kick 1.5 (kick 0.6), p2_count 5.6, p2_groove (loop, a bar),
           p2_apology 8.9 (aura from 5.5), p2_resume 3.0 (held), p2_hype 8.0 (ends on the first sung word),
           p2_solo 3.0,
           p2_barrage 2.0 (slam 1.85), p2_meteor 3.5, van_throw 2.6 (throw 1.8), p2_dive (loop),
@@ -1895,18 +1895,20 @@ def b_p2_kick():
 
 
 def b_p2_count():
-    """4.0 s (BossState.P2_COUNT, 80 t). Turned to the band, nodding along to the singer's count
-    (0.2 / 1.15 / 2.1 / 2.55 / 3.05 s), and on the downbeat (4.0) both fists up."""
-    a = angry(B('p2_count', 4.0, 'hold'))
+    """5.6 s (BossState.P2_COUNT, 112 t). Turned to the band, nodding along to the singer's count (voice/singer.json: at
+    half time, about 1.8 / 2.7 / 3.7 / 4.6 s), and on the downbeat (5.6) both fists up."""
+    voice = json.load(open(os.path.join(ROOT, 'src/main/resources/assets/papon/voice/singer.json'), encoding='utf-8'))['count']
+    D = round(len(voice['env']) / voice['rate'], 2)
+    a = angry(B('p2_count', D, 'hold'))
     t = [(0, [0, 0, 0])]
-    for c in [0.2, 1.15, 2.1, 2.55, 3.05, 3.5]:
+    for c in [0.4, 1.1] + [round(w, 2) for w in voice['words']]:
         t += [(round(c - 0.1, 2), [-4, 0, 0]), (c, [12, 0, 0], 'easeInQuad'), (round(c + 0.2, 2), [0, 0, 0])]
-    t += [(3.85, [0, 0, 0]), (4.0, [-16, 0, 0], 'easeOutBack')]
+    t += [(round(D - 0.15, 2), [0, 0, 0]), (D, [-16, 0, 0], 'easeOutBack')]
     a.rot('torso', t, 'lin')
     for arm, sgn in (('arm_r', 1), ('arm_l', -1)):
         cross = CROSS_R if sgn > 0 else CROSS_L
-        a.rot(arm, [(0, cross), (3.7, cross), (4.0, [-170, 0, 30 * sgn], 'easeOutBack')], 'lin')
-        stretch(a, arm, [(0, 1.25), (3.7, 1.25), (4.0, 1.4)])
+        a.rot(arm, [(0, cross), (round(D - 0.3, 2), cross), (D, [-170, 0, 30 * sgn], 'easeOutBack')], 'lin')
+        stretch(a, arm, [(0, 1.25), (round(D - 0.3, 2), 1.25), (D, 1.4)])
     return a
 
 
@@ -3961,6 +3963,30 @@ def b_d_danza():
     return a
 
 
+def b_d_tzompantli():
+    """2.0 s loop (BossState.P4_TZOMPANTLI; PaponBossEntity.TZOMP_SLAMS every 40 t from 28). On his feet in the middle of the
+    floor: the hammer and his left fist hauled up over his head (0-1.15), held at the top, shaking with it, and both fists
+    smashed down into the floor (1.4) as the skull posts burst out of it; bent over the impact, a roar, up again."""
+    a = god(B('d_tzompantli', 2.0, True))
+    up_r, up_l = [-176, 0, 14], [-176, 0, -14]
+    down_r, down_l = [-60, -10, 8], [-60, 10, -8]
+    for arm, sgn, up, down in (('arm_r', 1, up_r, down_r), ('arm_l', -1, up_l, down_l)):
+        a.rot(arm, [(0, [-40, 0, 24 * sgn]), (1.0, up, 'easeInOutSine'), (1.15, [up[0] - 4, up[1], up[2] + 4 * sgn]), (1.25, up),
+                    (1.4, down, 'easeInExpo'), (1.7, [-56, -6 * sgn, 10 * sgn]), (2.0, [-40, 0, 24 * sgn], 'easeInOutSine')], 'lin')
+        stretch(a, arm, [(0, 1.2), (1.0, 1.65), (1.4, 1.5), (2.0, 1.2)])
+    a.rot('spirit_hammer', [(0, [0, 0, 0]), (1.25, [0, 0, 0]), (1.4, [80, 0, 0], 'easeInExpo'), (1.8, [80, 0, 0]), (2.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.rot('torso', [(0, [4, 0, 0]), (1.0, [-22, 0, 0], 'easeInOutSine'), (1.25, [-24, 0, 0]), (1.4, [42, 0, 0], 'easeInExpo'), (1.7, [36, 0, 0]),
+                    (2.0, [4, 0, 0], 'easeInOutSine')], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (1.0, [0, 1.2, 0], 'easeInOutSine'), (1.25, [0, 1.4, 0]), (1.4, [0, -2.2, 0], 'easeInExpo'), (1.75, [0, -2.0, 0]),
+                   (2.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 4 * s]), (1.25, [0, 0, 6 * s]), (1.4, [-40, 0, 16 * s], 'easeInExpo'), (1.75, [-36, 0, 14 * s]), (2.0, [0, 0, 4 * s], 'easeInOutSine')], 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (1.25, [1.0, 1.08, 1.0]), (1.4, [1.2, 0.86, 1.2], 'easeInExpo'), (1.6, [1.06, 1.02, 1.06]),
+                     (2.0, [1.04, 1.03, 1.04])], 'lin')
+    a.sound(1.4, 'slam').sound(1.5, 'roar')
+    return a
+
+
 def b_d_luna():
     """1.3 s loop (BossState.P4_LUNA, a volley every 26 t). Calling the moon down: the hammer and the left fist thrust up at it
     on each volley, the body arched back, then a breath."""
@@ -4269,7 +4295,7 @@ def b_d_tango_lose():
 
 PHASE_FOUR = [b_p4_fall, b_p4_riseup, b_p4_ignis, b_p4_prophecy, b_p4_throne, b_p4_brethren, b_p4_souls, b_p4_halfbaked, b_p4_bow, b_p4_watch,
               b_p4_talking, b_p4_walk, b_p4_honor, b_p4_muchachas, b_p4_goodtime, b_d_serpientes, b_d_flechas,
-              b_d_fly, b_d_martillo, b_d_gigante, b_d_grieta, b_d_petalos, b_d_conduct, b_d_danza, b_d_luna,
+              b_d_fly, b_d_martillo, b_d_gigante, b_d_grieta, b_d_petalos, b_d_conduct, b_d_danza, b_d_tzompantli, b_d_luna,
               b_d_ouroboros, b_d_salsa, b_d_camino, b_d_castillo, b_d_tango, b_d_tango_win, b_d_tango_lose, b_d_rage, b_d_juicio]
 
 

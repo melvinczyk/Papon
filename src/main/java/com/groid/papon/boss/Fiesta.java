@@ -167,23 +167,32 @@ public final class Fiesta {
 
     // ------------------------------------------------------------------ El Castillo
 
-    public static final int CASTILLO_TIERS = 4, TIER_EVERY = 36, TIER_START = 34, TIER_RUN = 92, SPARK_EVERY = 3;
-    public static final int CROWN = 182, BURST = 238;
-    public static final double SPARK_Y = 1.1, SPARK_HIT = 0.95;
+    /**
+     * (2026-10-05, the user: "much more visually obvious... that structure is important"; Papon → the castillo → the attack) The
+     * tower rises to RISE; on top of it he lights the fuse at FUSE, and it burns down the tower to the first wheel (TIER_START);
+     * each spark is thrown off a wheel's tip and drops to the floor in DROP ticks before it skims across it (where it hits).
+     */
+    public static final int CASTILLO_TIERS = 4, TIER_EVERY = 36, TIER_START = 48, TIER_RUN = 92, SPARK_EVERY = 3, RISE = 26, FUSE = 32, DROP = 7;
+    public static final int CROWN = 196, BURST = 252;
+    public static final double SPARK_Y = 1.1, SPARK_HIT = 1.1;
+    /** The tower: half its width, its wheels' reach (tier 0; each tier out a little more), its height to the crown. */
+    public static final double TOWER_HALF = 2.8, WHEEL_R = 4.6, TOWER_TOP = 26;
 
     public static int tierStart(int tier) { return TIER_START + tier * TIER_EVERY; }
 
     public static int arms(int tier) { return 5 + tier; }
 
     /** Each tier's wheel: its height on the tower (blocks over the floor). */
-    public static double tierHeight(int tier) { return 3.5 + tier * 3.6; }
+    public static double tierHeight(int tier) { return 4.5 + tier * 5.2; }
+
+    public static double wheelR(int tier) { return WHEEL_R + tier * 0.45; }
 
     /** A spark from tier {@code tier}'s wheel, sent at tick {@code emit}, arm {@code arm}, at tick {@code t}: x, z offsets (or null). */
     public static double[] spark(int seed, int tier, int emit, int arm, double t, double a, double b) {
         double age = t - emit;
         if (age < 0) return null;
         double v = 0.5 + 0.09 * tier;
-        double r = 1.2 + age * v;
+        double r = wheelR(tier) * 0.85 + Math.max(0, age - DROP * 0.5) * v;
         int spin = (tier & 1) == 0 ? 1 : -1;
         double base = (seed % 360) * Math.PI / 180 + tier * 0.6;
         double ang = base + spin * (emit - tierStart(tier)) * 0.045 + arm * Math.PI * 2 / arms(tier) - spin * age * 0.006;
@@ -192,7 +201,7 @@ public final class Fiesta {
         return new double[]{x, z};
     }
 
-    /** Every live spark at tick t: [x, z, tier, id]. */
+    /** Every live spark at tick t: [x, z, tier, id, age]. */
     public static List<double[]> sparks(int seed, double t, double a, double b) {
         List<double[]> out = new ArrayList<>();
         for (int tier = 0; tier < CASTILLO_TIERS; tier++) {
@@ -200,7 +209,7 @@ public final class Fiesta {
             for (int emit = s0; emit <= Math.min(t, s0 + TIER_RUN); emit += SPARK_EVERY) {
                 for (int arm = 0; arm < arms(tier); arm++) {
                     double[] p = spark(seed, tier, emit, arm, t, a, b);
-                    if (p != null) out.add(new double[]{p[0], p[1], tier, tier * 100000 + emit * 16 + arm});
+                    if (p != null) out.add(new double[]{p[0], p[1], tier, tier * 100000 + emit * 16 + arm, t - emit});
                 }
             }
         }

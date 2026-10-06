@@ -81,14 +81,24 @@ public final class MuertosSky {
         return t > VoiceLines.beat("p4.grant", 114) && t < VoiceLines.beat("p4.turn", 194) + 12;
     }
 
-    /** Whether the moon shows (and how much: it fades in as the clouds part). */
+    /** Whether the moon shows (and how much: it fades in, dark, as the mist comes). */
     private static float shown(PaponBossEntity b, float partial) {
         if (b.moon() <= 0) return 0;
         if (b.getBossState() == BossState.P4_THRONE) {
             float t = b.ticksInState() + partial, at = VoiceLines.beat("p4.moon", 573);
-            return Mth.clamp((t - at) / 30F, 0, 1);
+            return Mth.clamp((t - at) / 40F, 0, 1);
         }
         return 1;
+    }
+
+    /** How lit the moon is: 0 dark (it rose unlit) .. 1, lit from p4.moonlit over 1.5 s, the light spreading from its rim. */
+    static float lit(PaponBossEntity b, float partial) {
+        if (b.moon() <= 0) return 0;
+        if (b.getBossState() != BossState.P4_THRONE) return 1;
+        float t = b.ticksInState() + partial, moon = VoiceLines.beat("p4.moon", 573);
+        float at = VoiceLines.beat("p4.moonlit", (int) moon + 120);
+        float k = Mth.clamp((t - at) / 30F, 0, 1);
+        return k * k * (3 - 2 * k);
     }
 
     static void drawMoon(PoseStack pose, float partial) {
@@ -96,6 +106,7 @@ public final class MuertosSky {
         if (b == null) return;
         float k = shown(b, partial);
         if (k <= 0) return;
+        float lit = lit(b, partial);
         Minecraft mc = Minecraft.getInstance();
         Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
         Vec3 d = b.moonPos().subtract(cam).normalize();
@@ -112,6 +123,37 @@ public final class MuertosSky {
         RenderSystem.disableDepthTest();
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
+        if (lit < 1) {
+            // unlit: a dark disc against the sky, its rim just catching the light (a new moon in daylight)
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.setShader(GameRenderer::getPositionColorShader);
+            BufferBuilder dark = Tesselator.getInstance().getBuilder();
+            dark.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            float da = k * 0.9F * (1 - lit);
+            for (int i = 0; i < 48; i++) {
+                double a0 = Math.PI * 2 * i / 48, a1 = Math.PI * 2 * (i + 1) / 48;
+                vtx(dark, m, c, right, up, 0, 0, 0.07F, 0.07F, 0.09F, da);
+                vtx(dark, m, c, right, up, (float) Math.cos(a0) * r * 0.97F, (float) Math.sin(a0) * r * 0.97F, 0.10F, 0.10F, 0.12F, da);
+                vtx(dark, m, c, right, up, (float) Math.cos(a1) * r * 0.97F, (float) Math.sin(a1) * r * 0.97F, 0.10F, 0.10F, 0.12F, da);
+            }
+            Tesselator.getInstance().end();
+            RenderSystem.blendFunc(com.mojang.blaze3d.platform.GlStateManager.SourceFactor.SRC_ALPHA, com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE);
+            dark.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+            // the rim, and as it lights, the light spreading in from it: a ring closing to the middle
+            float rim = 0.97F - 0.97F * lit;
+            for (int i = 0; i < 48; i++) {
+                double a0 = Math.PI * 2 * i / 48, a1 = Math.PI * 2 * (i + 1) / 48;
+                float ra = k * (0.35F + 0.65F * Mth.sin(lit * Mth.PI));
+                float x0 = (float) Math.cos(a0), y0 = (float) Math.sin(a0), x1 = (float) Math.cos(a1), y1 = (float) Math.sin(a1);
+                vtx(dark, m, c, right, up, x0 * r * 1.02F, y0 * r * 1.02F, 0.9F, 0.94F, 1F, ra);
+                vtx(dark, m, c, right, up, x0 * r * rim, y0 * r * rim, 0.9F, 0.94F, 1F, 0);
+                vtx(dark, m, c, right, up, x1 * r * 1.02F, y1 * r * 1.02F, 0.9F, 0.94F, 1F, ra);
+                vtx(dark, m, c, right, up, x1 * r * 1.02F, y1 * r * 1.02F, 0.9F, 0.94F, 1F, ra);
+                vtx(dark, m, c, right, up, x0 * r * rim, y0 * r * rim, 0.9F, 0.94F, 1F, 0);
+                vtx(dark, m, c, right, up, x1 * r * rim, y1 * r * rim, 0.9F, 0.94F, 1F, 0);
+            }
+            Tesselator.getInstance().end();
+        }
         // the halo: cold blue round the calavera, a pale glow round the potato moon
         RenderSystem.blendFunc(com.mojang.blaze3d.platform.GlStateManager.SourceFactor.SRC_ALPHA, com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE);
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
@@ -129,7 +171,7 @@ public final class MuertosSky {
         }
         for (int ring = 0; ring < 2; ring++) {
             float rr = r * (ring == 0 ? 1.9F : 3.2F);
-            float a = k * (ring == 0 ? 0.55F : 0.22F) * pulse * (0.6F + 0.4F * turned);
+            float a = k * lit * (ring == 0 ? 0.55F : 0.22F) * pulse * (0.6F + 0.4F * turned);
             for (int i = 0; i < 32; i++) {
                 double a0 = Math.PI * 2 * i / 32, a1 = Math.PI * 2 * (i + 1) / 32;
                 vtx(buf, m, c, right, up, 0, 0, hr, hg, hb, a);
@@ -141,7 +183,7 @@ public final class MuertosSky {
         // the disc: the potato moon, crossfading into the calavera (a white flash between)
         // the potato moon is drawn as the sky draws it, added on (its black is see-through); the calavera has alpha
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        drawDisc(m, c, right, up, r, POTATO_MOON, 0, 0, 0.25F, 0.5F, 1F, 1F - 0.5F * turned, 1F - 0.2F * turned, k * (1 - Math.max(0, turned - 0.6F) / 0.4F));
+        drawDisc(m, c, right, up, r, POTATO_MOON, 0, 0, 0.25F, 0.5F, 1F, 1F - 0.5F * turned, 1F - 0.2F * turned, k * lit * (1 - Math.max(0, turned - 0.6F) / 0.4F));
         RenderSystem.defaultBlendFunc();
         if (turned > 0.6F) drawDisc(m, c, right, up, r * 1.05F, DEAD_MOON, 0, 0, 1, 1, 1, 1 - 0.35F * blood, 1 - 0.35F * blood, k * (turned - 0.6F) / 0.4F);
         RenderSystem.enableCull();
@@ -367,7 +409,7 @@ public final class MuertosSky {
                 Vec3 p = base.add(PaponBossEntity.petal(a0, arm, sent, t));
                 int[] col = cols[(arm + sent / 6) % cols.length];
                 float spin = (t - sent) * 0.4F + arm;
-                petal(vc, m, p, cam, 0.75F, spin, col[0], col[1], col[2], (int) (230 * fade));
+                petal(vc, m, p, cam, (float) PaponBossEntity.PETAL_R, spin, col[0], col[1], col[2], (int) (230 * fade));
             }
         }
     }

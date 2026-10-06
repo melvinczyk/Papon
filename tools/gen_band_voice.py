@@ -173,7 +173,8 @@ def build():
         env = sv.envelope(y, SR // RATE)
         env = np.clip(env / (np.percentile(env, 97) + 1e-9), 0, 1) ** 0.8
         mouths[line] = [round(float(v), 2) for v in env]
-        sounds['voice.band.' + line] = {'sounds': [{'name': 'papon:voice/band/' + line}]}
+        # played at volume 1 under the music (client/SoundMix), heard 48 blocks off
+        sounds['voice.band.' + line] = {'sounds': [{'name': 'papon:voice/band/' + line, 'attenuation_distance': 48}]}
         print('%-15s take %d %s %.2fs | %s' % (line, k, why[:3], len(y) / SR, meta[line]['takes'][k]['heard']))
     with open(os.path.join(ASSETS, 'voice/band.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump({'rate': RATE, 'lines': mouths}, f, separators=(',', ':'))

@@ -25,7 +25,7 @@ public enum BandState {
     SHADES(20),
     GRAB(30),
     READY(0),
-    COUNT(80),
+    COUNT(112),
     PLAY(0),
     BOW(50),
     /** The singer, hit on the head and up into the air out of his chair. */

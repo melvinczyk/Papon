@@ -18,14 +18,17 @@ import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The fight's mix, so his voice always reads: every one-shot sound played near Chef Papon (his attacks,
- * blocks breaking, hits; anything but his voice, the music and the interface) is brought down a little,
- * and a lot further while he is talking (VoiceDuck). The band and the crowd duck themselves.
+ * The fight's mix, so his voice always reads (the order: VoiceDuck): every one-shot sound played near Chef Papon (his
+ * attacks, blocks breaking, hits; anything but the voices, the music and the interface) is brought down a little, and a
+ * lot further while he is talking; the band's recorded lines are put under the music ({@link #BAND}) and a little under
+ * him. The crowd ducks itself.
  */
 @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID, value = Dist.CLIENT)
 public final class SoundMix {
     /** How loud the fight's sound effects are next to him (they were drowning him out). */
     private static final float FIGHT = 0.6F;
+    /** The band's voices: under the music (played at volume 1 with a 48-block reach: sounds.json attenuation_distance). */
+    private static final float BAND = 0.62F;
     private static final double NEAR = 56;
 
     private SoundMix() {}
@@ -35,9 +38,15 @@ public final class SoundMix {
         SoundInstance s = event.getSound();
         if (s == null || s instanceof TickableSoundInstance || s.isRelative()) return;
         SoundSource src = s.getSource();
-        if (src == SoundSource.MASTER || src == SoundSource.MUSIC || src == SoundSource.RECORDS || src == SoundSource.VOICE
-                || src == SoundSource.AMBIENT) return;
         ResourceLocation id = s.getLocation();
+        boolean bandVoice = PaponMod.MOD_ID.equals(id.getNamespace()) && id.getPath().startsWith("voice.band.");
+        if (!bandVoice && (src == SoundSource.MASTER || src == SoundSource.MUSIC || src == SoundSource.RECORDS || src == SoundSource.VOICE
+                || src == SoundSource.AMBIENT)) return;
+        if (bandVoice && !id.getPath().equals("voice.band.count")) {
+            // (the count-in is the music's own start: as loud as the singer can)
+            event.setSound(new Scaled(s, BAND * VoiceDuck.band()));
+            return;
+        }
         if (PaponMod.MOD_ID.equals(id.getNamespace()) && (id.getPath().startsWith("voice.") || id.getPath().startsWith("boss.cine_"))) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;

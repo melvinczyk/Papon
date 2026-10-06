@@ -4,7 +4,10 @@ functions through `modal run`; nothing here runs on the Mac.
 
   transcribe(audio)                    Whisper large-v3 on the reference: the text, with word timings
   clone(ref, ref_text, lines, takes)   `takes` takes of every line (different seeds), each transcribed
-                                       back so the caller can keep the one that says the line best
+                                       back so the caller can keep the one that says the line best, with how sure
+                                       Whisper was of each word (conf: the mean, minconf: the least: how clearly it
+                                       is said; 2026-10-05, the user: "some lines sound jumbled or poorly articulated")
+  clarity(clips)                       the same check on lines already built (tools/voice_clarity.py)
 """
 import io
 
@@ -112,13 +115,37 @@ def clone(refs: dict, lines: list, takes: int = 4) -> dict:
             with tempfile.NamedTemporaryFile(suffix='.wav') as f:
                 f.write(_wav_bytes(wav, sr))
                 f.flush()
-                heard = stt.transcribe(f.name, language=line.get('stt', 'en'))['text'].strip()
+                r = stt.transcribe(f.name, language=line.get('stt', 'en'), word_timestamps=True)
+                heard = r['text'].strip()
+                probs = [w['probability'] for s in r['segments'] for w in s.get('words', [])]
+            conf = float(sum(probs) / len(probs)) if probs else 0.0
+            minconf = float(min(probs)) if probs else 0.0
             sim = None
             if embs[line['ref']] is not None:
                 e = embedding(model.create_voice_clone_prompt(ref_audio=(wav, sr), x_vector_only_mode=True))
                 sim = float(torch.nn.functional.cosine_similarity(e, embs[line['ref']], dim=0))
-            out[line['id']].append({'wav': _wav_bytes(wav, sr), 'heard': heard, 'seconds': len(wav) / sr, 'sim': sim})
-            print(line['id'], k, round(len(wav) / sr, 2), sim and round(sim, 3), '|', heard, flush=True)
+            out[line['id']].append({'wav': _wav_bytes(wav, sr), 'heard': heard, 'seconds': len(wav) / sr, 'sim': sim, 'conf': conf, 'minconf': minconf})
+            print(line['id'], k, round(len(wav) / sr, 2), sim and round(sim, 3), round(conf, 2), '|', heard, flush=True)
+    cache.commit()
+    return out
+
+
+@app.function(image=image, gpu='L40S', volumes={'/data': cache}, timeout=1800)
+def clarity(clips: dict, language: str = 'en') -> dict:
+    """clips: {id: audio bytes}. Returns {id: {'heard', 'conf', 'minconf', 'words': [[word, probability], ...]}}: how
+    clearly each line is said, as Whisper hears it (a word it is unsure of is a word a player will miss)."""
+    import tempfile
+    stt = _whisper()
+    out = {}
+    for cid, audio in clips.items():
+        with tempfile.NamedTemporaryFile(suffix='.audio') as f:
+            f.write(audio)
+            f.flush()
+            r = stt.transcribe(f.name, language=language, word_timestamps=True)
+        words = [[w['word'].strip(), float(w['probability'])] for s in r['segments'] for w in s.get('words', [])]
+        probs = [p for _, p in words]
+        out[cid] = {'heard': r['text'].strip(), 'conf': float(sum(probs) / len(probs)) if probs else 0.0,
+                    'minconf': float(min(probs)) if probs else 0.0, 'words': words}
     cache.commit()
     return out
 

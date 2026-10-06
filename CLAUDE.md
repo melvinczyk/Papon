@@ -63,8 +63,9 @@ car); 1-2 s cinematic cuts to instruments mid-fight. Tone: showman, "everyone is
 who do you think I AM?!**", "Let me show you how to really play"; **snatches the guitar from the singer**, band scared; everything
 dark, **spotlight**, user's song **"Para Siempre"** (his record's own voice, no voice conversion); stumbles, then plays the intro
 and sings; "**This is more my style, learn muchachos**", throws the guitar back, band whispers scared in their own shot, "**What
-are you waiting for, GO**"; "**Now, let's dance!**" on his face. Golden form, **crimson** aura/fire, night + spotlight for the
-rest. Van → **Skyline** ("It's about time I gave this thing an UPGRADE"; quick action shots, new engine roar, purple underglow
+are you waiting for, GO**"; "**Now, let's dance!**" on his face. Golden form, **crimson** aura/fire. (2026-10-05) **Daylight until
+phase four's moon**: the dark is only the serenade's stage blackout (spotlight), lifted to dusk for the Skyline's reveal and to day
+on "let's dance". Van → **Skyline** ("It's about time I gave this thing an UPGRADE"; quick action shots, new engine roar, purple underglow
 on). Tone: "**I am the ascended potato god, it's time to get serious**". Moveset: demigod, buff, flies fast, **no chef attacks**,
 over-the-top potato/Mexican, arena involvement, lasers (**from his eyes**), band attacks (flashy, not particles), **La Ola a real
 salsa wave**, the car **not** a way out, a **Guitar Hero duel** (hard), spam QTE. Over-the-top attacks and QTEs take **% of
@@ -93,6 +94,13 @@ scale; not a flat effect) whose attacks work **alongside** the serpents and him;
 **increasingly chaotic, the boss losing control**; the **final portion combines him, the serpents and the giant** into a
 challenging, spectacular climax. **Fix rendering**: no attack may go invisible, flicker, vanish or distort (the giant potato,
 lasers, piñata, serpents, skeleton...). Keep the existing style and mechanics; no needless performance cost.
+**Revision pass (2026-10-05)**: "I will not make his mistake" **cold, controlled, matter-of-fact** (mood `resolute`) and every line
+**clearly articulated** (diction audit: `tools/voice_clarity.py`); mix **Papon > music > band voices > SFX**, music louder; Skyline
+reveal lit; El Gigante **digs out of the floor**, wears an **El Catrín top hat**, and **La Mano** (wades through the floor, bends over
+the arena, grabs you from afar); the **muchachas' own attack** (El Beso de la Muerte) and roses all phase; **petals reach the walls**;
+La Danza's ghosts replaced (**El Tzompantli**); **Castillo obvious** (solid tower, he lights its fuse, sparks from its wheels);
+**daytime until the moon**, the **fog with the moon** (moon up dark, mist rolls in, darkening, moon lights, night); phase four
+**much more aggressive**; phase two's attacks (the **fryer**) reach the whole sand; the count-in **never cut off**.
 
 **Ending**: after Gerbin's pillow, back at the truck: **Chef Papon a friendly vendor again, menu gives free tacos**.
 **Pillow**: hug "sensually", lick, put on a bed and sleep beside it on your side, hump (hand and bed); natural plump look,
@@ -114,8 +122,10 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
 | Vendor, customers, Gerbin, NPC base, speech, sound cues | `entity/npc/*`, `entity/Speech`, `client/SpeechBubble` |
 | Boss: states, phases, moves | `boss/PaponBossEntity`, `BossState`, `TacoBoss`, `Mechanics`, `Fiesta`, `BossProp`, `BeamEntity`, `FoilPotatoEntity`, `MolotovEntity`, … |
 | Coliseum, crowd, band, songs | `boss/{Coliseum,ColiseumCrowdEntity,CrowdMood,MariachiEntity,BandRole,BandState,Song}`, `block/*` |
-| Phase four extras | `boss/{SkySerpentEntity,SerpentPath,SalsaDancerEntity,SpiritGiantEntity}`, `client/{SpiritGiantRenderer,GiantMesh}` |
-| Singer's count-in voice | `tools/gen_singer_voice.py` → `sounds/voice/band/count.ogg`, `voice/singer.json` (`gen_band_anims.count`) |
+| Phase four extras | `boss/{SkySerpentEntity,SerpentPath,SalsaDancerEntity,SpiritGiantEntity}`, `client/{SpiritGiantRenderer,GiantMesh,Shapes}` |
+| Singer's count-in voice | `tools/gen_singer_voice.py` → `sounds/voice/band/count.ogg`, `voice/singer.json` (`gen_band_anims.count`): at half time, a word every other beat, COUNT/P2_COUNT 5.6 s, "cuatro" over before the downbeat |
+| Mix (2026-10-05) | `client/VoiceDuck` (tiers: his voice; `music()` 0.5 under him; band voices `SoundMix.BAND` under the music, `band()`; `get()` effects/crowd 0.22 under him, 0.6 under the band); voices on the Voice slider (`Speech.say`), band sounds `attenuation_distance` 48 |
+| Diction audit | `tools/voice_clarity.py` (Whisper word confidence + WER per built line, `voice_modal.clarity`); `gen_boss_voice.CLEAR` lines retaken with `CLARITY`, picked words-then-confidence |
 | Band's voiced lines | `tools/gen_band_voice.py` (every `speech.papon.band.*` + the `gasp` cue, cloned from the singer's reference) → `sounds/voice/band/*.ogg`, `voice/band.json` (mouth env, bubble lengths); pitch per member `MariachiEntity.voicePitch` |
 | Van / Skyline | `vehicle/CaravanEntity`, `client/CaravanRenderer`, `client/CaravanSounds` |
 | Cutscenes, shake, music, bar, night, fog, sky | `client/{Cinematic,ScreenShake,BossMusic,BossBarRenderer,NightLight,PotatoSky,MuertosSky,MuertosArena,BlurFx,ClientEvents}` |
@@ -158,8 +168,9 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   IDLE at the first sung word. Mid-fight P2_SOLO / P2_CUTAWAY (client asks via `PaponNetwork`). Arena attacks: fryer, heckle,
   masher, La Ola, stampede, El Gran Meteoro; van is a spice (≤1 per 25 s).
 - Phase three (≤50%): P3_KNOCKBACK → P3_GLARE → P3_STALK → P3_SNATCH → P3_RETURN → P3_BLACKOUT → (ascension) → P3_POWER →
-  P3_SERENADE → P3_VERDICT → P3_TOSS → P3_DANCE → IDLE; Skyline via P3_CRUSH → P3_SHOWCAR. Night (`DATA_NIGHT`, `NightLight`),
-  spotlight, crimson braziers. Ascended moves `P3_*` (combo, flash, comet, laser, solar + monoliths, mariachi, duel, piñata swing,
+  P3_SERENADE → P3_VERDICT → P3_TOSS → P3_DANCE → IDLE; Skyline via P3_CRUSH → P3_SHOWCAR (`stageLightsUp`: dusk, the van
+  key-lit in `CaravanRenderer`). Blackout (`DATA_NIGHT`, `NightLight`) only through the serenade; `NIGHT_P3` = 0 (day), spotlight,
+  crimson braziers. Ascended moves `P3_*` (combo, flash, comet, laser, solar + monoliths, mariachi, duel, piñata swing,
   braziers, nova/spent, nitro, sombrero, volcán, calaveras); QTEs kind 5 squeeze (K/L), kind 6 guitar duel (D F J K).
 - Phase four (≤25%, `PHASE_FOUR_AT`): P4_FALL → P4_RISEUP → P4_IGNIS → P4_PROPHECY → **P4_THRONE** (appended) → P4_BRETHREN →
   P4_SOULS → P4_HALFBAKED (form 4, El Coliseo de los Muertos swapped in the flash) → P4_BOW → P4_SERPENTS → P4_TALKING →
@@ -167,10 +178,16 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   Band (2026-10-05, never cowering in phase four): `shock` at the fall (BandState SHOCKED: `jaw_drop` → `shocked_a/b`, jaws dropped
   in the scar's band shot), `hype` from the prophecy (HYPED: `hype_<kind>` loops), shouts at the souls/serpents/TOBAND, `settle`
   (READY) at P4_HONOR.
-  Moves: P4_MARTILLO, P4_GIGANTE (`SpiritGiantEntity`: eye lasers, swipes fling into walls), P4_GRIETA, P4_PETALOS, P4_PAPEL,
-  P4_VELAS, P4_DANZA, P4_LUNA, P4_SERPIENTES, P4_FLECHAS, and the grand ones (weights `muertosWeight`, sums in `boss/Fiesta`,
+  Moonrise (P4_THRONE, beats `p4.moon` → `p4.moonlit`): daylight through the monologue; the moon up dark (`MuertosSky.lit`),
+  `mistIn` banks rolling in off the stands and `DATA_FOG`/`DATA_NIGHT` ramping, then it lights and night falls (moon drawn in the
+  day sky too: `NightLight` always calls `drawMoon`).
+  Moves: P4_MARTILLO, P4_GIGANTE (`SpiritGiantEntity`: eye lasers, swipes fling into walls), P4_GRIETA, P4_PETALOS (petals live
+  to the walls: `PETAL_LIFE`), P4_PAPEL, P4_VELAS, P4_DANZA (unused since 2026-10-05), P4_LUNA, P4_SERPIENTES, P4_FLECHAS,
+  **P4_TZOMPANTLI** (appended: `SkullWave` lines/rings of skull posts, props `SKULL_LINE/RING`), **P4_BESO** (appended: the
+  muchachas' attack; `SalsaDancerEntity` AWAY/KISS appended, props `ROSE/THORNS/VINE/PETAL_RING`), and the grand ones (weights `muertosWeight`, sums in `boss/Fiesta`,
   drawn by `client/MuertosArena` from `DATA_P4SEED/FIELD/CENTER`): P4_OUROBOROS (serpents on a ring, `SerpentPath.Ring`),
-  P4_PISTA (beat-tile dance floor), P4_CEMPASUCHIL (marigold path, ectoplasm flood), P4_CASTILLO (fireworks tower), P4_SALSA,
+  P4_PISTA (beat-tile dance floor), P4_CEMPASUCHIL (marigold path, ectoplasm flood), P4_CASTILLO (fireworks tower: a solid prop
+  `BossProp.CASTILLO` drawn by `PropRenderer.drawCastillo`; `Fiesta.FUSE` he lights it, sparks drop off the wheels `DROP`), P4_SALSA,
   P4_TANGO → P4_TANGO_WIN/LOSE (El Último Tango, QTE kind 7, `client/DanceOff`: call-and-response WASD + SPACE, mouse-led abrazo,
   applause meter). Serpents (2026-10-05): green fire sweeps (`breathe`/`tickBreaths`, now and then between moves:
   `tickPassiveBreath`), P4_ALIENTO (Aliento de Jade), P4_FUSION (La Gran Serpiente: both on one tight ring 30 up, a hunting beam,
@@ -183,10 +200,16 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   run under his moves: `tickGiantLayer` (stage ≥2: the giant stays, own scheduler: swipe, laser track/sweep, slam, double slam;
   relocates to your end), `tickGiantHazards` (all giant damage, whoever directs it; P4_GIGANTE only sequences acts),
   `tickSerpentLayer` (dives on their own from stage 2, `serpentQueue` owed by his moves = the serpents inside his patterns),
-  `tickTrails` (dives leave the floor burning), `tickChaos` (stage 3 eruptions), passive breaths by stage; cooldowns 1.5x/2x.
+  `tickTrails` (dives leave the floor burning), `tickChaos` (stage 3 eruptions), passive breaths by stage; cooldowns 1.25x/1.5x/2x.
+  Aggression (2026-10-05): `p4Chain` (out of a move or a winded breath straight into El Martillo, likelier by stage), WINDED
+  shorter by stage, `tickStillLayer` (stand still 3.5/2.75/2 s: the moon's beam on you), `tickMuchachaLayer` (a rose thrown every
+  few seconds), serpents dive from stage 1, `hover` tighter round you.
   Client: `MuertosSky.bolts` (sky lightning by stage, red moon at 3), `BossRenderer` aura flare/stutter.
   **El Gigante (rebuilt)**: entity at the arena's middle, `base()` where it stands (tracking range); `V` 0.74; acts add
-  `SLAM_BOTH`, `ROAR`; head turns to `aim` (`look`/`skull`, same sums both sides; beams anchored with `BeamEntity.eye(giant)`);
+  `SLAM_BOTH`, `ROAR`, `GRAB` (La Mano: synced wade target/yaw/hand, `base(partial)`/`forward(partial)` interpolate it; the caught
+  player rides its hand via `positionRider`, `GrabHold` blocks the dismount; `tickGiantGrab`); RISE is the dig (124 t:
+  `DIG_HANDS`, `DIG_HEAVE`, `dig()` debris = `BossProp.DEBRIS` slabs of the floor block); the Catrín hat in skull space
+  (`SpiritGiantRenderer.hat`); head turns to `aim` (`look`/`skull`, same sums both sides; beams anchored with `BeamEntity.eye(giant)`);
   `client/GiantMesh` = SDF sugar skull + jaw by surface nets (AO + petals baked in vertex colours); renderer draws lit solid bone
   (`entityCutoutNoCull` + white texture, full bright) then one additive pass (shell, eyes, floor cracks). `BossModel.groove` on the beat. Serpents/dancers never saved. Death line `p4_death`.
 - Forms: 1 baked texture, 2 risen (wings/crown/butter), 3 ascended, 4 Final Guardian (`gen_muertos_papon.py`).
@@ -230,6 +253,9 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   version. Now: a coliseum loaded with him below it is entered at once (`resumeArena`), phases three and four wait for the
   coliseum unless there is no room for one (`arenaFailed`), and tickIdle rebuilds it at once when a phase is due.
   `-Pautoshot=phases` / `phasesdown` check the real-damage path.
+- **Vanilla particle sends stop at 32 blocks** (and the client drops particles past 32 unless forced): every `Fx` effect goes
+  through `Fx.far` (long-distance to every player); big client particles use `addParticle(options, true, ...)`. Without it the far
+  half of an arena-wide attack was invisible though it still hit.
 - **Glows never write depth**: vanilla `RenderType.lightning()` does, so a glow drawn before the crowd punched a hole in it (the
   stands missing behind phase three's spotlight). Use `PaponRenderTypes.glow()` for every additive effect; phase three's spotlight
   is queued in `BossRenderer.render` and drawn at AFTER_PARTICLES (`drawSpotlights`) so its light lies over the finished stands.

@@ -83,7 +83,7 @@ public final class FlagFireworks {
                 Vec3 a = path(r, k), b = path(r, k2);
                 for (int i = 0; i < 3; i++) {
                     Vec3 p = a.lerp(b, i / 3.0);
-                    mc.level.addParticle(ParticleTypes.FIREWORK, p.x, p.y, p.z,
+                    mc.level.addParticle(ParticleTypes.FIREWORK, true, p.x, p.y, p.z,
                             mc.level.random.nextGaussian() * 0.02, -0.05, mc.level.random.nextGaussian() * 0.02);
                 }
                 continue;
@@ -176,11 +176,11 @@ public final class FlagFireworks {
             var r = mc.level.random;
             float up = j.big ? 1.1F : 0.85F;
             for (int i = 0; i < (j.big ? 10 : 7); i++) {
-                mc.level.addParticle(ParticleTypes.FLAME, j.at.x + r.nextGaussian() * 0.18, j.at.y, j.at.z + r.nextGaussian() * 0.18,
+                mc.level.addParticle(ParticleTypes.FLAME, true, j.at.x + r.nextGaussian() * 0.18, j.at.y, j.at.z + r.nextGaussian() * 0.18,
                         r.nextGaussian() * 0.03, up * (0.7 + r.nextFloat() * 0.5), r.nextGaussian() * 0.03);
             }
-            if (age % 3 == 0) mc.level.addParticle(ParticleTypes.LAVA, j.at.x, j.at.y + 0.5, j.at.z, 0, 0.5, 0);
-            if (age > j.len - 4) mc.level.addParticle(ParticleTypes.LARGE_SMOKE, j.at.x, j.at.y + 7, j.at.z, 0, 0.1, 0);
+            if (age % 3 == 0) mc.level.addParticle(ParticleTypes.LAVA, true, j.at.x, j.at.y + 0.5, j.at.z, 0, 0.5, 0);
+            if (age > j.len - 4) mc.level.addParticle(ParticleTypes.LARGE_SMOKE, true, j.at.x, j.at.y + 7, j.at.z, 0, 0.1, 0);
         }
     }
 

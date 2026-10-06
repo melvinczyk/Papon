@@ -39,9 +39,23 @@ import org.joml.Vector3f;
  */
 public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public static final int RISE = 0, IDLE = 1, CHARGE = 2, LASER = 3, SLAM_L = 4, SLAM_R = 5, SINK = 6, SWIPE_L = 7, SWIPE_R = 8,
-            SLAM_BOTH = 9, ROAR = 10;
-    /** Ticks a rise and a sink take; a slam: the hand up, then down onto its mark at {@link #SLAM_HIT}, held, back. */
-    public static final int RISE_T = 56, SINK_T = 44, SLAM_HIT = 21, SLAM_T = 40;
+            SLAM_BOTH = 9, ROAR = 10, GRAB = 11;
+    /**
+     * Ticks a rise and a sink take; a slam: the hand up, then down onto its mark at {@link #SLAM_HIT}, held, back.
+     * The rise (2026-10-05, the user: "he should dig his way out of the ground instead of simply appearing... the arena ground
+     * should react... take enough time to establish his enormous scale"): the floor cracks and heaves first (to
+     * {@link #DIG_HANDS}), a hand bursts up through it and slams down flat, then the other ({@link #DIG_HAND_T} later each), and it
+     * hauls itself up out of the floor on them in two heaves (from {@link #DIG_HEAVE}), the skull breaking the surface first.
+     */
+    public static final int RISE_T = 124, SINK_T = 44, SLAM_HIT = 21, SLAM_T = 40;
+    public static final int DIG_HANDS = 34, DIG_HAND_T = 14, DIG_HEAVE = 70;
+    /**
+     * La Mano (GRAB): it rears up, its hand drawn back over its head (to GRAB_LOCK); wades through the floor toward you, the
+     * ground tearing up ahead of it, bending its whole body over the arena (to GRAB_WADE); its hand comes down on your spot
+     * (GRAB_CLOSE): whoever is under it is caught, lifted up to its face (GRAB_LIFT), crushed, and hurled (GRAB_THROW).
+     * Missed, the hand stays pressed into the floor a moment and goes back. Its end: GRAB_T_HELD or GRAB_T_MISS.
+     */
+    public static final int GRAB_LOCK = 22, GRAB_WADE = 54, GRAB_CLOSE = 66, GRAB_LIFT = 88, GRAB_THROW = 116, GRAB_T_HELD = 140, GRAB_T_MISS = 104;
     /** Both hands: up over its head to {@link #SLAM2_UP}, held, down onto their marks at {@link #SLAM2_HIT}, back by SLAM2_T. */
     public static final int SLAM2_UP = 16, SLAM2_HIT = 30, SLAM2_T = 56;
     /** A roar: thrown back, arms wide, then forward at you. */
@@ -73,8 +87,15 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     private static final EntityDataAccessor<Float> DATA_FACING = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.FLOAT);
     /** How wild it is (phase four's stage: 1..3): it breathes faster, its eyes burn hotter. */
     private static final EntityDataAccessor<Integer> DATA_FURY = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
+    /** La Mano: where it wades to, the way it turns to face, which hand reaches, and whom it holds (-1 nobody). */
+    private static final EntityDataAccessor<Vector3f> DATA_GRAB_TO = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<Float> DATA_GRAB_YAW = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Integer> DATA_GRAB_HAND = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_HELD = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> DATA_CAUGHT = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.BOOLEAN);
+    private boolean releasing;
     private int ownerId = -1;
-    private int life = 500;
+    private int life = 720;
     /** Client: the skull's turn toward what it looks at, eased (yaw, pitch; radians). */
     private float lookYaw, lookPitch, lookYawO, lookPitchO;
 
@@ -110,6 +131,11 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         entityData.define(DATA_BASE, new Vector3f());
         entityData.define(DATA_FACING, 0F);
         entityData.define(DATA_FURY, 1);
+        entityData.define(DATA_GRAB_TO, new Vector3f());
+        entityData.define(DATA_GRAB_YAW, 0F);
+        entityData.define(DATA_GRAB_HAND, 0);
+        entityData.define(DATA_HELD, -1);
+        entityData.define(DATA_CAUGHT, false);
     }
 
     public void act(int act) {
@@ -119,8 +145,13 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             Vec3 h = head(0);
             switch (act) {
                 case RISE -> {
-                    level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 6.0F, 0.4F);
-                    level.playSound(null, base().x, base().y, base().z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 4.0F, 0.4F);
+                    // the ground first: a rumble deep under the floor (the rest of the dig: tick)
+                    level.playSound(null, base().x, base().y, base().z, SoundEvents.WARDEN_DIG, SoundSource.HOSTILE, 6.0F, 0.35F);
+                    level.playSound(null, base().x, base().y, base().z, SoundEvents.AMBIENT_BASALT_DELTAS_MOOD.value(), SoundSource.HOSTILE, 5.0F, 0.5F);
+                }
+                case GRAB -> {
+                    level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.3F);
+                    level.playSound(null, h.x, h.y, h.z, SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 5.0F, 0.4F);
                 }
                 case CHARGE -> level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.HOSTILE, 6.0F, 0.5F);
                 case SLAM_L, SLAM_R, SWIPE_L, SWIPE_R, SLAM_BOTH -> level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 5.0F, 0.5F);
@@ -134,7 +165,11 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         }
     }
 
-    public void sink() { if (act() != SINK) act(SINK); }
+    public void sink() {
+        if (act() == SINK) return;
+        letGo();
+        act(SINK);
+    }
 
     /** Keeps it in the arena at least this many ticks longer. */
     public void keep(int ticks) { life = Math.max(life, ticks); }
@@ -171,31 +206,67 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         return d > (1L << 30) ? 0 : d + partial;
     }
 
-    /** How far up out of the floor it has come (0 under it, 1 risen). */
+    /** How far up out of the floor it has come (0 under it, 1 risen): dug out in two heaves on its planted hands. */
     public float risen(float partial) {
         float t = actTime(partial);
         return switch (act()) {
-            case RISE -> smooth(t / RISE_T);
+            case RISE -> 0.5F * smooth((t - DIG_HEAVE) / 26F) + 0.5F * smooth((t - DIG_HEAVE - 30) / (RISE_T - DIG_HEAVE - 30F));
             case SINK -> 1 - smooth(t / SINK_T);
             default -> 1;
         };
     }
 
-    /** How far below its risen place it is (blocks). */
-    public double sunk(float partial) { return (1 - risen(partial)) * 46; }
+    /** How far the floor has broken open round it as it digs (0 whole .. 1), for the cracks and the debris. */
+    public float dug(float partial) {
+        if (act() != RISE) return 1;
+        return smooth(actTime(partial) / (DIG_HANDS + 8F));
+    }
+
+    /** How far below its risen place it is (blocks); ploughing through the floor it rides a little lower. */
+    public double sunk(float partial) {
+        double s = (1 - risen(partial)) * 46;
+        if (act() == GRAB) {
+            float t = actTime(partial);
+            s += 3.0 * Math.sin(Math.PI * Mth.clamp((t - GRAB_LOCK) / (GRAB_WADE - GRAB_LOCK), 0, 1));
+        }
+        return s;
+    }
 
     private static float smooth(float k) {
         k = Mth.clamp(k, 0, 1);
         return k * k * (3 - 2 * k);
     }
 
-    /** Where it stands: on the floor, at the end it rose at. */
-    public Vec3 base() {
+    /** Where it stands: on the floor, at the end it rose at; wading toward you through the floor in La Mano. */
+    public Vec3 base() { return base(0); }
+
+    public Vec3 base(float partial) {
         Vector3f b = entityData.get(DATA_BASE);
-        return b.lengthSquared() == 0 ? position() : new Vec3(b);
+        Vec3 at = b.lengthSquared() == 0 ? position() : new Vec3(b);
+        if (act() != GRAB) return at;
+        Vector3f to = entityData.get(DATA_GRAB_TO);
+        if (to.lengthSquared() == 0) return at;
+        return at.lerp(new Vec3(to), wade(actTime(partial)));
     }
 
-    public Vec3 forward() { return Vec3.directionFromRotation(0, entityData.get(DATA_FACING)); }
+    /** How far along its wade it is (0 .. 1). */
+    private static double wade(float t) { return smooth((t - GRAB_LOCK) / (GRAB_WADE - GRAB_LOCK)); }
+
+    public float facing(float partial) {
+        float yaw = entityData.get(DATA_FACING);
+        if (act() != GRAB) return yaw;
+        float k = smooth(actTime(partial) / 18F);
+        return yaw + Mth.wrapDegrees(entityData.get(DATA_GRAB_YAW) - yaw) * k;
+    }
+
+    public Vec3 forward() { return forward(0); }
+
+    public Vec3 forward(float partial) { return Vec3.directionFromRotation(0, facing(partial)); }
+
+    public Vec3 right(float partial) {
+        Vec3 f = forward(partial);
+        return new Vec3(-f.z, 0, f.x);
+    }
 
     public Vec3 right() {
         Vec3 f = forward();
@@ -212,15 +283,102 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                     : 3.8 * (1 - smooth((t - SLAM2_HIT - 8) / 16F));
             case SLAM_L, SLAM_R -> t < 9 ? -0.8 * smooth(t / 9F) : t < SLAM_HIT ? 2.6 * smooth((t - 9) / (SLAM_HIT - 9F)) : 2.6 * (1 - smooth((t - 28) / 12F));
             case ROAR -> t < 14 ? -3.2 * smooth(t / 14F) : t < 36 ? -3.2 + 6.4 * smooth((t - 14) / 10F) : 3.2 * (1 - smooth((t - 36) / 14F));
+            case RISE -> t < DIG_HEAVE ? 3.0 : 3.0 * (1 - smooth((t - DIG_HEAVE - 30) / 30F));       // hunched over its hands as it hauls
+            case GRAB -> grabLean(t);
             default -> 0;
         };
     }
+
+    /** La Mano: reared back, then bent right over the arena after you, straightening as it lifts you (or slowly, missed). */
+    private double grabLean(float t) {
+        if (t < GRAB_LOCK) return -2.2 * smooth(t / GRAB_LOCK);
+        if (t < GRAB_WADE) return -2.2 + 9.2 * smooth((t - GRAB_LOCK) / (GRAB_WADE - GRAB_LOCK));
+        if (t < GRAB_CLOSE) return 7 + 8 * smooth((t - GRAB_WADE) / (GRAB_CLOSE - GRAB_WADE));
+        if (caught()) {
+            if (t < GRAB_LIFT) return 15 - 11 * smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE));
+            if (t < GRAB_THROW) return 4;
+            return 4 * (1 - smooth((t - GRAB_THROW) / 20F));
+        }
+        if (t < GRAB_CLOSE + 12) return 15;
+        return 15 * (1 - smooth((t - GRAB_CLOSE - 12) / (GRAB_T_MISS - GRAB_CLOSE - 12F)));
+    }
+
+    /** La Mano's reaching hand (0 its left, 1 its right). */
+    public int grabHand() { return entityData.get(DATA_GRAB_HAND); }
+
+    /** Whom it holds in its fist (an entity id), or -1. */
+    public int held() { return entityData.get(DATA_HELD); }
+
+    /** This La Mano caught someone (the hand lifts and throws, rather than pressing the floor and going back). */
+    public boolean caught() { return entityData.get(DATA_CAUGHT); }
+
+    /**
+     * La Mano: it wades to {@code to} (turned to face {@code faceTo}) and its hand {@code hand} comes down on {@code mark}
+     * (set by the caller once it has picked where you will be).
+     */
+    public void grab(Vec3 to, Vec3 faceTo, int hand) {
+        Vec3 from = base();
+        entityData.set(DATA_GRAB_TO, to.toVector3f());
+        entityData.set(DATA_GRAB_YAW, (float) (Mth.atan2(faceTo.z - to.z, faceTo.x - to.x) * Mth.RAD_TO_DEG) - 90F);
+        entityData.set(DATA_GRAB_HAND, hand);
+        entityData.set(DATA_HELD, -1);
+        entityData.set(DATA_CAUGHT, false);
+        handTarget(hand, faceTo);
+        act(GRAB);
+        if (from.distanceToSqr(to) < 1e-4) entityData.set(DATA_GRAB_TO, new Vector3f());
+    }
+
+    /** It has {@code e} in its fist (riding it, held where its hand is: {@link #positionRider}). */
+    public void hold(net.minecraft.world.entity.Entity e) {
+        e.stopRiding();
+        e.startRiding(this, true);
+        entityData.set(DATA_HELD, e.getId());
+        entityData.set(DATA_CAUGHT, true);
+    }
+
+    /** Lets go of whoever it holds. */
+    public void letGo() {
+        int id = held();
+        entityData.set(DATA_HELD, -1);
+        net.minecraft.world.entity.Entity e = id >= 0 ? level().getEntity(id) : null;
+        if (e != null && e.getVehicle() == this) {
+            releasing = true;
+            e.stopRiding();
+            releasing = false;
+        }
+    }
+
+    /** Whether it holds {@code e} and is not letting go (no climbing down out of its fist). */
+    public boolean holds(net.minecraft.world.entity.Entity e) { return !releasing && held() == e.getId(); }
+
+    /** At the end of La Mano: it stays where it waded to, facing where it reached. */
+    private void settleGrab() {
+        Vector3f to = entityData.get(DATA_GRAB_TO);
+        if (to.lengthSquared() > 0) entityData.set(DATA_BASE, new Vector3f(to));
+        entityData.set(DATA_FACING, entityData.get(DATA_GRAB_YAW));
+        entityData.set(DATA_GRAB_TO, new Vector3f());
+    }
+
+    @Override
+    protected void positionRider(net.minecraft.world.entity.Entity passenger, MoveFunction move) {
+        if (passenger.getId() == held()) {
+            Vec3 h = hand(grabHand(), 0);
+            // hanging out of the bottom of its fist (your eyes clear of its knuckles: you see its face)
+            move.accept(passenger, h.x, h.y - 2.6, h.z);
+            passenger.fallDistance = 0;
+            return;
+        }
+        super.positionRider(passenger, move);
+    }
+
+    @Override
+    public boolean shouldRiderSit() { return false; }
 
     /** The skull's centre (world), bobbing as it breathes, leaning with what it does. */
     public Vec3 head(float partial) {
         double breath = fury() >= 3 ? 0.11 : fury() == 2 ? 0.08 : 0.05;
         double bob = Math.sin((tickCount + partial) * breath) * 0.5;
-        return base().add(forward().scale(HEAD_FWD + lean(partial))).add(0, HEAD_Y - sunk(partial) + bob - Math.abs(lean(partial)) * 0.25, 0);
+        return base(partial).add(forward(partial).scale(HEAD_FWD + lean(partial))).add(0, HEAD_Y - sunk(partial) + bob - Math.abs(lean(partial)) * 0.25, 0);
     }
 
     /** The skull's turn toward what it looks at (radians from straight ahead, toward its right positive; and up). */
@@ -239,7 +397,9 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             case LASER -> 0.05F + 0.02F * Mth.sin(t * 2.1F);
             case SLAM_BOTH -> t < SLAM2_UP ? 0.3F * smooth(t / SLAM2_UP) : t < SLAM2_HIT ? 0.3F - 0.6F * smooth((t - SLAM2_UP) / (SLAM2_HIT - SLAM2_UP))
                     : -0.3F * (1 - smooth((t - SLAM2_HIT - 6) / 16F));
-            case RISE -> 0.35F * (1 - smooth(t / RISE_T));
+            case RISE -> 0.35F * (1 - smooth((t - DIG_HEAVE) / (RISE_T - DIG_HEAVE)));
+            case GRAB -> t < GRAB_LOCK ? 0.3F * smooth(t / GRAB_LOCK) : t < GRAB_CLOSE ? 0.3F - 0.75F * smooth((t - GRAB_LOCK) / (GRAB_CLOSE - GRAB_LOCK))
+                    : caught() ? -0.45F + 0.45F * smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE)) : -0.45F * (1 - smooth((t - GRAB_CLOSE - 12) / 26F));
             default -> 0;
         };
     }
@@ -261,7 +421,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         // pitch about the skull's right axis, then yaw about up
         double y1 = y * cp + z * sp, z1 = -y * sp + z * cp;
         double x2 = x * cy + z1 * sy, z2 = -x * sy + z1 * cy;
-        Vec3 f = forward(), r = right();
+        Vec3 f = forward(partial), r = right(partial);
         return head(partial).add(r.scale(x2 * V)).add(0, y1 * V, 0).add(f.scale(z2 * V));
     }
 
@@ -271,12 +431,17 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     /** Shoulder {@code i} (0 its left, 1 its right). */
     public Vec3 shoulder(int i, float partial) {
         double l = lean(partial) * 0.55;
-        return base().add(right().scale((i == 0 ? 1 : -1) * SHOULDER_OUT)).add(forward().scale(0.6 + l)).add(0, SHOULDER_Y - sunk(partial) - Math.abs(l) * 0.2, 0);
+        // bent right over (La Mano) the shoulders come down with the chest
+        double down = act() == GRAB ? Math.max(0, lean(partial)) * 0.55 : 0;
+        return base(partial).add(right(partial).scale((i == 0 ? 1 : -1) * SHOULDER_OUT)).add(forward(partial).scale(0.6 + l))
+                .add(0, SHOULDER_Y - sunk(partial) - Math.abs(l) * 0.2 - down, 0);
     }
 
     /** A hand's place at rest: down on the floor in front of it, a little out. */
-    public Vec3 handRest(int i) {
-        return base().add(forward().scale(12)).add(right().scale((i == 0 ? 1 : -1) * 12)).add(0, 1.2, 0);
+    public Vec3 handRest(int i) { return handRest(i, 0); }
+
+    public Vec3 handRest(int i, float partial) {
+        return base(partial).add(forward(partial).scale(12)).add(right(partial).scale((i == 0 ? 1 : -1) * 12)).add(0, 1.2, 0);
     }
 
     /** Where hand {@code i} is aimed (its slam's mark on the floor). */
@@ -296,17 +461,49 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
 
     /** Where hand {@code i} is now: at rest; in a slam up, over and down onto its mark; in a swipe drawn back, swept, back. */
     public Vec3 hand(int i, float partial) {
-        Vec3 rest = handRest(i).add(0, -sunk(partial), 0);
+        Vec3 rest = handRest(i, partial).add(0, -sunk(partial), 0);
         int a = act();
         float t = actTime(partial);
         if (a == RISE) {
-            // the hands come first, clawing up out of the floor, then pull the rest of it after them
-            float k = smooth(t / (RISE_T * 0.55F));
-            return handRest(i).add(0, -18 * (1 - k), 0).add(0, Math.sin(t * 0.6 + i) * 0.4 * (1 - k), 0);
+            // its hands first: each bursts up through the floor, high, claws open, and slams down flat on it; then it hauls the
+            // rest of itself up on them
+            Vec3 flat = handRest(i, partial);
+            float at = DIG_HANDS + i * DIG_HAND_T;
+            if (t < at) return flat.add(0, -16, 0);
+            Vec3 burst = flat.add(forward(partial).scale(-2)).add(0, 11 + i, 0);
+            if (t < at + 8) return flat.add(0, -16, 0).lerp(burst, smooth((t - at) / 8F));
+            if (t < at + 13) return burst.add(0, Math.sin(t * 1.7 + i) * 0.4, 0);
+            if (t < at + 18) {
+                float k = (t - at - 13) / 5F;
+                return burst.lerp(flat, k * k);
+            }
+            // pressing down as it heaves: a little give in the arms at each pull
+            return flat.add(0, -0.4 * Math.abs(Math.sin(Math.PI * Mth.clamp((t - DIG_HEAVE) / 30F, 0, 2))), 0);
+        }
+        if (a == GRAB && i == grabHand()) {
+            Vec3 mark = handMark(i).add(0, 0.8, 0);
+            Vec3 high = shoulder(i, partial).add(forward(partial).scale(-3)).add(right(partial).scale((i == 0 ? 1 : -1) * 3)).add(0, 11, 0);
+            if (t < GRAB_LOCK) return rest.lerp(high, smooth(t / GRAB_LOCK));
+            if (t < GRAB_WADE) return high.add(0, Math.sin(t * 0.5) * 0.4, 0);
+            if (t < GRAB_CLOSE) {
+                float k = (t - GRAB_WADE) / (GRAB_CLOSE - GRAB_WADE);
+                return high.lerp(mark, k * k).add(0, Math.sin(Math.PI * k) * 5, 0);
+            }
+            if (!caught()) {
+                if (t < GRAB_CLOSE + 12) return mark;
+                return mark.lerp(rest, smooth((t - GRAB_CLOSE - 12) / (GRAB_T_MISS - GRAB_CLOSE - 12F)));
+            }
+            // up to its face, shaking you, then flung out to the side
+            Vec3 face = head(partial).add(forward(partial).scale(8.5)).add(0, -3.5, 0);
+            if (t < GRAB_LIFT) return mark.lerp(face, smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE)));
+            if (t < GRAB_THROW) return face.add(right(partial).scale(Math.sin(t * 1.9) * 0.35)).add(0, Math.sin(t * 2.3) * 0.3, 0);
+            Vec3 fling = face.add(right(partial).scale((i == 0 ? 1 : -1) * 13)).add(forward(partial).scale(4)).add(0, 3, 0);
+            if (t < GRAB_THROW + 6) return face.lerp(fling, smooth((t - GRAB_THROW) / 6F));
+            return fling.lerp(rest, smooth((t - GRAB_THROW - 6) / (GRAB_T_HELD - GRAB_THROW - 6F)));
         }
         if ((a == SWIPE_L && i == 0) || (a == SWIPE_R && i == 1)) {
             double r = swipeRadius();
-            Vec3 f = forward(), rt = right(), b = base();
+            Vec3 f = forward(partial), rt = right(partial), b = base(partial);
             double ang = swipeAngle(i, t);
             Vec3 sweep = b.add(f.scale(Math.cos(ang) * r)).add(rt.scale(-Math.sin(ang) * r)).add(0, 1.6, 0);
             Vec3 back = b.add(f.scale(Math.cos(ang) * r * 0.55)).add(rt.scale(-Math.sin(ang) * r * 0.55)).add(0, 13, 0);
@@ -317,7 +514,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         }
         if (a == SLAM_BOTH) {
             Vec3 mark = handMark(i).add(0, 0.9, 0);
-            Vec3 high = head(partial).add(right().scale((i == 0 ? 1 : -1) * 5.5)).add(forward().scale(-1)).add(0, 9, 0);
+            Vec3 high = head(partial).add(right(partial).scale((i == 0 ? 1 : -1) * 5.5)).add(forward(partial).scale(-1)).add(0, 9, 0);
             if (t < SLAM2_UP) return rest.lerp(high, smooth(t / SLAM2_UP));
             if (t < SLAM2_HIT - 6) return high.add(0, Math.sin(t * 0.9) * 0.3, 0);
             if (t < SLAM2_HIT) {
@@ -329,7 +526,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         }
         if (a == ROAR) {
             // arms flung wide and up, then down on the floor either side as it bellows forward
-            Vec3 wide = shoulder(i, partial).add(right().scale((i == 0 ? 1 : -1) * 14)).add(forward().scale(3)).add(0, 8, 0);
+            Vec3 wide = shoulder(i, partial).add(right(partial).scale((i == 0 ? 1 : -1) * 14)).add(forward(partial).scale(3)).add(0, 8, 0);
             if (t < 14) return rest.lerp(wide, smooth(t / 14F));
             if (t < 30) return wide.add(0, Math.sin(t * 1.3) * 0.5, 0);
             return wide.lerp(rest, smooth((t - 30) / 16F));
@@ -360,14 +557,14 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             lookPitch += (want[1] - lookPitch) * k;
             if (random.nextInt(2) == 0) {
                 Vec3 h = head(0);
-                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, h.x + (random.nextDouble() - 0.5) * 12,
+                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, true, h.x + (random.nextDouble() - 0.5) * 12,
                         h.y + (random.nextDouble() - 0.5) * 12, h.z + (random.nextDouble() - 0.5) * 12, 0, 0.05, 0);
             }
             // where it comes up through the floor: wisps of the dead
             if (risen(0) > 0.05F && random.nextInt(3) == 0) {
                 Vec3 b = base();
                 double a = random.nextDouble() * Math.PI * 2;
-                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL, b.x + Math.cos(a) * 7.5, b.y + 0.3, b.z + Math.sin(a) * 5.5,
+                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL, true, b.x + Math.cos(a) * 7.5, b.y + 0.3, b.z + Math.sin(a) * 5.5,
                         0, 0.06 + random.nextDouble() * 0.05, 0);
             }
             return;
@@ -379,10 +576,21 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             return;
         }
         float t = actTime(0);
-        if (act() == RISE && t < RISE_T && tickCount % 4 == 0) {
-            // tearing up out of the floor
-            Fx.chunks(level, base().add(0, 1, 0), 12, 0.6F, 0x2C2438, 1.0);
-            PaponNetwork.shake(level, base(), 90, 0.5F, 6);
+        if (act() == RISE && t < RISE_T) dig(level, (int) t);
+        if (act() == GRAB) {
+            if (t >= GRAB_LOCK && t < GRAB_WADE && tickCount % 2 == 0) plough(level);
+            if ((int) t == GRAB_CLOSE) {
+                Vec3 at = handMark(grabHand());
+                Fx.chunks(level, at.add(0, 0.5, 0), 22, 0.7F, 0x2C2438, 1.0);
+                Fx.shock(level, at, 7F, 0x7CF0FF);
+                PaponNetwork.shake(level, at, 80, 0.9F, 18);
+                level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 5.0F, 0.45F);
+            }
+            if (t >= (caught() ? GRAB_T_HELD : GRAB_T_MISS)) {
+                letGo();
+                settleGrab();
+                act(IDLE);
+            }
         }
         if ((act() == SLAM_L || act() == SLAM_R) && (int) t == SLAM_HIT) {
             Vec3 at = handMark(act() == SLAM_L ? 0 : 1);
@@ -410,8 +618,90 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             if ((int) t == SWIPE_FROM) level.playSound(null, base().x, base().y + 4, base().z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.HOSTILE, 6.0F, 0.3F);
             if (t >= SWIPE_T) act(IDLE);
         }
-        if (act() == RISE && t >= RISE_T) act(IDLE);
+        if (act() == RISE && t >= RISE_T) {
+            Vec3 b = base();
+            level.playSound(null, b.x, b.y + 20, b.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.35F);
+            act(IDLE);
+        }
         if (act() == SINK && t >= SINK_T) discard();
+    }
+
+    /**
+     * The dig: the floor heaving and cracking over it (shakes building), dirt and slabs of the floor itself thrown up as its
+     * hands burst through and as its skull and shoulders break the surface, dust pouring off it as it hauls itself out.
+     */
+    private void dig(ServerLevel level, int t) {
+        Vec3 b = base();
+        double floor = b.y;
+        if (t < DIG_HANDS && t % 3 == 0) {
+            float k = t / (float) DIG_HANDS;
+            PaponNetwork.shake(level, b, 110, 0.2F + 0.5F * k, 5);
+            Fx.dust(level, b.add((random.nextDouble() - 0.5) * 14 * k, 0.2, (random.nextDouble() - 0.5) * 10 * k), 2.5, 4);
+            if (t % 9 == 0) level.playSound(null, b.x, floor, b.z, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 4.0F, 0.4F + k * 0.2F);
+        }
+        for (int i = 0; i < 2; i++) {
+            if (t != DIG_HANDS + i * DIG_HAND_T) continue;
+            // a hand bursts up through the floor
+            Vec3 at = handRest(i);
+            debris(level, new Vec3(at.x, floor, at.z), 7, 0.55);
+            Fx.chunks(level, new Vec3(at.x, floor + 0.5, at.z), 26, 0.7F, 0x3A3046, 1.2);
+            Fx.dust(level, new Vec3(at.x, floor, at.z), 3.5, 18);
+            PaponNetwork.shake(level, at, 110, 0.9F, 14);
+            level.playSound(null, at.x, floor, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 5.0F, 0.5F);
+            level.playSound(null, at.x, floor, at.z, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 6.0F, 0.5F);
+        }
+        for (int i = 0; i < 2; i++) {
+            if (t != DIG_HANDS + i * DIG_HAND_T + 17) continue;
+            // and slams down flat on it
+            Vec3 at = handRest(i);
+            Fx.shock(level, new Vec3(at.x, floor, at.z), 6F, 0x7CF0FF);
+            PaponNetwork.shake(level, at, 90, 0.7F, 10);
+            level.playSound(null, at.x, floor, at.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 4.0F, 0.3F);
+        }
+        if (t == DIG_HEAVE || t == DIG_HEAVE + 30) {
+            // each heave: the floor round its waist bursts open
+            debris(level, new Vec3(b.x, floor, b.z), t == DIG_HEAVE ? 12 : 8, 0.75);
+            Fx.chunks(level, b.add(0, 1, 0), 40, 0.9F, 0x3A3046, 1.4);
+            PaponNetwork.shake(level, b, 130, 1.1F, 22);
+            level.playSound(null, b.x, floor, b.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 6.0F, 0.35F);
+            level.playSound(null, b.x, floor, b.z, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 8.0F, 0.4F);
+        }
+        if (t > DIG_HEAVE && t % 3 == 0) {
+            // dirt pouring off its skull and shoulders as they come up
+            Vec3 h = head(0);
+            Fx.fall(level, h.add((random.nextDouble() - 0.5) * 9, 4, (random.nextDouble() - 0.5) * 9), 3, 1.5, 0.35F, 0x4A3E36);
+            Fx.dust(level, b.add((random.nextDouble() - 0.5) * 16, 0.3, (random.nextDouble() - 0.5) * 12), 3.0, 6);
+        }
+    }
+
+    /** Wading through the floor toward you: the ground torn up and thrown aside ahead of it. */
+    private void plough(ServerLevel level) {
+        Vec3 b = base();
+        Vec3 front = b.add(forward().scale(6));
+        Fx.chunks(level, front.add(0, 0.6, 0), 10, 0.7F, 0x3A3046, 1.0);
+        Fx.dust(level, front, 3.5, 6);
+        if (tickCount % 4 == 0) debris(level, front, 3, 0.5);
+        Fx.scorch(level, b.add(right().scale((random.nextDouble() - 0.5) * 9)), 3.5F, 400);
+        if (tickCount % 6 == 0) {
+            PaponNetwork.shake(level, b, 100, 0.5F, 8);
+            level.playSound(null, b.x, b.y, b.z, SoundEvents.ROOTED_DIRT_BREAK, SoundSource.HOSTILE, 5.0F, 0.4F);
+            level.playSound(null, b.x, b.y, b.z, SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 4.0F, 0.5F);
+        }
+    }
+
+    /** Slabs of the floor itself, torn up and thrown out round {@code at}, tumbling, shattering where they land. */
+    private void debris(ServerLevel level, Vec3 at, int n, double speed) {
+        if (!(level.getEntity(ownerId) instanceof PaponBossEntity boss)) return;
+        net.minecraft.core.BlockPos below = net.minecraft.core.BlockPos.containing(at.x, at.y - 0.5, at.z);
+        net.minecraft.world.level.block.state.BlockState floor = level.getBlockState(below);
+        if (floor.isAir()) floor = com.groid.papon.registry.ModBlocks.MUERTOS_STONE.get().defaultBlockState();
+        for (int i = 0; i < n; i++) {
+            double a = random.nextDouble() * Math.PI * 2;
+            Vec3 v = new Vec3(Math.cos(a) * speed * (0.4 + random.nextDouble()), 0.55 + random.nextDouble() * 0.6, Math.sin(a) * speed * (0.4 + random.nextDouble()));
+            BossProp p = BossProp.create(level, BossProp.Kind.DEBRIS, boss, at.add(Math.cos(a) * 2, 0.5, Math.sin(a) * 2)).debris(floor, at.y,
+                    0.9F + random.nextFloat() * 1.3F).velocity(v).life(80);
+            level.addFreshEntity(p);
+        }
     }
 
     @Override

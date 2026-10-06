@@ -162,7 +162,7 @@ public enum BossState {
     P2_WAKE(70),
     P2_WAIT(0),
     P2_KICK(30),
-    P2_COUNT(80),
+    P2_COUNT(112),
     P2_SHOWTIME(70),
     P2_APOLOGY(178),
     P2_RESUME(0),
@@ -311,11 +311,11 @@ public enum BossState {
     /** El Martillo: blinks in beside you, two swings of the spirit hammer, up and down: rings and blue lightning. */
     P4_MARTILLO(64),
     /** El Gigante: he plays; a giant hologram skeleton rises out from under the arena: its mouth's laser, its hands. */
-    P4_GIGANTE(230),
+    P4_GIGANTE(480),
     /** La Grieta de las Almas: he slams the floor and tears it open with his hands; the souls in it pull you in. */
     P4_GRIETA(200),
     /** Lluvia de Cempasuchil: spinning over the middle, spirals of marigold petals out across the floor. */
-    P4_PETALOS(170),
+    P4_PETALOS(215),
     /** Papel Picado: giant banners of cut paper sweep the floor, low (jump) and high (duck), from both ends. */
     P4_PAPEL(170),
     /** Las Velas de Animas: the ectoplasm in the cracks erupts in blue fire, out from the skull and back. */
@@ -343,7 +343,7 @@ public enum BossState {
     P4_CEMPASUCHIL(250),
     /** El Castillo: a fiesta fireworks tower rises in the middle; its wheels light tier by tier and spin spirals of coloured
      *  sparks across the floor; its crown rains rockets; it bursts. */
-    P4_CASTILLO(260),
+    P4_CASTILLO(280),
     /** Salsa Caliente: he dances at you on the beat, every step leaving a footprint of fire, cross-body leads, spin kicks. */
     P4_SALSA(170),
     /** El Último Tango: the dance-off (QTE kind 7): call and response on the band's beat, the embrace, the dip. */
@@ -364,7 +364,16 @@ public enum BossState {
     P4_RAGE(80),
     /** El Juicio Final: the climax. Everything at once: the serpents wall the arena in and breathe, El Gigante's lasers and
      *  slams, his arrows and the moon, the floor erupting, and the last blast only the marigold circles survive. */
-    P4_JUICIO(500);
+    P4_JUICIO(500),
+    // ---- (2026-10-05, the revision pass; appended: the ordinal is synced)
+    /** El Tzompantli (replaces La Danza's ring of echoes, the user: "does not look good"): in the middle of the floor he slams
+     *  his fists down and the skull racks of the old gods burst up out of it: lines of sugar-skull posts racing out at you
+     *  across the whole arena, then rings of them spreading to the walls (find the gap). */
+    P4_TZOMPANTLI(236),
+    /** El Beso de la Muerte: the muchachas spin away and rise round the arena; they kiss their roses and throw them at you
+     *  (thorn thickets burst up where they fall); then all together a last kiss: thorn vines race to the middle, a great rose
+     *  blooms there and bursts in a ring of petals out to the walls (jump it). He dances salsa in the middle. */
+    P4_BESO(296);
 
     /** The hype's animation length (p2_hype 8.0 s): P2_RESUME hands over this long before the singing. */
     public static final int P2_HYPE_LENGTH = 160;

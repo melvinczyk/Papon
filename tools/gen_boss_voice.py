@@ -135,7 +135,24 @@ DIRECTION = {
                         'through to its end like a man in the moment, not a scream.' % STAR),
     'intense': ('animated', NATURAL + 'You are %s, deadly serious and burning with intensity: low and hard, then rising, '
                             'every word meant, a challenge thrown down.' % STAR),
+    # (2026-10-05, the user: "I will not make his mistake" was not working: "more serious, more controlled, more matter-of-fact,
+    # more confident and deliberate, better articulated... a cold, decisive statement from a character who has made up his mind";
+    # no NATURAL here: its pitch swings were the theatrics)
+    'resolute': ('animated', 'You are %s, and you have made up your mind. Cold, controlled and matter-of-fact: low, level and steady, '
+                             'unhurried, every word deliberate and given the same quiet weight, a decision already taken and simply '
+                             'stated. No theatrics, no rising drama, no shouting, no anger in the voice: certainty.' % STAR),
 }
+
+# (2026-10-05, the user: "some lines currently sound jumbled or poorly articulated... clear pronunciation, clean separation
+# between words, natural pacing, strong diction, no mumbling, no words running together; preserve his personality") Lines
+# Whisper misheard or was unsure of in the built set (tools/voice_clarity.py: "scar" heard "car", "beat" heard "be", "Kneel"
+# heard "Neil", "ME" heard "Emi", the serpents' names dropped...), retaken with CLARITY added to their direction, a cooler
+# sampling, and picked for the words first and Whisper's certainty of each next (pick).
+CLARITY = (' Above all, say every word clearly and completely: crisp consonants, each word separate and distinct, never mumbled, '
+           'never swallowed, never two words run together; a natural, unrushed pace.')
+CLEAR_GEN = {'temperature': 0.8}
+CLEAR = {'p4_mistake', 'p4_howgot', 'p4_warrior', 'p3_new', 'p3_charm6', 'charm8', 'ranged0', 'vendor_fraud', 'vendor_inspect', 'lowhp0',
+         'charm0', 'p4_aliento', 'p4_serpientes', 'p3_laser', 'kill1', 'p4_tzompantli', 'p4_beso', 'p4_mano'}
 # the directions every line was taken with before the rework: lines not in FRESH keep them (so they are not taken again)
 OLD_DIRECTION = {
     "shout": (
@@ -414,7 +431,7 @@ LINES = {
     # the throne: Moctezuma, who gave his away
     'p4_moctezuma': ("I have seen this before, you know. When the iron men came across the sea, my old friend Moctezuma looked at their captain and saw a god. The Feathered Serpent, come home at last.", 'sad'),
     'p4_gates':  ("So he opened his gates. He gave them his gold, his city, his throne... and they took everything.", 'sad'),
-    'p4_mistake': ("I will not make his mistake. I will not give you my throne. If you are the one the prophecy speaks of, then you will have to take it from me.", 'intense'),
+    'p4_mistake': ("I will not make his mistake. I will not give you my throne. If you are the one the prophecy speaks of, then you will have to take it from me.", 'resolute'),
     'p4_prophecy': ("After all this time... the prophecy might finally be fulfilled.", 'awe'),
     'p4_lunaknows': ("Ha... la luna knows it too.", 'warm'),
     # the souls
@@ -496,6 +513,10 @@ LINES = {
     'p4_chaos0': ("I can't hold them back anymore! The dead want you, amigo!", 'cry'),
     'p4_chaos1': ("Burn! All of it, BURN!", 'scream'),
     'p4_crush':  ("Crush them, Gigante!", 'cry'),
+    # (2026-10-05) the revision pass's new moves: El Tzompantli, El Beso de la Muerte, La Mano
+    'p4_tzompantli': ("Rise, skulls of the old gods! Show our guest the way down!", 'cry'),
+    'p4_beso':   ("Muchachas! Give our guest a kiss... a kiss of death.", 'sly'),
+    'p4_mano':   ("Gigante! Bring them to me!", 'cry'),
 }
 
 FRESH |= {k for k in LINES if k.startswith('p4_')}
@@ -505,6 +526,10 @@ SPOKEN = {
     'intro': "Nobody sees my bald head and livs to tell!",
     'upgrade': "It's about time I gave this thing an upgrade.",     # in capitals it came out "upi-grad"
     # the serpents' names as they sound (the bubble keeps the Nahuatl and Maya spellings)
+    # (2026-10-05) "this scar" came out "this car" in every take (the two s sounds run together): a breath between them
+    'p4_howgot': "Do you want to know how I got this... scar?",
+    'vendor_fraud': "A FAKE coupon?! FRAWD!!! NOBODY steals MY tacos!",
+    'lowhp0': "Ay, you look TIIRED, amigo.",
     'p4_bow': "Ketsalcoatl! Kookoolkahn! Come down, and meet the one who wants my throne!",
     'p4_serpientes': "Ketsalcoatl, Kookoolkahn... feast!",
     'p4_aliento': "Ketsalcoatl, Kookoolkahn... let them taste the fire of the old gods!",
@@ -545,6 +570,11 @@ def meta_path():
 def signature(line):
     """What a line's takes were made from: if any of it changes, the line is taken again."""
     text, mood = LINES[line]
+    if line in CLEAR:
+        ref, direction = DIRECTION[mood]
+        if line.startswith('p4_'):
+            ref = 'animated'
+        return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction + CLARITY, 'gen': CLEAR_GEN}
     if line not in FRESH:
         ref, direction = OLD_DIRECTION[mood]
         return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction}
@@ -615,7 +645,8 @@ def generate(lines, more=False):
                 for k, t in enumerate(takes, start=have[line]):
                     with open(take_path(line, k), 'wb') as f:
                         f.write(t['wav'])
-                    meta[line]['takes'].append({'heard': t['heard'], 'seconds': t['seconds'], 'sim': t.get('sim')})
+                    meta[line]['takes'].append({'heard': t['heard'], 'seconds': t['seconds'], 'sim': t.get('sim'), 'conf': t.get('conf'),
+                                                'minconf': t.get('minconf')})
                 json.dump(meta, open(meta_path(), 'w'), indent=1)
     return meta
 
@@ -754,12 +785,18 @@ def pick(line, info):
         # a line written to be shouted: a take Whisper heard as flat (no "!") only if no take was exclaimed
         flat = loud and excl == 0 and line not in NO_CHECK
         off = (t.get('sim') or 1) < gate                 # not his voice: only if every take is
+        if line in CLEAR:
+            # diction first: every word heard right, then how sure Whisper is of them (its least sure word counts too), then
+            # the delivery
+            conf = (t.get('conf') or 0) * 0.6 + (t.get('minconf') or 0) * 0.4
+            cands.append((off, t['clipped'], round(min(err, 0.5) * 20) / 20, round(-conf * 25) / 25, flat, -score, k))
+            continue
         cands.append((off, t['clipped'], round(min(err, 0.5) * 4) / 4, flat, -score, k))
     if not cands:
         return None, None
     # not cut off first, then said right (to a quarter of the words), then exclaimed if it should be, then the liveliest
     best = min(cands)
-    return best[5], best[1:]
+    return best[-1], best[1:]
 
 
 def trim(y, sr, floor_db=-55, lead=0.05, tail=0.25):
@@ -1065,23 +1102,24 @@ def beats(lengths):
     b['p4.thud'] = b['p4.throw'] + 13
     b['p4.met'] = b['p4.thud'] + 26
     b['p4.ignis_end'] = b['p4.met'] + L('p4_met') + 34
-    # P4_PROPHECY: walking toward the middle, "Ten thousand years..."; the fog rolls in; he stops, looks up at his throne
-    # (p4.throne_look) and tells you why he sat on it; turns to you: the stone, the warrior
+    # P4_PROPHECY: walking toward the middle, "Ten thousand years..."; he stops, looks up at his throne (p4.throne_look) and
+    # tells you why he sat on it; turns to you: the stone, the warrior. In daylight (2026-10-05: the fog comes with the moon)
     b['p4.years'] = 10
     b['p4.throne_look'] = b['p4.years'] + L('p4_years') + 14
     b['p4.throne'] = b['p4.throne_look'] + 14
     b['p4.carved'] = b['p4.throne'] + L('p4_throne') + 30
-    b['p4.fog'] = b['p4.carved'] - 10                 # the fog rolls in once he has shown you the throne (it hid it)
     b['p4.warrior'] = b['p4.carved'] + L('p4_carved') + 16
     b['p4.prophecy_end'] = b['p4.warrior'] + L('p4_warrior') + 34
     # P4_THRONE: Moctezuma (head bowed, remembering), the gates thrown open; then up at you: "I will not make his mistake...";
-    # the clouds part on the moon (p4.moon); "After all this time... the prophecy might finally be fulfilled."; the smile up
-    # at it: "Ha... la luna knows it too."
+    # the moon in the day sky, dark (p4.moon); the mist rolls in and the light drains away while it is unlit; it lights
+    # (p4.moonlit) and night takes the arena; in its light "After all this time... the prophecy might finally be fulfilled.";
+    # the smile up at it: "Ha... la luna knows it too."
     b['p4.moctezuma'] = 18
     b['p4.gates'] = b['p4.moctezuma'] + L('p4_moctezuma') + 22
     b['p4.mistake'] = b['p4.gates'] + L('p4_gates') + 34
     b['p4.moon'] = b['p4.mistake'] + L('p4_mistake') + 26
-    b['p4.prophecy'] = b['p4.moon'] + 44
+    b['p4.moonlit'] = b['p4.moon'] + 120
+    b['p4.prophecy'] = b['p4.moonlit'] + 46
     b['p4.lunaknows'] = b['p4.prophecy'] + L('p4_prophecy') + 26
     b['p4.throne_end'] = b['p4.lunaknows'] + L('p4_lunaknows') + 34
     # P4_BRETHREN: the arms open to the stands; the two lines; the moon turns on the last word

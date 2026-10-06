@@ -6,9 +6,12 @@ Castilian male voiceover demo, tools/src/voice/singer_reference.mp3, gitignored)
   python tools/gen_singer_voice.py            pick a take, cut its four words and lay each on its beat, write
                                               sounds/voice/band/count.ogg, voice/singer.json (the mouth), sounds.json
 
-The four words land on the four beats before the band's downbeat: the count is BandState.COUNT (4.0 s) long, the
-downbeat falls at its end, the song's beat is ~0.47 s, so the words fall at 2.12, 2.59, 3.06 and 3.53 s into the
-count. The clip is played START s into it (MariachiEntity.tickBand, COUNT). Then run gen_band_anims.py: the
+The four words are counted at half time, one every two of the song's beats (~0.94 s), the last ending before the band's
+downbeat: the count is BandState.COUNT (5.6 s) long, the downbeat falls at its end, so the words fall at 1.84, 2.78, 3.72
+and 4.66 s into the count and "¡cuatro!" has the last two beats to ring out (2026-10-05, the user: the count was cut off at
+"tres": at 0.47 s apart "cua-tro" ran past the downbeat, where the singer's mouth goes over to the song, and "un" came out
+ten times quieter than the rest). Every word is brought to the same loudness, "cuatro" a little over. The clip is played
+START s into the count (MariachiEntity.tickBand, COUNT). Then run gen_band_anims.py: the
 singer's count animation takes its mouth and its fist pumps from voice/singer.json.
 
 Needs: pip install modal soundfile numpy librosa pyloudnorm; a Modal token (PAPON_MODAL_PROFILE or the active one).
@@ -29,10 +32,12 @@ REFERENCE = os.path.join(ROOT, 'tools/src/voice/singer_reference.mp3')
 SR = 24000
 TAKES = 12
 BEAT = 0.47                       # the song's beat at its start (cancion.json beats 0-8)
-DOWNBEAT = 4.0                    # BandState.COUNT
-START = 2.0                       # the clip starts this far into the count (MariachiEntity: t == 40)
+DOWNBEAT = 5.6                    # BandState.COUNT
+STEP = 2 * BEAT                   # a word every other beat: the count at half time, deliberate
+START = 1.7                       # the clip starts this far into the count (MariachiEntity: t == 34)
 WORDS = ['un', 'dos', 'tres', 'cuatro']
-BEATS = [DOWNBEAT - BEAT * (4 - i) for i in range(4)]
+BEATS = [round(DOWNBEAT - STEP * (4 - i), 3) for i in range(4)]
+RING = 0.12                       # "cuatro" is over this long before the downbeat
 LEAD = 0.035                      # a word's attack comes this much before its beat (the consonant before the vowel)
 
 # the wordings to take: the same count, phrased so the model punches each number
@@ -170,6 +175,12 @@ def words(y):
     return out
 
 
+def attack(seg, hop):
+    """Seconds into a word's segment where it first reaches a third of its loudest."""
+    env = envelope(seg, hop)
+    return float(np.argmax(env >= env.max() / 3)) * hop / SR if len(env) else 0.0
+
+
 def score(name, y, heard):
     import gen_boss_voice as gbv
     # Whisper writes the numbers as digits as often as words
@@ -179,10 +190,13 @@ def score(name, y, heard):
     if ws is None:
         return None
     e = gbv.expressiveness(y, SR)
-    # each word fits its beat (0.47 s apart) without being squashed: the take's own pace near the song's
-    gaps = [ws[i + 1][0] - ws[i][0] for i in range(3)]
-    pace = -sum(abs(g - BEAT) for g in gaps)
-    return (said, e['dyn'] + 0.6 * e['range'] + e['bright'] / 400 + 3 * pace, ws)
+    # every word whole in its two beats, "cuatro" over before the downbeat (a take whose words run long is cut short)
+    lens = [w[1] - w[0] for w in ws]
+    fit = -sum(max(0.0, l - (STEP - 0.05)) for l in lens[:3]) - max(0.0, lens[3] - (STEP - RING))
+    # and as even as possible: the quietest word next to the loudest (the "un" that was ten times quieter)
+    lv = [float(np.sqrt(np.mean(y[int(a * SR):int(b * SR)] ** 2))) + 1e-6 for a, b in ws]
+    even = 20 * np.log10(min(lv) / max(lv))
+    return (said, e['dyn'] + 0.6 * e['range'] + e['bright'] / 400 + 8 * fit + 0.5 * even, ws)
 
 
 def build():
@@ -198,16 +212,21 @@ def build():
     said, sc, name, y, ws = cands[0]
     print('picked', name, meta[name]['heard'])
 
-    # lay each word on its beat; a word longer than the gap to the next is faded out under it (the last rings on)
-    total = BEATS[-1] - START + (ws[3][1] - ws[3][0]) + 0.4
+    # lay each word on its beat, all at one loudness ("cuatro" 2 dB over); a word longer than its two beats is faded out
+    # under the next, and "cuatro" is over RING before the downbeat
+    total = DOWNBEAT - START
     out = np.zeros(int(total * SR), np.float32)
     placed = []
+    lv = [float(np.sqrt(np.mean(y[int(s * SR):int(e * SR)] ** 2))) + 1e-6 for s, e in ws]
+    # each word's attack is where it first reaches a third of its own peak (a breath before "un" read as its start)
+    hop = SR // 200
+    ws = [(s + attack(y[int(s * SR):int(e * SR)], hop), e) for s, e in ws]
     for i, (s, e) in enumerate(ws):
         a = int(max(0, s - 0.03) * SR)
         b = int(min(len(y), (e + 0.12) * SR))
-        seg = y[a:b].copy()
+        seg = y[a:b].copy() * (max(lv) / lv[i]) * (10 ** (2 / 20) if i == 3 else 1)
         at = BEATS[i] - LEAD - START - (s - a / SR)
-        room = (BEATS[i + 1] - BEATS[i]) if i < 3 else 99
+        room = (BEATS[i + 1] - BEATS[i]) if i < 3 else DOWNBEAT - RING - BEATS[i]
         n = min(len(seg), int((room + 0.02) * SR))
         seg = seg[:n]
         fade = min(int(0.06 * SR), n // 3)
@@ -233,7 +252,7 @@ def build():
 
     import geo_util
     sounds = geo_util.read_sounds()
-    sounds['voice.band.count'] = {'sounds': [{'name': 'papon:voice/band/count'}]}
+    sounds['voice.band.count'] = {'sounds': [{'name': 'papon:voice/band/count', 'attenuation_distance': 48}]}
     geo_util.write_sounds(sounds)
     print('words at', placed, 'clip %.2f s' % (len(out) / SR))
 

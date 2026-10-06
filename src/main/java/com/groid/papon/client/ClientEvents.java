@@ -33,6 +33,8 @@ public final class ClientEvents {
         Minecraft mc = Minecraft.getInstance();
         if (mc.isPaused()) return;
         CullingCompat.tick();
+        // held in El Gigante's fist (La Mano) there is no "Press Shift to dismount": you cannot
+        if (mc.player != null && mc.player.getVehicle() instanceof com.groid.papon.boss.SpiritGiantEntity) mc.gui.setOverlayMessage(net.minecraft.network.chat.Component.empty(), false);
         ScreenShake.tick();
         Cinematic.tick();
         SongPlayer.tick();

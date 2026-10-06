@@ -50,8 +50,11 @@ public final class Speech {
         if (speaker instanceof Speaker s) s.setSpeech(enc.toString(), ticks);
         ResourceLocation voice = voiceOf(key);
         if (voice != null) {
-            level.playSound(null, speaker.getX(), speaker.getEyeY(), speaker.getZ(), SoundEvent.createVariableRangeEvent(voice),
-                    SoundSource.HOSTILE, 3.0F, speaker instanceof Pitched p ? p.voicePitch() : 1.0F);
+            // on the Voice/Speech slider (it was Hostile Creatures). Chef Papon at volume 3 (full level, heard 48 blocks off);
+            // the band at 1, its reach set to 48 in sounds.json, so client/SoundMix can put it under the music
+            boolean band = key.startsWith("speech.papon.band.");
+            level.playSound(null, speaker.getX(), speaker.getEyeY(), speaker.getZ(), band ? SoundEvent.createFixedRangeEvent(voice, 48F)
+                    : SoundEvent.createVariableRangeEvent(voice), SoundSource.VOICE, band ? 1.0F : 3.0F, speaker instanceof Pitched p ? p.voicePitch() : 1.0F);
             return;
         }
         if (!chat) return;

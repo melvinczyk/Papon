@@ -28,14 +28,31 @@ public final class Fx {
                              double vy, double vz) {
         FxOptions o = new FxOptions(type, sprite, size, grow, color, alpha, life, yaw);
         if (count <= 0) {
-            level.sendParticles(o, x, y, z, 0, vx, vy, vz, 1.0);
+            far(level, o, x, y, z, vx, vy, vz);
             return;
         }
         RandomSource r = level.random;
         for (int i = 0; i < count; i++) {
-            level.sendParticles(o, x + (r.nextDouble() - 0.5) * 2 * spread, y + (r.nextDouble() - 0.5) * spread,
-                    z + (r.nextDouble() - 0.5) * 2 * spread, 0, vx + (r.nextDouble() - 0.5) * 0.04, vy, vz + (r.nextDouble() - 0.5) * 0.04, 1.0);
+            far(level, o, x + (r.nextDouble() - 0.5) * 2 * spread, y + (r.nextDouble() - 0.5) * spread,
+                    z + (r.nextDouble() - 0.5) * 2 * spread, vx + (r.nextDouble() - 0.5) * 0.04, vy, vz + (r.nextDouble() - 0.5) * 0.04);
         }
+    }
+
+    /**
+     * One particle with velocity (vx, vy, vz) to everyone up to 512 blocks away, drawn at any distance. The vanilla send
+     * reaches only 32 blocks and the client drops anything further: in the coliseum (58 blocks across, the dead one 116)
+     * the far half of every arena-wide attack went unseen while it still hit (the petals stopping short of the stands,
+     * the fryer looking like a pool round you).
+     */
+    public static void far(ServerLevel level, net.minecraft.core.particles.ParticleOptions o, double x, double y, double z, double vx, double vy,
+                           double vz) {
+        for (net.minecraft.server.level.ServerPlayer p : level.players()) level.sendParticles(p, o, true, x, y, z, 0, vx, vy, vz, 1.0);
+    }
+
+    /** {@link ServerLevel#sendParticles} (count, spread, speed) to everyone up to 512 blocks away, drawn at any distance. */
+    public static void far(ServerLevel level, net.minecraft.core.particles.ParticleOptions o, double x, double y, double z, int count, double dx,
+                           double dy, double dz, double speed) {
+        for (net.minecraft.server.level.ServerPlayer p : level.players()) level.sendParticles(p, o, true, x, y, z, count, dx, dy, dz, speed);
     }
 
     // ------------------------------------------------------------ warnings and impacts on the ground
@@ -132,6 +149,11 @@ public final class Fx {
 
     public static void smoke(ServerLevel level, Vec3 at, int count, double spread, float size, int color) {
         send(level, ModParticles.SMOKE.get(), -1, at.x, at.y, at.z, size, 1.6F, color, 0.85F, 24, 0, count, spread, 0, 0.03, 0);
+    }
+
+    /** A bank of mist drifting with velocity v (phase four's fog rolling in), {@code life} ticks. */
+    public static void mist(ServerLevel level, Vec3 at, Vec3 v, float size, int color, int life) {
+        send(level, ModParticles.SMOKE.get(), -1, at.x, at.y, at.z, size, 1.5F, color, 0.42F, life, 0, 0, 0, v.x, v.y, v.z);
     }
 
     public static void flash(ServerLevel level, Vec3 at, float size) {

@@ -121,9 +121,9 @@ public final class CrowdSounds {
         }
     }
 
-    /** {@code loud}: the whole bowl on its feet, heard over him talking (ducked only a little). */
+    /** {@code loud}: the whole bowl on its feet, ducked less under him (but under him: it masked his lines at 0.75). */
     private static void play(Minecraft mc, String name, float volume, float pitch, boolean loud) {
-        volume *= (loud ? Math.max(0.75F, VoiceDuck.get()) : VoiceDuck.get()) * LOUDNESS;
+        volume *= (loud ? Math.max(0.42F, VoiceDuck.get()) : VoiceDuck.get()) * LOUDNESS;
         if (volume <= 0.01F) return;
         mc.getSoundManager().play(new SimpleSoundInstance(ev(name).getLocation(), SoundSource.AMBIENT, volume, pitch,
                 SoundInstance.createUnseededRandom(), false, 0, SoundInstance.Attenuation.NONE, 0, 0, 0, true));
