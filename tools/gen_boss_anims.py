@@ -2423,6 +2423,57 @@ def guitar_poses():
     return out
 
 
+def guitar_bent():
+    """His arms bent round the requinto (2026-10-06, the user: "his arms loom too long and weird when he plays"): the arms
+    hinge at the elbow (papon_ascended's fore_* bones, gen_ascended), the upper arm hanging down beside his belly and the
+    forearm coming across the front of the guitar, instead of one stretched stick from the shoulder. Each pose is the arm
+    (X, Y, Z), the upper arm's stretch, the forearm (X, Y, Z) and its stretch: the strumming fist over the soundhole, above
+    the strings (up), on them (mid) and through them (down), so the strum swings from the elbow; the fretting fist under the
+    neck low, mid and high. client/BossModel (BENT_*) blends them in wherever an animation puts his hands on the guitar."""
+    import numpy as np
+    from scipy.optimize import least_squares
+    from pose_solver import rot
+    k = GUITAR_SCALE
+    gpiv, grot = np.array([-7, 5, -10.4]), rot(0, 0, 86)
+    gw = lambda local: gpiv + grot @ (k * np.asarray(local, float))
+    upper = 4.0                               # shoulder (y 11) to elbow (y 7)
+
+    def fk(side, x):
+        sg = -1 if side == 'r' else 1
+        S, E0, F0 = np.array([8 * sg, 11, 0.]), np.array([10.5 * sg, 7, 0.]), np.array([10.5 * sg, 3, 0.])
+        Ra, Rf = rot(*x[:3]), rot(*x[4:7])
+        off = np.array([0, -(x[3] - 1) * upper, 0])
+        fore = lambda q: S + Ra @ (E0 + Rf @ ((np.asarray(q, float) - E0) * [1, x[7], 1]) + off - S)
+        return S + Ra @ (E0 + off - S), fore(F0), fore
+
+    def inside(p, m=2.2):
+        d = np.minimum(p - (np.array([-8, 4, -8]) - m), (np.array([8, 24, 8]) + m) - p)
+        return max(0.0, d.min()) if (d > 0).all() else 0.0
+
+    def solve(side, target, elbow, x0):
+        sg = -1 if side == 'r' else 1
+
+        def f(x):
+            E, F, fore = fk(side, x)
+            along = [fore([10.5 * sg, y, 0]) for y in (6.5, 5, 3.5, 2)] + [E]
+            # the fist on its mark, the elbow out by his side, nothing through his belly, the two halves stretched alike
+            return np.concatenate([(F - target) * 3, (E - elbow) * 0.25, [inside(p) * 4 for p in along],
+                                   [(x[3] - x[7]) * 1.5, x[1] * 0.01, x[5] * 0.01]])
+        r = least_squares(f, x0, bounds=([-200, -120, -120, 1, -170, -120, -120, 1], [60, 120, 120, 3, 60, 120, 120, 3]), max_nfev=4000)
+        return r.x
+
+    out = {}
+    x0 = np.array([-40, -20, 10, 1.8, -60, 0, -20, 1.8])
+    for name, dx in (('up', -2.2), ('mid', 0), ('down', 2.2)):
+        x0 = solve('r', gw([dx, 0.5, -3.8]), np.array([-13.5, 5.6, -7.8]), x0)
+        out['strum_' + name] = [round(float(v), 1) for v in x0]
+    x0 = np.array([-30, 20, -10, 1.8, -60, 0, 20, 1.8])
+    for name, y in (('low', 8.0), ('mid', 9.5), ('high', 11.2)):
+        x0 = solve('l', gw([0, y, -3.0]), np.array([13.0, 4.5, -7.5]), x0)
+        out['fret_' + name] = [round(float(v), 1) for v in x0]
+    return out
+
+
 GUITAR = None
 GUITAR_SCALE = 1.35
 SHOWN_G = [GUITAR_SCALE] * 3     # the requinto as he holds it (both bones), bigger than on the singer
@@ -4336,3 +4387,4 @@ if __name__ == '__main__':
     print(write('gerbin', GERBIN, 'animation.gerbin.'))
     print(write('papon_boss', BOSS, 'animation.papon_boss.'))
     print('guitar poses (client/BossModel):', guitar_poses())
+    print('bent guitar arms (client/BossModel BENT_*):', guitar_bent())

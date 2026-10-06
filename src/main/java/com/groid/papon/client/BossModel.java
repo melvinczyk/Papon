@@ -22,6 +22,20 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
     private static final float[] STRUM = {-68.6F, -11.7F, -4.5F, 2.6F};
     private static final float[] FRET_LOW = {-68.6F, 21.2F, 7.7F, 2.4F};
     private static final float[] FRET_HIGH = {-71.0F, 6.8F, 2.3F, 2.3F};
+    private static final float[] FRET_MID = {-69.9F, 14.7F, 5.2F, 2.4F};
+    /**
+     * The same, bent at the elbow (gen_boss_anims.guitar_bent, on the forearm bones gen_ascended split off): arm X, Y, Z, the
+     * upper arm's stretch, forearm X, Y, Z, its stretch. The strumming fist above the strings, on them, through them; the
+     * fretting fist low, mid and high on the neck.
+     */
+    private static final float[] STRUM_UP = {-46.9F, 0F, 26.6F, 2.7F, -58.7F, 0F, -68.3F, 2.7F};
+    private static final float[] STRUM_MID = {-46.8F, 0F, 26.7F, 2.7F, -43.6F, 0F, -60.2F, 2.7F};
+    private static final float[] STRUM_DOWN = {-47.5F, 0F, 25.9F, 2.7F, -28.1F, 0F, -56.3F, 2.8F};
+    private static final float[] BENT_LOW = {-45.2F, 0F, -18.6F, 2.8F, -42.4F, 0F, 78.6F, 2.8F};
+    private static final float[] BENT_MID = {-42.6F, 0F, -20.6F, 2.6F, -49.6F, 0F, 70.8F, 2.6F};
+    private static final float[] BENT_HIGH = {-40.4F, 0F, -20.8F, 2.5F, -57.1F, 0F, 53.9F, 2.4F};
+    /** The upper arm, shoulder to elbow (the forearm hangs at its end: gen_ascended.FORE_PIVOT), and a bent arm's girth. */
+    private static final float UPPER = 4F, BENT_GIRTH = 0.8F;
     /** Where on the neck his chord shapes sit, bar by bar (0 low .. 1 high). */
     private static final float[] SHAPES = {0.15F, 0.55F, 0.3F, 0.8F, 0.15F, 0.4F, 0.65F, 0.25F};
 
@@ -49,8 +63,11 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
             body.setRotY(rest.getRotY());
             body.setRotZ(rest.getRotZ());
         }
+        playing = false;
+        forearms();
         if (boss.getBossState() == BossState.P3_SERENADE) serenade(boss, state.getPartialTick());
         if (boss.getBossState() == BossState.P3_DUEL || boss.getBossState() == BossState.P4_GIGANTE) shred(boss, state.getPartialTick());
+        if (!playing) restingOnGuitar();
         if (boss.isMuertos() || boss.getBossState().phaseFour()) spiritProps(boss, state.getPartialTick());
         if (boss.getBossState() == BossState.P4_TANGO) tango(boss, state.getPartialTick());
         else if (boss.muertosFight()) groove(boss, state.getPartialTick());
@@ -172,16 +189,123 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
         float k = in * out;
         if (k <= 0) return;
         float attack = Mth.clamp(song.strumAt(t) * 1.3F, 0, 1);
-        float pick = (4 + 14 * attack) * Mth.sin((float) (t * Math.PI * 2 * 2.2));
-        set("r", STRUM[0] + pick * k, STRUM[1], STRUM[2], STRUM[3], k);
+        float wave = Mth.sin((float) (t * Math.PI * 2 * 2.2));
+        if (hasForearms()) strum(wave * (0.3F + 0.7F * attack), k);
+        else set("r", STRUM[0] + (4 + 14 * attack) * wave * k, STRUM[1], STRUM[2], STRUM[3], k);
         // a chord shape a bar (1.74 s), sliding between them over the last tenth of the bar
         double bar = t / 1.74;
         int b = (int) Math.floor(Math.max(0, bar));
         float into = (float) Mth.clamp((bar - b - 0.9) / 0.1, 0, 1);
         float pos = Mth.lerp(into, SHAPES[b % SHAPES.length], SHAPES[(b + 1) % SHAPES.length]);
         float wob = 1.5F * Mth.sin((float) (t * 31)) * Math.min(1, song.voiceAt(t) * 2);     // a little vibrato under his voice
-        set("l", Mth.lerp(pos, FRET_LOW[0], FRET_HIGH[0]) + wob, Mth.lerp(pos, FRET_LOW[1], FRET_HIGH[1]),
+        // the fingers pressing the new chord: the wrist dips in as the hand lands on it
+        float press = (float) Math.max(0, 1 - Math.abs(bar - b - 0.02) / 0.08) * 6F;
+        if (hasForearms()) fret(pos, wob * 2 + press, k);
+        else set("l", Mth.lerp(pos, FRET_LOW[0], FRET_HIGH[0]) + wob, Mth.lerp(pos, FRET_LOW[1], FRET_HIGH[1]),
                 Mth.lerp(pos, FRET_LOW[2], FRET_HIGH[2]), Mth.lerp(pos, FRET_LOW[3], FRET_HIGH[3]), k);
+    }
+
+    // ------------------------------------------------------------------ the arms bent at the elbow (2026-10-06)
+    // (the user: "his arms loom too long and weird when he plays the guitar: give his playing arm a bend, and make the
+    // fretting hand move more naturally")
+
+    /** Set while he plays this frame (the serenade, the duel): the hands are this class's, not the animation's. */
+    private boolean playing;
+
+    private boolean hasForearms() { return getAnimationProcessor().getBone("fore_r") != null; }
+
+    /**
+     * The forearms (their own bones, hinged at the elbow) follow the arm's stretch as one stick, as they did when they were
+     * part of it: slid to the end of the stretched upper arm and stretched alike. Every animation only stretches the arm, so
+     * none of them changes; the guitar poses below then bend them.
+     */
+    private void forearms() {
+        forearm("r");
+        forearm("l");
+    }
+
+    private void forearm(String side) {
+        CoreGeoBone mesh = getAnimationProcessor().getBone("arm_" + side + "_mesh"), fore = getAnimationProcessor().getBone("fore_" + side);
+        if (mesh != null && fore != null) {
+            var rest = fore.getInitialSnapshot();
+            fore.setRotX(rest.getRotX());
+            fore.setRotY(rest.getRotY());
+            fore.setRotZ(rest.getRotZ());
+            fore.setScaleX(mesh.getScaleX());
+            fore.setScaleY(mesh.getScaleY());
+            fore.setScaleZ(mesh.getScaleZ());
+            fore.setPosX(mesh.getPosX());
+            fore.setPosY(mesh.getPosY() - (mesh.getScaleY() - 1) * UPPER);
+            fore.setPosZ(mesh.getPosZ());
+        }
+    }
+
+    /** The strumming arm: {@code s} -1 above the strings .. 0 on them .. 1 through them, swung from the elbow. */
+    private void strum(float s, float k) {
+        float[] p = s < 0 ? lerp(-s, STRUM_MID, STRUM_UP) : lerp(s, STRUM_MID, STRUM_DOWN);
+        bend("r", p, 0, k);
+        playing = true;
+    }
+
+    /** The fretting arm at {@code pos} along the neck (0 low .. 1 high), the wrist {@code dip} degrees in. */
+    private void fret(float pos, float dip, float k) {
+        float[] p = pos < 0.5F ? lerp(pos * 2, BENT_LOW, BENT_MID) : lerp(pos * 2 - 1, BENT_MID, BENT_HIGH);
+        bend("l", p, dip, k);
+        playing = true;
+    }
+
+    /**
+     * Between moves with the requinto slung (carrying it, the blackout, the verdict...), the animations put his hands on it
+     * with the straight poses; wherever an arm is (near enough) there, it is bent the same way instead.
+     */
+    private void restingOnGuitar() {
+        CoreGeoBone guitar = getAnimationProcessor().getBone("p3_guitar");
+        if (guitar == null || guitar.getScaleY() < 0.05F || !hasForearms()) return;
+        float r = near("r", STRUM), l = near("l", FRET_MID);
+        if (r > 0) bend("r", STRUM_MID, 0, r);
+        if (l > 0) bend("l", BENT_MID, 0, l);
+    }
+
+    /** How nearly arm_{side} is at the straight pose {@code p} (1 there, 0 from 14 degrees off). */
+    private float near(String side, float[] p) {
+        CoreGeoBone arm = getAnimationProcessor().getBone("arm_" + side);
+        if (arm == null) return 0;
+        var rest = arm.getInitialSnapshot();
+        float d = Mth.RAD_TO_DEG;
+        float dx = -(arm.getRotX() - rest.getRotX()) * d - p[0], dy = -(arm.getRotY() - rest.getRotY()) * d - p[1],
+                dz = (arm.getRotZ() - rest.getRotZ()) * d - p[2];
+        float off = Mth.sqrt(dx * dx + dy * dy + dz * dz);
+        float w = Mth.clamp(1 - (off - 4) / 10, 0, 1);
+        return w * w * (3 - 2 * w);
+    }
+
+    /** An arm bent at the elbow to pose {@code p}, the forearm {@code dip} degrees further in, blended {@code k} of the way. */
+    private void bend(String side, float[] p, float dip, float k) {
+        CoreGeoBone arm = getAnimationProcessor().getBone("arm_" + side), mesh = getAnimationProcessor().getBone("arm_" + side + "_mesh"),
+                fore = getAnimationProcessor().getBone("fore_" + side);
+        if (arm == null || mesh == null || fore == null || k <= 0) return;
+        float d = Mth.DEG_TO_RAD;
+        var ar = arm.getInitialSnapshot();
+        arm.setRotX(Mth.lerp(k, arm.getRotX(), ar.getRotX() - p[0] * d));
+        arm.setRotY(Mth.lerp(k, arm.getRotY(), ar.getRotY() - p[1] * d));
+        arm.setRotZ(Mth.lerp(k, arm.getRotZ(), ar.getRotZ() + p[2] * d));
+        mesh.setScaleX(Mth.lerp(k, mesh.getScaleX(), BENT_GIRTH));
+        mesh.setScaleZ(Mth.lerp(k, mesh.getScaleZ(), BENT_GIRTH));
+        mesh.setScaleY(Mth.lerp(k, mesh.getScaleY(), p[3]));
+        var fr = fore.getInitialSnapshot();
+        fore.setRotX(Mth.lerp(k, fore.getRotX(), fr.getRotX() - (p[4] - dip) * d));
+        fore.setRotY(Mth.lerp(k, fore.getRotY(), fr.getRotY() - p[5] * d));
+        fore.setRotZ(Mth.lerp(k, fore.getRotZ(), fr.getRotZ() + p[6] * d));
+        fore.setScaleX(Mth.lerp(k, fore.getScaleX(), BENT_GIRTH));
+        fore.setScaleZ(Mth.lerp(k, fore.getScaleZ(), BENT_GIRTH));
+        fore.setScaleY(Mth.lerp(k, fore.getScaleY(), p[7]));
+        fore.setPosY(Mth.lerp(k, fore.getPosY(), mesh.getPosY() - (mesh.getScaleY() - 1) * UPPER));
+    }
+
+    private static float[] lerp(float t, float[] a, float[] b) {
+        float[] out = new float[a.length];
+        for (int i = 0; i < a.length; i++) out[i] = Mth.lerp(t, a[i], b[i]);
+        return out;
     }
 
     /**
@@ -192,8 +316,9 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
         double t = (boss.ticksInState() + partial) / 20.0;
         float k = (float) Mth.clamp(t / 0.4, 0, 1);
         float accent = (float) Math.pow(Math.max(0, Math.sin(t * Math.PI * 2 * 1.7)), 6);
-        float pick = (6 + 10 * accent) * Mth.sin((float) (t * Math.PI * 2 * 12));
-        set("r", STRUM[0] + pick * k, STRUM[1], STRUM[2], STRUM[3], k);
+        float wave = Mth.sin((float) (t * Math.PI * 2 * 12));
+        if (hasForearms()) strum(wave * (0.35F + 0.5F * accent), k);
+        else set("r", STRUM[0] + (6 + 10 * accent) * wave * k, STRUM[1], STRUM[2], STRUM[3], k);
         int step = (int) Math.floor(t * 8);
         float run = RUN[Math.floorMod(step, RUN.length)];
         float into = (float) (t * 8 - step);
@@ -260,5 +385,6 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
             mesh.setScaleY(Mth.lerp(k, mesh.getScaleY(), stretch));
         }
         if (hand != null) hand.setPosY(Mth.lerp(k, hand.getPosY(), -(stretch - 1) * 6.5F));
+        forearm(side);
     }
 }

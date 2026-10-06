@@ -35,6 +35,7 @@ ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
 TEX = 512
 
 GOLD = np.array([236, 190, 74])
+FORE_PIVOT = (-10.5, 7.0, 0.0)   # the right elbow (the left mirrored): the bottom of the upper arm, client/BossModel.ELBOW
 FLAG_G, FLAG_W, FLAG_R = np.array([22, 110, 70]), np.array([238, 234, 224]), np.array([204, 34, 46])
 RIM = np.array([255, 222, 132])
 COVERT = np.array([222, 162, 72])
@@ -256,12 +257,17 @@ def build():
         def add(o, sz, p=None, s=s):
             o = o if s < 0 else [-o[0] - sz[0], o[1], o[2]]
             return cube(o, sz, p or skin())
-        by['arm_%s_mesh' % side]['cubes'] = [
-            add([-13, 7, -3.5], [5, 6, 7], skin(bicep)),        # shoulder and upper arm, the bicep drawn on
+        mesh = by['arm_%s_mesh' % side]
+        mesh['cubes'] = [add([-13, 7, -3.5], [5, 6, 7], skin(bicep))]        # shoulder and upper arm, the bicep drawn on
+        # the forearm on its own bone, hinged at the elbow (2026-10-06: his arms bend round the guitar). It hangs off the arm,
+        # not the stretched mesh (a rotation under a scaled parent shears): client/BossModel slides it to the end of the
+        # stretched upper arm and stretches it the same every frame, so animations that only stretch look as they did
+        fore = {'name': 'fore_' + side, 'parent': 'arm_' + side, 'pivot': [-s * FORE_PIVOT[0], FORE_PIVOT[1], FORE_PIVOT[2]], 'cubes': [
             add([-12.5, 3.5, -3], [4, 4, 6]),                     # forearm
             add([-12.8, 4.5, -3.3], [4.6, 1, 6.6], solid(GOLD)),  # gold cuff
             add([-13, 1.5, -3.2], [5, 3, 6.4]),                   # fist
-        ]
+        ]}
+        bones.insert(bones.index(mesh) + 1, fore)
     # ---- the potato's back: the tattoo; the lower front: a six-pack (on his own sheet's faces)
     body = by['body']['cubes'][0]
     u, v = body['uv']

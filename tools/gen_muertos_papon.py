@@ -626,7 +626,7 @@ def build():
     by = {b['name']: b for b in bones}
     # the eagle wings' glow goes (their rims), the bone takes over the potato
     skin_rects = rect_list(by['body']['cubes'])
-    for n in ('leg_r', 'leg_l', 'arm_r_mesh', 'arm_l_mesh'):
+    for n in ('leg_r', 'leg_l', 'arm_r_mesh', 'arm_l_mesh', 'fore_r', 'fore_l'):
         skin_rects += rect_list(by[n].get('cubes', []))
     bone_over(skin_rects)
     body = by['body']['cubes'][0]
