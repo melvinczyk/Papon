@@ -3472,6 +3472,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
         @net.minecraftforge.eventbus.api.SubscribeEvent
         public static void onDismount(net.minecraftforge.event.entity.EntityMountEvent event) {
+            // (2026-10-06) the server decides who climbs down; on the client this fired as the server's own release arrived,
+            // before the hold flag had synced, and kept the player "riding": parked on the giant's entity, the arena's middle
+            if (event.getEntityMounting().level().isClientSide) return;
             if (event.isDismounting() && event.getEntityBeingMounted() instanceof PaponBossEntity boss
                     && boss.isAlive() && boss.holds(event.getEntityMounting())) {
                 event.setCanceled(true);

@@ -128,6 +128,10 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
 | Diction audit | `tools/voice_clarity.py` (Whisper word confidence + WER per built line, `voice_modal.clarity`); `gen_boss_voice.CLEAR` lines retaken with `CLARITY`, picked words-then-confidence |
 | Band's voiced lines | `tools/gen_band_voice.py` (every `speech.papon.band.*` + the `gasp` cue, cloned from the singer's reference) → `sounds/voice/band/*.ogg`, `voice/band.json` (mouth env, bubble lengths); pitch per member `MariachiEntity.voicePitch` |
 | Van / Skyline | `vehicle/CaravanEntity`, `client/CaravanRenderer`, `client/CaravanSounds` |
+| Skyline (2026-10-06) | mesh `tools/gen_skyline.py` → `meshes/skyline.json` (+ `groups`: opaque, glass, lamps, brake, reverse, gauges, gloss, underglow), `textures/entity/skyline.png` + `skyline_lamps.png`, rig-only `geo/entity/skyline.geo.json` (bone `door_r`: right-hand drive); `CaravanRenderer.drawSkyline` skins it (bone matrices caught in `renderCubesOfBone`), clear coat, needles, flares; preview `tools/mesh_preview.py skyline out.png`; seats `CaravanEntity.SKY_SEATS` |
+| Vehicle audio (2026-10-06) | `CaravanSounds.Sim` (rpm/gear/throttle/boost; `rpm(van)` drives the tach) + layered loops (`tools/gen_skyline_sounds.py`: `eng_idle/low/mid/high/decel` + `_in` cockpit set at -20 dBFS, `turbo`, `road`, `wind`, `shift`, `blip`, `pop`, `door_*`; loop starts picked for a clean decoded seam); van uses the same Sim with its two loops |
+| Boss bars | `client/BossBarRenderer` (phase one `boss_bar.png`; two to four `bar_p2/3/4.png` from `tools/gen_boss_bars.py`: trail, hit flash, stage ticks) |
+| La Mano HUD/camera | `client/GiantGrabHud` (struggle: jump → `PaponNetwork.Struggle`), `Cinematic.giantGrabShot` (outside camera while held, `pullIn` keeps it off walls) |
 | Cutscenes, shake, music, bar, night, fog, sky | `client/{Cinematic,ScreenShake,BossMusic,BossBarRenderer,NightLight,PotatoSky,MuertosSky,MuertosArena,BlurFx,ClientEvents}` |
 | Boss rendering/face | `client/{BossRenderer,BossModel,BossFace,BeamRenderer,PropRenderer}` |
 | QTEs | `client/{QteClient,QteScreen,GuitarDuel,DanceOff,QtePlayerPose}`, `network/PaponNetwork` |
@@ -205,6 +209,12 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   shorter by stage, `tickStillLayer` (stand still 3.5/2.75/2 s: the moon's beam on you), `tickMuchachaLayer` (a rose thrown every
   few seconds), serpents dive from stage 1, `hover` tighter round you.
   Client: `MuertosSky.bolts` (sky lightning by stage, red moon at 3), `BossRenderer` aura flare/stutter.
+  **El Gigante as a threat (2026-10-06)**: after P4_GIGANTE before the storm it stays and hunts `GIANT_HUNT` (600 t) then sinks;
+  `tickGiantLayer` stalks you (`SpiritGiantEntity.stalk`), answers in ~1.5 s when you stand within its reach (`giantNearTicks`), guards
+  him (crowd him: slam/swipe there, `giantGuardCd`), picks by range (under it: slam/swipe; arm's length: La Embestida `LUNGE`, sweep,
+  eyes; far: La Mano, eyes). La Mano caught: hoisted 40 up, brought to its face, eyes charge (struggle free: mash jump), blast 26%,
+  slam 14% + stun, then `mercyUntil` 2.5 s. Its dismount keeps the passenger where they are (the entity sits at the arena middle).
+  `/papon giant <summon|lunge|grab|swipe|slam|slam2|laser>`.
   **El Gigante (rebuilt)**: entity at the arena's middle, `base()` where it stands (tracking range); `V` 0.74; acts add
   `SLAM_BOTH`, `ROAR`, `GRAB` (La Mano: synced wade target/yaw/hand, `base(partial)`/`forward(partial)` interpolate it; the caught
   player rides its hand via `positionRider`, `GrabHold` blocks the dismount; `tickGiantGrab`); RISE is the dig (124 t:
@@ -357,7 +367,10 @@ Dev in worktrees is fine (`./gradlew compileJava`, `./gradlew runServer` in `run
 - **Autoshot client** (`./gradlew runClient -Pautoshot[=X]`, shots in `run/screenshots/papon_*.png`, then quits): default (truck,
   unmasking, phase one), `phase2`, `coliseum`, `phase3` (ends with an Ascended move showcase), `phase4`, `climax` (the giant from every
   side, the storm, El Juicio Final), `phases` / `phasesdown` (real hits through phase three and into phase four; `phasesdown` with the coliseum down first), `serpents`, `voice`,
-  `nights`, `ending`, `arena`, `pillow`, `drive`, `fight` (3-min AI fight log), `pose`, `state:<STATE>:<form>:<t1,t2,…>`.
+  `nights`, `ending`, `arena`, `pillow`, `drive`, `fight` (3-min AI fight log), `pose`, `state:<STATE>:<form>:<t1,t2,…>`,
+  `skyline` (on a cleared lot at 6000 6000: eight sides, close-ups, the driver's eye, then a logged test drive), `giant` (straight to
+  the storm: stalk, lunge, La Mano caught and struggled free, positions logged; `-Dpapon.autoshot.long=true` for its free roam).
+  The test world keeps state between runs (a coliseum left standing at 4000 4000): tours that need open ground go elsewhere.
 - Walking Crops is not in the dev run: the coupon handoff can only be tested in the real pack. Jarrito handing and chancla need a
   real player.
 

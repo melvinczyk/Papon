@@ -714,6 +714,14 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                 level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, true, h.x + (random.nextDouble() - 0.5) * 12,
                         h.y + (random.nextDouble() - 0.5) * 12, h.z + (random.nextDouble() - 0.5) * 12, 0, 0.05, 0);
             }
+            // (2026-10-06) between its acts it breathes: a deep, slow growl out of its skull, quicker the angrier it is, so you
+            // hear where it is when it is behind you
+            int breath = fury() >= 3 ? 46 : fury() == 2 ? 62 : 80;
+            if (act() == IDLE && risen(0) > 0.9F && (tickCount + getId() * 7) % breath == 0) {
+                Vec3 h = head(0);
+                level().playLocalSound(h.x, h.y, h.z, SoundEvents.RAVAGER_AMBIENT, SoundSource.HOSTILE, 4.5F, 0.32F + random.nextFloat() * 0.06F, false);
+                level().playLocalSound(h.x, h.y - 6, h.z, SoundEvents.WARDEN_HEARTBEAT, SoundSource.HOSTILE, 3.0F, 0.5F, false);
+            }
             // where it comes up through the floor: wisps of the dead
             if (risen(0) > 0.05F && random.nextInt(3) == 0) {
                 Vec3 w = base();

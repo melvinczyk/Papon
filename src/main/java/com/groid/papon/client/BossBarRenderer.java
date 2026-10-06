@@ -53,6 +53,8 @@ public final class BossBarRenderer {
     /** Per bar: the trail's level, how long it holds, the hit flash, the last level seen, the last frame's clock. */
     private static final class Track {
         float lag = 1, hold, flash, last = -1;
+        /** When this phase's bar came up (the real clock): it arrives over INTRO ms. */
+        long introAt;
         long at = Util.getMillis();
         int phase;
     }
@@ -98,6 +100,7 @@ public final class BossBarRenderer {
             tr.lag = progress;
             tr.last = progress;
             tr.phase = phase;
+            tr.introAt = now;
         }
         if (progress < tr.last - 1e-4F) {
             tr.flash = Math.min(1F, tr.flash + 0.6F + (tr.last - progress) * 20);
@@ -130,8 +133,18 @@ public final class BossBarRenderer {
 
     // ------------------------------------------------------------------ phases two to four
 
+    /** How long a new phase's bar takes to arrive, ms. */
+    private static final float INTRO = 1500F;
+
+    /**
+     * (2026-10-06) Each phase's bar arrives with its form: the frame flashing white and settling, the medallion slammed in from
+     * oversized with a quarter turn (overshooting, the way he lands), the fill sweeping up from empty to his health.
+     */
     private static void drawPhase(GuiGraphics g, Minecraft mc, LerpingBossEvent bar, Track tr, int phase, int cx, int y, float progress, float t) {
         ResourceLocation tex = SHEETS[phase];
+        float intro = Mth.clamp((Util.getMillis() - tr.introAt) / INTRO, 0, 1);
+        float sweepIn = intro >= 1 ? 1 : smoothstep(Mth.clamp((intro - 0.22F) / 0.6F, 0, 1));
+        progress *= sweepIn;
         float fx = cx - 128, fy = y + 10;
         float chX = fx + 40, chY = fy + 19, chW = 204, chH = 10;
         float w = chW * progress, lagW = chW * tr.lag;
@@ -149,8 +162,9 @@ public final class BossBarRenderer {
         g.pose().scale(0.5F, 0.5F, 1);
         g.blit(tex, 0, 0, 0, 0, 512, 80, 512, 256);
         g.pose().popPose();
+        if (intro < 0.4F) fillRect(g, chX - 8, chY - 6, chX + chW + 14, chY + chH + 6, 0xFFFFFF, (int) (210 * (1 - intro / 0.4F)));
         // the trail of the last hits, then the fill over it
-        if (lagW > w + 0.25F) fillRect(g, chX + w, chY, chX + lagW, chY + chH, trail(phase), (int) (200 * Math.min(1, 0.55F + tr.hold)));
+        if (lagW > w + 0.25F && intro >= 1) fillRect(g, chX + w, chY, chX + lagW, chY + chH, trail(phase), (int) (200 * Math.min(1, 0.55F + tr.hold)));
         if (w > 0.25F) {
             int scroll = (int) ((t * (phase == 3 ? 1.6F : phase == 4 ? 0.9F : 0.6F)) % 64);
             g.pose().pushPose();
@@ -178,6 +192,11 @@ public final class BossBarRenderer {
         // the medallion, shaken by a hit, and what is drawn over it
         float shake = tr.flash * 1.6F;
         float mx = fx + 20 + Mth.sin(t * 7.1F) * shake, my = fy + 24 + Mth.cos(t * 8.3F) * shake;
+        // its arrival: down from oversized, a quarter turn, overshooting and settling
+        float land = intro >= 1 ? 1 : backOut(Mth.clamp(intro / 0.45F, 0, 1));
+        float mScale = 1 + 0.9F * (1 - land), mTurn = 90 * (1 - land);
+        if (intro < 0.45F) gradientBand(g, mx - 30, my - 30, mx + 30, my + 30, phase == 2 ? 0xFFC060 : phase == 3 ? 0xFF4030 : 0x7A3CFF,
+                (int) (160 * (1 - intro / 0.45F)));
         if (phase == 3) {
             // the sun's rays behind the disc, turning
             g.pose().pushPose();
@@ -188,7 +207,10 @@ public final class BossBarRenderer {
             g.pose().popPose();
         }
         g.pose().pushPose();
-        g.pose().translate(mx - 24, my - 24, 0);
+        g.pose().translate(mx, my, 0);
+        if (mTurn > 0.01F) g.pose().mulPose(Axis.ZP.rotationDegrees(mTurn));
+        g.pose().scale(mScale, mScale, 1);
+        g.pose().translate(-24, -24, 0);
         g.pose().scale(0.5F, 0.5F, 1);
         g.blit(tex, 0, 0, 0, 104, 96, 96, 512, 256);
         if (phase == 4) {
@@ -248,6 +270,14 @@ public final class BossBarRenderer {
         g.pose().scale(0.5F, 0.5F, 1);
         g.blit(tex, -16, -28, 192 + frame * 32, 104 - 0, 32, 32, 512, 256);
         g.pose().popPose();
+    }
+
+    private static float smoothstep(float k) { return k * k * (3 - 2 * k); }
+
+    /** Overshoots a little past 1 and settles (an ease-out-back). */
+    private static float backOut(float k) {
+        float c = 1.9F, u = k - 1;
+        return 1 + (c + 1) * u * u * u + c * u * u;
     }
 
     /** The trail's colour: what is left of the hit, pale. */

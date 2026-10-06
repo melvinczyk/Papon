@@ -119,6 +119,9 @@ public final class Cinematic {
         return Mth.lerp(partial, flashO, flash);
     }
 
+    /** Whether the cutscene is about {@code e} (its lines are in the letterbox's subtitles, not in a bubble over its head). */
+    public static boolean isSubject(Entity e) { return active && subject == e; }
+
     /** The encoded speech line of whoever the cutscene is about ("" when quiet). */
     public static String subjectSpeech() {
         if (!active || subject == null || !subject.isAlive()) return "";
@@ -423,24 +426,29 @@ public final class Cinematic {
         Vec3 away = me.subtract(base).multiply(1, 0, 1);
         away = away.lengthSqr() < 1e-4 ? g.forward() : away.normalize();
         Vec3 side = new Vec3(-away.z, 0, away.x);
-        int beat = t < com.groid.papon.boss.SpiritGiantEntity.GRAB_CLOSE + 14 ? 0 : t < com.groid.papon.boss.SpiritGiantEntity.GRAB_BRING ? 1
+        int beat = t < com.groid.papon.boss.SpiritGiantEntity.GRAB_LIFT - 6 ? 0 : t < com.groid.papon.boss.SpiritGiantEntity.GRAB_BRING ? 1
                 : t < com.groid.papon.boss.SpiritGiantEntity.GRAB_SLAM_UP ? 2 : 3;
         boolean cut = beat != grabCut;
         grabCut = beat;
         double floor = base.y;
+        // the arena's middle (the crowd stands there): open sand, the way to point every shot that is low on the floor
+        Vec3 mid = mc.level.getEntitiesOfClass(com.groid.papon.boss.ColiseumCrowdEntity.class, mc.player.getBoundingBox().inflate(160), e -> true)
+                .stream().findFirst().map(Entity::position).orElse(base.add(g.forward().scale(30)));
         switch (beat) {
             case 0 -> {
                 // caught: from the floor beyond your spot, looking up at you going up with all of it over you
-                double k = smooth(Mth.clamp((t - com.groid.papon.boss.SpiritGiantEntity.GRAB_CLOSE) / 14.0, 0, 1));
+                double k = smooth(Mth.clamp((t - com.groid.papon.boss.SpiritGiantEntity.GRAB_CLOSE) / 20.0, 0, 1));
                 Vec3 from = new Vec3(me.x, floor + 1.4, me.z);
-                Vec3 eye = pullIn(mc, from, from.add(away.scale(11)).add(side.scale(4)), g);
+                Vec3 open = new Vec3(mid.x - me.x, 0, mid.z - me.z);
+                open = open.lengthSqr() < 4 ? away : open.normalize();
+                Vec3 eye = pullIn(mc, from, from.add(open.scale(10)).add(new Vec3(-open.z, 0, open.x).scale(3.5)), g);
                 Vec3 look = me.add(0, 1, 0).lerp(g.head(0), 0.25 * k);
                 return new Shot(eye, look, 70 - 6 * (float) k, 0, cut, true);
             }
             case 1 -> {
                 // high over its head: past your dangling feet, the arena far below
                 Vec3 eye = pullIn(mc, me.add(0, 1, 0), me.add(away.scale(5.5)).add(side.scale(2.2)).add(0, 3.0, 0), g);
-                Vec3 look = me.add(0, -5, 0).subtract(away.scale(2));
+                Vec3 look = new Vec3(me.x, Math.max(floor + 1, me.y - 5), me.z).subtract(away.scale(2));
                 return new Shot(eye, look, 76, 0, cut, true);
             }
             case 2 -> {
@@ -449,24 +457,30 @@ public final class Cinematic {
                 Vec3 skull = g.eye(-1, 0).lerp(g.eye(1, 0), 0.5);
                 Vec3 u = me.add(0, 1.6, 0).subtract(skull);
                 u = u.lengthSqr() < 1e-4 ? away : u.normalize();
-                Vec3 s2 = new Vec3(-u.z, 0, u.x).normalize();
+                // on the side away from the arm that holds you (its forearm runs from your side back to it: from behind you
+                // on that side it filled the frame)
+                Vec3 s2 = g.right(0).scale(g.grabHand() == 0 ? -1 : 1);
                 float charge = Math.max(0, g.charge(0));
                 double push = Math.min(1, charge);
                 // far enough back that its whole skull is in frame over your shoulder, its eyes swelling; pushing in as they charge
                 Vec3 head = me.add(0, 1.6, 0);
-                Vec3 eye = pullIn(mc, head, head.add(u.scale(7.5 - 2.5 * push)).add(s2.scale(2.4)).add(0, 0.9, 0), g);
-                float fov = charge >= 1.5F ? 80 : 64 - 10 * (float) push;
-                return new Shot(eye, skull.add(0, 1.2, 0).lerp(head, 0.2), fov, 0, cut, true);
+                // a little under its eyes, looking up into its face: the hat's brim frames them from above instead of hiding them
+                Vec3 eye = pullIn(mc, head, head.add(u.scale(8.5 - 2.6 * push)).add(s2.scale(4.2)).add(0, -1.2, 0), g);
+                float fov = charge >= 1.5F ? 80 : 62 - 10 * (float) push;
+                return new Shot(eye, skull.lerp(head, 0.15), fov, 0, cut, true);
             }
             default -> {
                 if (t > com.groid.papon.boss.SpiritGiantEntity.GRAB_SLAM + 6) return null;
                 // the slam: from out on the sand beyond where it will put you down, low, the fist coming down at the lens with you
                 Vec3 mark = g.handMark(g.grabHand());
                 Vec3 land = new Vec3(mark.x, floor, mark.z);
-                Vec3 out = land.subtract(new Vec3(base.x, floor, base.z));
-                out = out.lengthSqr() < 1e-4 ? g.forward() : out.normalize();
+                Vec3 out = new Vec3(mid.x - land.x, 0, mid.z - land.z);
+                out = out.lengthSqr() < 4 ? g.forward() : out.normalize();
+                // from the side of where it puts you down (and a little toward the open middle), clear of its body
                 Vec3 perp = new Vec3(-out.z, 0, out.x);
-                Vec3 eye = pullIn(mc, land.add(0, 1.5, 0), land.add(out.scale(13)).add(perp.scale(5)).add(0, 3.5, 0), g);
+                Vec3 armway = new Vec3(land.x - base.x, 0, land.z - base.z);
+                if (armway.lengthSqr() > 1e-4 && perp.dot(armway.normalize()) < 0) perp = perp.scale(-1);
+                Vec3 eye = pullIn(mc, land.add(0, 1.5, 0), land.add(perp.scale(11)).add(out.scale(5)).add(0, 3.0, 0), g);
                 Vec3 fist = g.hand(g.grabHand(), 0);
                 return new Shot(eye, fist.lerp(land, 0.45), 72, 0, cut, true);
             }
@@ -768,8 +782,8 @@ public final class Cinematic {
         }
         if (k < standsAt) {
             double p = (k - closeAt) / (double) (standsAt - closeAt);
-            Vec3 eye = face.add(sf.scale(3.3 - p * 0.3)).add(side.scale(0.5)).add(0, -0.25, 0);
-            return new Shot(eye, face.add(0, 0.05, 0), 40, 0, near(k, closeAt));
+            Vec3 eye = face.add(sf.scale(4.4 - p * 0.4)).add(side.scale(0.6)).add(0, -0.3, 0);
+            return new Shot(eye, face.add(0, 0.05, 0), 44, 0, near(k, closeAt));
         }
         Vec3 c = arenaMiddle(b);
         if (k < wideAt) {

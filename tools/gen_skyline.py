@@ -442,14 +442,23 @@ class Mesh:
     def __init__(self):
         self.pos, self.nrm, self.uv, self.bone = [], [], [], []
         self.groups = {}
+        self.seen = {}
 
     def vert(self, p, n, uv, bone):
-        self.pos.append(tuple(float(x) for x in p))
+        """A vertex (shared with any identical one already made: the loft's neighbouring quads meet on the same corners)."""
         nn = np.array(n, float)
         L = np.linalg.norm(nn)
-        self.nrm.append(tuple(nn / L) if L > 1e-9 else (0.0, 1.0, 0.0))
-        self.uv.append(tuple(float(x) for x in uv))
+        nn = tuple(nn / L) if L > 1e-9 else (0.0, 1.0, 0.0)
+        pp, uu = tuple(float(x) for x in p), tuple(float(x) for x in uv)
+        key = (tuple(round(v, 4) for v in pp), tuple(round(v, 3) for v in nn), tuple(round(v, 5) for v in uu), B[bone])
+        hit = self.seen.get(key)
+        if hit is not None:
+            return hit
+        self.pos.append(pp)
+        self.nrm.append(nn)
+        self.uv.append(uu)
         self.bone.append(B[bone])
+        self.seen[key] = len(self.pos) - 1
         return len(self.pos) - 1
 
     def quad(self, pts, nrms, uvs, bone, group='opaque', extra=()):
@@ -1127,7 +1136,7 @@ def write():
         groups[g] = [len(idx), len(M.groups.get(g, []))]
         idx.extend(M.groups.get(g, []))
     pos = [round(v, 4) for p in M.pos for v in p]
-    nrm = [round(v, 4) for n in M.nrm for v in n]
+    nrm = [round(v, 3) for n in M.nrm for v in n]
     uv = [round(v, 5) for t in M.uv for v in (t[0], 1 - t[1])]           # stored OBJ-style (the loader flips v)
     joints, weights = [], []
     for b in M.bone:

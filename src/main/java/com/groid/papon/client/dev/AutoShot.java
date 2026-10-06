@@ -396,7 +396,16 @@ public final class AutoShot {
             default -> null;
         };
         if (n != null) once(mc, n);
+        // the same apology frame with particles at their least: what is on his face is a particle or it is not
+        if (s == BossState.P2_APOLOGY && t == 83) mc.options.particles().set(net.minecraft.client.ParticleStatus.MINIMAL);
+        if (s == BossState.P2_APOLOGY && t == 88) once(mc, "c22p_apology_no_particles");
+        if (s == BossState.P2_APOLOGY && t == 92) mc.options.particles().set(net.minecraft.client.ParticleStatus.ALL);
         if (s == BossState.IDLE && b.isPhaseTwo() && colMark < 0 && taken.contains("c25_where_were_we")) colMark = tick;
+        // the first sung word: the opening pyrotechnics (PyroShow), as you see them, him in the middle of the frame
+        if (colMark > 0 && COLISEUM) {
+            int k0 = tick - colMark;
+            if (k0 == 2 || k0 == 8 || k0 == 16 || k0 == 30 || k0 == 50 || k0 == 80) once(mc, String.format("c30_first_word_%02d", k0));
+        }
         if (colMark > 0 && ARENA) {
             arenaTour(mc, b, tick - colMark);
             return;
