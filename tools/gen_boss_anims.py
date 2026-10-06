@@ -3096,20 +3096,40 @@ def b_a_comet_land():
 
 
 def b_a_laser():
-    """5.5 s (BossState.P3_LASER, 110 t). Ojos de Papa: fingers to his temples as his eyes charge (0.5-1.7, shaking harder),
-    then flung back, chest out, head forward, as the beams burn (1.7-4.8); he lowers his head (to 5.5)."""
+    """5.5 s (BossState.P3_LASER, 110 t). Ojos de Papa (reworked 2026-10-06, the user: "he leans forward so you know the attack
+    is charging, a slight recoil as he uses it"). Fingers to his temples (to 0.6) and he leans in over you, further and
+    further as his eyes charge (0.7-1.7: head thrust forward, shaking harder, squashed down like a spring); the shot (1.7)
+    throws him back: head snapped up and back, knocked back through the air, arms flung out, stretched tall; then he forces
+    himself back into it, leaning into the beams as they burn (to 4.8), jolted back by every surge (a kick each 0.45 s);
+    they go out and he sags, head down (to 5.5)."""
     a = god(B('a_laser', 5.5, 'hold'))
     temple_r, temple_l = [-150, -60, 20], [-150, 60, -20]
-    shake = [(round(0.7 + 0.1 * i, 2), [temple_r[0] + (3 if i % 2 else -3), temple_r[1], temple_r[2]]) for i in range(10)]
-    shake_l = [(round(0.7 + 0.1 * i, 2), [temple_l[0] + (-3 if i % 2 else 3), temple_l[1], temple_l[2]]) for i in range(10)]
-    a.rot('arm_r', [(0, [-28, 0, 26]), (0.6, temple_r, 'easeOutBack')] + shake + [(1.7, temple_r), (1.85, [30, 0, 60], 'easeOutExpo'),
-                    (4.8, [24, 0, 64]), (5.5, [-28, 0, 26], 'easeInOutSine')], 'lin')
-    a.rot('arm_l', [(0, [-28, 0, -26]), (0.6, temple_l, 'easeOutBack')] + shake_l + [(1.7, temple_l), (1.85, [30, 0, -60], 'easeOutExpo'),
-                    (4.8, [24, 0, -64]), (5.5, [-28, 0, -26], 'easeInOutSine')], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (0.6, 1.5), (1.7, 1.5), (1.85, 1.2), (5.5, 1)])
-    stretch(a, 'arm_l', [(0, 1), (0.6, 1.5), (1.7, 1.5), (1.85, 1.2), (5.5, 1)])
-    a.rot('torso', [(0, [-6, 0, 0]), (0.6, [8, 0, 0]), (1.7, [10, 0, 0]), (1.85, [-22, 0, 0], 'easeOutExpo'),
-                    (3.2, [-18, 6, 0]), (4.8, [-22, -6, 0]), (5.5, [-6, 0, 0], 'easeInOutSine')], 'lin')
+    shake = [(round(0.7 + 0.1 * i, 2), [temple_r[0] + (4 + i * 0.6 if i % 2 else -4 - i * 0.6), temple_r[1], temple_r[2]]) for i in range(10)]
+    shake_l = [(round(0.7 + 0.1 * i, 2), [temple_l[0] + (-4 - i * 0.6 if i % 2 else 4 + i * 0.6), temple_l[1], temple_l[2]]) for i in range(10)]
+    a.rot('arm_r', [(0, [-28, 0, 26]), (0.6, temple_r, 'easeOutBack')] + shake + [(1.7, temple_r), (1.8, [40, 0, 78], 'easeOutExpo'),
+                    (2.3, [22, 0, 62], 'easeInOutSine'), (4.8, [24, 0, 64]), (5.5, [-28, 0, 26], 'easeInOutSine')], 'lin')
+    a.rot('arm_l', [(0, [-28, 0, -26]), (0.6, temple_l, 'easeOutBack')] + shake_l + [(1.7, temple_l), (1.8, [40, 0, -78], 'easeOutExpo'),
+                    (2.3, [22, 0, -62], 'easeInOutSine'), (4.8, [24, 0, -64]), (5.5, [-28, 0, -26], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.6, 1.5), (1.7, 1.5), (1.8, 1.3), (5.5, 1)])
+    stretch(a, 'arm_l', [(0, 1), (0.6, 1.5), (1.7, 1.5), (1.8, 1.3), (5.5, 1)])
+    # the surges: a jolt back, and he leans into it again
+    kicks = [round(2.3 + 0.45 * i, 2) for i in range(6)]
+    torso = [(0, [-6, 0, 0]), (0.6, [12, 0, 0], 'easeInOutSine'), (1.0, [20, 0, 0], 'easeInOutSine'), (1.5, [28, 0, 0], 'easeInQuad'),
+             (1.7, [32, 0, 0]), (1.8, [-30, 0, 0], 'easeOutExpo'), (2.25, [12, 0, 0], 'easeInOutSine')]
+    root = [(0, [0, 0, 0]), (0.6, [0, -0.6, -1.0], 'easeInOutSine'), (1.7, [0, -1.4, -2.6], 'easeInQuad'),
+            (1.8, [0, 1.2, 4.5], 'easeOutExpo'), (2.25, [0, 0.2, 1.4], 'easeInOutSine')]
+    for i, k in enumerate(kicks):
+        side = 4 if i % 2 else -4
+        torso += [(round(k + 0.05, 2), [-2, side, 0], 'easeOutExpo'), (round(k + 0.4, 2), [12, 0, 0], 'easeInOutSine')]
+        root += [(round(k + 0.05, 2), [0, 0.5, 2.6], 'easeOutExpo'), (round(k + 0.4, 2), [0, 0.2, 1.4], 'easeInOutSine')]
+    torso += [(4.8, [10, 0, 0]), (5.0, [-8, 0, 0], 'easeOutQuad'), (5.5, [18, 0, 0], 'easeInOutSine')]
+    root += [(4.8, [0, 0.2, 1.4]), (5.5, [0, -0.4, 0], 'easeInOutSine')]
+    a.rot('torso', torso, 'lin')
+    a.pos('root', root, 'lin')
+    # squashed down like a spring as he charges, stretched tall by the shot (god()'s broad chest the rest)
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (1.0, [1.07, 1.0, 1.07], 'easeInOutSine'), (1.7, [1.11, 0.95, 1.11], 'easeInQuad'),
+                     (1.8, [0.98, 1.12, 0.98], 'easeOutExpo'), (2.2, [1.05, 1.02, 1.05], 'easeInOutSine'), (4.8, [1.05, 1.02, 1.05]),
+                     (5.5, [1.04, 1.03, 1.04], 'easeInOutSine')], 'lin')
     flying_legs(a, 5.5, 20)
     a.sound(0.6, 'grunt').sound(1.7, 'roar')
     return a

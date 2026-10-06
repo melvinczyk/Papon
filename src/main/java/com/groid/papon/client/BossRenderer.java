@@ -333,7 +333,8 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     @org.jetbrains.annotations.Nullable
     public static net.minecraft.world.phys.Vec3 eyePos(PaponBossEntity boss, int side) {
         net.minecraft.world.phys.Vec3[] e = EYES.get(boss.getId());
-        return e == null ? null : e[side >= 0 ? 0 : 1];
+        // scaled like every tracked bone (2026-10-06: left raw, his eye beams came out of his chest, not his eyes)
+        return e == null ? null : scaled(boss, e[side >= 0 ? 0 : 1]);
     }
 
     @Override

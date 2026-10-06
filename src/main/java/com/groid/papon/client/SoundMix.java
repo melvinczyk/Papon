@@ -47,7 +47,9 @@ public final class SoundMix {
             event.setSound(new Scaled(s, BAND * VoiceDuck.band()));
             return;
         }
-        if (PaponMod.MOD_ID.equals(id.getNamespace()) && (id.getPath().startsWith("voice.") || id.getPath().startsWith("boss.cine_"))) return;
+        // (his eye beams too: the user wanted them louder, and they are mastered to sit over the fight)
+        if (PaponMod.MOD_ID.equals(id.getNamespace()) && (id.getPath().startsWith("voice.") || id.getPath().startsWith("boss.cine_")
+                || id.getPath().startsWith("boss.laser_"))) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
         if (mc.level.getEntitiesOfClass(PaponBossEntity.class, new AABB(s.getX(), s.getY(), s.getZ(), s.getX(), s.getY(), s.getZ()).inflate(NEAR),

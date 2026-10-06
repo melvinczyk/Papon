@@ -5619,6 +5619,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         beamAims.clear();
     }
 
+    /** Ojos de Papa's own sounds (tools/gen_laser_sounds.py): charge, fire, burn, end. */
+    private static net.minecraft.sounds.SoundEvent laserSound(String which) {
+        return net.minecraft.sounds.SoundEvent.createVariableRangeEvent(com.groid.papon.PaponMod.id("boss.laser_" + which));
+    }
+
     /**
      * His eyes (the ascended model at its render scale, 2x): the eye bones' pivots (4.5 px either side, 19.5 up, 8 forward),
      * where the beams leave from for what they hit; the client draws them from the eyes as rendered.
@@ -5909,9 +5914,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     // ---- Ojos de Papa
 
     /**
-     * Ojos de Papa (5.5 s): up over the sand facing you; his eyes charge (0.7-1.7 s: two thin lines aim in from either side
-     * of you, and in his coliseum his golden statues' eyes light up too), then they fire (1.7-4.8 s): white-hot beams that
-     * chase you across the sand, scorching it, a share of your health every fifth of a second. The Skyline stops them.
+     * Ojos de Papa (5.5 s): up over the sand facing you; his eyes charge (0.7-1.7 s: he leans in over you, light streaming into
+     * his eyes, two thin lines aim in from either side of you, and in his coliseum his golden statues' eyes light up too), then
+     * they fire (1.7-4.8 s): the shot knocks him back through the air, and thick white-hot beams chase you across the sand,
+     * scorching it, a share of your health every fifth of a second, every surge jolting him back. The Skyline stops them.
+     * (2026-10-06: out of his eyes as drawn, twice as thick, its own loud sounds: boss.laser_*.)
      */
     private void tickP3Laser(ServerLevel level, @Nullable LivingEntity target) {
         int t = stateTicks;
@@ -5922,19 +5929,35 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             back = back.lengthSqr() < 1e-4 ? Vec3.directionFromRotation(0, getYRot()).scale(-1) : back.normalize();
             want = target.position().add(back.scale(10));
         }
-        flyTo(inSand(new Vec3(want.x, floor + 7.5, want.z), 3, 5, 10), 0.5);
+        // the recoil: the shot throws him back through the air, and each surge after it a little
+        if (t >= 34 && t < 96) {
+            Vec3 back = Vec3.directionFromRotation(0, yBodyRot).scale(-1);
+            double k = t < 44 ? (44 - t) / 10.0 * 3.5 : 0.8 * Math.max(0, 1 - ((t - 46) % 9) / 4.0);
+            want = want.add(back.scale(k));
+        }
+        flyTo(inSand(new Vec3(want.x, floor + 7.5, want.z), 3, 5, 10), t >= 34 && t < 40 ? 1.1 : 0.5);
         if (target != null) turnToward(target.position(), 8F);
         if (t == 2) say("p3_laser", 40);
+        if (t >= 14 && t < 34 && t % 2 == 0) {
+            // the charge: light streaming in to his eyes from all round, faster as it builds
+            for (int side : new int[]{1, -1}) {
+                Vec3 eye = eyePos(side);
+                Vec3 from = eye.add(random.nextGaussian() * 2.2, random.nextGaussian() * 1.6, random.nextGaussian() * 2.2);
+                Fx.jet(level, from, eye.subtract(from).scale(0.18 + (t - 14) * 0.01), 0.35F, t % 4 == 0 ? 0xFFFFFF : 0xFF5A3A);
+            }
+        }
+        if (t == 30) level.playSound(null, getX(), getY(), getZ(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.HOSTILE, 3.0F, 1.3F);
         CaravanEntity van = van(level);
         if (t == 14 && target != null) {
             clearBeams(level);
             Vec3 tp = target.position();
             Vec3 f = Vec3.directionFromRotation(0, getYRot());
             Vec3 r = new Vec3(-f.z, 0, f.x);
-            addBeam(level, eyePos(1), new Vec3(tp.x, floor, tp.z).add(r.scale(6)), 0.55F, 0xFF3A2A, 1);
-            addBeam(level, eyePos(-1), new Vec3(tp.x, floor, tp.z).add(r.scale(-6)), 0.55F, 0xFF3A2A, -1);
+            addBeam(level, eyePos(1), new Vec3(tp.x, floor, tp.z).add(r.scale(6)), 1.05F, 0xFF3A2A, 1);
+            addBeam(level, eyePos(-1), new Vec3(tp.x, floor, tp.z).add(r.scale(-6)), 1.05F, 0xFF3A2A, -1);
             for (Vec3 s : statueEyes()) addBeam(level, s, new Vec3(s.x, floor, s.z), 1.0F, 0xFFC23A);
             laserPhase = random.nextDouble() * Math.PI * 2;
+            level.playSound(null, getX(), getY(), getZ(), laserSound("charge"), SoundSource.HOSTILE, 4.5F, 1.0F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 2.0F, 1.6F);
             crowdReact(level, CrowdMood.GASP, 20);
         }
@@ -5948,14 +5971,22 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 BeamEntity b = beam(level, i);
                 if (b != null) b.setMode(BeamEntity.FIRE);
             }
+            level.playSound(null, getX(), getY(), getZ(), laserSound("fire"), SoundSource.HOSTILE, 4.5F, 1.0F);
+            level.playSound(null, getX(), getY(), getZ(), laserSound("burn"), SoundSource.HOSTILE, 4.5F, 1.0F);
+            level.playSound(null, getX(), getY(), getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 3.0F, 0.8F);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.GUARDIAN_ATTACK, SoundSource.HOSTILE, 3.0F, 0.5F);
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 3.0F, 0.6F);
-            PaponNetwork.shake(level, position(), 40, 0.35F, 10);
+            PaponNetwork.shake(level, position(), 48, 0.7F, 14);
+            for (int side : new int[]{1, -1}) {
+                Fx.flash(level, eyePos(side), 2.4F);
+                Fx.shock(level, eyePos(side), 3.5F, 0xFF5A3A);
+            }
         }
-        if (t < 34 && t % 5 == 0) {
-            Fx.glint(level, eyePos(1), 0.7F, 0xFF4030);
-            Fx.glint(level, eyePos(-1), 0.7F, 0xFF4030);
+        if (t < 34 && t % 3 == 0) {
+            float g = 0.6F + (t - 14) * 0.04F;
+            Fx.glint(level, eyePos(1), g, 0xFF4030);
+            Fx.glint(level, eyePos(-1), g, 0xFF4030);
         }
+        if (t > 34 && t < 96 && t % 9 == 1) PaponNetwork.shake(level, position(), 40, 0.3F, 8);
         List<Vec3> statues = statueEyes();
         for (int i = 0; i < beams.size(); i++) {
             BeamEntity b = beam(level, i);
@@ -6009,7 +6040,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
         }
         if (firing && t % 6 == 0) level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_AMBIENT, SoundSource.HOSTILE, 2.0F, 1.8F);
-        if (t == 96) clearBeams(level);
+        if (t == 96) {
+            clearBeams(level);
+            level.playSound(null, getX(), getY(), getZ(), laserSound("end"), SoundSource.HOSTILE, 4.0F, 1.0F);
+        }
         if (t >= BossState.P3_LASER.duration) setBossState(BossState.IDLE);
     }
 
