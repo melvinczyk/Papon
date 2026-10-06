@@ -39,7 +39,7 @@ import software.bernie.geckolib.core.object.PlayState;
  * steps down off the riser to the floodlight at the stage's back corner, gives its chain a tug, and
  * both lights come on (or go off) as he walks back ({@link #tickLamp}).
  */
-public class MariachiEntity extends TacoNpc {
+public class MariachiEntity extends TacoNpc implements Speech.Pitched {
     private static final EntityDataAccessor<Integer> DATA_ROLE =
             SynchedEntityData.defineId(MariachiEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_SONG_START =
@@ -167,6 +167,7 @@ public class MariachiEntity extends TacoNpc {
     /** Everyone plays (the song started at {@code songStartTick}). */
     public void play(int songStartTick) {
         entityData.set(DATA_SONG_START, songStartTick);
+        dueState = null;
         if (!getBandState().lamp()) setBandState(BandState.PLAY);      // off at the lamp: back to it when he is home
     }
 
@@ -186,6 +187,7 @@ public class MariachiEntity extends TacoNpc {
         if (getRole().singer()) return;
         this.delay = delay;
         scareDue = true;
+        dueState = null;
     }
 
     /** The singer: his requinto out of his hands. */
@@ -218,6 +220,34 @@ public class MariachiEntity extends TacoNpc {
         if (getBandState() != BandState.CATCH) setBandState(BandState.READY);
     }
 
+    // ------------------------------------------------------------------ phase four
+
+    /** The scar has opened again: the music stops and every jaw drops ({@code delay} ticks late, each his own way). */
+    public void shock(int delay) {
+        stop();
+        due(BandState.SHOCKED, delay);
+    }
+
+    /** The last song is coming: up on their toes, hyping themselves up ({@code delay} ticks late, so nobody moves in step). */
+    public void hype(int delay) { due(BandState.HYPED, delay); }
+
+    /** "One last song": they settle, instruments up, waiting on the singer's nod. */
+    public void settle() {
+        dueState = null;
+        if (getBandState() == BandState.HYPED || getBandState() == BandState.SHOCKED) setBandState(BandState.READY);
+    }
+
+    /** A state he goes into in {@code delay} ticks (the scare's, the shock's, the hype's: everyone at his own moment). */
+    @Nullable private BandState dueState;
+    private int dueIn;
+
+    private void due(BandState s, int delay) {
+        if (!getBandState().ready() && !getBandState().lamp()) return;       // still asleep or dressing: he has not seen a thing
+        scareDue = false;
+        dueState = s;
+        dueIn = delay;
+    }
+
     private boolean scareDue;
     /** Ticks until a snatched instrument is back in his hands (the boss's guitar duel). */
     private int giveBackIn;
@@ -240,7 +270,27 @@ public class MariachiEntity extends TacoNpc {
         if (getBandState() == BandState.PLAY || getBandState().ready() || getBandState().lamp()) setBandState(BandState.BOW);
     }
 
-    private void say(String line, int ticks) { Speech.say(this, ChatFormatting.GOLD, "speech.papon.band." + line, false, false, ticks); }
+    private void say(String line, int ticks) {
+        Speech.say(this, ChatFormatting.GOLD, "speech.papon.band." + line, false, false, Math.max(ticks, (int) Math.ceil(lineTicks(line) / voicePitch()) + 4));
+    }
+
+    /** How long each recorded line of the band's runs, in ticks at pitch 1 (voice/band.json, tools/gen_band_voice.py). */
+    @Nullable private static java.util.Map<String, Integer> lineTicks;
+
+    private static int lineTicks(String line) {
+        if (lineTicks == null) {
+            java.util.Map<String, Integer> m = new java.util.HashMap<>();
+            try (java.io.InputStream in = MariachiEntity.class.getResourceAsStream("/assets/papon/voice/band.json")) {
+                if (in != null) {
+                    com.google.gson.JsonObject j = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+                    float rate = j.get("rate").getAsFloat();
+                    for (var e : j.getAsJsonObject("lines").entrySet()) m.put(e.getKey(), (int) Math.ceil(e.getValue().getAsJsonArray().size() / rate * 20));
+                }
+            } catch (Exception ignored) {}
+            lineTicks = m;
+        }
+        return lineTicks.getOrDefault(line, 0);
+    }
 
     /** A line of his own in a bubble (phase three's cutscene: the band's scared asides). */
     public void blurt(String line, int ticks) { say(line, ticks); }
@@ -278,6 +328,10 @@ public class MariachiEntity extends TacoNpc {
         }
         int t = stateTicks;
         BandRole role = getRole();
+        if (dueState != null && dueIn-- <= 0) {
+            setBandState(dueState);
+            dueState = null;
+        }
         if (scareDue && delay-- <= 0) {
             scareDue = false;
             setBandState(BandState.SCARED);
@@ -414,11 +468,32 @@ public class MariachiEntity extends TacoNpc {
         }
     }
 
+    /** Every line of his is recorded (Speech.voiceOf): no babble (it was the villagers' "hmm"). */
     @Override
-    protected Speech.Voice voice() {
+    protected Speech.Voice voice() { return new Speech.Voice(SoundEvents.EMPTY, 1.0F, 0.0F, 4); }
+
+    /**
+     * The band's lines are all one cloned voice (the singer's, tools/gen_band_voice.py): each member says them in his own
+     * register, the rounder ones lower, the slim ones higher; the singer as recorded.
+     */
+    @Override
+    public float voicePitch() {
         BandRole r = getRole();
-        float pitch = r.singer() ? 1.0F : 1.25F / r.width;
-        return new Speech.Voice(SoundEvents.VILLAGER_AMBIENT, pitch, 0.6F, 4);
+        if (r.singer()) return 1.0F;
+        return Mth.clamp(1.0F + (1.08F - r.width) * 0.55F + (r.ordinal() % 2 == 0 ? 0.03F : -0.03F), 0.84F, 1.14F);
+    }
+
+    /** The animations' cues, the band's way: the gasp in his own voice, no villager grumble (his lines say it). */
+    @Override
+    protected <T extends TacoNpc> void onSoundCue(software.bernie.geckolib.core.keyframe.event.SoundKeyframeEvent<T> event) {
+        String cue = event.getKeyframeData().getSound();
+        if (cue.equals("grumble")) return;
+        if (cue.equals("gasp")) {
+            level().playLocalSound(getX(), getEyeY(), getZ(), net.minecraft.sounds.SoundEvent.createVariableRangeEvent(com.groid.papon.PaponMod.id("voice.band.gasp")),
+                    net.minecraft.sounds.SoundSource.NEUTRAL, 0.8F, voicePitch() * (0.96F + random.nextFloat() * 0.08F), false);
+            return;
+        }
+        super.onSoundCue(event);
     }
 
     // ------------------------------------------------------------------ animation
@@ -439,6 +514,10 @@ public class MariachiEntity extends TacoNpc {
     private static final RawAnimation RESLEEP = once("resleep"), HAT = once("hat"), SHADES = once("shades"), COUNT = once("count"),
             BOW = once("bow"), HAT_SLOW = once("hat_slow"),
             SCARED = loop("scared"), ROBBED = once("robbed"), AWED = loop("awed"), CATCH = once("catch");
+
+    /** The jaw drop, then held: half of them limp-armed, the rest with their hands on their heads. */
+    private static final RawAnimation[] SHOCKED = {RawAnimation.begin().thenPlay("animation.mariachi.jaw_drop").thenLoop("animation.mariachi.shocked_a"),
+            RawAnimation.begin().thenPlay("animation.mariachi.jaw_drop").thenLoop("animation.mariachi.shocked_b")};
 
     /** Gordo has the only chair; everyone else sleeps (and wakes, and dresses) sitting on the stage floor. */
     private String chair(String name) { return getRole().dozer() ? name : name + "_floor"; }
@@ -474,6 +553,8 @@ public class MariachiEntity extends TacoNpc {
             case AWED -> AWED;
             case CATCH -> CATCH;
             case NERVOUS -> loop(role.ordinal() % 2 == 0 ? "nervous_a" : "nervous_b");
+            case SHOCKED -> SHOCKED[role.ordinal() % 3 == 1 ? 1 : 0];
+            case HYPED -> loop("hype_" + kind);
         };
         return event.setAndContinue(next);
     }

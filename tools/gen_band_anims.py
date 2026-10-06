@@ -27,7 +27,8 @@ Lengths of one-shots = BandState durations in Java:
   (the singer: "uno" 0.2, "dos" 1.15, "uno, dos, tres" 2.1 / 2.55 / 3.05, the downbeat at 4.0),
   bow 2.5, whacked 2.5 (the singer, hit on the head: up in the air 0-0.9), jacket_slow 4.5,
   hat_slow 2.5, robbed 2.0, catch 1.5; loops: sleep_a/b/c 3.0, ready_* 2.0, play_* 1.88 (a bar of the song),
-  scared 1.0, awed 3.48 (two bars of Para Siempre), nervous_a / nervous_b 2.4
+  scared 1.0, awed 3.48 (two bars of Para Siempre), nervous_a / nervous_b 2.4;
+  phase four: jaw_drop 0.6 (then the loops shocked_a / shocked_b 2.4), hype_* 3.2
 """
 import json
 import os
@@ -695,6 +696,164 @@ def nervous(name, sgn):
     return a
 
 
+# ===================================================================== phase four
+
+JAW = 3.3            # the jaw on the floor: how far the lower lip drops (px)
+LIMP_R, LIMP_L = [6, 0, 7], [6, 0, -7]
+
+
+def brows(a, keys):
+    """keys: [(t, lift px, tilt deg)]: both brows up, the tilt raising their inner ends (worry, wonder)."""
+    for b, s_ in (('brow_r', 1), ('brow_l', -1)):
+        a.pos(b, [(t, [0, up, 0]) + tuple(r) for t, up, tilt, *r in keys])
+        a.rot(b, [(t, [0, 0, -tilt * s_]) + tuple(r) for t, up, tilt, *r in keys])
+
+
+def jaw_drop():
+    """0.6 s (into shocked_a / shocked_b). The scar has opened again: a jolt back on his heels, the brows shoot up and
+    the jaw drops (a little bounce at the bottom), the arms falling to his sides, instrument forgotten on its strap."""
+    a = state(M('jaw_drop', 0.6, 'hold'), True, True)
+    a.pos('root', [(0, [0, 0, 0]), (0.12, [0, 0.5, 0.8], 'easeOutQuad'), (0.35, [0, 0, 0.6], 'easeInOutSine'), (0.6, [0, 0, 0.6])], 'lin')
+    a.rot('torso', [(0, [0, 0, 0]), (0.12, [-12, 0, 0], 'easeOutQuad'), (0.4, [-7, 0, 0], 'easeInOutSine'), (0.6, [-7, 0, 0])], 'lin')
+    a.scale('body', [(0, [1, 1, 1]), (0.1, [0.93, 1.09, 0.93], 'easeOutQuad'), (0.3, [1.02, 0.98, 1.02]), (0.45, [1, 1, 1]), (0.6, [1, 1, 1])], 'lin')
+    a.rot('arm_r', [(0, [-30, -20, 6]), (0.15, [-20, 0, 24], 'easeOutQuad'), (0.45, LIMP_R, 'easeInOutSine'), (0.6, LIMP_R)], 'lin')
+    a.rot('arm_l', [(0, [-30, 20, -6]), (0.15, [-20, 0, -24], 'easeOutQuad'), (0.45, LIMP_L, 'easeInOutSine'), (0.6, LIMP_L)], 'lin')
+    stretch(a, 'arm_r', [(0, 1.0), (0.6, 1.0)])
+    stretch(a, 'arm_l', [(0, 1.0), (0.6, 1.0)])
+    a.rot('trumpet', [(0, [52, 0, 0])], 'lin')
+    a.rot('violin', [(0, [40, 0, 0])], 'lin')
+    brows(a, [(0, 0, 0), (0.08, 1.7, 8, 'easeOutQuad'), (0.6, 1.5, 8)])
+    mouth(a, [(0, 0), (0.18, JAW + 0.5, 'easeOutQuad'), (0.3, JAW - 0.3, 'easeInOutSine'), (0.42, JAW), (0.6, JAW)])
+    return a
+
+
+def shocked(name, hands):
+    """2.4 s loop. Jaw on the floor, staring: a slow shake of the head (he cannot believe it), a swallow; brows
+    right up. hands=False: arms hanging limp; True: both hands up on the sides of his head, under the sombrero."""
+    L = 2.4
+    a = state(M(name, L, True), True, True)
+    a.pos('root', [(0, [0, 0, 0.6])], 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (0.5, [0, -9, 0]), (1.0, [0, 8, 0]), (1.5, [0, -6, 0]), (2.0, [0, 0, 0]), (L, [0, 0, 0])])
+    a.rot('torso', [(0, [-7, 0, 0]), (1.2, [-8, 0, 1]), (L, [-7, 0, 0])])
+    a.scale('body', [(0, [1, 1, 1]), (1.2, [1.015, 1.02, 1.015]), (L, [1, 1, 1])])
+    if hands:
+        # the heels of his hands to his temples, fingers up under the brim
+        a.rot('arm_r', [(0, [-156, -30, 30]), (1.2, [-154, -32, 32]), (L, [-156, -30, 30])])
+        a.rot('arm_l', [(0, [-156, 30, -30]), (1.2, [-154, 32, -32]), (L, [-156, 30, -30])])
+        stretch(a, 'arm_r', [(0, 1.5)])
+        stretch(a, 'arm_l', [(0, 1.5)])
+    else:
+        a.rot('arm_r', [(0, LIMP_R), (1.2, [4, 0, 8]), (L, LIMP_R)])
+        a.rot('arm_l', [(0, LIMP_L), (1.2, [4, 0, -8]), (L, LIMP_L)])
+        stretch(a, 'arm_r', [(0, 1.0)])
+        stretch(a, 'arm_l', [(0, 1.0)])
+    a.rot('trumpet', [(0, [52, 0, 0])], 'lin')
+    a.rot('violin', [(0, [40, 0, 0])], 'lin')
+    brows(a, [(0, 1.5, 8), (1.2, 1.7, 10), (L, 1.5, 8)])
+    # hanging open, a tremble in it; a gulp (closes and drops again) at 1.8
+    mouth(a, [(0, JAW), (0.6, JAW - 0.2), (1.2, JAW + 0.1), (1.7, JAW), (1.8, 0.6, 'easeInQuad'), (1.95, JAW, 'easeOutQuad'), (L, JAW)])
+    return a
+
+
+def bounce(a, L, step=0.4, h=0.9):
+    """Up on his toes on every count, legs stomping in turn: the hype's beat."""
+    a.pos('root', osc(0, L, step / 2, [0, 0, 0], [0, h, 0]), 'cat')
+    keys_r, keys_l = [], []
+    t, i = 0.0, 0
+    while t <= L + 1e-6:
+        keys_r.append((round(t, 4), [-16, 0, 0] if i % 4 == 1 else [0, 0, 0]))
+        keys_l.append((round(t, 4), [-16, 0, 0] if i % 4 == 3 else [0, 0, 0]))
+        t += step / 2
+        i += 1
+    a.rot('leg_r', keys_r, 'lin')
+    a.rot('leg_l', keys_l, 'lin')
+
+
+PUMP_R = [-170, 4, 30]          # a fist (or whatever is in it) punched up, out past the brim
+PUMP_K = 1.7                     # (stretched: his arms are short and the sombrero is wide)
+
+
+def hype(kind):
+    """3.2 s loop: phase four, the last song coming: no fear left in them, up on their toes, hyping each other up.
+    guitar (and the singer's requinto): chugging strums, a windmill, a fist pumped twice with a shout. trumpet: the
+    horn up for a warm-up toot, down, fist pumps. violin: the bow up like a sword, circling, conducting, a point at
+    the sky. coro: the maraca shaken high, the hand mic pumped, hips swaying. Mouths open on every shout."""
+    L = 3.2
+    a = state(M('hype_' + kind, L, True), True, True)
+    bounce(a, L)
+    a.rot('torso', [(0, [-4, 0, -4]), (0.8, [-6, 0, 4]), (1.6, [-4, 0, -4]), (2.4, [-8, 0, 4]), (L, [-4, 0, -4])])
+    a.rot('root', [(0, [0, -6, 0]), (1.6, [0, 6, 0]), (L, [0, -6, 0])])
+    shouts = []
+    if kind == 'guitar':
+        down, up = [-36, -52, 0], [-104, -52, 0]
+        guitar_pose(a, 0)
+        r = [(0, up)]
+        for i in range(4):                           # four chugs, a beat each
+            r += [(0.2 + i * 0.4, down, 'easeInQuad'), (0.4 + i * 0.4, up, 'easeOutQuad')]
+        # the windmill: the arm right round over his shoulder, down onto the strings
+        r += [(1.75, [-150, -20, 30], 'easeInOutSine'), (1.95, [-250, 0, 40]), (2.1, [-350, -20, 30]), (2.2, [-396, -52, 0], 'easeOutQuad'),
+              (2.4, [-396, -52, 0])]
+        a.rot('arm_r', r, 'lin')
+        # (the windmill ends a full turn round: the loop jumps back from -396 to -36 + -360, the same pose)
+        a.rot('arm_r', [(2.55, [-530, 4, 30], 'easeOutBack'), (2.7, [-470, -52, 0], 'easeInQuad'), (2.85, [-530, 4, 30], 'easeOutBack'),
+                        (3.05, [-464, -52, 0], 'easeInOutSine'), (L, [-464, -52, 0])], 'lin')
+        stretch(a, 'arm_r', [(0, 1.5), (1.6, 1.5), (1.95, 1.7), (2.2, 1.5), (2.55, PUMP_K), (2.7, 1.4), (2.85, PUMP_K), (3.05, 1.5), (L, 1.5)])
+        stretch(a, 'arm_l', [(0, 1.6)])
+        for i in range(4):
+            a.sound(round(0.2 + i * 0.4, 2), 'strum')
+        a.sound(2.2, 'strum')
+        shouts = [(2.55, 2.4), (2.85, 2.6)]
+    elif kind == 'trumpet':
+        p, d = TRUMPET_PLAY, TRUMPET_DOWN
+        a.rot('arm_r', [(0, d['r']['rot']), (0.3, p['r']['rot'], 'easeOutQuad'), (1.2, p['r']['rot']), (1.45, d['r']['rot'], 'easeInOutSine'),
+                        (1.9, d['r']['rot']), (2.05, PUMP_R, 'easeOutBack'), (2.25, d['r']['rot'], 'easeInQuad'), (2.6, d['r']['rot']),
+                        (2.75, PUMP_R, 'easeOutBack'), (2.95, d['r']['rot'], 'easeInQuad'), (L, d['r']['rot'])], 'lin')
+        a.rot('arm_l', [(0, d['l']['rot']), (0.3, p['l']['rot'], 'easeOutQuad'), (1.2, p['l']['rot']), (1.45, d['l']['rot'], 'easeInOutSine'), (L, d['l']['rot'])], 'lin')
+        stretch(a, 'arm_r', [(0, d['r']['k']), (0.3, p['r']['k']), (1.2, p['r']['k']), (1.45, d['r']['k']), (1.9, d['r']['k']), (2.05, PUMP_K), (2.25, d['r']['k']),
+                             (2.6, d['r']['k']), (2.75, PUMP_K), (2.95, d['r']['k']), (L, d['r']['k'])])
+        stretch(a, 'arm_l', [(0, d['l']['k']), (0.3, p['l']['k']), (1.2, p['l']['k']), (1.45, d['l']['k']), (L, d['l']['k'])])
+        a.rot('trumpet', [(0, [d['trumpet'], 0, 0]), (0.3, [p['trumpet'], 0, 0], 'easeOutQuad'), (0.5, [-12, 0, 0]), (0.9, [-18, 0, 0]),
+                          (1.2, [p['trumpet'], 0, 0]), (1.45, [d['trumpet'], 0, 0], 'easeInOutSine'), (L, [d['trumpet'], 0, 0])], 'lin')
+        for c in ('cheek_r', 'cheek_l'):
+            a.scale(c, [(0, HIDDEN), (0.32, HIDDEN), (0.4, [1, 1, 1]), (1.15, [1, 1, 1]), (1.22, HIDDEN), (L, HIDDEN)], 'lin')
+        for v, at in (('valve_1', 0.5), ('valve_2', 0.7), ('valve_3', 0.9)):
+            a.pos(v, [(0, [0, 0, 0]), (at, [0, 0, 0]), (at + 0.05, [0, -0.6, 0]), (at + 0.15, [0, 0, 0]), (L, [0, 0, 0])], 'lin')
+        a.sound(0.42, 'toot')
+        shouts = [(2.05, 2.4), (2.75, 2.6)]
+    elif kind == 'violin':
+        # the violin tucked under his left arm, the bow (right hand) a sword held up, circled, brought down, pointed out
+        a.rot('arm_l', [(0, [-40, 10, -16])], 'lin')
+        a.rot('violin', [(0, [40, 0, 0])], 'lin')
+        stretch(a, 'arm_l', [(0, 1.2)])
+        a.rot('arm_r', [(0, [-60, -10, 10]), (0.3, [-170, -6, 26], 'easeOutBack'), (0.55, [-164, -6, 38]), (0.8, [-172, -6, 18]), (1.05, [-164, -6, 38]),
+                        (1.3, [-172, -6, 18]), (1.6, [-90, -30, 0], 'easeInQuad'), (1.8, [-140, 0, 10], 'easeOutQuad'), (2.0, [-90, -30, 0], 'easeInQuad'),
+                        (2.3, [-118, 20, 30], 'easeOutBack'), (2.9, [-120, 20, 32]), (L, [-60, -10, 10], 'easeInOutSine')], 'lin')
+        stretch(a, 'arm_r', [(0, 1.15), (0.3, PUMP_K), (1.3, PUMP_K), (1.6, 1.2), (2.3, 1.5), (2.9, 1.5), (L, 1.15)])
+        a.rot('bow', [(0, BOW_MID['prop']), (0.3, [0, 20, 0], 'easeOutQuad'), (1.3, [0, 20, 0]), (1.6, BOW_MID['prop'], 'easeInOutSine'),
+                      (2.3, [0, 40, 0], 'easeOutQuad'), (2.9, [0, 40, 0]), (L, BOW_MID['prop'], 'easeInOutSine')], 'lin')
+        shouts = [(0.3, 2.2), (2.3, 2.8)]
+    else:   # coro
+        shake = osc(0.2, 1.6, 0.1, [-162, -8, 36], [-146, -8, 44])
+        a.rot('arm_r', [(0, [-40, -10, 12])] + shake + [(1.9, [-60, -10, 16], 'easeInOutSine'), (2.2, [-160, -8, 36], 'easeOutBack'),
+                                                         (2.5, [-60, -10, 16]), (2.8, [-160, -8, 36], 'easeOutBack'), (L, [-40, -10, 12], 'easeInOutSine')], 'lin')
+        stretch(a, 'arm_r', [(0, 1.2), (0.2, 1.7), (1.6, 1.7), (1.9, 1.2), (2.2, PUMP_K), (2.5, 1.2), (2.8, PUMP_K), (L, 1.2)])
+        a.rot('arm_l', [(0, CORO['down']['rot']), (0.4, [-160, 10, -34], 'easeOutBack'), (0.8, CORO['down']['rot']), (1.2, [-160, 10, -34], 'easeOutBack'),
+                        (1.6, CORO['down']['rot']), (L, CORO['down']['rot'])], 'lin')
+        stretch(a, 'arm_l', [(0, CORO['down']['k']), (0.4, PUMP_K), (0.8, CORO['down']['k']), (1.2, PUMP_K), (1.6, CORO['down']['k']), (L, CORO['down']['k'])])
+        a.rot('root', [(0, [0, -6, -5]), (0.4, [0, -2, 5]), (0.8, [0, 2, -5]), (1.2, [0, 6, 5]), (1.6, [0, 6, -5]), (2.0, [0, 2, 5]), (2.4, [0, -2, -5]),
+                       (2.8, [0, -6, 5]), (L, [0, -6, -5])])
+        for i in range(8):
+            a.sound(round(0.25 + i * 0.18, 2), 'maraca')
+        shouts = [(0.4, 2.0), (1.2, 2.2), (2.2, 2.6), (2.8, 2.4)]
+    mk = [(0, 0.3)]
+    for t, o in shouts:
+        mk += [(t - 0.06, 0.4), (t + 0.04, o, 'easeOutQuad'), (t + 0.3, 0.6, 'easeInQuad')]
+    mk.append((L, 0.3))
+    mouth(a, sorted(mk, key=lambda k: k[0]))
+    brows(a, [(0, 0.6, 0)] + [k for t, o in shouts for k in ((t, 1.2, -6, 'easeOutQuad'), (t + 0.4, 0.6, 0))] + [(L, 0.6, 0)])
+    return a
+
+
 # ===================================================================== the lamplighter
 
 def lamp_walk():
@@ -738,7 +897,9 @@ ALL = [sleep_a, sleep_b, sleep_c, startle, getup, resleep, jacket, hat, shades,
        lambda: ready('guitar'), lambda: ready('violin'), lambda: ready('trumpet'), lambda: ready('coro'),
        count, lambda: play('guitar'), lambda: play('singer'), lambda: play('violin'), lambda: play('trumpet'),
        lambda: play('coro'), bow, whacked, jacket_slow, hat_slow, lamp_walk, lamp_switch, scared, robbed, awed, catch,
-       lambda: nervous('nervous_a', 1), lambda: nervous('nervous_b', -1)]
+       lambda: nervous('nervous_a', 1), lambda: nervous('nervous_b', -1),
+       jaw_drop, lambda: shocked('shocked_a', False), lambda: shocked('shocked_b', True),
+       lambda: hype('guitar'), lambda: hype('trumpet'), lambda: hype('violin'), lambda: hype('coro')]
 
 
 # the ones that start in a chair: written again sitting on the floor (everyone but Gordo)

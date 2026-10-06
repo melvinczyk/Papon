@@ -116,6 +116,7 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
 | Coliseum, crowd, band, songs | `boss/{Coliseum,ColiseumCrowdEntity,CrowdMood,MariachiEntity,BandRole,BandState,Song}`, `block/*` |
 | Phase four extras | `boss/{SkySerpentEntity,SerpentPath,SalsaDancerEntity,SpiritGiantEntity}`, `client/{SpiritGiantRenderer,GiantMesh}` |
 | Singer's count-in voice | `tools/gen_singer_voice.py` → `sounds/voice/band/count.ogg`, `voice/singer.json` (`gen_band_anims.count`) |
+| Band's voiced lines | `tools/gen_band_voice.py` (every `speech.papon.band.*` + the `gasp` cue, cloned from the singer's reference) → `sounds/voice/band/*.ogg`, `voice/band.json` (mouth env, bubble lengths); pitch per member `MariachiEntity.voicePitch` |
 | Van / Skyline | `vehicle/CaravanEntity`, `client/CaravanRenderer`, `client/CaravanSounds` |
 | Cutscenes, shake, music, bar, night, fog, sky | `client/{Cinematic,ScreenShake,BossMusic,BossBarRenderer,NightLight,PotatoSky,MuertosSky,MuertosArena,BlurFx,ClientEvents}` |
 | Boss rendering/face | `client/{BossRenderer,BossModel,BossFace,BeamRenderer,PropRenderer}` |
@@ -163,6 +164,9 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
 - Phase four (≤25%, `PHASE_FOUR_AT`): P4_FALL → P4_RISEUP → P4_IGNIS → P4_PROPHECY → **P4_THRONE** (appended) → P4_BRETHREN →
   P4_SOULS → P4_HALFBAKED (form 4, El Coliseo de los Muertos swapped in the flash) → P4_BOW → P4_SERPENTS → P4_TALKING →
   P4_TOBAND → P4_HONOR → P4_MUCHACHAS → P4_GOODTIME → IDLE on the first sung word. Stands silent fall→souls (`p4Hushed`).
+  Band (2026-10-05, never cowering in phase four): `shock` at the fall (BandState SHOCKED: `jaw_drop` → `shocked_a/b`, jaws dropped
+  in the scar's band shot), `hype` from the prophecy (HYPED: `hype_<kind>` loops), shouts at the souls/serpents/TOBAND, `settle`
+  (READY) at P4_HONOR.
   Moves: P4_MARTILLO, P4_GIGANTE (`SpiritGiantEntity`: eye lasers, swipes fling into walls), P4_GRIETA, P4_PETALOS, P4_PAPEL,
   P4_VELAS, P4_DANZA, P4_LUNA, P4_SERPIENTES, P4_FLECHAS, and the grand ones (weights `muertosWeight`, sums in `boss/Fiesta`,
   drawn by `client/MuertosArena` from `DATA_P4SEED/FIELD/CENTER`): P4_OUROBOROS (serpents on a ring, `SerpentPath.Ring`),
@@ -202,6 +206,9 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
 - `BossFace.add` for shared bones (it takes last frame's addition back off; plain addition piles up). Two adders on one unkeyed
   channel break each other's take-back: `BossModel.setCustomAnimations` resets `body`'s rotation every frame (groove + face).
 - No leash in a coliseum (the dead one is wider than `ARENA_RADIUS`; a ground path never starts while flying: he hung in the air).
+- The band never babbles (the villagers' "hmm" was the complaint): every band line is recorded; a new `speech.papon.band.*` key needs
+  `gen_band_voice.py --takes <line>` + build, then `gen_boss_voice.py --beats` (beats leave room for band lines: `BL`) and
+  `gen_boss_anims.py`.
 - Voice: phase-four lines all cloned from the `animated` reference (`P4_GEN`); `pick` drops takes more than `SIM_GATE` under the
   line's best speaker match. Check drift of built lines with `voice_modal.similarity`.
 - **Glowmask removes those pixels from the normal pass**: nothing visible in phase one may be in a glowmask.

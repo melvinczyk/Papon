@@ -12,6 +12,7 @@ package com.groid.papon.boss;
  * PLAY --(nightfall, or dawn: the lamplighter, the third of the coro)--> LAMP_GO --> LAMP_SWITCH --> LAMP_BACK --> PLAY
  * PLAY --(phase three: the boss knocked down)--> READY --(his snatch)--> SCARED (the singer: ROBBED --> SCARED)
  *      --(the spotlight)--> AWED --(the guitar thrown back: the singer)--> CATCH --> READY --> PLAY (Para Siempre)
+ * PLAY --(phase four: the scar reopened)--> SHOCKED --(his story begins)--> HYPED --(his "one last song")--> READY --> PLAY
  * </pre>
  */
 public enum BandState {
@@ -47,7 +48,11 @@ public enum BandState {
     /** The singer: the requinto thrown back at him, juggled twice and caught. */
     CATCH(30),
     /** The guitar is back, the boss has his back to them: they look at each other, nobody dares start. */
-    NERVOUS(0);
+    NERVOUS(0),
+    /** Phase four: the scar open again. The jaw drops and stays there, staring. */
+    SHOCKED(0),
+    /** Phase four: the last song is coming. Up on their toes, hyping each other up (no fear left in them). */
+    HYPED(0);
 
     public final int duration;
 
@@ -64,6 +69,7 @@ public enum BandState {
 
     /** Up, dressed and holding his instrument. */
     public boolean ready() {
-        return this == READY || this == COUNT || this == PLAY || this == BOW || this == SCARED || this == AWED || this == CATCH || this == NERVOUS;
+        return this == READY || this == COUNT || this == PLAY || this == BOW || this == SCARED || this == AWED || this == CATCH || this == NERVOUS
+                || this == SHOCKED || this == HYPED;
     }
 }

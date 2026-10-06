@@ -772,8 +772,14 @@ public final class Cinematic {
                     double push = Math.min(1, (t - line - 4) / 60.0);
                     return new Shot(fp.add(f.scale(h * (1.9 - 0.3 * push))).add(right.scale(h * 0.45)).add(0, h * 0.12, 0), fp, 46, 0, near(t, line + 4));
                 }
-                // the band, frozen, staring at him
-                return new Shot(stage.add(stageFacing.scale(9)).add(0, 2.2, 0), stage.add(0, 1.5, 0), 46, 0, near(t, end - 30), true);
+                // (2026-10-05, the user: "their jaws dropped, surprised the player reopened the scar") the band, every jaw on
+                // the floor: from the sand at their eye level, pushing in over the singer to the faces behind him
+                double push = Mth.clamp((t - end + 30) / 30.0, 0, 1);
+                push = push * push * (3 - 2 * push);
+                Vec3 front = singer != null ? singer.position() : stage;
+                Vec3 faces = front.lerp(stage, 0.35).add(0, 1.55, 0);
+                Vec3 eye = front.add(stageFacing.scale(7.5 - 3.0 * push)).add(0, 1.7, 0);
+                return new Shot(eye, faces, 50 - 8 * (float) push, 0, near(t, end - 30), true);
             }
             case P4_RISEUP -> {
                 int cough = VoiceLines.beat("p4.cough", 52), line = VoiceLines.beat("p4.howgot", 92);

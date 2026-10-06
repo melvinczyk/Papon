@@ -97,6 +97,7 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
         float partial = state.getPartialTick();
         BandState s = m.getBandState();
         blink(m, partial, s);
+        if (s != BandState.PLAY && s != BandState.COUNT) talk(m, partial);
         if (s != BandState.PLAY) return;
         Song song = SongPlayer.song();
         BandPoses poses = BandPoses.get();
@@ -323,6 +324,46 @@ public class MariachiModel extends GeoModel<MariachiEntity> {
         int period = 70 + Math.floorMod(m.getId() * 31, 60);
         float phase = (m.tickCount + partial + Math.floorMod(m.getId() * 17, period)) % period;
         if (phase < 3) scale(bone("eyelids"), 1);
+    }
+
+    // ------------------------------------------------------------------ talking
+
+    /** voice/band.json (tools/gen_band_voice.py): each recorded line's loudness, {@link #talkRate} a second. */
+    @org.jetbrains.annotations.Nullable private static java.util.Map<String, float[]> talkEnv;
+    private static float talkRate = 25;
+
+    private static java.util.Map<String, float[]> talkEnv() {
+        if (talkEnv != null) return talkEnv;
+        talkEnv = new java.util.HashMap<>();
+        try (java.io.InputStream in = MariachiModel.class.getResourceAsStream("/assets/papon/voice/band.json")) {
+            if (in != null) {
+                com.google.gson.JsonObject j = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+                talkRate = j.get("rate").getAsFloat();
+                for (var e : j.getAsJsonObject("lines").entrySet()) {
+                    com.google.gson.JsonArray a = e.getValue().getAsJsonArray();
+                    float[] env = new float[a.size()];
+                    for (int i = 0; i < env.length; i++) env[i] = a.get(i).getAsFloat();
+                    talkEnv.put(e.getKey(), env);
+                }
+            }
+        } catch (Exception ignored) {}
+        return talkEnv;
+    }
+
+    /** A recorded line of his: the mouth opens with its loudness (the clip runs faster at a higher pitch), on top of the pose's. */
+    private void talk(MariachiEntity m, float partial) {
+        String sp = m.getSpeech();
+        if (sp.isEmpty()) return;
+        int sep = sp.indexOf('\u001f');
+        String key = sep < 0 ? sp : sp.substring(0, sep);
+        if (!key.startsWith("speech.papon.band.")) return;
+        float[] env = talkEnv().get(key.substring("speech.papon.band.".length()));
+        if (env == null) return;
+        float at = (m.speechAge() + partial) / 20F * m.voicePitch() * talkRate;
+        int i = (int) at;
+        if (i >= env.length - 1) return;
+        float v = Mth.lerp(at - i, env[i], env[i + 1]);
+        mouthOpen(2.2F * v, 1F - 0.12F * v);
     }
 
     /** Eases {@code v} toward {@code to} at {@code rate} per tick, frame-rate independent. */
