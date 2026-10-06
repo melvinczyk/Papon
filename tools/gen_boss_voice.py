@@ -526,6 +526,10 @@ SPOKEN = {
     'intro': "Nobody sees my bald head and livs to tell!",
     'upgrade': "It's about time I gave this thing an upgrade.",     # in capitals it came out "upi-grad"
     # the serpents' names as they sound (the bubble keeps the Nahuatl and Maya spellings)
+    # (2026-10-05) "this scar" came out "this car" in every take (the two s sounds run together): a breath between them
+    'p4_howgot': "Do you want to know how I got this... scar?",
+    'vendor_fraud': "A FAKE coupon?! FRAWD!!! NOBODY steals MY tacos!",
+    'lowhp0': "Ay, you look TIIRED, amigo.",
     'p4_bow': "Ketsalcoatl! Kookoolkahn! Come down, and meet the one who wants my throne!",
     'p4_serpientes': "Ketsalcoatl, Kookoolkahn... feast!",
     'p4_aliento': "Ketsalcoatl, Kookoolkahn... let them taste the fire of the old gods!",

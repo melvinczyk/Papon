@@ -408,5 +408,8 @@
   "voice.band.sigh": {"sounds": [{"name": "papon:voice/band/sigh", "attenuation_distance": 48}]},
   "voice.band.sleepy": {"sounds": [{"name": "papon:voice/band/sleepy", "attenuation_distance": 48}]},
   "voice.band.ya_voy": {"sounds": [{"name": "papon:voice/band/ya_voy", "attenuation_distance": 48}]},
-  "voice.band.yawn": {"sounds": [{"name": "papon:voice/band/yawn", "attenuation_distance": 48}]}
+  "voice.band.yawn": {"sounds": [{"name": "papon:voice/band/yawn", "attenuation_distance": 48}]},
+  "voice.boss2.p4_tzompantli": {"sounds": [{"name": "papon:voice/boss2/p4_tzompantli"}]},
+  "voice.boss2.p4_beso": {"sounds": [{"name": "papon:voice/boss2/p4_beso"}]},
+  "voice.boss2.p4_mano": {"sounds": [{"name": "papon:voice/boss2/p4_mano"}]}
 }
