@@ -135,7 +135,24 @@ DIRECTION = {
                         'through to its end like a man in the moment, not a scream.' % STAR),
     'intense': ('animated', NATURAL + 'You are %s, deadly serious and burning with intensity: low and hard, then rising, '
                             'every word meant, a challenge thrown down.' % STAR),
+    # (2026-10-05, the user: "I will not make his mistake" was not working: "more serious, more controlled, more matter-of-fact,
+    # more confident and deliberate, better articulated... a cold, decisive statement from a character who has made up his mind";
+    # no NATURAL here: its pitch swings were the theatrics)
+    'resolute': ('animated', 'You are %s, and you have made up your mind. Cold, controlled and matter-of-fact: low, level and steady, '
+                             'unhurried, every word deliberate and given the same quiet weight, a decision already taken and simply '
+                             'stated. No theatrics, no rising drama, no shouting, no anger in the voice: certainty.' % STAR),
 }
+
+# (2026-10-05, the user: "some lines currently sound jumbled or poorly articulated... clear pronunciation, clean separation
+# between words, natural pacing, strong diction, no mumbling, no words running together; preserve his personality") Lines
+# Whisper misheard or was unsure of in the built set (tools/voice_clarity.py: "scar" heard "car", "beat" heard "be", "Kneel"
+# heard "Neil", "ME" heard "Emi", the serpents' names dropped...), retaken with CLARITY added to their direction, a cooler
+# sampling, and picked for the words first and Whisper's certainty of each next (pick).
+CLARITY = (' Above all, say every word clearly and completely: crisp consonants, each word separate and distinct, never mumbled, '
+           'never swallowed, never two words run together; a natural, unrushed pace.')
+CLEAR_GEN = {'temperature': 0.8}
+CLEAR = {'p4_mistake', 'p4_howgot', 'p4_warrior', 'p3_new', 'p3_charm6', 'charm8', 'ranged0', 'vendor_fraud', 'vendor_inspect', 'lowhp0',
+         'charm0', 'p4_aliento', 'p4_serpientes', 'p3_laser', 'kill1', 'p4_tzompantli', 'p4_beso', 'p4_mano'}
 # the directions every line was taken with before the rework: lines not in FRESH keep them (so they are not taken again)
 OLD_DIRECTION = {
     "shout": (
@@ -414,7 +431,7 @@ LINES = {
     # the throne: Moctezuma, who gave his away
     'p4_moctezuma': ("I have seen this before, you know. When the iron men came across the sea, my old friend Moctezuma looked at their captain and saw a god. The Feathered Serpent, come home at last.", 'sad'),
     'p4_gates':  ("So he opened his gates. He gave them his gold, his city, his throne... and they took everything.", 'sad'),
-    'p4_mistake': ("I will not make his mistake. I will not give you my throne. If you are the one the prophecy speaks of, then you will have to take it from me.", 'intense'),
+    'p4_mistake': ("I will not make his mistake. I will not give you my throne. If you are the one the prophecy speaks of, then you will have to take it from me.", 'resolute'),
     'p4_prophecy': ("After all this time... the prophecy might finally be fulfilled.", 'awe'),
     'p4_lunaknows': ("Ha... la luna knows it too.", 'warm'),
     # the souls
@@ -496,6 +513,10 @@ LINES = {
     'p4_chaos0': ("I can't hold them back anymore! The dead want you, amigo!", 'cry'),
     'p4_chaos1': ("Burn! All of it, BURN!", 'scream'),
     'p4_crush':  ("Crush them, Gigante!", 'cry'),
+    # (2026-10-05) the revision pass's new moves: El Tzompantli, El Beso de la Muerte, La Mano
+    'p4_tzompantli': ("Rise, skulls of the old gods! Show our guest the way down!", 'cry'),
+    'p4_beso':   ("Muchachas! Give our guest a kiss... a kiss of death.", 'sly'),
+    'p4_mano':   ("Gigante! Bring them to me!", 'cry'),
 }
 
 FRESH |= {k for k in LINES if k.startswith('p4_')}
@@ -545,6 +566,11 @@ def meta_path():
 def signature(line):
     """What a line's takes were made from: if any of it changes, the line is taken again."""
     text, mood = LINES[line]
+    if line in CLEAR:
+        ref, direction = DIRECTION[mood]
+        if line.startswith('p4_'):
+            ref = 'animated'
+        return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction + CLARITY, 'gen': CLEAR_GEN}
     if line not in FRESH:
         ref, direction = OLD_DIRECTION[mood]
         return {'text': SPOKEN.get(line, text), 'ref': ref, 'instruct': direction}
@@ -615,7 +641,8 @@ def generate(lines, more=False):
                 for k, t in enumerate(takes, start=have[line]):
                     with open(take_path(line, k), 'wb') as f:
                         f.write(t['wav'])
-                    meta[line]['takes'].append({'heard': t['heard'], 'seconds': t['seconds'], 'sim': t.get('sim')})
+                    meta[line]['takes'].append({'heard': t['heard'], 'seconds': t['seconds'], 'sim': t.get('sim'), 'conf': t.get('conf'),
+                                                'minconf': t.get('minconf')})
                 json.dump(meta, open(meta_path(), 'w'), indent=1)
     return meta
 
@@ -754,12 +781,18 @@ def pick(line, info):
         # a line written to be shouted: a take Whisper heard as flat (no "!") only if no take was exclaimed
         flat = loud and excl == 0 and line not in NO_CHECK
         off = (t.get('sim') or 1) < gate                 # not his voice: only if every take is
+        if line in CLEAR:
+            # diction first: every word heard right, then how sure Whisper is of them (its least sure word counts too), then
+            # the delivery
+            conf = (t.get('conf') or 0) * 0.6 + (t.get('minconf') or 0) * 0.4
+            cands.append((off, t['clipped'], round(min(err, 0.5) * 20) / 20, round(-conf * 25) / 25, flat, -score, k))
+            continue
         cands.append((off, t['clipped'], round(min(err, 0.5) * 4) / 4, flat, -score, k))
     if not cands:
         return None, None
     # not cut off first, then said right (to a quarter of the words), then exclaimed if it should be, then the liveliest
     best = min(cands)
-    return best[5], best[1:]
+    return best[-1], best[1:]
 
 
 def trim(y, sr, floor_db=-55, lead=0.05, tail=0.25):

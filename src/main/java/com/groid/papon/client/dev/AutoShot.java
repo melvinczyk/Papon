@@ -1043,7 +1043,9 @@ public final class AutoShot {
             case P4_THRONE -> t == 40 ? "w16a_moctezuma_wide" : t == vb("p4.moctezuma", 18) + 100 ? "w16b_dolly" : t == vb("p4.moctezuma", 18) + 180 ? "w16c_saw_a_god"
                     : t == vb("p4.gates", 249) + 40 ? "w16d_gates" : t == vb("p4.gates", 249) + 100 ? "w16e_took_everything"
                     : t == vb("p4.mistake", 395) + 30 ? "w16f_not_his_mistake" : t == vb("p4.mistake", 395) + 110 ? "w16g_take_it"
-                    : t == vb("p4.moon", 573) + 30 ? "w16h_moon" : t == vb("p4.prophecy", 617) + 30 ? "w16i_fulfilled"
+                    : t == vb("p4.moon", 573) + 30 ? "w16h_moon_dark" : t == vb("p4.moon", 573) + 70 ? "w16h2_mist_rolls_in"
+                    : t == vb("p4.moonlit", 693) - 16 ? "w16h3_darkening" : t == vb("p4.moonlit", 693) + 20 ? "w16h4_moon_lit"
+                    : t == vb("p4.moonlit", 693) + 44 ? "w16h5_night" : t == vb("p4.prophecy", 617) + 30 ? "w16i_fulfilled"
                     : t == vb("p4.lunaknows", 712) + 24 ? "w17_luna_knows" : t == vb("p4.throne_end", 791) - 8 ? "w17b_wide" : null;
             case P4_BRETHREN -> t == 40 ? "w18_my_brethren" : t == vb("p4.brethren", 20) + 70 ? "w19_silent_stands" : t == vb("p4.grant", 139) + 30 ? "w20_grant_strength"
                     : t == vb("p4.turn", 189) + 4 ? "w21_moon_turning" : t == vb("p4.turn", 189) + 24 ? "w22_moon_turned" : t == vb("p4.turn", 189) + 50 ? "w22b_under_the_moon" : null;
@@ -1202,14 +1204,14 @@ public final class AutoShot {
     private static Vec3 flat(Vec3 p, double y) { return new Vec3(p.x, y, p.z); }
 
     private static String actName(int act) {
-        String[] n = {"rise", "idle", "charge", "laser", "slam_l", "slam_r", "sink", "swipe_l", "swipe_r", "slam_both", "roar"};
+        String[] n = {"rise", "idle", "charge", "laser", "slam_l", "slam_r", "sink", "swipe_l", "swipe_r", "slam_both", "roar", "grab"};
         return act >= 0 && act < n.length ? n[act] : "act" + act;
     }
 
     /** El Rey de los Muertos's moves, one after another, on you (Resistance V and regeneration keep you up). */
-    private static final String[] SHOW_P4 = {"P4_OUROBOROS", "P4_PISTA", "P4_CEMPASUCHIL", "P4_CASTILLO", "P4_GIGANTE", "P4_SALSA", "P4_TANGO",
-            "P4_SERPIENTES", "P4_LUNA", "P4_GRIETA"};
-    private static final int[] SHOW_P4_LEN = {380, 230, 290, 300, 350, 200, 580, 260, 160, 230};
+    private static final String[] SHOW_P4 = {"P4_GIGANTE", "P4_TZOMPANTLI", "P4_BESO", "P4_CASTILLO", "P4_PETALOS", "P4_OUROBOROS", "P4_PISTA",
+            "P4_CEMPASUCHIL", "P4_SALSA", "P4_TANGO", "P4_SERPIENTES", "P4_LUNA", "P4_GRIETA"};
+    private static final int[] SHOW_P4_LEN = {520, 260, 320, 320, 240, 380, 230, 290, 200, 580, 260, 160, 230};
 
     private static void muertosShowcase(Minecraft mc, PaponBossEntity b, int j) {
         int at = 0, i = 0;
@@ -1237,10 +1239,23 @@ public final class AutoShot {
         // the view on the action: the giant at its end, the floor for the rift, the petals and the candles, else him
         Entity giant = st.equals("P4_GIGANTE") ? nearest(mc, com.groid.papon.boss.SpiritGiantEntity.class) : null;
         if (st.equals("P4_TANGO")) com.groid.papon.client.QteClient.devPress();
+        // (2026-10-05) El Gigante digs itself out, and then you are out of its reach, at the far end: La Mano
+        if (giant instanceof com.groid.papon.boss.SpiritGiantEntity g && u == 150) {
+            Vec3 far = g.base().add(g.forward().scale(52));
+            run(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", far.x, c.y + 0.2, far.z));
+        }
+        if (giant instanceof com.groid.papon.boss.SpiritGiantEntity g && st.equals("P4_GIGANTE")) {
+            lookAtPoint(mc, u < 130 ? g.base().add(0, 8, 0) : g.head(0).lerp(g.hand(g.grabHand(), 0), 0.5));
+            int o = com.groid.papon.boss.SpiritGiantEntity.RISE_T - 52 + 150;
+            int[] dig = {20, 40, 52, 70, 95, 124, o + 15, o + 45, o + 62, o + 72, o + 95, o + 118};
+            for (int k = 0; k < dig.length; k++) if (u == dig[k]) shot(mc, String.format("y00_gigante_%02d", k));
+            return;
+        }
         if (giant != null && u % 80 < 50) lookAtPoint(mc, giant.position().add(0, com.groid.papon.boss.SpiritGiantEntity.HEAD_Y * 0.6, 0));
         else if (st.equals("P4_GRIETA") || st.equals("P4_VELAS") || st.equals("P4_PETALOS") || st.equals("P4_PISTA") || st.equals("P4_CEMPASUCHIL"))
             lookAtPoint(mc, mc.player.position().lerp(c, 0.6).add(0, -2, 0));
-        else if (st.equals("P4_CASTILLO")) lookAtPoint(mc, c.add(0, 9, 0));
+        else if (st.equals("P4_CASTILLO")) lookAtPoint(mc, c.add(0, 13, 0));
+        else if (st.equals("P4_TZOMPANTLI") || st.equals("P4_BESO")) lookAtPoint(mc, c.add(0, 1, 0));
         else if (st.equals("P4_OUROBOROS")) {
             Entity sp = nearest(mc, com.groid.papon.boss.SkySerpentEntity.class);
             if (sp instanceof com.groid.papon.boss.SkySerpentEntity se && u > 60) lookAtPoint(mc, se.headAt(0));

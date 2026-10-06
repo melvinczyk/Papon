@@ -59,11 +59,23 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
 
     @Override
     public void render(CaravanEntity van, float yaw, float partialTick, PoseStack pose, MultiBufferSource buffers, int light) {
+        // (2026-10-05, the user: "the skyline transformation is far too dark") in his upgrade it is the star of the stage: lit as
+        // if under the stage lights, whatever the night
+        if (keyLit(van)) light = net.minecraft.client.renderer.LightTexture.FULL_BRIGHT;
         super.render(van, yaw, partialTick, pose, buffers, light);
         if (van.isSkyline() && van.squash() > 0.95F) {
             underglow(van, partialTick, pose, buffers);
             if (van.isEngineOn()) headlights(van, partialTick, pose, buffers);
         }
+    }
+
+    /** Whether the boss is upgrading this van right now (P3_CRUSH, P3_SHOWCAR). */
+    private static boolean keyLit(CaravanEntity van) {
+        for (com.groid.papon.boss.PaponBossEntity b : van.level().getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class, van.getBoundingBox().inflate(24), e -> true)) {
+            com.groid.papon.boss.BossState s = b.getBossState();
+            if (s == com.groid.papon.boss.BossState.P3_CRUSH || s == com.groid.papon.boss.BossState.P3_SHOWCAR) return true;
+        }
+        return false;
     }
 
     /**

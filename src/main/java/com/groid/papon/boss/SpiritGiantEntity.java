@@ -95,7 +95,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     private static final EntityDataAccessor<Boolean> DATA_CAUGHT = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.BOOLEAN);
     private boolean releasing;
     private int ownerId = -1;
-    private int life = 500;
+    private int life = 720;
     /** Client: the skull's turn toward what it looks at, eased (yaw, pitch; radians). */
     private float lookYaw, lookPitch, lookYawO, lookPitchO;
 
@@ -165,7 +165,11 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         }
     }
 
-    public void sink() { if (act() != SINK) act(SINK); }
+    public void sink() {
+        if (act() == SINK) return;
+        letGo();
+        act(SINK);
+    }
 
     /** Keeps it in the arena at least this many ticks longer. */
     public void keep(int ticks) { life = Math.max(life, ticks); }

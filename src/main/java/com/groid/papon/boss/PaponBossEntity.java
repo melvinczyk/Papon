@@ -707,6 +707,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (WanderingDebug.on() && s != old) {
             PaponMod.LOG.info("[debug] boss {} -> {} (hp {}/{})", old, s, (int) getHealth(), (int) getMaxHealth());
         }
+        if (s == BossState.IDLE && old.muertosMove() && old != BossState.P4_MARTILLO && muertosFight()) {
+            // (2026-10-05, the user: "much more aggressive... attack chaining, pursuit") out of one move he comes straight at you
+            int st = Math.max(1, p4StageReached);
+            if (random.nextInt(4) < st + 1) p4Chain = true;
+        }
         if (s == BossState.IDLE && attack(old)) {
             misses = swingHit ? 0 : misses + 1;
             if (misses == 3) retort("miss", 500, 0.7F, "miss0", "miss1");
@@ -788,9 +793,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Fx.smoke(level, position().add(0, getBbHeight() * 0.85, 0), 2, 0.35, 0.9F, 0xF2EEE8);
         }
         if (t == 6 && random.nextInt(3) == 0) quip("hit" + random.nextInt(2), 1F);
-        if (t >= BossState.WINDED.duration + juicioWinded) {
+        // (2026-10-05) the final phase gives you less time: his breath shorter by stage (El Juicio Final's still long)
+        int length = BossState.WINDED.duration;
+        if (muertosFight()) length = (int) (length * (p4StageReached >= 3 ? 0.6 : p4StageReached == 2 ? 0.75 : 0.9));
+        if (t >= length + juicioWinded) {
             juicioWinded = 0;                // (El Juicio Final leaves him spent for longer)
             think = 2;
+            if (muertosFight() && random.nextInt(3) < Math.max(1, p4StageReached)) p4Chain = true;
             setBossState(BossState.IDLE);
         }
     }
@@ -1158,6 +1167,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         tickSerpentLayer(level, target);
         tickTrails(level);
         tickMuchachaLayer(level, target);
+        tickStillLayer(level);
         tickChaos(level, target);
         if (stageDue()) {
             startRage(level);
@@ -5006,6 +5016,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickP3Crush(ServerLevel level) {
         int t = stateTicks;
         getNavigation().stop();
+        stageLightsUp();
         setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));
         CaravanEntity van = van(level);
         if (van == null) {
@@ -5050,6 +5061,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 }
             }
             if (t > ball && t % 3 == 0) Fx.spark(level, at, 4, 0.3, 0.35F, 0xB050FF);
+            // the crushed van glowing in his hands: a purple light the whole bowl can see
+            if (t >= squeeze && t % 2 == 0) Fx.flash(level, at, 1.6F + (t > ball ? 1.4F : 0.6F));
         } else {
             if (t == reform) {
                 van.setSkyline(true);
@@ -5058,6 +5071,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 level.playSound(null, at(fist), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.HOSTILE, 2.0F, 1.3F);
                 Fx.shock(level, fist, 6F, 0xB050FF);
                 Fx.spark(level, fist, 30, 0.8, 0.5F, 0xD8A0FF);
+                // the reform lights the whole stage purple for a moment
+                Fx.flash(level, fist, 9F);
+                Fx.shock(level, new Vec3(getX(), inColiseum() && arena != null ? arena.floorY() : getY(), getZ()), 14F, 0xB050FF);
                 PaponNetwork.shake(level, position(), 48, 0.5F, 12);
                 crowdReact(level, CrowdMood.ROAR, 50);
             }
@@ -5095,6 +5111,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickP3ShowCar(ServerLevel level) {
         int t = stateTicks;
         getNavigation().stop();
+        stageLightsUp();
         setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));
         CaravanEntity van = van(level);
         if (van == null) {
@@ -5243,6 +5260,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final float NIGHT_P3 = 0F;
 
     public boolean isPhaseThree() { return entityData.get(DATA_PHASE3); }
+
+    /**
+     * The car's upgrade (P3_CRUSH, P3_SHOWCAR; 2026-10-05, the user: "far too dark... it should still retain an ominous
+     * supernatural atmosphere, but darkness should not obscure the actual transformation"): out of the serenade's blackout the
+     * stage lights come up to dusk over a second and a half, his spotlight and the car's purple doing the rest.
+     */
+    private void stageLightsUp() {
+        if (!inColiseum()) return;
+        float n = night();
+        if (n > STAGE_DUSK) entityData.set(DATA_NIGHT, Math.max(STAGE_DUSK, n - 0.02F));
+    }
+
+    private static final float STAGE_DUSK = 0.3F;
 
     /** How dark it is round him (client: the lightmap, the sky, the fog), 0 day .. 1 pitch black. */
     public float night() { return entityData.get(DATA_NIGHT); }
@@ -7138,8 +7168,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         getNavigation().stop();
         Vec3 c = target != null ? target.position() : (home != null ? home : position());
         boolean god = isAscended();
-        orbitAngle += (god ? 0.05F : 0.03F) * orbitDir;
-        double r = target == null ? 0 : god ? 7.5 : 6.5;
+        boolean deadFight = isMuertos();
+        orbitAngle += (deadFight ? 0.08F : god ? 0.05F : 0.03F) * orbitDir;
+        // (2026-10-05) the Final Guardian presses: tighter round you, and swooping in
+        double r = target == null ? 0 : deadFight ? 4.6 + 1.6 * Math.sin(tickCount * 0.11) : god ? 7.5 : 6.5;
         double h = (god ? 4.2 : 3.4) + Math.sin(tickCount * 0.07) * 0.8;
         Vec3 pt = clampToArena(c.add(Math.cos(orbitAngle) * r, h, Math.sin(orbitAngle) * r));
         Vec3 d = pt.subtract(position());
@@ -9996,9 +10028,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     // ---- his moves
 
+    /** Set as one of his moves ends: the next is El Martillo, straight at you (its cooldown waived). */
+    private boolean p4Chain;
+
     /** What El Rey de los Muertos does next: the hammer up close, the rest from anywhere; never the god's moves. */
     @Nullable
     private BossState choosePhaseFour(ServerLevel level, LivingEntity target, double d) {
+        if (p4Chain) {
+            p4Chain = false;
+            if (target instanceof Player || d > 3) return BossState.P4_MARTILLO;
+        }
         List<BossState> o = new ArrayList<>();
         boolean col = inColiseum() && arena != null && arena.dead;
         if (dMartilloCd <= 0) o.add(BossState.P4_MARTILLO);
@@ -10097,8 +10136,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     private void tickMuertosCooldowns() {
-        // (2026-10-05) faster by stage: half again in the storm, twice as fast at the end of the world
-        int k = p4StageReached >= 3 ? 2 : p4StageReached == 2 && (tickCount & 1) == 0 ? 2 : 1;
+        // (2026-10-05) faster by stage: a quarter faster from the start, half again in the storm, twice as fast at the end of the world
+        int k = p4StageReached >= 3 ? 2 : p4StageReached == 2 && (tickCount & 1) == 0 ? 2 : p4StageReached < 2 && (tickCount & 3) == 0 ? 2 : 1;
         dMartilloCd -= k;
         dGiganteCd -= k;
         dGrietaCd -= k;
@@ -10569,7 +10608,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 1) {
             entityData.set(DATA_P4PROP, 2);
             say("p4_gigante", 60);
-            // (2026-10-05) in the storm it is already here: it roars for him instead of rising
+            // (2026-10-05) in the storm it is already here: it roars for him instead of rising (and nothing waits for it to dig out)
+            giantDigWait = g == null ? SpiritGiantEntity.RISE_T - 52 : 0;
             if (g == null) g = summonGiant(level, target);
             else if (g.act() == SpiritGiantEntity.IDLE) g.act(SpiritGiantEntity.ROAR);
         }
@@ -10585,7 +10625,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         // what it does is the giant's own (tickGiantHazards hits with it): here only when
         int st = p4StageReached;
         // (2026-10-05) everything after it has dug itself out (SpiritGiantEntity.RISE_T); it waits for whatever it is doing
-        int o = SpiritGiantEntity.RISE_T - 56;
+        int o = giantDigWait;
         if (t == 56 + o && g.act() == SpiritGiantEntity.IDLE) giantLaser(g, 26, 62, GIANT_TRACK);
         if (t == 150 + o && g.act() == SpiritGiantEntity.IDLE) {
             // out of its reach: it comes for you (La Mano); in reach, a sweep
@@ -10602,6 +10642,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     private boolean giantSweep;
+    /** El Gigante's own move: how long it waits for the giant to dig itself out (none when it was already up). */
+    private int giantDigWait;
     private int giantEnd = 1;
     private final java.util.Set<Integer> swipeHit = new java.util.HashSet<>();
 
@@ -11601,7 +11643,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return;
         }
         int st = p4StageReached;
-        if (st < 2 && serpentQueue <= 0) return;
+        // (2026-10-05) from the first stage, now and then: every threat in the arena from the start
+        if (st < 2 && serpentQueue <= 0 && !(p4StageReached >= 1 && serpentLayerCd <= 0 && random.nextInt(2) == 0)) {
+            serpentLayerCd = 260 + random.nextInt(80);
+            return;
+        }
         if (s == BossState.WINDED && st < 3 && serpentQueue <= 0) return;
         int k = serpentTurn++ % 2;
         boolean went = serpentDive(level, k, target, 0, st >= 2) || serpentDive(level, 1 - k, target, 0, st >= 2);
@@ -13375,6 +13421,38 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 besoHome(level);
                 break;
             }
+        }
+    }
+
+    /** Where each of you has been standing, and since when (game tick). */
+    private final java.util.Map<UUID, double[]> stillAt = new java.util.HashMap<>();
+
+    /**
+     * La Luna te ve (2026-10-05, the user: "punishment for staying in one location"): whoever stays within a few blocks of one
+     * spot too long (3.5 s, 2.75 in the storm, 2 at the end of the world) gets the moon's beam down on it (a ring closing first,
+     * then 12%). Not in his cutscenes, the dance-off, or while he is winded in the first stage (your window to stand and hit).
+     */
+    private void tickStillLayer(ServerLevel level) {
+        if (!muertosFight() || arena == null) return;
+        BossState s = getBossState();
+        if (s.phaseFour() || s == BossState.P4_TANGO || s == BossState.P4_TANGO_WIN || s == BossState.P4_TANGO_LOSE || s == BossState.DEATH
+                || s == BossState.WINDED && p4StageReached < 2) {
+            stillAt.clear();
+            return;
+        }
+        long now = level.getGameTime();
+        int limit = p4StageReached >= 3 ? 40 : p4StageReached == 2 ? 55 : 70;
+        double floor = deadFloor();
+        for (ServerPlayer p : level.getEntitiesOfClass(ServerPlayer.class, arena.bounds(), this::hittable)) {
+            double[] at = stillAt.get(p.getUUID());
+            if (at == null || Mth.square(p.getX() - at[0]) + Mth.square(p.getZ() - at[1]) > 16) {
+                stillAt.put(p.getUUID(), new double[]{p.getX(), p.getZ(), now});
+                continue;
+            }
+            if (now - (long) at[2] < limit) continue;
+            moonStrike(level, new Vec3(p.getX(), floor, p.getZ()), 20, 0.12F);
+            level.playSound(null, p.getX(), floor + 10, p.getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 3.0F, 1.4F);
+            at[2] = now + 20;                       // the next not before this one has come down
         }
     }
 
