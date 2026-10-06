@@ -409,7 +409,7 @@ public final class MuertosSky {
                 Vec3 p = base.add(PaponBossEntity.petal(a0, arm, sent, t));
                 int[] col = cols[(arm + sent / 6) % cols.length];
                 float spin = (t - sent) * 0.4F + arm;
-                petal(vc, m, p, cam, 0.75F, spin, col[0], col[1], col[2], (int) (230 * fade));
+                petal(vc, m, p, cam, (float) PaponBossEntity.PETAL_R, spin, col[0], col[1], col[2], (int) (230 * fade));
             }
         }
     }

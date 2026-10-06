@@ -90,8 +90,35 @@ public class BossProp extends Entity {
         PAPEL,
         // ---- phase four, reworked (appended)
         /** Ignis's head (the user's Ignis trophy, kubejs in the pack): thrown down at his feet, where it stays; radius = the floor. */
-        IGNIS_HEAD
+        IGNIS_HEAD,
+        // ---- 2026-10-05 (appended)
+        /** A slab of the floor torn up by El Gigante, tumbling through the air (the block: the delay slot; its size: radius). */
+        DEBRIS,
+        /** El Tzompantli: a line of skull posts bursting up out of the floor, racing out along its yaw (a maths angle); radius =
+         *  how far out its front is, the delay slot how far it goes. Each post stands a while and sinks (SKULL_* below). */
+        SKULL_LINE,
+        /** El Tzompantli: a ring of skull posts bursting up as it spreads out from him: radius = the ring's; its gaps: the yaw
+         *  (degrees) and the delay slot (degrees, or -1 for one gap). */
+        SKULL_RING,
+        /** El Beso de la Muerte: a muchacha's rose, kissed and thrown on an arc. */
+        ROSE,
+        /** El Beso de la Muerte: a thicket of thorned rose vines burst up where a rose fell (radius its size; delay 1 the great
+         *  rose in the middle). */
+        THORNS,
+        /** El Beso de la Muerte: a vine of thorns and roses racing along the floor along its yaw (a maths angle); radius = its length. */
+        VINE,
+        /** El Beso de la Muerte: the great rose's burst, a ring of petals rolling out across the floor: radius = the ring's. */
+        PETAL_RING
     }
+
+    /** El Tzompantli's posts: spacing along a line or round a ring, the front's speed (blocks a tick), and a post's life: up by
+     *  SKULL_UP ticks after the front passes, standing to SKULL_STAND, gone at SKULL_GONE. */
+    public static final double SKULL_GAP = 2.2, SKULL_SPEED = 1.1;
+    public static final int SKULL_UP = 4, SKULL_STAND = 30, SKULL_GONE = 38;
+    /** A gap in a skull ring: how wide (blocks). */
+    public static final double RING_GAP = 4.5;
+    /** El Beso de la Muerte: how long a thicket stands (it withers over its last 12 ticks), and the great rose. */
+    public static final int THORNS_LIFE = 72, BLOOM_LIFE = 46;
 
     /** GUITAR: the pull down on its arc each tick. */
     private static final double TOSS_G = 0.05;
@@ -175,6 +202,25 @@ public class BossProp extends Entity {
         return this;
     }
 
+    /** DEBRIS: a slab of {@code block} {@code size} across, falling until it hits {@code floor}. */
+    public BossProp debris(net.minecraft.world.level.block.state.BlockState block, double floor, float size) {
+        entityData.set(DATA_DELAY, net.minecraft.world.level.block.Block.getId(block));
+        entityData.set(DATA_RADIUS, size);
+        aim = new Vec3(0, floor, 0);
+        return this;
+    }
+
+    /** DEBRIS: the block it is a slab of. */
+    public net.minecraft.world.level.block.state.BlockState block() { return net.minecraft.world.level.block.Block.stateById(delay()); }
+
+    /** SKULL_LINE / VINE: heading {@code deg} (a maths angle, degrees), out to {@code reach} blocks. */
+    public BossProp line(double deg, int reach) {
+        setYRot((float) deg);
+        entityData.set(DATA_DELAY, reach);
+        entityData.set(DATA_RADIUS, 0F);
+        return this;
+    }
+
     public BossProp follow(Entity e) {
         followId = e.getUUID();
         return this;
@@ -247,9 +293,20 @@ public class BossProp extends Entity {
                     }
                 }
             }
-            case CANDY -> {
+            case CANDY, ROSE -> {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+            }
+            case DEBRIS -> {
+                move();
+                setDeltaMovement(getDeltaMovement().add(0, -TOSS_G * 1.4, 0).scale(0.99));
+                if (getDeltaMovement().y < 0 && getY() <= aim.y + 0.2) {
+                    // it lands and shatters
+                    Fx.chunks(level, position().add(0, 0.4, 0), 8, 0.35F * radius(), 0x3A3046, 0.5);
+                    Fx.dust(level, position(), radius(), 4);
+                    if (random.nextInt(3) == 0) level.playSound(null, getX(), getY(), getZ(), SoundEvents.STONE_BREAK, SoundSource.HOSTILE, 2.0F, 0.6F);
+                    discard();
+                }
             }
             case PINATA -> {
                 move();
@@ -285,9 +342,17 @@ public class BossProp extends Entity {
                 }
             }
             case TOT, TOT_SMALL, PRODUCE -> move();
-            case GUITAR, CANDY -> {
+            case GUITAR, CANDY, ROSE -> {
                 move();
                 setDeltaMovement(getDeltaMovement().add(0, -TOSS_G, 0));
+                if (k == Kind.ROSE && tickCount % 2 == 0) {
+                    level().addParticle(new com.groid.papon.fx.FxOptions(com.groid.papon.registry.ModParticles.SMOKE.get(), -1, 0.35F, 1.2F,
+                            0xE0204A, 0.8F, 14, 0), true, getX(), getY() + 0.2, getZ(), 0, 0.01, 0);
+                }
+            }
+            case DEBRIS -> {
+                move();
+                setDeltaMovement(getDeltaMovement().add(0, -TOSS_G * 1.4, 0).scale(0.99));
             }
             case IGNIS_HEAD -> {
                 if (getY() > radius() + 0.01 || getDeltaMovement().y > 0) {

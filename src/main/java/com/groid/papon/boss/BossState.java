@@ -311,11 +311,11 @@ public enum BossState {
     /** El Martillo: blinks in beside you, two swings of the spirit hammer, up and down: rings and blue lightning. */
     P4_MARTILLO(64),
     /** El Gigante: he plays; a giant hologram skeleton rises out from under the arena: its mouth's laser, its hands. */
-    P4_GIGANTE(230),
+    P4_GIGANTE(480),
     /** La Grieta de las Almas: he slams the floor and tears it open with his hands; the souls in it pull you in. */
     P4_GRIETA(200),
     /** Lluvia de Cempasuchil: spinning over the middle, spirals of marigold petals out across the floor. */
-    P4_PETALOS(170),
+    P4_PETALOS(215),
     /** Papel Picado: giant banners of cut paper sweep the floor, low (jump) and high (duck), from both ends. */
     P4_PAPEL(170),
     /** Las Velas de Animas: the ectoplasm in the cracks erupts in blue fire, out from the skull and back. */

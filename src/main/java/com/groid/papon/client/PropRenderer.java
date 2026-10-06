@@ -67,6 +67,37 @@ public class PropRenderer extends EntityRenderer<BossProp> {
             drawSoul(p, pose, buffers, age, partialTick);
             return;
         }
+        switch (k) {
+            case DEBRIS -> {
+                drawDebris(p, pose, buffers, age);
+                return;
+            }
+            case SKULL_LINE -> {
+                drawSkullLine(p, pose, buffers, age, partialTick);
+                return;
+            }
+            case SKULL_RING -> {
+                drawSkullRing(p, pose, buffers, age, partialTick);
+                return;
+            }
+            case ROSE -> {
+                drawRose(p, pose, buffers, age);
+                return;
+            }
+            case THORNS -> {
+                drawThorns(p, pose, buffers, age);
+                return;
+            }
+            case VINE -> {
+                drawVine(p, pose, buffers, age, partialTick);
+                return;
+            }
+            case PETAL_RING -> {
+                drawPetalRing(p, pose, buffers, age, partialTick);
+                return;
+            }
+            default -> {}
+        }
         pose.pushPose();
         int lit = light;
         ItemStack stack;
@@ -318,6 +349,240 @@ public class PropRenderer extends EntityRenderer<BossProp> {
         }
         pose.popPose();
         drawGlow(pose, buffers, 0.9F, 1.1F * grow, 80, 220, 255, 0.4F);
+    }
+
+    // ------------------------------------------------------------------ 2026-10-05: El Gigante's debris, El Tzompantli, El Beso
+
+    private static final int FULL = LightTexture.FULL_BRIGHT;
+    private static final int[] STEM = {46, 92, 36}, STEM_DARK = {30, 60, 26}, THORN = {112, 46, 34}, ROSE_RED = {214, 22, 52},
+            ROSE_DEEP = {140, 8, 34}, ROSE_PINK = {255, 96, 150}, LEAF = {58, 120, 44}, POLE = {92, 60, 36};
+
+    /** A slab of the floor, tumbling. */
+    private static void drawDebris(BossProp p, PoseStack pose, MultiBufferSource buffers, float age) {
+        float s = p.radius();
+        pose.pushPose();
+        pose.translate(0, s * 0.5, 0);
+        pose.mulPose(Axis.XP.rotationDegrees(age * (9 + p.getId() % 7)));
+        pose.mulPose(Axis.ZP.rotationDegrees(age * (5 + p.getId() % 5)));
+        pose.scale(s, s * 0.6F, s);
+        pose.translate(-0.5, -0.5, -0.5);
+        Minecraft.getInstance().getBlockRenderer().renderSingleBlock(p.block(), pose, buffers, FULL, OverlayTexture.NO_OVERLAY);
+        pose.popPose();
+    }
+
+    private static final net.minecraft.world.level.block.state.BlockState SKULL =
+            com.groid.papon.registry.ModBlocks.MUERTOS_SKULL.get().defaultBlockState();
+
+    /** A tzompantli post at (x, z): a pole with three sugar skulls skewered on it, risen {@code h} (0 under the floor .. 1). */
+    private static void post(PoseStack pose, MultiBufferSource buffers, double x, double z, float h, float yaw) {
+        if (h <= 0.02F) return;
+        float tall = 3.6F;
+        pose.pushPose();
+        pose.translate(x, (h - 1) * (tall + 0.4F), z);
+        pose.mulPose(Axis.YP.rotationDegrees(yaw));
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
+        Shapes.tube(vc, pose.last().pose(), pose.last().normal(), new net.minecraft.world.phys.Vec3(0, 0, 0), new net.minecraft.world.phys.Vec3(0, tall + 0.5, 0),
+                0.12F, 0.1F, POLE, 5, FULL);
+        for (int i = 0; i < 3; i++) {
+            pose.pushPose();
+            pose.translate(-0.45, 0.25 + i * 1.08, -0.45);
+            pose.scale(0.9F, 0.9F, 0.9F);
+            Minecraft.getInstance().getBlockRenderer().renderSingleBlock(SKULL, pose, buffers, FULL, OverlayTexture.NO_OVERLAY);
+            pose.popPose();
+        }
+        pose.popPose();
+    }
+
+    /** How far up a post is {@code age} ticks after the front passed it. */
+    private static float postHeight(double age) {
+        if (age < 0 || age > BossProp.SKULL_GONE) return 0;
+        if (age < BossProp.SKULL_UP) {
+            float k = (float) (age / BossProp.SKULL_UP);
+            return Math.min(1.08F, k * (2.16F - k * 1.08F) * 1.0F + 0.0F);
+        }
+        if (age < BossProp.SKULL_STAND) return 1;
+        return 1 - (float) ((age - BossProp.SKULL_STAND) / (BossProp.SKULL_GONE - BossProp.SKULL_STAND));
+    }
+
+    /** A line of skull posts racing out along its heading; a glowing crack runs ahead of its front. */
+    private static void drawSkullLine(BossProp p, PoseStack pose, MultiBufferSource buffers, float age, float partial) {
+        double a = Math.toRadians(p.getYRot());
+        float dx = (float) Math.cos(a), dz = (float) Math.sin(a);
+        double front = p.radius() + BossProp.SKULL_SPEED * partial;
+        int reach = p.delay();
+        float yaw = -p.getYRot() + 90F;
+        for (int k = 0; ; k++) {
+            double d = 2.0 + k * BossProp.SKULL_GAP;
+            if (d > reach || d > front) break;
+            // a little off the line each side, so it reads as a hedge of them, not a ruler
+            double off = ((k * 37 + p.getId()) % 5 - 2) * 0.18;
+            post(pose, buffers, dx * d - dz * off, dz * d + dx * off, postHeight((front - d) / BossProp.SKULL_SPEED), yaw + (k * 53) % 40 - 20);
+        }
+        if (front < reach) {
+            VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
+            Matrix4f m = pose.last().pose();
+            float f0 = (float) Math.max(0, front - 1), f1 = (float) Math.min(reach, front + 4.5);
+            float w = 0.55F;
+            for (int side = 0; side < 2; side++) {
+                float[] xs = {dx * f0 - dz * w, dx * f0 + dz * w, dx * f1 + dz * w * 0.2F, dx * f1 - dz * w * 0.2F};
+                float[] zs = {dz * f0 + dx * w, dz * f0 - dx * w, dz * f1 - dx * w * 0.2F, dz * f1 + dx * w * 0.2F};
+                int[] al = {230, 230, 0, 0};
+                int[] ord = side == 0 ? new int[]{0, 1, 2, 3} : new int[]{3, 2, 1, 0};
+                for (int i : ord) glow.vertex(m, xs[i], 0.06F, zs[i]).color(255, 120, 30, al[i]).endVertex();
+            }
+        }
+    }
+
+    /** A ring of skull posts spreading out (its gaps open), the two rings behind it sinking. */
+    private static void drawSkullRing(BossProp p, PoseStack pose, MultiBufferSource buffers, float age, float partial) {
+        double r0 = p.radius() + BossProp.SKULL_SPEED * partial;
+        int packed = p.delay();
+        double fa = packed & 0xFF, fb = (packed >> 8) & 0xFF;
+        boolean two = (packed >> 16 & 1) != 0;
+        double gap = Math.toRadians(p.getYRot());
+        float[] hs = {1F, 0.55F, 0.2F};
+        for (int ring = 0; ring < 3; ring++) {
+            double r = r0 - ring * BossProp.SKULL_GAP;
+            if (r < 2) continue;
+            int n = Math.max(10, (int) (Math.PI * 2 * r / 2.4));
+            for (int i = 0; i < n; i++) {
+                double ang = Math.PI * 2 * i / n;
+                if (inGap(ang, gap, r) || two && inGap(ang, gap + Math.PI, r)) continue;
+                double x = Math.cos(ang) * r, z = Math.sin(ang) * r;
+                if (fa > 0 && fb > 0 && (x / fa) * (x / fa) + (z / fb) * (z / fb) > 0.93) continue;
+                post(pose, buffers, x, z, ring == 0 ? Math.min(1, (float) ((age % 3) / 3) * 0.3F + 0.85F) : hs[ring], (float) Math.toDegrees(-ang) + 90F);
+            }
+        }
+    }
+
+    static boolean inGap(double ang, double gap, double r) {
+        double d = Math.abs(Mth.wrapDegrees(Math.toDegrees(ang - gap)));
+        return Math.toRadians(d) * r < BossProp.RING_GAP;
+    }
+
+    /** A muchacha's rose in flight, turning over. */
+    private static void drawRose(BossProp p, PoseStack pose, MultiBufferSource buffers, float age) {
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
+        pose.pushPose();
+        pose.translate(0, 0.3, 0);
+        pose.mulPose(Axis.YP.rotationDegrees(age * 31));
+        pose.mulPose(Axis.XP.rotationDegrees(age * 23));
+        pose.scale(1.6F, 1.6F, 1.6F);
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        net.minecraft.world.phys.Vec3 o = net.minecraft.world.phys.Vec3.ZERO, up = new net.minecraft.world.phys.Vec3(0, 1, 0);
+        Shapes.tube(vc, m, n, o.add(0, -0.7, 0), o, 0.035F, 0.04F, STEM, 4, FULL);
+        Shapes.quad(vc, m, n, o.add(0, -0.4, 0), o.add(0.18, -0.32, 0.02), o.add(0.26, -0.2, 0), o.add(0.08, -0.3, -0.02), LEAF, FULL);
+        Shapes.rose(vc, m, n, o, up, 0.32F, 0.8F, 0, ROSE_RED, ROSE_DEEP, FULL);
+        pose.popPose();
+        drawGlow(pose, buffers, 0.3F, 0.9F, 255, 40, 90, 0.35F);
+    }
+
+    /** A thicket of thorned rose vines bursting up out of the floor and curling out, roses at their ends; withering at the end. */
+    private static void drawThorns(BossProp p, PoseStack pose, MultiBufferSource buffers, float age) {
+        boolean bloom = p.delay() == 1;
+        float s = p.radius();
+        int life = bloom ? BossProp.BLOOM_LIFE : BossProp.THORNS_LIFE;
+        float grow = Mth.clamp(age / (bloom ? 10F : 5F), 0, 1);
+        grow = 1 - (1 - grow) * (1 - grow);
+        float wither = Mth.clamp((life - age) / 12F, 0, 1);
+        float k = grow * wither;
+        if (k <= 0.01F) return;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        int vines = bloom ? 14 : 9;
+        for (int j = 0; j < vines; j++) {
+            double a = Math.PI * 2 * j / vines + (p.getId() % 7) * 0.3 + (j % 2) * 0.2;
+            net.minecraft.world.phys.Vec3 out = new net.minecraft.world.phys.Vec3(Math.cos(a), 0, Math.sin(a));
+            double tall = s * (bloom ? 0.55 : 0.85) * (0.8 + 0.3 * ((j * 7) % 3) / 2.0);
+            net.minecraft.world.phys.Vec3 p0 = out.scale(s * 0.25), p1 = out.scale(s * 0.55).add(0, tall * 1.3 * k, 0),
+                    p2 = out.scale(s * (1.0 + 0.1 * (j % 3))).add(0, tall * 0.55 * k, 0);
+            net.minecraft.world.phys.Vec3 prev = p0;
+            int segs = 8;
+            for (int i = 1; i <= segs; i++) {
+                double t = i / (double) segs * k;
+                net.minecraft.world.phys.Vec3 q = p0.scale((1 - t) * (1 - t)).add(p1.scale(2 * (1 - t) * t)).add(p2.scale(t * t));
+                float rad = (float) (0.16 * s / 2.6 * (1 - 0.6 * i / segs) + 0.04);
+                Shapes.tube(vc, m, n, prev, q, rad, rad * 0.9F, i % 2 == 0 ? STEM : STEM_DARK, 5, FULL);
+                // thorns: out from the vine, every segment, alternating sides
+                net.minecraft.world.phys.Vec3 d = q.subtract(prev).normalize();
+                net.minecraft.world.phys.Vec3 sideV = d.cross(new net.minecraft.world.phys.Vec3(0, 1, 0));
+                sideV = sideV.lengthSqr() < 1e-4 ? out : sideV.normalize();
+                net.minecraft.world.phys.Vec3 th = sideV.scale(i % 2 == 0 ? 1 : -1).add(0, 0.4, 0).normalize();
+                Shapes.cone(vc, m, n, q.subtract(d.scale(0.1)), q.add(th.scale(rad * 3.2 + 0.12)), rad * 0.8F, THORN, FULL);
+                if (i == segs / 2) Shapes.quad(vc, m, n, q, q.add(sideV.scale(0.35)).add(0, 0.12, 0), q.add(sideV.scale(0.5)).add(0, 0.3, 0), q.add(0, 0.22, 0), LEAF, FULL);
+                prev = q;
+            }
+            // a rose at its end, opening as it grows
+            Shapes.rose(vc, m, n, prev, prev.subtract(p1.scale(0.6)).normalize().add(0, 0.6, 0).normalize(), (float) (0.32 * s / 2.6 + 0.12),
+                    grow, j, j % 3 == 0 ? ROSE_PINK : ROSE_RED, ROSE_DEEP, FULL);
+        }
+        if (bloom) {
+            // the great rose in the middle: opening out, then bursting
+            float open = Mth.clamp(age / 18F, 0, 1);
+            Shapes.rose(vc, m, n, new net.minecraft.world.phys.Vec3(0, s * 0.35 * k, 0), new net.minecraft.world.phys.Vec3(0, 1, 0), s * 0.75F * k, open,
+                    age * 0.02F, ROSE_RED, ROSE_DEEP, FULL);
+            drawGlow(pose, buffers, s * 0.4F, s * 1.1F * k, 255, 40, 90, 0.45F);
+        } else {
+            drawGlow(pose, buffers, 0.4F, s * 1.2F * k, 255, 40, 90, 0.25F * wither);
+        }
+    }
+
+    /** A vine of thorns and roses racing along the floor, writhing; its front a burst of leaves. */
+    private static void drawVine(BossProp p, PoseStack pose, MultiBufferSource buffers, float age, float partial) {
+        double a = Math.toRadians(p.getYRot());
+        net.minecraft.world.phys.Vec3 dir = new net.minecraft.world.phys.Vec3(Math.cos(a), 0, Math.sin(a)), side = new net.minecraft.world.phys.Vec3(-dir.z, 0, dir.x);
+        double len = Math.min(p.delay(), p.radius() + 1.6 * partial);
+        float wither = Mth.clamp((p.delay() / 1.6F + 40 - age) / 12F, 0, 1);
+        if (len < 0.5 || wither <= 0) return;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        net.minecraft.world.phys.Vec3 prev = null;
+        for (double d = 0; d <= len; d += 0.6) {
+            double wob = Math.sin(d * 0.9 + age * 0.25 + p.getId()) * 0.35;
+            net.minecraft.world.phys.Vec3 q = dir.scale(d).add(side.scale(wob)).add(0, (0.35 + 0.15 * Math.sin(d * 1.7)) * wither, 0);
+            if (prev != null) {
+                Shapes.tube(vc, m, n, prev, q, 0.24F * wither, 0.24F * wither, ((int) (d / 0.6)) % 2 == 0 ? STEM : STEM_DARK, 5, FULL);
+                int i = (int) (d / 0.6);
+                net.minecraft.world.phys.Vec3 th = side.scale(i % 2 == 0 ? 1 : -1).add(0, 0.6, 0).normalize();
+                Shapes.cone(vc, m, n, q, q.add(th.scale(0.75 * wither)), 0.13F * wither, THORN, FULL);
+                if (i % 4 == 2) Shapes.rose(vc, m, n, q.add(0, 0.25, 0), new net.minecraft.world.phys.Vec3(0, 1, 0).add(side.scale(0.4)).normalize(),
+                        0.42F * wither, 0.9F, i, i % 8 == 2 ? ROSE_PINK : ROSE_RED, ROSE_DEEP, FULL);
+            }
+            prev = q;
+        }
+        if (len < p.delay() && prev != null) drawGlowAt(pose, buffers, prev, 1.6F, 255, 60, 110, 0.5F);
+    }
+
+    /** The great rose's burst: a ring of petals rolling out over the floor, fluttering. */
+    private static void drawPetalRing(BossProp p, PoseStack pose, MultiBufferSource buffers, float age, float partial) {
+        double r = p.radius() + 1.0 * partial;
+        if (r < 0.5) return;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        int count = Math.max(16, (int) (Math.PI * 2 * r / 0.55));
+        for (int i = 0; i < count; i++) {
+            double ang = Math.PI * 2 * i / count;
+            double rr = r + Math.sin(i * 1.7 + age * 0.4) * 0.4;
+            float y = (float) (0.15 + 0.9 * Math.abs(Math.sin(i * 0.9 + age * 0.3)));
+            net.minecraft.world.phys.Vec3 c = new net.minecraft.world.phys.Vec3(Math.cos(ang) * rr, y, Math.sin(ang) * rr);
+            net.minecraft.world.phys.Vec3 out = new net.minecraft.world.phys.Vec3(Math.cos(ang), 0, Math.sin(ang));
+            net.minecraft.world.phys.Vec3 tan = new net.minecraft.world.phys.Vec3(-Math.sin(ang), 0, Math.cos(ang));
+            double tw = i * 0.7 + age * 0.5;
+            net.minecraft.world.phys.Vec3 u = tan.scale(Math.cos(tw)).add(0, Math.sin(tw), 0).scale(0.32), w = out.scale(0.22);
+            Shapes.quad(vc, m, n, c.subtract(u).subtract(w), c.subtract(u).add(w), c.add(u).add(w), c.add(u).subtract(w), i % 3 == 0 ? ROSE_PINK : ROSE_RED, FULL);
+        }
+    }
+
+    /** A soft light at {@code at} (relative to the prop). */
+    private static void drawGlowAt(PoseStack pose, MultiBufferSource buffers, net.minecraft.world.phys.Vec3 at, float rad, int r, int g, int b, float k) {
+        pose.pushPose();
+        pose.translate(at.x, 0, at.z);
+        drawGlow(pose, buffers, (float) at.y, rad, r, g, b, k);
+        pose.popPose();
     }
 
     private static final ResourceLocation METAL = new ResourceLocation("minecraft", "textures/block/iron_block.png");

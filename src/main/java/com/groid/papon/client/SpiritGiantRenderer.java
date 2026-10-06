@@ -70,9 +70,9 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
     public void render(SpiritGiantEntity g, float yaw, float partial, PoseStack ps, MultiBufferSource buffers, int light) {
         Frame fr = new Frame();
         fr.origin = g.getPosition(partial);
-        fr.base = g.base();
-        fr.f = g.forward();
-        fr.r = g.right();
+        fr.base = g.base(partial);
+        fr.f = g.forward(partial);
+        fr.r = g.right(partial);
         fr.t = g.tickCount + partial;
         fr.act = g.actTime(partial);
         fr.a = g.act();
@@ -99,6 +99,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         if (fr.a == SpiritGiantEntity.LASER) jaw = 28F + 4F * Mth.sin(fr.t * 2.3F);
         if (fr.a == SpiritGiantEntity.ROAR) jaw = fr.act < 12 ? 6 + 30 * fr.act / 12F : fr.act < 40 ? 36F + 3F * Mth.sin(fr.t * 3.1F) : 36 - 30 * Math.min(1, (fr.act - 40) / 10F);
         if (fr.a == SpiritGiantEntity.SWIPE_L || fr.a == SpiritGiantEntity.SWIPE_R || fr.a == SpiritGiantEntity.RISE || fr.a == SpiritGiantEntity.SLAM_BOTH) jaw = 30F;
+        if (fr.a == SpiritGiantEntity.GRAB) jaw = fr.act < SpiritGiantEntity.GRAB_CLOSE ? 22F + 10F * Mth.sin(fr.t * 0.6F) : 34F + 4F * Mth.sin(fr.t * 2.1F);
         fr.jaw = jaw;
 
         Skeleton sk = new Skeleton(g, fr, partial);
@@ -107,7 +108,9 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         VertexConsumer bone = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
         skull(bone, fr, GiantMesh.SKULL, 0, false, 0);
         skull(bone, fr, GiantMesh.JAW, fr.jaw, false, 0);
-        sk.draw(new Solid(bone, fr));
+        Solid solid = new Solid(bone, fr);
+        sk.draw(solid);
+        hat(solid, fr);
 
         // ---- the light: one additive buffer
         VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
@@ -115,6 +118,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         skull(glow, fr, GiantMesh.SKULL, 0, true, shell);
         skull(glow, fr, GiantMesh.JAW, fr.jaw, true, shell);
         sk.draw(new Glow(glow, fr, shell));
+        hatGlow(glow, fr, shell);
         // its eyes: two burning lights deep in the sockets, blazing as it charges and fires
         float eye = fr.a == SpiritGiantEntity.CHARGE ? 0.5F + 0.6F * Math.min(1, fr.act / 24F) : fr.a == SpiritGiantEntity.LASER ? 1.35F
                 : fr.a == SpiritGiantEntity.ROAR ? 1.0F : 0.6F + 0.1F * fr.fury;
@@ -170,6 +174,128 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 vc.vertex(fr.m, wx, wy, wz).color(c >> 16 & 255, c >> 8 & 255, c & 255, 255).uv(0.5F, 0.5F).overlayCoords(OverlayTexture.NO_OVERLAY)
                         .uv2(FULL).normal(fr.n, wnx / V, wny / V, wnz / V).endVertex();
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ its hat
+
+    /**
+     * El Catrín's top hat (2026-10-05, the user: "an El Catrín / Día de los Muertos-inspired hat... large and visually recognizable
+     * enough that the player can actually see it during the fight"): a tall black crown, a little flared, worn at a rakish tilt
+     * on the cranium, a wide brim curled up at the sides, a marigold band with a purple stripe, a cluster of marigolds and a
+     * rose on the band, and two long feathers sweeping up and back. Skull units (it turns with the skull), drawn as bone is.
+     */
+    private static final int[] HAT = {44, 38, 52}, HAT_TOP = {70, 62, 82}, BAND = {255, 150, 24}, STRIPE = {122, 44, 186}, BLOOM = {255, 170, 30},
+            BLOOM_DEEP = {226, 96, 10}, ROSE = {214, 22, 52}, PLUME = {170, 60, 210}, PLUME_TIP = {255, 90, 170};
+    /** The crown: seated at HAT_Y on the cranium, HAT_H tall, radius HAT_R at the base (skull units). */
+    private static final float HAT_Y = 6.0F, HAT_H = 11.5F, HAT_R = 6.3F, BRIM = 10.8F;
+    private static final double HAT_TILT = Math.toRadians(-11), HAT_BACK = Math.toRadians(-7);
+
+    /** A point on the hat (its own axes: x right, y up the crown, z forward) to the world. */
+    private static Vec3 hp(Frame fr, double x, double y, double z) {
+        // tilted over to its left, and back a little
+        double ct = Math.cos(HAT_TILT), st = Math.sin(HAT_TILT), cb = Math.cos(HAT_BACK), sb = Math.sin(HAT_BACK);
+        double x1 = x * ct - y * st, y1 = x * st + y * ct;
+        double y2 = y1 * cb - z * sb, z2 = y1 * sb + z * cb;
+        double sx = x1 + 0.4, sy = y2 + HAT_Y, sz = z2 - 0.8;
+        return fr.head.add(fr.sx.scale(sx)).add(fr.sy.scale(sy)).add(fr.sz.scale(sz));
+    }
+
+    private static void hat(Solid out, Frame fr) {
+        int n = 20;
+        // the crown: rings up from the band, flaring a little to the top
+        float[] ys = {0, 1.6F, 2.9F, 7.0F, HAT_H};
+        float[] rs = {HAT_R, HAT_R * 1.0F, HAT_R * 1.01F, HAT_R * 1.04F, HAT_R * 1.1F};
+        int[][] cols = {BAND, STRIPE, HAT, HAT};
+        for (int ring = 0; ring + 1 < ys.length; ring++) {
+            for (int i = 0; i < n; i++) {
+                double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
+                Vec3 p00 = hp(fr, Math.cos(a0) * rs[ring], ys[ring], Math.sin(a0) * rs[ring]), p01 = hp(fr, Math.cos(a1) * rs[ring], ys[ring], Math.sin(a1) * rs[ring]);
+                Vec3 p10 = hp(fr, Math.cos(a0) * rs[ring + 1], ys[ring + 1], Math.sin(a0) * rs[ring + 1]);
+                Vec3 p11 = hp(fr, Math.cos(a1) * rs[ring + 1], ys[ring + 1], Math.sin(a1) * rs[ring + 1]);
+                Vec3 nr = p01.subtract(p00).cross(p10.subtract(p00)).normalize().scale(-1);
+                // a satin sheen down one side of the crown
+                float sheen = ring >= 2 ? 0.85F + 0.35F * (float) Math.max(0, Math.cos(a0 - 0.9)) : 1F;
+                out.v(p00, nr, cols[ring], sheen);
+                out.v(p10, nr, cols[ring], sheen);
+                out.v(p11, nr, cols[ring], sheen);
+                out.v(p01, nr, cols[ring], sheen);
+            }
+        }
+        // the top
+        Vec3 top = hp(fr, 0, HAT_H, 0);
+        Vec3 upN = hp(fr, 0, HAT_H + 1, 0).subtract(top).normalize();
+        for (int i = 0; i < n; i++) {
+            double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
+            float r = rs[rs.length - 1];
+            Vec3 p0 = hp(fr, Math.cos(a0) * r, HAT_H, Math.sin(a0) * r), p1 = hp(fr, Math.cos(a1) * r, HAT_H, Math.sin(a1) * r);
+            out.v(top, upN, HAT_TOP, 1);
+            out.v(top, upN, HAT_TOP, 1);
+            out.v(p1, upN, HAT_TOP, 1);
+            out.v(p0, upN, HAT_TOP, 1);
+        }
+        // the brim: wide, an oval a little longer front to back, its sides curled up
+        int m = 28;
+        for (int i = 0; i < m; i++) {
+            double a0 = Math.PI * 2 * i / m, a1 = Math.PI * 2 * (i + 1) / m;
+            Vec3 i0 = brim(fr, a0, HAT_R * 0.95F, 0), i1 = brim(fr, a1, HAT_R * 0.95F, 0);
+            Vec3 o0 = brim(fr, a0, BRIM, 1), o1 = brim(fr, a1, BRIM, 1);
+            Vec3 t0 = brim(fr, a0, BRIM, 1).add(fr.ny.scale(-0.5 * SpiritGiantEntity.V)), t1 = brim(fr, a1, BRIM, 1).add(fr.ny.scale(-0.5 * SpiritGiantEntity.V));
+            Vec3 nr = o0.subtract(i0).cross(i1.subtract(i0)).normalize();
+            if (nr.dot(upN) < 0) nr = nr.scale(-1);
+            out.v(i0, nr, HAT, 1);
+            out.v(o0, nr, HAT, 1);
+            out.v(o1, nr, HAT, 1);
+            out.v(i1, nr, HAT, 1);
+            out.v(i1, nr.scale(-1), HAT, 0.7F);
+            out.v(o1, nr.scale(-1), HAT, 0.7F);
+            out.v(o0, nr.scale(-1), HAT, 0.7F);
+            out.v(i0, nr.scale(-1), HAT, 0.7F);
+            // the brim's edge, bound in the band's colour
+            Vec3 en = o0.subtract(hp(fr, 0, o0.subtract(fr.head).dot(fr.ny) / SpiritGiantEntity.V - HAT_Y, 0)).normalize();
+            out.v(o0, en, STRIPE, 1);
+            out.v(t0, en, STRIPE, 1);
+            out.v(t1, en, STRIPE, 1);
+            out.v(o1, en, STRIPE, 1);
+        }
+        // on the band, its left side: marigolds round a red rose, and two feathers sweeping up and back
+        for (int k = 0; k < 6; k++) {
+            double a = Math.toRadians(150 + k * 13);
+            double y = 0.8 + (k % 2) * 1.0;
+            Vec3 c = hp(fr, Math.cos(a) * (HAT_R + 0.7), y, Math.sin(a) * (HAT_R + 0.7));
+            out.ball(c, (float) (0.95 * SpiritGiantEntity.V), k % 2 == 0 ? BLOOM : BLOOM_DEEP);
+        }
+        out.ball(hp(fr, Math.cos(Math.toRadians(170)) * (HAT_R + 1.1), 1.6, Math.sin(Math.toRadians(170)) * (HAT_R + 1.1)), (float) (1.2 * SpiritGiantEntity.V), ROSE);
+        for (int k = 0; k < 2; k++) {
+            double a = Math.toRadians(176 + k * 16);
+            Vec3 prev = hp(fr, Math.cos(a) * (HAT_R + 0.5), 1.8, Math.sin(a) * (HAT_R + 0.5));
+            for (int s = 1; s <= 6; s++) {
+                double u = s / 6.0;
+                double rr = HAT_R + 0.5 + 2.5 * u * u;
+                Vec3 q = hp(fr, Math.cos(a) * rr - 2.2 * u, 1.8 + 13.0 * u - 3.0 * u * u, Math.sin(a) * rr - 3.5 * u * u);
+                float w = (float) ((0.75 - 0.5 * u + 0.25 * Math.sin(u * Math.PI)) * SpiritGiantEntity.V);
+                out.tube(prev, q, w, w * 0.85F, s >= 5 ? PLUME_TIP : PLUME, 5);
+                prev = q;
+            }
+        }
+    }
+
+    /** A point on the brim: {@code a} round it, out to {@code r}, {@code edge} 1 at its rim (where it curls up at the sides). */
+    private static Vec3 brim(Frame fr, double a, float r, int edge) {
+        double x = Math.cos(a) * r, z = Math.sin(a) * r * 1.08;
+        double curl = edge * 1.6 * Math.pow(Math.abs(Math.cos(a)), 2.5) - edge * 0.4 * Math.max(0, Math.sin(a));
+        return hp(fr, x, 0.1 + curl, z);
+    }
+
+    /** The hat's outline in the dead's light, so it reads against the night. */
+    private static void hatGlow(VertexConsumer vc, Frame fr, int alpha) {
+        int n = 20;
+        for (int i = 0; i < n; i++) {
+            double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
+            float r = HAT_R * 1.1F + 0.35F;
+            Vec3 p0 = hp(fr, Math.cos(a0) * r, HAT_H + 0.2, Math.sin(a0) * r).subtract(fr.origin), p1 = hp(fr, Math.cos(a1) * r, HAT_H + 0.2, Math.sin(a1) * r).subtract(fr.origin);
+            Vec3 q0 = hp(fr, Math.cos(a0) * r, 3.0, Math.sin(a0) * r).subtract(fr.origin), q1 = hp(fr, Math.cos(a1) * r, 3.0, Math.sin(a1) * r).subtract(fr.origin);
+            quad2(vc, fr.m, p0, p1, q1, q0, alpha * 2, 0);
         }
     }
 
@@ -484,8 +610,11 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             Vec3 palm = side.cross(fwd).normalize();        // the back of the hand
             boolean swipe = (fr.a == SpiritGiantEntity.SWIPE_L && i == 0) || (fr.a == SpiritGiantEntity.SWIPE_R && i == 1);
             boolean slam = (fr.a == SpiritGiantEntity.SLAM_L && i == 0) || (fr.a == SpiritGiantEntity.SLAM_R && i == 1) || fr.a == SpiritGiantEntity.SLAM_BOTH;
-            float splay = slam ? 1F : swipe ? 0.95F : 0.45F + 0.15F * Mth.sin(fr.t * 0.1F + i);
-            float curl = low && !slam ? 0.55F + 0.1F * Mth.sin(fr.t * 0.07F + i) : (1 - splay) * 0.9F;
+            boolean reach = fr.a == SpiritGiantEntity.GRAB && i == g.grabHand();
+            boolean fist = reach && g.caught() && fr.act >= SpiritGiantEntity.GRAB_CLOSE - 1 && fr.act < SpiritGiantEntity.GRAB_THROW + 2;
+            boolean dig = fr.a == SpiritGiantEntity.RISE && fr.act < SpiritGiantEntity.DIG_HEAVE;
+            float splay = slam || reach && !fist || dig ? 1F : swipe ? 0.95F : 0.45F + 0.15F * Mth.sin(fr.t * 0.1F + i);
+            float curl = fist ? 1.25F : reach || dig ? 0.15F : low && !slam ? 0.55F + 0.1F * Mth.sin(fr.t * 0.07F + i) : (1 - splay) * 0.9F;
             float sc = 1.25F;
             for (int c = 0; c < 3; c++) out.ball(wrist.add(side.scale((c - 1) * 0.7 * sc)).add(fwd.scale(0.5 * sc)), 0.55F * sc, BONE);
             float[] lens = {3.0F, 2.3F, 1.7F, 1.3F};
@@ -536,10 +665,14 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
 
     /** Where it comes up through the floor: cracks out from its waist and a glow, the dead's blue. */
     private static void floorRing(VertexConsumer vc, Frame fr, SpiritGiantEntity g) {
-        if (fr.risen <= 0.01F) return;
+        float dug = g.dug(0);
+        float shown = Math.max(fr.risen, dug);
+        if (shown <= 0.01F) return;
         Vec3 c = fr.base.subtract(fr.origin).add(0, 0.08, 0);
         Vec3 f = fr.f, r = fr.r;
-        int al = (int) (110 * fr.risen * fr.glow);
+        // digging: the cracks run out from where it will come up before anything of it shows, flickering with the dead's light
+        float flick = fr.a == SpiritGiantEntity.RISE && fr.act < SpiritGiantEntity.DIG_HEAVE ? 0.75F + 0.25F * Mth.sin(fr.t * 1.3F) : 1F;
+        int al = (int) (110 * shown * fr.glow * flick);
         int n = 28;
         for (int i = 0; i < n; i++) {
             double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
@@ -551,15 +684,17 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         }
         // the cracks: jagged lines out over the floor
         long seed = g.getId() * 31L;
+        int reach = Math.max(1, Math.round(4 + 3 * dug));
         for (int k = 0; k < 12; k++) {
             double ang = Math.PI * 2 * k / 12 + ((seed >> k) & 7) * 0.05;
             Vec3 dir = r.scale(Math.cos(ang)).add(f.scale(Math.sin(ang)));
             Vec3 side = new Vec3(-dir.z, 0, dir.x);
-            Vec3 p = c.add(dir.scale(6.5));
-            for (int s = 0; s < 4; s++) {
+            Vec3 p = c.add(dir.scale(6.5 * Math.max(0.3, dug)));
+            for (int s = 0; s < reach; s++) {
                 Vec3 q = p.add(dir.scale(2.2 + ((k * 7 + s * 3) % 5) * 0.4)).add(side.scale((((k + s) % 3) - 1) * 0.9));
-                Vec3 w = side.scale(0.18 - s * 0.03);
-                quad2(vc, fr.m, p.subtract(w), q.subtract(w.scale(0.6)), q.add(w.scale(0.6)), p.add(w), (int) (al * 1.6 * (1 - s * 0.2)), (int) (al * 1.6 * (1 - (s + 1) * 0.2)));
+                Vec3 w = side.scale(Math.max(0.05, 0.2 - s * 0.022));
+                quad2(vc, fr.m, p.subtract(w), q.subtract(w.scale(0.6)), q.add(w.scale(0.6)), p.add(w), (int) (al * 1.6 * Math.max(0, 1 - s * 0.14)),
+                        (int) (al * 1.6 * Math.max(0, 1 - (s + 1) * 0.14)));
                 p = q;
             }
         }
