@@ -64,7 +64,9 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -10316,6 +10318,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** The share of your health each of his hits takes (true damage), harder than the god's. */
     private boolean deadHit(LivingEntity e, float frac) {
         if (!hittable(e)) return false;
+        Long mercy = mercyUntil.get(e.getId());
+        if (mercy != null) {
+            if (mercy > level().getGameTime()) return false;
+            mercyUntil.remove(e.getId());
+        }
         boolean hit = Mechanics.trueHit(e, frac, this, true);
         if (hit) {
             swingHit = true;
@@ -11299,6 +11306,29 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     @Nullable private Vec3 grabMark;
+    private int giantPincerCd;
+
+    /**
+     * La Embestida: it throws itself through the floor at where you will be, as far as it can go short of the walls, raking the
+     * floor ahead of it; its line torn open on the floor first (the wind-up).
+     */
+    private void giantLunge(ServerLevel level, SpiritGiantEntity g, LivingEntity target) {
+        double floor = arena.floorY();
+        Vec3 base = g.base();
+        Vec3 aim = predict(target, SpiritGiantEntity.LUNGE_GO + 8);
+        Vec3 d = new Vec3(aim.x - base.x, 0, aim.z - base.z);
+        double len = Mth.clamp(d.length() - 6, 6, 22);
+        Vec3 to = inSand(base.add(d.normalize().scale(len)), 10, 0, 0);
+        to = new Vec3(to.x, floor, to.z);
+        g.lungeTo(to);
+        swipeHit.clear();
+        Vec3 dir = to.subtract(base).multiply(1, 0, 1).normalize();
+        Fx.warnLine(level, new Vec3(base.x, floor, base.z), to.add(dir.scale(16)), 13F, GIANT_BLUE, SpiritGiantEntity.LUNGE_GO + 4);
+        Vec3 h = g.head(0);
+        level.playSound(null, h.x, h.y, h.z, SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 6.0F, 0.35F);
+        level.playSound(null, base.x, floor, base.z, SoundEvents.WARDEN_DIG, SoundSource.HOSTILE, 6.0F, 0.6F);
+        crowdReact(level, CrowdMood.GASP, 30);
+    }
 
     private void giantSwipe(SpiritGiantEntity g, @Nullable LivingEntity target, int act) {
         double r = target != null ? Mth.clamp(Math.sqrt(target.distanceToSqr(g.base().x, target.getY(), g.base().z)), 12, 38) : 22;
@@ -11336,6 +11366,29 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (g.act() != SpiritGiantEntity.IDLE) return;
         if (target != null && tickCount % 4 == 0) g.aim(target.position().add(0, 1, 0));
+        int st0 = Math.max(2, p4StageReached);
+        if (target != null) {
+            // (2026-10-06, the user: "I can essentially ignore him... the player must respect El Gigante") it hunts you: wading
+            // after you through the floor to within its hands' reach, faster as the end comes; a swipe at once if you stand
+            // between it and him
+            double d = flatTo(g, target);
+            if (d > 14) {
+                Vec3 to = inSand(target.position(), 8, 0, 0);
+                g.stalk(new Vec3(to.x, arena.floorY(), to.z), st0 >= 3 ? 0.22 : 0.17, st0 >= 3 ? 3.5F : 2.5F);
+            } else {
+                g.stalk(target.position(), 0, 2.5F);
+            }
+            if (giantPincerCd > 0) giantPincerCd--;
+            Vec3 toYou = target.position().subtract(g.base()).multiply(1, 0, 1);
+            Vec3 toHim = position().subtract(target.position()).multiply(1, 0, 1);
+            if (giantPincerCd <= 0 && d < 30 && toHim.length() < 9 && toYou.lengthSqr() > 1 && toYou.normalize().dot(toHim.normalize()) > 0.55
+                    && s != BossState.WINDED) {
+                giantPincerCd = 260;
+                giantSwipe(g, target, toYou.dot(g.right()) > 0 ? SpiritGiantEntity.SWIPE_R : SpiritGiantEntity.SWIPE_L);
+                giantNext = Math.max(giantNext, 50);
+                return;
+            }
+        }
         // you ran off to the far end of the arena: it comes after you through the floor and reaches for you (La Mano), or now and
         // then sinks and rises again where you are
         if (target != null && giantRelocateCd <= 0 && flatTo(g, target) > arena.a * 1.45) {
@@ -11357,11 +11410,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             giantNext = 20;
             return;
         }
-        giantNext = st >= 3 ? 64 + random.nextInt(36) : 120 + random.nextInt(60);
+        giantNext = st >= 3 ? 50 + random.nextInt(30) : 85 + random.nextInt(40);
         List<Integer> moves = new ArrayList<>(List.of(0, 1, 2));
         if (st >= 3) moves.add(3);
-        if (flatTo(g, target) > 20) moves.add(4);                  // La Mano: you are out of its reach
-        if (flatTo(g, target) > 34) moves.add(4);
+        double far = flatTo(g, target);
+        if (far > 20) moves.add(4);                                 // La Mano: you are out of its reach
+        if (far > 34) moves.add(4);
+        if (far > 13 && far < 40) {                                 // La Embestida: it comes for you
+            moves.add(5);
+            if (st >= 3) moves.add(5);
+        }
         moves.remove(Integer.valueOf(lastGiantMove));
         int m = moves.get(random.nextInt(moves.size()));
         lastGiantMove = m;
@@ -11370,6 +11428,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case 1 -> giantLaser(g, st >= 3 ? 20 : 26, st >= 3 ? 56 : 46, random.nextInt(3) == 0 ? GIANT_SWEEP : GIANT_TRACK);
             case 2 -> giantSlam(level, g, target, false);
             case 4 -> giantGrab(level, g, target);
+            case 5 -> giantLunge(level, g, target);
             default -> giantSlam(level, g, target, true);
         }
         if (random.nextInt(4) == 0) quip("p4_crush", 1F);
@@ -11539,13 +11598,39 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowdReact(level, CrowdMood.GASP, 30);
         }
         if (act == SpiritGiantEntity.GRAB) tickGiantGrab(level, g, target, (int) at, floor);
+        // La Embestida: its chest ploughing through the floor and its raking hands sweep up whoever is in its way
+        if (act == SpiritGiantEntity.LUNGE && at >= SpiritGiantEntity.LUNGE_GO - 1 && at <= SpiritGiantEntity.LUNGE_STOP + 2) {
+            Vec3 f = g.forward();
+            Vec3 chest = g.base().add(f.scale(6));
+            for (LivingEntity e : victims(level, arena.a + 6)) {
+                if (e.getY() > floor + 6 || swipeHit.contains(e.getId())) continue;
+                double dc = Math.sqrt(e.distanceToSqr(chest.x, e.getY(), chest.z));
+                double dh = Math.min(Math.sqrt(e.distanceToSqr(g.hand(0, 0).x, e.getY(), g.hand(0, 0).z)),
+                        Math.sqrt(e.distanceToSqr(g.hand(1, 0).x, e.getY(), g.hand(1, 0).z)));
+                if (dc > 7.0 + e.getBbWidth() / 2 && dh > 4.2) continue;
+                swipeHit.add(e.getId());
+                if (deadHit(e, 0.2F)) {
+                    Vec3 side = e.position().subtract(chest).multiply(1, 0, 1);
+                    side = side.lengthSqr() < 1e-4 ? g.right() : side.normalize();
+                    fling(e, f.scale(1.8).add(side.scale(1.2)).normalize().scale(2.4).add(0, 0.7, 0));
+                    Mechanics.stun(e);
+                    level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.HOSTILE, 3.0F, 0.4F);
+                    Fx.hit(level, e.position().add(0, 1, 0), 2.6F, GIANT_BLUE);
+                }
+            }
+        }
     }
 
     /**
-     * La Mano, what it does to you: its shadow on the floor where you are as it comes (red, closing), locked onto where you will
-     * be a moment before the hand comes down; under it, you are caught (12%), lifted to its face and crushed three times (7%
-     * each, the screen shaking), and hurled across the arena into the wall (tickFlung: 12% more and stunned). Anyone else under
-     * the hand is knocked flat (15%). Sprint out from under the shadow.
+     * La Mano, what it does to you (2026-10-06, the user: "much scarier... Oh shit, he actually caught me... strong anticipation,
+     * clear telegraphing... massive but fair damage, a clear recovery window afterward"). Its shadow on the floor where you are as
+     * it comes (red, closing), locked onto where you will be a moment before the hand comes down: sprint out from under it.
+     * Under it, you are caught (8%) and hoisted high over its head, the whole arena far below; brought round in front of its face;
+     * its eyes charge, point-blank, for nearly two seconds, and you can struggle (mash jump, client/GiantGrabHud): wriggle free
+     * and you drop out of its fist (slow falling, nothing more). Still in it when they fire: the blast (26%, on fire), then the
+     * fist goes up and comes down, you in it, into the floor (14% and stunned): a crater, a ring rolling out of it (jump it). Then
+     * it stays there, bent over its planted fist, spent, and nothing in the arena touches you for two and a half seconds. Anyone
+     * else under the hand as it closes is knocked flat (15%).
      */
     private void tickGiantGrab(ServerLevel level, SpiritGiantEntity g, @Nullable LivingEntity target, int at, double floor) {
         int i = g.grabHand();
@@ -11563,8 +11648,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             grabMark = m;
             Fx.warnClosing(level, m, 4.4F, 0xFF2046, SpiritGiantEntity.GRAB_CLOSE - at);
             Fx.zone(level, m, 4.4F, 0x1A0A14, SpiritGiantEntity.GRAB_CLOSE - at, 0.85F);
+            level.playSound(null, m.x, m.y, m.z, SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.HOSTILE, 3.0F, 0.4F);
         }
         if (at == SpiritGiantEntity.GRAB_CLOSE) {
+            grabVictim = -1;
+            grabFreed = false;
             Vec3 m = g.handMark(i);
             LivingEntity caught = null;
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(m, m).inflate(5, 5, 5), this::hittable)) {
@@ -11582,41 +11670,130 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
             if (caught != null) {
                 g.hold(caught);
-                deadHit(caught, 0.12F);
+                g.setStruggleNeed(10 + 3 * Math.max(1, p4StageReached));
+                grabVictim = caught.getId();
+                deadHit(caught, 0.08F);
+                caught.invulnerableTime = 0;
                 level.playSound(null, m.x, m.y, m.z, SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 3.0F, 0.4F);
                 level.playSound(null, m.x, m.y, m.z, SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 3.0F, 0.5F);
-                crowdReact(level, CrowdMood.GASP, 40);
+                if (caught instanceof ServerPlayer sp) PaponNetwork.shake(sp, 1.2F, 14);
+                crowdReact(level, CrowdMood.GASP, 60);
                 quip("p4_crush", 1F);
             } else {
                 Fx.scorch(level, m, 4.5F, 260);
                 fusionRings.add(new double[]{m.x, m.z, level.getGameTime()});
             }
         }
-        int held = g.held();
-        Entity e = held >= 0 ? level.getEntity(held) : null;
-        if (e instanceof LivingEntity le) {
-            int k = at - SpiritGiantEntity.GRAB_LIFT;
-            if (k == 4 || k == 13 || k == 22) {
-                // crushed in its fist
-                deadHit(le, 0.07F);
+        if (!g.caught()) return;
+        LivingEntity le = grabVictim >= 0 && level.getEntity(grabVictim) instanceof LivingEntity v ? v : null;
+        boolean held = le != null && g.holds(le);
+        Vec3 h = g.hand(i, 0);
+        // wriggled free: out of its fist and falling, gently
+        if (le != null && !held && !grabFreed && at < SpiritGiantEntity.GRAB_SLAM) {
+            grabFreed = true;
+            le.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.SLOW_FALLING, 120, 0, false, false, true));
+            Vec3 out = le.position().subtract(g.head(0)).multiply(1, 0, 1);
+            out = out.lengthSqr() < 1e-4 ? g.forward() : out.normalize();
+            le.setDeltaMovement(out.scale(0.5).add(0, 0.3, 0));
+            le.hurtMarked = true;
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.ARMOR_EQUIP_CHAIN, SoundSource.HOSTILE, 3.0F, 0.6F);
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 4.0F, 0.3F);
+            Fx.spark(level, h, 24, 1.4, 0.5F, 0x9FF4FF);
+            crowdReact(level, CrowdMood.GASP, 40);
+            if (random.nextInt(2) == 0) quip("p4_gigante_swat", 1F);
+        }
+        if (at == SpiritGiantEntity.GRAB_LIFT && held) {
+            // high over its head: the whole arena under you
+            Vec3 hd = g.head(0);
+            level.playSound(null, hd.x, hd.y, hd.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.32F);
+            PaponNetwork.shake(level, hd, 120, 0.7F, 24);
+        }
+        if (at == SpiritGiantEntity.GRAB_BRING - 6) {
+            Vec3 hd = g.head(0);
+            level.playSound(null, hd.x, hd.y, hd.z, SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.HOSTILE, 8.0F, 0.45F);
+            level.playSound(null, hd.x, hd.y, hd.z, SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 5.0F, 0.4F);
+        }
+        if (at > SpiritGiantEntity.GRAB_BRING && at < SpiritGiantEntity.GRAB_BLAST && at % 3 == 0) {
+            for (int s2 : new int[]{-1, 1}) Fx.spark(level, g.eye(s2, 0), 4, 0.6, 0.35F, 0x9FF4FF);
+            if (at % 9 == 0 && held && le instanceof ServerPlayer sp) PaponNetwork.shake(sp, 0.2F + 0.5F * (at - SpiritGiantEntity.GRAB_BRING)
+                    / (SpiritGiantEntity.GRAB_BLAST - SpiritGiantEntity.GRAB_BRING), 8);
+        }
+        if (at == SpiritGiantEntity.GRAB_BLAST) {
+            // point-blank, into its own fist (empty or not)
+            for (int k = 0; k < 2; k++) {
+                int side = k == 0 ? -1 : 1;
+                BeamEntity b = BeamEntity.create(level, g.eye(side, 0), h, 4.2F, GIANT_BLUE).life(12).eye(g, side);
+                b.setMode(BeamEntity.FIRE);
+                level.addFreshEntity(b);
+            }
+            Fx.flash(level, h, 4F);
+            Fx.shock(level, h, 6F, GIANT_BLUE);
+            Fx.spark(level, h, 40, 2.2, 0.8F, 0xFFFFFF);
+            Vec3 hd = g.head(0);
+            level.playSound(null, hd.x, hd.y, hd.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 8.0F, 0.5F);
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 6.0F, 0.6F);
+            PaponNetwork.shake(level, h, 140, 1.0F, 24);
+            if (held) {
+                deadHit(le, 0.26F);
                 le.invulnerableTime = 0;
-                Vec3 h = g.hand(i, 0);
-                level.playSound(null, h.x, h.y, h.z, SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 3.0F, 0.5F);
-                level.playSound(null, h.x, h.y, h.z, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.HOSTILE, 2.0F, 0.5F);
-                Fx.spark(level, h, 16, 1.2, 0.5F, 0x9FF4FF);
-                if (le instanceof ServerPlayer sp) PaponNetwork.shake(sp, 1.1F, 12);
+                le.setSecondsOnFire(4);
+                if (le instanceof ServerPlayer sp) PaponNetwork.shake(sp, 1.6F, 30);
+                crowdRoar(level, 30);
             }
-            if (at == SpiritGiantEntity.GRAB_THROW) {
-                // hurled out across the arena, into the wall
+            // where the fist comes down: out ahead of it, on the sand
+            Vec3 m = inSand(g.base().add(g.forward().scale(15)).add(g.right().scale(i == 0 ? 4 : -4)), 4, 0, 0);
+            g.handTarget(i, new Vec3(m.x, floor, m.z));
+            Fx.warnClosing(level, new Vec3(m.x, floor, m.z), 6.5F, 0xFF2046, SpiritGiantEntity.GRAB_SLAM - at);
+        }
+        if (at == SpiritGiantEntity.GRAB_SLAM) {
+            Vec3 m = g.handMark(i);
+            Vec3 at0 = new Vec3(m.x, floor, m.z);
+            if (held) {
                 g.letGo();
-                Vec3 side = g.right().scale(i == 0 ? 1 : -1);
-                fling(le, side.scale(2.6).add(g.forward().scale(0.8)).add(0, 0.6, 0));
-                Vec3 h = g.hand(i, 0);
-                level.playSound(null, h.x, h.y, h.z, SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.HOSTILE, 4.0F, 0.4F);
-                Fx.hit(level, h, 3F, GIANT_BLUE);
+                le.teleportTo(m.x, floor + 0.1, m.z);
+                le.setDeltaMovement(0, -0.2, 0);
+                le.hurtMarked = true;
+                deadHit(le, 0.14F);
+                le.invulnerableTime = 0;
+                Mechanics.stun(le);
+                if (le instanceof Player p) p.setPose(net.minecraft.world.entity.Pose.SWIMMING);
+                if (le instanceof ServerPlayer sp) PaponNetwork.shake(sp, 1.8F, 34);
+                // the recovery window: nothing of his touches you for a moment, and he gives you room
+                mercyUntil.put(le.getId(), level.getGameTime() + 50);
+                think = Math.max(think, 40);
+                p4Chain = false;
             }
+            g.debris(level, at0, 14, 0.8);
+            Fx.flash(level, at0.add(0, 1, 0), 4F);
+            Fx.chunks(level, at0.add(0, 0.5, 0), 36, 0.9F, 0x2C2438, 1.4);
+            Fx.shock(level, at0, 14F, GIANT_BLUE);
+            Fx.scorch(level, at0, 6F, 400);
+            long now = level.getGameTime();
+            fusionRings.add(new double[]{m.x, m.z, now});
+            fusionRings.add(new double[]{m.x, m.z, now + 8});
+            for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at0, at0).inflate(6, 4, 6), this::hittable)) {
+                if (e == le || e.distanceToSqr(at0.x, e.getY(), at0.z) > 25) continue;
+                if (deadHit(e, 0.16F)) {
+                    Vec3 away = e.position().subtract(at0).multiply(1, 0, 1);
+                    away = away.lengthSqr() < 1e-4 ? new Vec3(1, 0, 0) : away.normalize();
+                    e.setDeltaMovement(away.scale(1.4).add(0, 0.8, 0));
+                    e.hurtMarked = true;
+                }
+            }
+            level.playSound(null, at0.x, at0.y, at0.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 8.0F, 0.35F);
+            level.playSound(null, at0.x, at0.y, at0.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 5.0F, 0.3F);
+            level.playSound(null, at0.x, at0.y, at0.z, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 6.0F, 0.4F);
+            PaponNetwork.shake(level, at0, 140, 1.4F, 30);
+            crowdReact(level, CrowdMood.GASP, 50);
+            giantNext = Math.max(giantNext, 90);
         }
     }
+
+    /** La Mano's victim (an entity id, -1 none) and whether they got out of its fist. */
+    private int grabVictim = -1;
+    private boolean grabFreed;
+    /** Players just slammed by La Mano: the game tick until which nothing of his hurts them (deadHit). */
+    private final Map<Integer, Long> mercyUntil = new HashMap<>();
 
     private void giantImpact(ServerLevel level, Vec3 mark, double r, float share) {
         double floor = arena.floorY();

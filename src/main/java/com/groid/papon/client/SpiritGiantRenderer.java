@@ -100,6 +100,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         if (fr.a == SpiritGiantEntity.ROAR) jaw = fr.act < 12 ? 6 + 30 * fr.act / 12F : fr.act < 40 ? 36F + 3F * Mth.sin(fr.t * 3.1F) : 36 - 30 * Math.min(1, (fr.act - 40) / 10F);
         if (fr.a == SpiritGiantEntity.SWIPE_L || fr.a == SpiritGiantEntity.SWIPE_R || fr.a == SpiritGiantEntity.RISE || fr.a == SpiritGiantEntity.SLAM_BOTH) jaw = 30F;
         if (fr.a == SpiritGiantEntity.GRAB) jaw = fr.act < SpiritGiantEntity.GRAB_CLOSE ? 22F + 10F * Mth.sin(fr.t * 0.6F) : 34F + 4F * Mth.sin(fr.t * 2.1F);
+        if (fr.a == SpiritGiantEntity.LUNGE) jaw = fr.act < SpiritGiantEntity.LUNGE_GO ? 10F + 26F * fr.act / SpiritGiantEntity.LUNGE_GO : 36F - 20F * Math.min(1, (fr.act - SpiritGiantEntity.LUNGE_STOP) / 20F);
         fr.jaw = jaw;
 
         Skeleton sk = new Skeleton(g, fr, partial);
@@ -122,6 +123,9 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         // its eyes: two burning lights deep in the sockets, blazing as it charges and fires
         float eye = fr.a == SpiritGiantEntity.CHARGE ? 0.5F + 0.6F * Math.min(1, fr.act / 24F) : fr.a == SpiritGiantEntity.LASER ? 1.35F
                 : fr.a == SpiritGiantEntity.ROAR ? 1.0F : 0.6F + 0.1F * fr.fury;
+        // La Mano's point-blank blast: its eyes swelling into two suns in front of you, then firing
+        float charge = g.charge(partial);
+        if (charge >= 0) eye = Math.max(eye, 0.6F + 1.3F * charge + (charge < 1 ? 0.15F * Mth.sin(fr.t * (1.5F + 2F * charge)) : 0));
         for (int s : new int[]{-1, 1}) {
             Vec3 c = g.eye(s, partial).subtract(fr.origin);
             glow(glow, fr.m, c, 1.6F + 2.0F * eye, 120, 240, 255, (int) Math.min(255, 230 * eye * fr.glow));
@@ -611,7 +615,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             boolean swipe = (fr.a == SpiritGiantEntity.SWIPE_L && i == 0) || (fr.a == SpiritGiantEntity.SWIPE_R && i == 1);
             boolean slam = (fr.a == SpiritGiantEntity.SLAM_L && i == 0) || (fr.a == SpiritGiantEntity.SLAM_R && i == 1) || fr.a == SpiritGiantEntity.SLAM_BOTH;
             boolean reach = fr.a == SpiritGiantEntity.GRAB && i == g.grabHand();
-            boolean fist = reach && g.caught() && fr.act >= SpiritGiantEntity.GRAB_CLOSE - 1 && fr.act < SpiritGiantEntity.GRAB_THROW + 2;
+            boolean fist = reach && g.caught() && fr.act >= SpiritGiantEntity.GRAB_CLOSE - 1 && fr.act < SpiritGiantEntity.GRAB_SLAM + 2;
             boolean dig = fr.a == SpiritGiantEntity.RISE && fr.act < SpiritGiantEntity.DIG_HEAVE;
             float splay = slam || reach && !fist || dig ? 1F : swipe ? 0.95F : 0.45F + 0.15F * Mth.sin(fr.t * 0.1F + i);
             float curl = fist ? 1.25F : reach || dig ? 0.15F : low && !slam ? 0.55F + 0.1F * Mth.sin(fr.t * 0.07F + i) : (1 - splay) * 0.9F;

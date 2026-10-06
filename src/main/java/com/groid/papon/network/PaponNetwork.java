@@ -66,6 +66,8 @@ public final class PaponNetwork {
             b.writeVarInt(m.bossId());
             b.writeFloat(m.value());
         }, b -> new QteMeter(b.readVarInt(), b.readFloat()), QteMeter::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(10, Struggle.class, (m, b) -> {}, b -> new Struggle(), Struggle::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     /** From the client: how the squeeze (its meter) or the duel (its rock meter) is going right now, 0..1. */
@@ -274,6 +276,17 @@ public final class PaponNetwork {
             ServerPlayer p = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
                 if (p != null && p.getVehicle() instanceof CaravanEntity van && van.getControllingPassenger() == p) { van.honk(); }
+            });
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** A press of jump from a player in El Gigante's fist (La Mano): struggling to get out of it. */
+    public record Struggle() {
+        void handle(Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer p = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (p != null && p.getVehicle() instanceof com.groid.papon.boss.SpiritGiantEntity g) g.struggle(p);
             });
             ctx.get().setPacketHandled(true);
         }

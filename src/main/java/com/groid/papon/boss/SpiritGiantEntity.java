@@ -39,7 +39,7 @@ import org.joml.Vector3f;
  */
 public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public static final int RISE = 0, IDLE = 1, CHARGE = 2, LASER = 3, SLAM_L = 4, SLAM_R = 5, SINK = 6, SWIPE_L = 7, SWIPE_R = 8,
-            SLAM_BOTH = 9, ROAR = 10, GRAB = 11;
+            SLAM_BOTH = 9, ROAR = 10, GRAB = 11, LUNGE = 12;
     /**
      * Ticks a rise and a sink take; a slam: the hand up, then down onto its mark at {@link #SLAM_HIT}, held, back.
      * The rise (2026-10-05, the user: "he should dig his way out of the ground instead of simply appearing... the arena ground
@@ -52,10 +52,22 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     /**
      * La Mano (GRAB): it rears up, its hand drawn back over its head (to GRAB_LOCK); wades through the floor toward you, the
      * ground tearing up ahead of it, bending its whole body over the arena (to GRAB_WADE); its hand comes down on your spot
-     * (GRAB_CLOSE): whoever is under it is caught, lifted up to its face (GRAB_LIFT), crushed, and hurled (GRAB_THROW).
-     * Missed, the hand stays pressed into the floor a moment and goes back. Its end: GRAB_T_HELD or GRAB_T_MISS.
+     * (GRAB_CLOSE). Missed, the hand stays pressed into the floor a moment and goes back (GRAB_T_MISS). Caught (2026-10-06, the
+     * user: "Oh shit, he actually caught me... pick the player up high enough that his enormous size becomes visually obvious"):
+     * hoisted high over its head, forty blocks over the floor (GRAB_LIFT); brought round in front of its face (GRAB_BRING); its
+     * eyes charge, point-blank, while you struggle (mash jump: {@link #struggle}) to GRAB_BLAST, when they fire into its own fist;
+     * the fist goes up (GRAB_SLAM_UP) and comes down into the floor (GRAB_SLAM), and stays there, spent, to GRAB_T_HELD: your
+     * window.
      */
-    public static final int GRAB_LOCK = 22, GRAB_WADE = 54, GRAB_CLOSE = 66, GRAB_LIFT = 88, GRAB_THROW = 116, GRAB_T_HELD = 140, GRAB_T_MISS = 104;
+    public static final int GRAB_LOCK = 22, GRAB_WADE = 54, GRAB_CLOSE = 66, GRAB_LIFT = 92, GRAB_BRING = 108, GRAB_BLAST = 144,
+            GRAB_SLAM_UP = 154, GRAB_SLAM = 162, GRAB_T_HELD = 218, GRAB_T_MISS = 104;
+    /**
+     * La Embestida (LUNGE, 2026-10-06, the user: "I can essentially ignore him... sudden bursts of movement, terrifying
+     * acceleration"): it rears back with its claws up, the line it will take torn open on the floor (to LUNGE_GO), and throws
+     * itself along it through the floor, bent right over, its hands raking ahead of it (to LUNGE_STOP), and hauls itself
+     * upright where it ended (LUNGE_T).
+     */
+    public static final int LUNGE_GO = 22, LUNGE_STOP = 36, LUNGE_T = 64;
     /** Both hands: up over its head to {@link #SLAM2_UP}, held, down onto their marks at {@link #SLAM2_HIT}, back by SLAM2_T. */
     public static final int SLAM2_UP = 16, SLAM2_HIT = 30, SLAM2_T = 56;
     /** A roar: thrown back, arms wide, then forward at you. */
@@ -93,7 +105,16 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     private static final EntityDataAccessor<Integer> DATA_GRAB_HAND = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_HELD = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> DATA_CAUGHT = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.BOOLEAN);
+    /** How far whoever it holds has struggled free (0..100). */
+    private static final EntityDataAccessor<Integer> DATA_STRUGGLE = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
     private boolean releasing;
+    /** Presses of jump it takes to get out of its fist. */
+    private int struggleNeed = 12;
+    /** Client: where it stood and faced last tick and this one (it wades about now: drawn between them). */
+    private Vec3 baseO, baseN;
+    private float facingO, facingN;
+    /** Server: wading this tick (the floor torn up round it). */
+    private double wading;
     private int ownerId = -1;
     private int life = 720;
     /** Client: the skull's turn toward what it looks at, eased (yaw, pitch; radians). */
@@ -136,6 +157,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         entityData.define(DATA_GRAB_HAND, 0);
         entityData.define(DATA_HELD, -1);
         entityData.define(DATA_CAUGHT, false);
+        entityData.define(DATA_STRUGGLE, 0);
     }
 
     public void act(int act) {
@@ -229,6 +251,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             float t = actTime(partial);
             s += 3.0 * Math.sin(Math.PI * Mth.clamp((t - GRAB_LOCK) / (GRAB_WADE - GRAB_LOCK), 0, 1));
         }
+        if (act() == LUNGE) s += 3.5 * Math.sin(Math.PI * Mth.clamp((actTime(partial) - LUNGE_GO + 4) / (LUNGE_STOP - LUNGE_GO + 8F), 0, 1));
         return s;
     }
 
@@ -241,22 +264,66 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public Vec3 base() { return base(0); }
 
     public Vec3 base(float partial) {
-        Vector3f b = entityData.get(DATA_BASE);
-        Vec3 at = b.lengthSquared() == 0 ? position() : new Vec3(b);
-        if (act() != GRAB) return at;
+        Vec3 at = level().isClientSide && baseN != null ? baseO.lerp(baseN, partial) : syncedBase();
+        int a = act();
+        if (a != GRAB && a != LUNGE) return at;
         Vector3f to = entityData.get(DATA_GRAB_TO);
         if (to.lengthSquared() == 0) return at;
-        return at.lerp(new Vec3(to), wade(actTime(partial)));
+        float t = actTime(partial);
+        return at.lerp(new Vec3(to), a == GRAB ? wade(t) : lunge(t));
+    }
+
+    private Vec3 syncedBase() {
+        Vector3f b = entityData.get(DATA_BASE);
+        return b.lengthSquared() == 0 ? position() : new Vec3(b);
     }
 
     /** How far along its wade it is (0 .. 1). */
     private static double wade(float t) { return smooth((t - GRAB_LOCK) / (GRAB_WADE - GRAB_LOCK)); }
 
+    /** How far along its lunge (0 .. 1): a burst, fastest at the start, braking into the end. */
+    private static double lunge(float t) {
+        float k = Mth.clamp((t - LUNGE_GO) / (LUNGE_STOP - LUNGE_GO), 0, 1);
+        return 1 - (1 - k) * (1 - k) * (1 - k);
+    }
+
     public float facing(float partial) {
-        float yaw = entityData.get(DATA_FACING);
-        if (act() != GRAB) return yaw;
-        float k = smooth(actTime(partial) / 18F);
+        float yaw = level().isClientSide && baseN != null ? Mth.rotLerp(partial, facingO, facingN) : entityData.get(DATA_FACING);
+        int a = act();
+        if (a != GRAB && a != LUNGE) return yaw;
+        float k = smooth(actTime(partial) / (a == LUNGE ? 12F : 18F));
         return yaw + Mth.wrapDegrees(entityData.get(DATA_GRAB_YAW) - yaw) * k;
+    }
+
+    /**
+     * (2026-10-06) It hunts you: wades toward {@code to} through the floor at {@code speed} blocks a tick, turning to face where it
+     * goes ({@code turn} degrees a tick; it turns first, then walks); only between its acts.
+     */
+    public void stalk(Vec3 to, double speed, float turn) {
+        if (act() != IDLE) return;
+        Vec3 b = syncedBase();
+        Vec3 d = new Vec3(to.x - b.x, 0, to.z - b.z);
+        double len = d.length();
+        float yaw = entityData.get(DATA_FACING);
+        if (len > 0.5) {
+            float want = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+            float diff = Mth.wrapDegrees(want - yaw);
+            yaw += Mth.clamp(diff, -turn, turn);
+            entityData.set(DATA_FACING, yaw);
+            double go = Math.min(speed, len) * Math.max(0, Math.cos(Math.toRadians(diff)));
+            if (go > 1e-3) {
+                entityData.set(DATA_BASE, b.add(d.normalize().scale(go)).toVector3f());
+                wading = go;
+            }
+        }
+    }
+
+    /** La Embestida: throws itself through the floor to {@code to}. */
+    public void lungeTo(Vec3 to) {
+        Vec3 from = syncedBase();
+        entityData.set(DATA_GRAB_TO, to.toVector3f());
+        entityData.set(DATA_GRAB_YAW, (float) (Mth.atan2(to.z - from.z, to.x - from.x) * Mth.RAD_TO_DEG) - 90F);
+        act(LUNGE);
     }
 
     public Vec3 forward() { return forward(0); }
@@ -285,6 +352,8 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             case ROAR -> t < 14 ? -3.2 * smooth(t / 14F) : t < 36 ? -3.2 + 6.4 * smooth((t - 14) / 10F) : 3.2 * (1 - smooth((t - 36) / 14F));
             case RISE -> t < DIG_HEAVE ? 3.0 : 3.0 * (1 - smooth((t - DIG_HEAVE - 30) / 30F));       // hunched over its hands as it hauls
             case GRAB -> grabLean(t);
+            case LUNGE -> t < LUNGE_GO ? -3.2 * smooth(t / LUNGE_GO) : t < LUNGE_STOP ? -3.2 + 12.2 * smooth((t - LUNGE_GO) / (LUNGE_STOP - LUNGE_GO))
+                    : 9 * (1 - smooth((t - LUNGE_STOP - 6) / (LUNGE_T - LUNGE_STOP - 6F)));
             default -> 0;
         };
     }
@@ -295,9 +364,13 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         if (t < GRAB_WADE) return -2.2 + 9.2 * smooth((t - GRAB_LOCK) / (GRAB_WADE - GRAB_LOCK));
         if (t < GRAB_CLOSE) return 7 + 8 * smooth((t - GRAB_WADE) / (GRAB_CLOSE - GRAB_WADE));
         if (caught()) {
-            if (t < GRAB_LIFT) return 15 - 11 * smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE));
-            if (t < GRAB_THROW) return 4;
-            return 4 * (1 - smooth((t - GRAB_THROW) / 20F));
+            // reared back holding you up; leaning in to its face; recoiling from the blast; bent right over into the slam, spent
+            if (t < GRAB_LIFT) return 15 - 17 * smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE));
+            if (t < GRAB_BRING) return -2 + 5.5 * smooth((t - GRAB_LIFT) / (GRAB_BRING - GRAB_LIFT));
+            if (t < GRAB_BLAST) return 3.5;
+            if (t < GRAB_SLAM_UP) return 3.5 - 4.5 * smooth((t - GRAB_BLAST) / (GRAB_SLAM_UP - GRAB_BLAST));
+            if (t < GRAB_SLAM) return -1 + 11 * smooth((t - GRAB_SLAM_UP) / (GRAB_SLAM - GRAB_SLAM_UP));
+            return 10 * (1 - smooth((t - GRAB_T_HELD + 22) / 22F));
         }
         if (t < GRAB_CLOSE + 12) return 15;
         return 15 * (1 - smooth((t - GRAB_CLOSE - 12) / (GRAB_T_MISS - GRAB_CLOSE - 12F)));
@@ -323,6 +396,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         entityData.set(DATA_GRAB_HAND, hand);
         entityData.set(DATA_HELD, -1);
         entityData.set(DATA_CAUGHT, false);
+        entityData.set(DATA_STRUGGLE, 0);
         handTarget(hand, faceTo);
         act(GRAB);
         if (from.distanceToSqr(to) < 1e-4) entityData.set(DATA_GRAB_TO, new Vector3f());
@@ -364,7 +438,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         if (passenger.getId() == held()) {
             Vec3 h = hand(grabHand(), 0);
             // hanging out of the bottom of its fist (your eyes clear of its knuckles: you see its face)
-            move.accept(passenger, h.x, h.y - 2.6, h.z);
+            move.accept(passenger, h.x, Math.max(syncedBase().y + 0.05, h.y - 2.6), h.z);
             passenger.fallDistance = 0;
             return;
         }
@@ -399,9 +473,47 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                     : -0.3F * (1 - smooth((t - SLAM2_HIT - 6) / 16F));
             case RISE -> 0.35F * (1 - smooth((t - DIG_HEAVE) / (RISE_T - DIG_HEAVE)));
             case GRAB -> t < GRAB_LOCK ? 0.3F * smooth(t / GRAB_LOCK) : t < GRAB_CLOSE ? 0.3F - 0.75F * smooth((t - GRAB_LOCK) / (GRAB_CLOSE - GRAB_LOCK))
-                    : caught() ? -0.45F + 0.45F * smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE)) : -0.45F * (1 - smooth((t - GRAB_CLOSE - 12) / 26F));
+                    : caught() ? caughtPitch(t) : -0.45F * (1 - smooth((t - GRAB_CLOSE - 12) / 26F));
+            case LUNGE -> t < LUNGE_GO ? 0.4F * smooth(t / LUNGE_GO) : t < LUNGE_STOP ? 0.4F - 0.8F * smooth((t - LUNGE_GO) / 6F)
+                    : -0.4F * (1 - smooth((t - LUNGE_STOP) / (LUNGE_T - LUNGE_STOP)));
             default -> 0;
         };
+    }
+
+    /** Caught: looking up at you in its raised fist, square at you as its eyes charge, down into the slam. */
+    private static float caughtPitch(float t) {
+        if (t < GRAB_LIFT) return -0.45F + 0.95F * smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE));
+        if (t < GRAB_BRING) return 0.5F - 0.5F * smooth((t - GRAB_LIFT) / (GRAB_BRING - GRAB_LIFT));
+        if (t < GRAB_BLAST) return 0;
+        if (t < GRAB_SLAM) return -0.6F * smooth((t - GRAB_BLAST) / (GRAB_SLAM - GRAB_BLAST));
+        return -0.6F * (1 - smooth((t - GRAB_T_HELD + 22) / 22F));
+    }
+
+    /** Its eyes charging point-blank at whoever it holds (0..1), blazing as they fire (1.6), or -1. */
+    public float charge(float partial) {
+        if (act() != GRAB || !caught()) return -1;
+        float t = actTime(partial);
+        if (t < GRAB_BRING - 6 || t > GRAB_BLAST + 10) return -1;
+        if (t >= GRAB_BLAST) return 1.6F;
+        return Mth.clamp((t - GRAB_BRING + 6) / (GRAB_BLAST - GRAB_BRING + 6F), 0, 1);
+    }
+
+    /** How far whoever it holds has struggled free (0..1). */
+    public float struggled() { return entityData.get(DATA_STRUGGLE) / 100F; }
+
+    public void setStruggleNeed(int presses) { struggleNeed = Math.max(1, presses); }
+
+    /**
+     * One press of jump from whoever is in its fist, up to the moment its eyes fire: enough of them and they wriggle out of it
+     * (returns true then; the boss sees it as the fist going empty).
+     */
+    public boolean struggle(net.minecraft.world.entity.Entity e) {
+        if (act() != GRAB || !holds(e) || actTime(0) >= GRAB_BLAST - 1) return false;
+        int s = Math.min(100, entityData.get(DATA_STRUGGLE) + Math.max(1, (int) Math.ceil(100.0 / struggleNeed)));
+        entityData.set(DATA_STRUGGLE, s);
+        if (s < 100) return false;
+        letGo();
+        return true;
     }
 
     private float[] lookWant() {
@@ -493,13 +605,37 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                 if (t < GRAB_CLOSE + 12) return mark;
                 return mark.lerp(rest, smooth((t - GRAB_CLOSE - 12) / (GRAB_T_MISS - GRAB_CLOSE - 12F)));
             }
-            // up to its face, shaking you, then flung out to the side
-            Vec3 face = head(partial).add(forward(partial).scale(8.5)).add(0, -3.5, 0);
-            if (t < GRAB_LIFT) return mark.lerp(face, smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE)));
-            if (t < GRAB_THROW) return face.add(right(partial).scale(Math.sin(t * 1.9) * 0.35)).add(0, Math.sin(t * 2.3) * 0.3, 0);
-            Vec3 fling = face.add(right(partial).scale((i == 0 ? 1 : -1) * 13)).add(forward(partial).scale(4)).add(0, 3, 0);
-            if (t < GRAB_THROW + 6) return face.lerp(fling, smooth((t - GRAB_THROW) / 6F));
-            return fling.lerp(rest, smooth((t - GRAB_THROW - 6) / (GRAB_T_HELD - GRAB_THROW - 6F)));
+            // hoisted high over its head; brought round in front of its face; held there trembling as its eyes charge; the
+            // recoil of the blast, up, and down into the floor on its new mark; planted there, then back
+            Vec3 over = shoulder(i, partial).add(right(partial).scale((i == 0 ? 1 : -1) * 3)).add(forward(partial).scale(2)).add(0, 21, 0);
+            Vec3 face = head(partial).add(forward(partial).scale(7.4)).add(0, -0.6, 0);
+            Vec3 up = head(partial).add(forward(partial).scale(5)).add(right(partial).scale((i == 0 ? 1 : -1) * 2)).add(0, 8, 0);
+            Vec3 slam = handMark(i).add(0, 0.9, 0);
+            if (t < GRAB_LIFT) {
+                double k = smooth((t - GRAB_CLOSE) / (GRAB_LIFT - GRAB_CLOSE));
+                return mark.lerp(over, k).add(forward(partial).scale(Math.sin(Math.PI * k) * 3));
+            }
+            if (t < GRAB_BRING) return over.lerp(face, smooth((t - GRAB_LIFT) / (GRAB_BRING - GRAB_LIFT)));
+            if (t < GRAB_BLAST) {
+                double shake = 0.08 + 0.3 * (t - GRAB_BRING) / (GRAB_BLAST - GRAB_BRING);
+                return face.add(right(partial).scale(Math.sin(t * 2.9) * shake)).add(0, Math.sin(t * 3.7) * shake, 0);
+            }
+            if (t < GRAB_SLAM_UP) return face.add(forward(partial).scale(1.2)).lerp(up, smooth((t - GRAB_BLAST) / (GRAB_SLAM_UP - GRAB_BLAST)));
+            if (t < GRAB_SLAM) {
+                float k = (t - GRAB_SLAM_UP) / (GRAB_SLAM - GRAB_SLAM_UP);
+                return up.lerp(slam, k * k);
+            }
+            if (t < GRAB_T_HELD - 18) return slam;
+            return slam.lerp(rest, smooth((t - GRAB_T_HELD + 18) / 18F));
+        }
+        if (a == LUNGE) {
+            // claws up as it rears; raking the floor ahead of it as it throws itself along; planted, then back
+            Vec3 up = shoulder(i, partial).add(forward(partial).scale(4)).add(right(partial).scale((i == 0 ? 1 : -1) * 3)).add(0, 9, 0);
+            Vec3 rake = base(partial).add(forward(partial).scale(15)).add(right(partial).scale((i == 0 ? 1 : -1) * 6.5)).add(0, 1.0, 0);
+            if (t < LUNGE_GO) return rest.lerp(up, smooth(t / LUNGE_GO));
+            if (t < LUNGE_GO + 5) return up.lerp(rake, smooth((t - LUNGE_GO) / 5F));
+            if (t < LUNGE_STOP + 8) return rake;
+            return rake.lerp(rest, smooth((t - LUNGE_STOP - 8) / (LUNGE_T - LUNGE_STOP - 8F)));
         }
         if ((a == SWIPE_L && i == 0) || (a == SWIPE_R && i == 1)) {
             double r = swipeRadius();
@@ -549,6 +685,16 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public void tick() {
         super.tick();
         if (level().isClientSide) {
+            Vec3 b = syncedBase();
+            float fc = entityData.get(DATA_FACING);
+            if (baseN == null) {
+                baseN = b;
+                facingN = fc;
+            }
+            baseO = baseN;
+            facingO = facingN;
+            baseN = b;
+            facingN = fc;
             lookYawO = lookYaw;
             lookPitchO = lookPitch;
             float[] want = lookWant();
@@ -562,9 +708,9 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             }
             // where it comes up through the floor: wisps of the dead
             if (risen(0) > 0.05F && random.nextInt(3) == 0) {
-                Vec3 b = base();
+                Vec3 w = base();
                 double a = random.nextDouble() * Math.PI * 2;
-                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL, true, b.x + Math.cos(a) * 7.5, b.y + 0.3, b.z + Math.sin(a) * 5.5,
+                level().addParticle(net.minecraft.core.particles.ParticleTypes.SOUL, true, w.x + Math.cos(a) * 7.5, w.y + 0.3, w.z + Math.sin(a) * 5.5,
                         0, 0.06 + random.nextDouble() * 0.05, 0);
             }
             return;
@@ -577,6 +723,33 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         }
         float t = actTime(0);
         if (act() == RISE && t < RISE_T) dig(level, (int) t);
+        if (act() == LUNGE) {
+            if (t >= LUNGE_GO - 2 && t < LUNGE_STOP + 2) plough(level);
+            if ((int) t == LUNGE_GO) {
+                Vec3 h = head(0);
+                level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.3F);
+                level.playSound(null, base().x, base().y, base().z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 5.0F, 0.35F);
+                PaponNetwork.shake(level, base(), 110, 1.0F, 20);
+            }
+            if (t >= LUNGE_T) {
+                settleGrab();
+                act(IDLE);
+            }
+        }
+        if (wading > 0 && act() == IDLE) {
+            // wading after you: the floor heaving round its waist
+            if (tickCount % 3 == 0) {
+                Vec3 w = base();
+                Fx.dust(level, w.add(forward().scale(5)).add(right().scale((random.nextDouble() - 0.5) * 10)), 3.0, 4);
+                Fx.scorch(level, w.add(right().scale((random.nextDouble() - 0.5) * 8)), 3.0F, 300);
+            }
+            if (tickCount % 12 == 0) {
+                Vec3 w = base();
+                level.playSound(null, w.x, w.y, w.z, SoundEvents.ROOTED_DIRT_BREAK, SoundSource.HOSTILE, 4.0F, 0.35F);
+                PaponNetwork.shake(level, w, 60, 0.25F, 6);
+            }
+        }
+        wading = 0;
         if (act() == GRAB) {
             if (t >= GRAB_LOCK && t < GRAB_WADE && tickCount % 2 == 0) plough(level);
             if ((int) t == GRAB_CLOSE) {
@@ -690,7 +863,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     }
 
     /** Slabs of the floor itself, torn up and thrown out round {@code at}, tumbling, shattering where they land. */
-    private void debris(ServerLevel level, Vec3 at, int n, double speed) {
+    public void debris(ServerLevel level, Vec3 at, int n, double speed) {
         if (!(level.getEntity(ownerId) instanceof PaponBossEntity boss)) return;
         net.minecraft.core.BlockPos below = net.minecraft.core.BlockPos.containing(at.x, at.y - 0.5, at.z);
         net.minecraft.world.level.block.state.BlockState floor = level.getBlockState(below);

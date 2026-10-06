@@ -42,6 +42,7 @@ public final class ClientEvents {
         CrowdSounds.tick();
         FlagFireworks.tick();
         PyroShow.tick();
+        GiantGrabHud.tick();
         PotatoSky.tick();
     }
 
@@ -244,6 +245,7 @@ public final class ClientEvents {
         int h = event.getWindow().getGuiScaledHeight();
         float pt = event.getPartialTick();
         if (!Cinematic.isActive()) PotatoSplat.render(g, w, h, pt);
+        GiantGrabHud.render(g, w, h, pt);
         float v = Cinematic.vignette(pt);
         if (v > 0) {
             Minecraft mc0 = Minecraft.getInstance();

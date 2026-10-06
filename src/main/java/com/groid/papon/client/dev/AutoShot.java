@@ -75,6 +75,8 @@ public final class AutoShot {
     private static final boolean STATE = MODE.startsWith("state:");
     /** -Pautoshot=serpents: Quetzalcoatl and Kukulcan out of their smoke over a flat world, from the ground and from the air. */
     private static final boolean SERPENTS = MODE.equals("serpents");
+    /** -Pautoshot=skyline: the Skyline parked in daylight, all the way round and up close (papon_k*.png), then from its driver's seat. */
+    private static final boolean SKYLINE = MODE.equals("skyline");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -114,6 +116,10 @@ public final class AutoShot {
         }
         if (SERPENTS) {
             serpents(mc);
+            return;
+        }
+        if (SKYLINE) {
+            skyline(mc);
             return;
         }
         if (STATE) {
@@ -1405,6 +1411,53 @@ public final class AutoShot {
         if (t == 560) tpLook(c.add(0, -120, 0), c.add(1, -100, 0));
         if (t == 600) shot(mc, "s07_from_ground");
         if (t == 640) mc.stop();
+    }
+
+    private static Vec3 skyAt;
+
+    /** The Skyline from eight sides at its own height, three close-ups, from above, then driven: first person and behind. */
+    private static void skyline(Minecraft mc) {
+        if (tick == 40) run("gamemode spectator", "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000",
+                "gamerule doMobSpawning false", "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "tp @s 4000 200 4000");
+        if (tick == 70) run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+        if (tick == 90) run("execute at @s run summon papon:caravan ~ ~ ~ {Skyline:1b,Rotation:[0f,0f]}");
+        var car = nearest(mc, com.groid.papon.vehicle.CaravanEntity.class);
+        if (car == null || tick < 110) return;
+        if (skyAt == null) skyAt = car.position();
+        Vec3 c = skyAt;
+        int k = tick - 110;
+        if (k < 8 * 30) {
+            int i = k / 30;
+            double a = Math.toRadians(i * 45);
+            Vec3 eye = c.add(-Math.sin(a) * 7.5, 0.1, Math.cos(a) * 7.5);
+            if (k % 30 == 0) tpLook(eye, c.add(0, 0.7, 0));
+            if (k % 30 == 24) shot(mc, "k0" + i + "_orbit_" + (i * 45));
+            return;
+        }
+        k -= 8 * 30;
+        Vec3[][] close = {{c.add(-2.6, 0.9, 4.6), c.add(0, 1.0, 1.4)}, {c.add(3.8, 0.4, -4.4), c.add(0, 0.9, -1.2)},
+                {c.add(4.2, 0.3, 0.2), c.add(0, 0.8, 0)}, {c.add(0.01, 9, 0), c}, {c.add(0.3, 1.1, -0.1), c.add(-1.2, 0.9, 1.6)}};
+        String[] names = {"k10_rear_glass", "k11_front", "k12_side", "k13_top", "k14_cabin"};
+        if (k < close.length * 30) {
+            int i = k / 30;
+            if (k % 30 == 0) tpLook(close[i][0], close[i][1]);
+            if (k % 30 == 24) shot(mc, names[i]);
+            return;
+        }
+        k -= close.length * 30;
+        if (k == 0) run("gamemode creative", "tp @s " + c.x + " " + c.y + " " + (c.z + 2), "ride @s mount @e[type=papon:caravan,limit=1,sort=nearest]");
+        if (k == 10) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (k > 10 && k < 120) {
+            mc.player.setYRot(car.getYRot());
+            mc.player.setXRot(k < 60 ? 8 : 25);
+        }
+        if (k == 40) shot(mc, "k20_driver_seat");
+        if (k == 80) shot(mc, "k21_driver_dash");
+        if (k == 100) mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+        if (k == 130) shot(mc, "k22_behind");
+        if (k == 150) mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+        if (k == 180) shot(mc, "k23_front_seat");
+        if (k == 200) mc.stop();
     }
 
     private static void tpLook(Vec3 at, Vec3 look) {
