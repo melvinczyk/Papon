@@ -1391,6 +1391,8 @@ public final class AutoShot {
         if (b == null || tick < 172) return;
         if (b.getBossState().name().equals(st)) {
             int t = b.ticksInState();
+            // (a move, not a cutscene: the camera is yours) keep him in frame, flying or not
+            if (!b.getBossState().cutscene()) lookAtPoint(mc, b.position().add(0, b.getBbHeight() * 0.6, 0));
             for (String k : ticks) if (Integer.parseInt(k) == t) once(mc, "s_" + st.toLowerCase(java.util.Locale.ROOT) + "_" + k);
             if (t > Integer.parseInt(ticks[ticks.length - 1]) + 4) mc.stop();
         } else if (tick > 172 + 20 * 60) mc.stop();
