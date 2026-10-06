@@ -1930,9 +1930,10 @@ def b_p2_apology():
     """BossState.P2_APOLOGY, until "Now... where... were we?" would end on the singer's first word
     (beats apology.*). Over to you (the entity walks him, 0-2.5 s), and the apology as he comes: a hand on
     his heart and a little bow on "My apologies, amigo...", both hands thrown up on "Such POOR hospitality",
-    an open-handed shrug through "Making my guest... wait like that." Then the aura farm (apology.aura on):
-    he straightens, turns half away, runs a hand back over his bald head, folds his arms and looks back at
-    you over his shoulder (the wink, apology.wink); later a slow roll of the shoulders, and he holds it."""
+    an open-handed shrug through "Making my guest... wait like that." Then the aura farm (apology.aura on),
+    played to the stands across from the band (the entity turns to them): he straightens, runs a hand back
+    over his bald head, folds his arms, chin up, and winks (apology.wink); later a slow roll of the
+    shoulders, and he holds it."""
     ln, aura, end = beat('apology.line', 30), beat('apology.aura', 110), beat('apology.end', 178)
     say = round(aura - 0.4 - ln, 2)                  # how long the apology is
     q = lambda f: round(ln + say * f, 2)              # a point through the line
@@ -1957,10 +1958,11 @@ def b_p2_apology():
     a.rot('torso', [(0, [6, 0, 0]), (round(ln + 0.1, 2), [6, 0, 0]), (round(ln + 0.7, 2), [22, 0, 6], 'easeInOutSine'), (q(0.33), [20, 0, 6]),
                     (q(0.42), [-10, 0, 0], 'easeOutBack'), (q(0.6), [-8, 0, 0]), (q(0.7), [4, 0, -6], 'easeInOutSine'),
                     (round(aura - 0.2, 2), [0, 0, -4]), (round(aura + 0.4, 2), [-8, 0, 0], 'easeInOutSine'),
-                    (round(h3 - 0.2, 2), [-8, 0, 0]), (round(h3 + 0.3, 2), [-6, -38, 0], 'easeInOutSine'),
-                    (roll, [-6, -40, 0]), (round(roll + 0.4, 2), [-10, -40, 4], 'easeInOutSine'), (round(roll + 0.8, 2), [-6, -40, -2], 'easeInOutSine'),
-                    (end, [-6, -40, 0])], 'lin')
-    a.rot('root', [(0, [0, 0, 0]), (aura, [0, 0, 0]), (round(aura + 0.8, 2), [0, 58, 0], 'easeInOutSine'), (end, [0, 60, 0])], 'lin')
+                    (round(h3 - 0.2, 2), [-8, 0, 0]), (round(h3 + 0.3, 2), [-10, -12, 0], 'easeInOutSine'),
+                    (roll, [-10, -12, 0]), (round(roll + 0.4, 2), [-13, -12, 4], 'easeInOutSine'), (round(roll + 0.8, 2), [-10, -12, -2], 'easeInOutSine'),
+                    (end, [-10, -12, 0])], 'lin')
+    # (2026-10-06) square on to the stands he plays to (the entity turns to them): no more turning his back to the camera
+    a.rot('root', [(0, [0, 0, 0]), (end, [0, 0, 0])], 'lin')
     a.scale('body', [(0, [1, 1, 1]), (aura, [1, 1, 1]), (round(aura + 0.5, 2), [1.05, 1.05, 1.05], 'easeInOutSine'),
                      (round(aura + 1.5, 2), [1.07, 1.04, 1.07]), (round(aura + 2.5, 2), [1.05, 1.05, 1.05]), (end, [1.06, 1.05, 1.06])])
     for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
@@ -1978,8 +1980,8 @@ def b_p2_resume():
     talk = round(end - 0.4 - ln, 2)
     q = lambda f: round(ln + talk * f, 2)
     a = angry(B('p2_resume', end, 'hold'))
-    a.rot('root', [(0, [0, 60, 0]), (q(0.25), [0, 0, 0], 'easeInOutSine'), (end, [0, 0, 0])], 'lin')
-    a.rot('torso', [(0, [-6, -40, 0]), (q(0.25), [0, 0, 0], 'easeInOutSine'), (q(0.72), [0, 0, 0]), (q(0.86), [14, 0, 0], 'easeOutBack'), (end, [12, 0, 0])], 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (end, [0, 0, 0])], 'lin')
+    a.rot('torso', [(0, [-10, -12, 0]), (q(0.25), [0, 0, 0], 'easeInOutSine'), (q(0.72), [0, 0, 0]), (q(0.86), [14, 0, 0], 'easeOutBack'), (end, [12, 0, 0])], 'lin')
     c1, c2 = q(0.38), q(0.55)
     for arm, sgn in (('arm_r', 1), ('arm_l', -1)):
         cross = CROSS_R if sgn > 0 else CROSS_L

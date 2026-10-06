@@ -235,10 +235,13 @@ public class ColiseumCrowdEntity extends Entity {
 
     private int pyros;
 
-    /** Fire pyrotechnics: columns of flame up off the podium round the sand and the front of the stage, on the next beats. */
-    public void pyro(int beats) {
-        pyros = (pyros + 1) & 0x7FFFFF;
-        entityData.set(DATA_PYRO, (pyros << 8) | Math.min(255, beats));
+    /** The stage pyrotechnics' cues (client/PyroShow): the choreographed show, the columns on his side, a chase round the ring. */
+    public static final int PYRO_SHOW = 0, PYRO_ACCENT = 1, PYRO_CHASE = 2;
+
+    /** Fire pyrotechnics (client/PyroShow): {@code kind} a PYRO_ cue; a show runs over the next {@code beats} beats of the song. */
+    public void pyro(int kind, int beats) {
+        pyros = (pyros + 1) & 0x1FFFFF;
+        entityData.set(DATA_PYRO, (pyros << 10) | (kind << 8) | Math.min(255, beats));
     }
 
     public int pyroData() { return entityData.get(DATA_PYRO); }

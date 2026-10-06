@@ -59,6 +59,7 @@ import java.util.UUID;
  *   van                 a van in front of you (testing; normally it comes with the truck)
  *   bossstate <STATE>   force the nearest boss into a state (testing)
  *   cutaway <WHO>       cut to the band now (TRUMPETS, VIOLINS, GUITARRON, STRINGS, CORO, STANDS; testing)
+ *   giant <MOVE>        El Gigante now: summon, lunge, grab, swipe, slam, slam2, laser (testing)
  */
 public final class PaponCommand {
     private PaponCommand() {}
@@ -95,6 +96,9 @@ public final class PaponCommand {
                 .then(Commands.literal("boss").executes(PaponCommand::boss))
                 .then(Commands.literal("van").executes(PaponCommand::van))
                 .then(Commands.literal("serpents").executes(PaponCommand::serpents))
+                .then(Commands.literal("giant").then(Commands.argument("move", StringArgumentType.word())
+                        .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"summon", "lunge", "grab", "swipe", "slam", "slam2", "laser"}, b))
+                        .executes(c -> giant(c, StringArgumentType.getString(c, "move")))))
                 .then(Commands.literal("bossstate").then(Commands.argument("state", StringArgumentType.word())
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                 java.util.Arrays.stream(BossState.values()).map(Enum::name), b))
@@ -116,6 +120,16 @@ public final class PaponCommand {
             level.addFreshEntity(s);
         }
         return 1;
+    }
+
+    /** El Gigante's act now, at whoever ran it (the nearest boss's giant, summoned first if need be). */
+    private static int giant(CommandContext<CommandSourceStack> c, String move) {
+        ServerLevel level = c.getSource().getLevel();
+        net.minecraft.world.phys.Vec3 at = c.getSource().getPosition();
+        var bosses = level.getEntitiesOfClass(PaponBossEntity.class, new net.minecraft.world.phys.AABB(at, at).inflate(160));
+        if (bosses.isEmpty()) return fail(c, "No boss nearby.");
+        if (!(c.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity e)) return fail(c, "Run it as a player.");
+        return bosses.get(0).devGiant(move, e) ? 1 : fail(c, "No giant move " + move + " (or no coliseum).");
     }
 
     private static int locate(CommandContext<CommandSourceStack> c) {

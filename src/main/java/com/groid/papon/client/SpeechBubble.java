@@ -27,6 +27,8 @@ public final class SpeechBubble {
 
     public static void render(Entity entity, String encoded, float lift, PoseStack pose, MultiBufferSource buffers,
                               int light, EntityRenderDispatcher dispatcher) {
+        // (2026-10-06) the cutscene's subject speaks in the letterbox's subtitles: its card over its head only cluttered the close-ups
+        if (Cinematic.isSubject(entity)) return;
         Component line = Speech.decode(encoded);
         if (line == null || dispatcher.distanceToSqr(entity) > MAX_DISTANCE * MAX_DISTANCE) return;
         Font font = Minecraft.getInstance().font;

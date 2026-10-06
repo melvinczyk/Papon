@@ -41,6 +41,8 @@ public final class ClientEvents {
         BossMusic.tick();
         CrowdSounds.tick();
         FlagFireworks.tick();
+        PyroShow.tick();
+        GiantGrabHud.tick();
         PotatoSky.tick();
     }
 
@@ -134,6 +136,7 @@ public final class ClientEvents {
     public static void onRenderStage(net.minecraftforge.client.event.RenderLevelStageEvent event) {
         if (event.getStage() != net.minecraftforge.client.event.RenderLevelStageEvent.Stage.AFTER_PARTICLES) return;
         BossRenderer.drawSpotlights(event.getPoseStack(), event.getCamera().getPosition(), event.getPartialTick());
+        PyroShow.render(event.getPoseStack(), event.getCamera().getPosition(), event.getPartialTick());
     }
 
     @SubscribeEvent
@@ -198,6 +201,8 @@ public final class ClientEvents {
         if (event.getOverlay().id().equals(VanillaGuiOverlay.MOUNT_HEALTH.id())) {
             event.setCanceled(true);
             if (van.getControllingPassenger() != mc.player) return;
+            // (2026-10-06) the Skyline's own speedo is lit on its dash: from the driver's seat no number floats over it
+            if (van.isSkyline() && mc.options.getCameraType() == net.minecraft.client.CameraType.FIRST_PERSON) return;
             double kmh = CaravanSounds.speedOf(van) * 20 * 3.6;
             var text = net.minecraft.network.chat.Component.translatable("hud.papon.speed", (int) Math.round(kmh))
                     .withStyle(net.minecraft.ChatFormatting.WHITE);
@@ -242,6 +247,7 @@ public final class ClientEvents {
         int h = event.getWindow().getGuiScaledHeight();
         float pt = event.getPartialTick();
         if (!Cinematic.isActive()) PotatoSplat.render(g, w, h, pt);
+        GiantGrabHud.render(g, w, h, pt);
         float v = Cinematic.vignette(pt);
         if (v > 0) {
             Minecraft mc0 = Minecraft.getInstance();

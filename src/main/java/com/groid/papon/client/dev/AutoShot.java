@@ -75,6 +75,11 @@ public final class AutoShot {
     private static final boolean STATE = MODE.startsWith("state:");
     /** -Pautoshot=serpents: Quetzalcoatl and Kukulcan out of their smoke over a flat world, from the ground and from the air. */
     private static final boolean SERPENTS = MODE.equals("serpents");
+    /** -Pautoshot=skyline: the Skyline parked in daylight, all the way round and up close (papon_k*.png), then from its driver's seat. */
+    private static final boolean SKYLINE = MODE.equals("skyline");
+    /** -Pautoshot=giant: the coliseum up, straight to phase four's storm: El Gigante hunting you, its lunge, La Mano catching you
+     *  (lifted, the blast, the slam), one struggled free, then left to its own scheduler (papon_g*.png; every act logged). */
+    private static final boolean GIANT = MODE.equals("giant");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -116,8 +121,16 @@ public final class AutoShot {
             serpents(mc);
             return;
         }
+        if (SKYLINE) {
+            skyline(mc);
+            return;
+        }
         if (STATE) {
             statePose(mc);
+            return;
+        }
+        if (GIANT) {
+            giantTest(mc);
             return;
         }
         if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4 || CLIMAX || PHASES) {
@@ -383,7 +396,16 @@ public final class AutoShot {
             default -> null;
         };
         if (n != null) once(mc, n);
+        // the same apology frame with particles at their least: what is on his face is a particle or it is not
+        if (s == BossState.P2_APOLOGY && t == 83) mc.options.particles().set(net.minecraft.client.ParticleStatus.MINIMAL);
+        if (s == BossState.P2_APOLOGY && t == 88) once(mc, "c22p_apology_no_particles");
+        if (s == BossState.P2_APOLOGY && t == 92) mc.options.particles().set(net.minecraft.client.ParticleStatus.ALL);
         if (s == BossState.IDLE && b.isPhaseTwo() && colMark < 0 && taken.contains("c25_where_were_we")) colMark = tick;
+        // the first sung word: the opening pyrotechnics (PyroShow), as you see them, him in the middle of the frame
+        if (colMark > 0 && COLISEUM) {
+            int k0 = tick - colMark;
+            if (k0 == 2 || k0 == 8 || k0 == 16 || k0 == 30 || k0 == 50 || k0 == 80) once(mc, String.format("c30_first_word_%02d", k0));
+        }
         if (colMark > 0 && ARENA) {
             arenaTour(mc, b, tick - colMark);
             return;
@@ -1210,7 +1232,7 @@ public final class AutoShot {
     private static Vec3 flat(Vec3 p, double y) { return new Vec3(p.x, y, p.z); }
 
     private static String actName(int act) {
-        String[] n = {"rise", "idle", "charge", "laser", "slam_l", "slam_r", "sink", "swipe_l", "swipe_r", "slam_both", "roar", "grab"};
+        String[] n = {"rise", "idle", "charge", "laser", "slam_l", "slam_r", "sink", "swipe_l", "swipe_r", "slam_both", "roar", "grab", "lunge"};
         return act >= 0 && act < n.length ? n[act] : "act" + act;
     }
 
@@ -1405,6 +1427,157 @@ public final class AutoShot {
         if (t == 560) tpLook(c.add(0, -120, 0), c.add(1, -100, 0));
         if (t == 600) shot(mc, "s07_from_ground");
         if (t == 640) mc.stop();
+    }
+
+    private static int giantMark = -1, giantAct = -1;
+
+    private static void giantTest(Minecraft mc) {
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "kill @e[type=papon:mariachi]",
+                    "kill @e[type=papon:coliseum_crowd]", "tp @s 4000 200 4000");
+            case 70 -> run("execute positioned 4000 0 4000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            case 100 -> run("execute at @s rotated 0 0 run papon boss");
+            case 220 -> run("papon bossstate IDLE", MID, "papon bossstate P2_KNEEL");
+            default -> {}
+        }
+        PaponBossEntity b = nearest(mc, PaponBossEntity.class);
+        if (b == null) return;
+        if (giantMark < 0) {
+            if (b.getBossState() == BossState.P2_ARRIVE && b.ticksInState() > 5 && nearest(mc, com.groid.papon.boss.ColiseumCrowdEntity.class) != null) {
+                giantMark = tick;
+                run("papon bossstate P4_RAGE", "effect give @s regeneration 100000 4 true");
+            }
+            return;
+        }
+        int k = tick - giantMark;
+        var crowd = nearest(mc, com.groid.papon.boss.ColiseumCrowdEntity.class);
+        if (crowd == null) return;
+        Vec3 c = crowd.position();
+        var g = nearest(mc, com.groid.papon.boss.SpiritGiantEntity.class);
+        if (g != null && g.act() != giantAct) {
+            giantAct = g.act();
+            PaponMod.LOG.info("[autoshot] giant: act {} at k {} (you {} from it)", actName(giantAct), k,
+                    String.format("%.1f", Math.sqrt(mc.player.distanceToSqr(g.base().x, mc.player.getY(), g.base().z))));
+        }
+        BossState s = b.getBossState();
+        if (s.ordinal() != lastState) {
+            lastState = s.ordinal();
+            PaponMod.LOG.info("[autoshot] giant test: boss -> {} at k {} stage {}", s, k, b.p4StageShown());
+        }
+        // after the rage: the giant summoned, you at the far end from it, its stalk watched from the side
+        if (k == 200) run("papon giant summon");
+        if (g == null) return;
+        Vec3 base = g.base(), f = g.forward(), r = g.right();
+        double fy = c.y + 0.2;
+        if (k == 340) tpLook(flat(base.add(f.scale(30)), fy), g.head(0));
+        if (k > 340 && k < 420) lookAtPoint(mc, g.head(0).add(0, -6, 0));
+        if (k == 360) shot(mc, "g00_stalk_a");
+        if (k == 400) shot(mc, "g01_stalk_b");
+        // the lunge, from in front and to one side of it (it comes for you)
+        if (k == 430) tpLook(flat(base.add(f.scale(24)).add(r.scale(6)), fy), g.head(0));
+        if (k == 440) run("papon giant lunge");
+        if (k > 440 && k < 520) lookAtPoint(mc, g.head(0).add(0, -6, 0));
+        if (k == 452 || k == 462 || k == 470 || k == 480 || k == 500) shot(mc, "g1" + (k - 440) / 10 + "_lunge_" + (k - 440));
+        // La Mano: stand still under it; caught, lifted, blasted, slammed (the struggle not pressed)
+        if (k == 560) tpLook(flat(base.add(f.scale(26)), fy), g.head(0));
+        if (k == 570) run("papon giant grab");
+        if (k >= 570 && k < 800 && g.act() == com.groid.papon.boss.SpiritGiantEntity.GRAB) {
+            int ga = (int) g.actTime(0);
+            if (ga < com.groid.papon.boss.SpiritGiantEntity.GRAB_CLOSE) lookAtPoint(mc, g.hand(g.grabHand(), 0));
+            for (int at : new int[]{14, 40, 60, 70, 80, 92, 100, 115, 130, 143, 148, 158, 163, 175, 200}) {
+                if (ga == at) once(mc, String.format("g2%03d_grab", at));
+            }
+            if (ga == 100 && !mc.player.isPassenger()) PaponMod.LOG.info("[autoshot] giant test: NOT caught by La Mano");
+            if (ga % 10 == 0 && ga >= 60) {
+                Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
+                PaponMod.LOG.info("[autoshot] grab t {} cam {} me {} head {} hand {} base {} fwd {} eyeL {}", ga, v3(cam), v3(mc.player.position()),
+                        v3(g.head(0)), v3(g.hand(g.grabHand(), 0)), v3(g.base()), v3(g.forward()), v3(g.eye(-1, 0)));
+            }
+        }
+        // again, and this time struggle free
+        if (k == 900) tpLook(flat(g.base().add(g.forward().scale(26)), fy), g.head(0));
+        if (k == 910) run("papon giant grab");
+        if (k > 910 && k < 1150 && mc.player.getVehicle() instanceof com.groid.papon.boss.SpiritGiantEntity gg && k % 3 == 0)
+            com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.Struggle());
+        if (k > 910 && k < 1150 && g.act() == com.groid.papon.boss.SpiritGiantEntity.GRAB) {
+            int ga = (int) g.actTime(0);
+            if (ga == 85 || ga == 100 || ga == 120) once(mc, String.format("g3%03d_struggle", ga));
+        }
+        // then on its own: you walk about the arena; every act logged, shots every 4 s
+        if (k > 1200 && k < 2600) {
+            if (k % 160 == 0) {
+                double a = k * 0.05;
+                tpLook(new Vec3(c.x + Math.cos(a) * 22, fy, c.z + Math.sin(a) * 12), g.head(0));
+            }
+            if (k % 160 > 0) lookAtPoint(mc, g.head(0).add(0, -8, 0));
+            if (k % 80 == 40) shot(mc, String.format("g4%04d_free_%s", k, actName(g.act())));
+        }
+        if (k == (Boolean.getBoolean("papon.autoshot.long") ? 2600 : 1180)) mc.stop();
+    }
+
+    private static String v3(Vec3 v) { return String.format(java.util.Locale.ROOT, "(%.1f %.1f %.1f)", v.x, v.y, v.z); }
+
+    private static Vec3 skyAt;
+
+    /** The Skyline from eight sides at its own height, three close-ups, from above, then driven: first person and behind. */
+    private static void skyline(Minecraft mc) {
+        if (tick == 40) run("gamemode spectator", "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000",
+                "gamerule doMobSpawning false", "kill @e[type=papon:caravan]", "kill @e[type=papon:papon_boss]", "tp @s 6000 200 6000");
+        // (well away from 4000 4000, where the other tours leave their coliseum standing)
+        if (tick == 70) run("execute positioned 6000 0 6000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+        // a clear, flat lot to shoot it on
+        if (tick == 80) run("execute at @s run fill ~-16 ~ ~-16 ~16 ~14 ~16 air", "execute at @s run fill ~-16 ~-1 ~-16 ~16 ~-1 ~16 minecraft:smooth_stone",
+                // and a road on ahead of it for the test drive
+                "execute at @s run fill ~-10 ~ ~16 ~10 ~6 ~150 air", "execute at @s run fill ~-10 ~-1 ~16 ~10 ~-1 ~150 minecraft:smooth_stone");
+        if (tick == 90) run("execute at @s run summon papon:caravan ~ ~ ~ {Skyline:1b,Rotation:[0f,0f]}");
+        var car = nearest(mc, com.groid.papon.vehicle.CaravanEntity.class);
+        if (tick % 20 == 0) PaponMod.LOG.info("[autoshot] skyline tick {} car {} fps {} me {}", tick, car == null ? "none" : v3(car.position()), mc.getFps(), v3(mc.player.position()));
+        if (car == null || tick < 110) return;
+        if (skyAt == null) skyAt = car.position();
+        Vec3 c = skyAt;
+        int k = tick - 110;
+        if (k < 8 * 30) {
+            int i = k / 30;
+            double a = Math.toRadians(i * 45);
+            Vec3 eye = c.add(-Math.sin(a) * 7.5, 0.1, Math.cos(a) * 7.5);
+            if (k % 30 == 0) tpLook(eye, c.add(0, 0.7, 0));
+            if (k % 30 == 24) shot(mc, "k0" + i + "_orbit_" + (i * 45));
+            return;
+        }
+        k -= 8 * 30;
+        Vec3[][] close = {{c.add(-2.6, 0.9, 4.6), c.add(0, 1.0, 1.4)}, {c.add(3.8, 0.4, -4.4), c.add(0, 0.9, -1.2)},
+                {c.add(4.2, 0.3, 0.2), c.add(0, 0.8, 0)}, {c.add(0.01, 9, 0), c}, {c.add(-0.5, -0.23, -0.2), c.add(-0.5, 1.2, 4)},
+                {c.add(0.45, -0.2, -0.3), c.add(-0.6, 1.0, 0.4)}};
+        String[] names = {"k10_rear_glass", "k11_front", "k12_side", "k13_top", "k14_cabin_driver_eye", "k15_cabin_across"};
+        if (k < close.length * 30) {
+            int i = k / 30;
+            if (k % 30 == 0) tpLook(close[i][0], close[i][1]);
+            if (k % 30 == 24) shot(mc, names[i]);
+            return;
+        }
+        k -= close.length * 30;
+        if (k == 0) run("gamemode creative", "tp @s " + c.x + " " + c.y + " " + (c.z + 2), "ride @s mount @e[type=papon:caravan,limit=1,sort=nearest]");
+        if (k == 10) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (k > 10 && k < 120) {
+            mc.player.setYRot(car.getYRot());
+            mc.player.setXRot(k < 60 ? 8 : 25);
+        }
+        if (k == 40) shot(mc, "k20_driver_seat");
+        if (k == 80) shot(mc, "k21_driver_dash");
+        if (k == 100) mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+        if (k == 130) shot(mc, "k22_behind");
+        if (k == 150) mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+        if (k == 180) shot(mc, "k23_front_seat");
+        // a drive: foot down for five seconds, then off; the engine's simulation logged (rpm, gear, speed)
+        if (k == 190) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (k == 200) mc.options.keyUp.setDown(true);
+        if (k == 300) mc.options.keyUp.setDown(false);
+        if (k >= 200 && k <= 380 && k % 5 == 0) PaponMod.LOG.info("[autoshot] drive k {} rpm {} speed {} braking {}", k,
+                (int) com.groid.papon.client.CaravanSounds.rpm(car), String.format("%.2f", car.getDeltaMovement().horizontalDistance()), car.braking);
+        if (k == 260) shot(mc, "k24_driving");
+        if (k == 400) mc.stop();
     }
 
     private static void tpLook(Vec3 at, Vec3 look) {

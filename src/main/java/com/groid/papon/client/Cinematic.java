@@ -119,6 +119,9 @@ public final class Cinematic {
         return Mth.lerp(partial, flashO, flash);
     }
 
+    /** Whether the cutscene is about {@code e} (its lines are in the letterbox's subtitles, not in a bubble over its head). */
+    public static boolean isSubject(Entity e) { return active && subject == e; }
+
     /** The encoded speech line of whoever the cutscene is about ("" when quiet). */
     public static String subjectSpeech() {
         if (!active || subject == null || !subject.isAlive()) return "";
@@ -323,6 +326,11 @@ public final class Cinematic {
         Vec3 right = new Vec3(-f.z, 0, f.x);
         Vec3 body = b.position().add(0, 1.3, 0);
         qte = false;
+        Shot grab = giantGrabShot();
+        if (grab != null) {
+            qte = true;             // you are in shot, in its fist
+            return grab;
+        }
         if (QteClient.focus(b)) {
             // in slow motion, over your shoulder, his face filling the frame; pushing in as it goes on
             qte = true;
@@ -392,6 +400,99 @@ public final class Cinematic {
                     : null;
             default -> null;
         };
+    }
+
+    private static int grabCut = -1;
+
+    /**
+     * La Mano from outside (2026-10-06, the user: "Oh shit, he actually caught me... pick the player up high enough that his
+     * enormous size becomes visually obvious"; from your own eyes you only saw the inside of its fist): while El Gigante holds
+     * you, the camera is out in the arena. Caught: low on the floor beyond where you stood, its whole body looming over you as
+     * you go up. Hoisted: over its fist, looking down past your feet at the arena far below. Brought to its face: over your
+     * shoulder onto its skull, pushing in as its eyes charge (mash to struggle). The slam: wide and side-on, the arm coming down
+     * with you in it. Then back to your eyes, on the floor. Null when it holds nobody of yours.
+     */
+    @Nullable
+    private static Shot giantGrabShot() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || !(mc.player.getVehicle() instanceof com.groid.papon.boss.SpiritGiantEntity g) || !g.holds(mc.player)
+                || g.act() != com.groid.papon.boss.SpiritGiantEntity.GRAB) {
+            grabCut = -1;
+            return null;
+        }
+        float t = g.actTime(0);
+        Vec3 me = mc.player.position();
+        Vec3 base = g.base();
+        Vec3 away = me.subtract(base).multiply(1, 0, 1);
+        away = away.lengthSqr() < 1e-4 ? g.forward() : away.normalize();
+        Vec3 side = new Vec3(-away.z, 0, away.x);
+        int beat = t < com.groid.papon.boss.SpiritGiantEntity.GRAB_LIFT - 6 ? 0 : t < com.groid.papon.boss.SpiritGiantEntity.GRAB_BRING ? 1
+                : t < com.groid.papon.boss.SpiritGiantEntity.GRAB_SLAM_UP ? 2 : 3;
+        boolean cut = beat != grabCut;
+        grabCut = beat;
+        double floor = base.y;
+        // the arena's middle (the crowd stands there): open sand, the way to point every shot that is low on the floor
+        Vec3 mid = mc.level.getEntitiesOfClass(com.groid.papon.boss.ColiseumCrowdEntity.class, mc.player.getBoundingBox().inflate(160), e -> true)
+                .stream().findFirst().map(Entity::position).orElse(base.add(g.forward().scale(30)));
+        switch (beat) {
+            case 0 -> {
+                // caught: from the floor beyond your spot, looking up at you going up with all of it over you
+                double k = smooth(Mth.clamp((t - com.groid.papon.boss.SpiritGiantEntity.GRAB_CLOSE) / 20.0, 0, 1));
+                Vec3 from = new Vec3(me.x, floor + 1.4, me.z);
+                Vec3 open = new Vec3(mid.x - me.x, 0, mid.z - me.z);
+                open = open.lengthSqr() < 4 ? away : open.normalize();
+                Vec3 eye = pullIn(mc, from, from.add(open.scale(10)).add(new Vec3(-open.z, 0, open.x).scale(3.5)), g);
+                Vec3 look = me.add(0, 1, 0).lerp(g.head(0), 0.25 * k);
+                return new Shot(eye, look, 70 - 6 * (float) k, 0, cut, true);
+            }
+            case 1 -> {
+                // high over its head: past your dangling feet, the arena far below
+                Vec3 eye = pullIn(mc, me.add(0, 1, 0), me.add(away.scale(5.5)).add(side.scale(2.2)).add(0, 3.0, 0), g);
+                Vec3 look = new Vec3(me.x, Math.max(floor + 1, me.y - 5), me.z).subtract(away.scale(2));
+                return new Shot(eye, look, 76, 0, cut, true);
+            }
+            case 2 -> {
+                // face to face: over your shoulder onto its skull (its eyes, not the top of its head under the hat), pushing in as
+                // they come up to full
+                Vec3 skull = g.eye(-1, 0).lerp(g.eye(1, 0), 0.5);
+                Vec3 u = me.add(0, 1.6, 0).subtract(skull);
+                u = u.lengthSqr() < 1e-4 ? away : u.normalize();
+                // on the side away from the arm that holds you (its forearm runs from your side back to it: from behind you
+                // on that side it filled the frame)
+                Vec3 s2 = g.right(0).scale(g.grabHand() == 0 ? -1 : 1);
+                float charge = Math.max(0, g.charge(0));
+                double push = Math.min(1, charge);
+                // far enough back that its whole skull is in frame over your shoulder, its eyes swelling; pushing in as they charge
+                Vec3 head = me.add(0, 1.6, 0);
+                // a little under its eyes, looking up into its face: the hat's brim frames them from above instead of hiding them
+                Vec3 eye = pullIn(mc, head, head.add(u.scale(8.5 - 2.6 * push)).add(s2.scale(4.2)).add(0, -1.2, 0), g);
+                float fov = charge >= 1.5F ? 80 : 62 - 10 * (float) push;
+                return new Shot(eye, skull.lerp(head, 0.15), fov, 0, cut, true);
+            }
+            default -> {
+                if (t > com.groid.papon.boss.SpiritGiantEntity.GRAB_SLAM + 6) return null;
+                // the slam: from out on the sand beyond where it will put you down, low, the fist coming down at the lens with you
+                Vec3 mark = g.handMark(g.grabHand());
+                Vec3 land = new Vec3(mark.x, floor, mark.z);
+                Vec3 out = new Vec3(mid.x - land.x, 0, mid.z - land.z);
+                out = out.lengthSqr() < 4 ? g.forward() : out.normalize();
+                // from the side of where it puts you down (and a little toward the open middle), clear of its body
+                Vec3 perp = new Vec3(-out.z, 0, out.x);
+                Vec3 armway = new Vec3(land.x - base.x, 0, land.z - base.z);
+                if (armway.lengthSqr() > 1e-4 && perp.dot(armway.normalize()) < 0) perp = perp.scale(-1);
+                Vec3 eye = pullIn(mc, land.add(0, 1.5, 0), land.add(perp.scale(11)).add(out.scale(5)).add(0, 3.0, 0), g);
+                Vec3 fist = g.hand(g.grabHand(), 0);
+                return new Shot(eye, fist.lerp(land, 0.45), 72, 0, cut, true);
+            }
+        }
+    }
+
+    /** {@code eye}, or short of the first block between {@code from} and it (the stands, a wall), a block and a half clear. */
+    private static Vec3 pullIn(Minecraft mc, Vec3 from, Vec3 eye, Entity subject) {
+        Vec3 hit = firstHit(mc, from, eye.add(eye.subtract(from).normalize().scale(1.5)), subject);
+        if (hit.distanceToSqr(from) >= eye.distanceToSqr(from)) return eye;
+        Vec3 back = eye.subtract(from).normalize();
+        return from.distanceTo(hit) > 2.5 ? hit.subtract(back.scale(1.5)) : from.add(back.scale(1.0));
     }
 
     /**
@@ -598,11 +699,8 @@ public final class Cinematic {
                     return new Shot(mid.add(right.scale(7.5)).add(0, 1.4, 0), mid, 58, 0, t == 0);
                 }
                 if (t < aura) return new Shot(body.add(f.scale(4.0)).add(right.scale(1.4)).add(0, -0.8, 0), face, 48, 0, t == close);
-                // the aura farm: a slow low orbit, a little slower the longer it has to last
-                double span = Math.max(68, VoiceLines.beat("apology.end", 178) - aura);
-                double orbit = Math.toRadians(20 + (t - aura) * 1.5 * 68 / span);
-                Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
-                return new Shot(b.position().add(dir.scale(5.2)).add(0, 0.4, 0), body.add(0, 0.5, 0), 50, 0, t == aura);
+                return auraShot(b, t - aura, VoiceLines.beat("apology.end", 178) - aura, VoiceLines.beat("apology.wink", 144) - aura,
+                        body, face, stage, stageFacing, stageSide);
             }
             case P2_RESUME -> {
                 int whip = VoiceLines.beat("resume.total", 36) - 8;        // whip out as the line ends and he sings
@@ -663,6 +761,51 @@ public final class Cinematic {
                 return null;
             }
         }
+    }
+
+    /**
+     * The aura farm after "Such POOR hospitality..." (2026-10-06, the user: the camera trailing his back through a silent crowd
+     * "I do NOT like"): he turns to the stands across from the band and lets them have it, and the camera plays it as a showman's
+     * moment, never from behind him. All the angles hang off the stage's facing, fixed for the whole beat (never a side picked
+     * by a dot product against the middle: it flips). {@code k} ticks into the aura, {@code len} long, the wink at {@code wink}:
+     *   a low hero angle out in front of him, the band stand behind him, pushing in, the stands' cameras flashing
+     *   in close for the wink (his face, a little below it)
+     *   the stands themselves, swooning: tracking along the rows across from the band, low on the sand, looking up into them
+     *   the wide: from high over those stands, the whole bowl clapping on the beat, craning down onto him for "where were we?"
+     */
+    private static Shot auraShot(PaponBossEntity b, int k, int len, int wink, Vec3 body, Vec3 face, Vec3 stage, Vec3 sf, Vec3 side) {
+        int closeAt = Math.max(14, wink - 6), standsAt = wink + 22, wideAt = Math.max(standsAt + 40, len - 86);
+        if (k < closeAt) {
+            double p = smooth(Math.min(1, k / (double) closeAt));
+            Vec3 eye = body.add(sf.scale(6.4 - p * 1.6)).add(side.scale(1.8 - p * 0.6)).add(0, -1.1 + p * 0.3, 0);
+            return new Shot(eye, face.add(0, -0.2, 0), 52 - (float) p * 6, 0, k == 0);
+        }
+        if (k < standsAt) {
+            double p = (k - closeAt) / (double) (standsAt - closeAt);
+            Vec3 eye = face.add(sf.scale(4.4 - p * 0.4)).add(side.scale(0.6)).add(0, -0.3, 0);
+            return new Shot(eye, face.add(0, 0.05, 0), 44, 0, near(k, closeAt));
+        }
+        Vec3 c = arenaMiddle(b);
+        if (k < wideAt) {
+            // the rows across from the stand, from the edge of the sand: pan along them as they swoon and faint
+            double p = (k - standsAt) / (double) (wideAt - standsAt);
+            double reach = com.groid.papon.boss.Coliseum.B - 3.0;
+            Vec3 eye = c.add(sf.scale(reach)).add(side.scale(-9 + p * 14)).add(0, 2.2, 0);
+            Vec3 look = c.add(sf.scale(com.groid.papon.boss.Coliseum.B + 12)).add(side.scale(-4 + p * 12)).add(0, 10 + p, 0);
+            return new Shot(eye, look, 64, 0, near(k, standsAt), true);
+        }
+        // the whole bowl from high over those stands, craning down and in onto him as the clapping builds
+        double p = smooth(Math.min(1, (k - wideAt) / (double) Math.max(1, len - wideAt)));
+        Vec3 high = c.add(sf.scale(com.groid.papon.boss.Coliseum.B + 6)).add(side.scale(4)).add(0, 19, 0);
+        Vec3 low = body.add(sf.scale(7.5)).add(side.scale(2.2)).add(0, 1.6, 0);
+        Vec3 look = stage.add(0, 2, 0).lerp(face, 0.35 + 0.65 * p);
+        return new Shot(high.lerp(low, p), look, 66 - (float) p * 18, 0, near(k, wideAt), true);
+    }
+
+    /** The middle of the arena he is in (the crowd stands there), or where he is. */
+    private static Vec3 arenaMiddle(PaponBossEntity b) {
+        return Minecraft.getInstance().level.getEntitiesOfClass(com.groid.papon.boss.ColiseumCrowdEntity.class, b.getBoundingBox().inflate(80), e -> true)
+                .stream().findFirst().map(Entity::position).orElse(b.position());
     }
 
     /**
