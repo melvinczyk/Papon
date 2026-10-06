@@ -63,6 +63,15 @@ DIRECTION = {
                             'a warm smile: you both know this is the last song you will ever play.'),
     'p4_honor_b': ('moved', 'Answering your old friend, a hand on his shoulder: warm, proud, smiling through tears, steady.'),
     'p4_honor_c': ('moved', 'To the whole band, a slow grin spreading, resolve rising into a rallying call at the end.'),
+    # (2026-10-06, the user: "the band isn't talking in the phase 4 intro, they are supposed to be hyping each other out") the band
+    # egging each other on after he has risen, through the serpents, before his last song
+    'p4_hype_look': ('cheer', 'Nudging your bandmate and pointing at your boss, wide-eyed and thrilled, fast and loud: look at him!'),
+    'p4_hype_wow': ('cheer', 'Hands on your head in amazement, laughing, hyped out of your mind: what power, brother!'),
+    'p4_hype_serp': ('cheer', 'Shouting with disbelief and joy, pointing up at two giant snakes in the sky: serpents!'),
+    'p4_hype_epic': ('cheer', 'Rallying the band, fist in the air, voice cracking with excitement: this is going to be LEGENDARY!'),
+    'p4_hype_ready': ('cheer', 'A big grin, calling it out to the band like a team captain before the last game: are you ready, boys?'),
+    'p4_hype_ready_a': ('cheer', 'The whole band answering at the top of your lungs, a long fired-up shout: READYYY!'),
+    'p4_hype_fiesta': ('cheer', 'Pure party energy, a huge laugh in your voice, shouting: let the fiesta begin!'),
     'gasp': ('yelp', 'A sharp startled gasp, jolted awake.'),
 }
 # what is spoken where the bubble's text has stage directions or is not a line

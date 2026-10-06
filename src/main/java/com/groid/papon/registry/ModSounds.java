@@ -61,7 +61,19 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> CINE_ABSORB = sound("boss.cine_absorb");
     public static final RegistryObject<SoundEvent> CINE_MOON = sound("boss.cine_moon");
     public static final RegistryObject<SoundEvent> CINE_SWELL = sound("boss.cine_swell");
+    public static final RegistryObject<SoundEvent> CINE_AWAKEN = sound("boss.cine_awaken");
+    public static final RegistryObject<SoundEvent> CINE_EMERGE = sound("boss.cine_emerge");
     public static final RegistryObject<SoundEvent> SCRATCH = sound("boss.scratch");
+    // El Gigante (tools/gen_giant_sounds.py): its laser, loud from anywhere in the arena, and a warning cue for each of its attacks
+    public static final RegistryObject<SoundEvent> GIANT_LASER_CHARGE = sound("boss.laser_giant_charge");
+    public static final RegistryObject<SoundEvent> GIANT_LASER_FIRE = sound("boss.laser_giant_fire");
+    public static final RegistryObject<SoundEvent> GIANT_LASER_BURN = sound("boss.laser_giant_burn");
+    public static final RegistryObject<SoundEvent> GIANT_LASER_END = sound("boss.laser_giant_end");
+    public static final RegistryObject<SoundEvent> GIANT_LASER_SIZZLE = sound("boss.laser_giant_sizzle");
+    public static final RegistryObject<SoundEvent> GIANT_TELL_GRAB = sound("boss.giant_tell_grab");
+    public static final RegistryObject<SoundEvent> GIANT_TELL_SWIPE = sound("boss.giant_tell_swipe");
+    public static final RegistryObject<SoundEvent> GIANT_TELL_SLAM = sound("boss.giant_tell_slam");
+    public static final RegistryObject<SoundEvent> GIANT_TELL_LUNGE = sound("boss.giant_tell_lunge");
 
     private static RegistryObject<SoundEvent> sound(String name) {
         return REGISTRY.register(name, () -> SoundEvent.createVariableRangeEvent(PaponMod.id(name)));

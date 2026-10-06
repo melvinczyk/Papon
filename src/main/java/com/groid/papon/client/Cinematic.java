@@ -1030,9 +1030,19 @@ public final class Cinematic {
                 Vec3 toYou = you.subtract(fp).multiply(1, 0, 1);
                 toYou = toYou.lengthSqr() < 1e-4 ? f : toYou.normalize();
                 if (t < warrior) {
+                    // (2026-10-06, the user: "they should be listening intently to what papon is saying") a beat on the band, still,
+                    // leaning in, every eye on him: from the sand at their level, pushing in slowly over the singer
+                    if (!band.isEmpty() && t >= carved + 34 && t < carved + 90) {
+                        double push = Mth.clamp((t - carved - 34) / 56.0, 0, 1);
+                        push = push * push * (3 - 2 * push);
+                        Vec3 front = singer != null ? singer.position() : stage;
+                        Vec3 faces = front.lerp(stage, 0.35).add(0, 1.5, 0);
+                        Vec3 eye = front.add(stageFacing.scale(8.4 - 2.6 * push)).add(0, 1.7, 0);
+                        return new Shot(eye, faces, 50 - 6 * (float) push, 0, near(t, carved + 34), true);
+                    }
                     // round to you: over your shoulder at him
                     Vec3 eye = you.add(toYou.scale(1.4)).add(new Vec3(-toYou.z, 0, toYou.x).scale(1.2)).add(0, 0.3, 0);
-                    return new Shot(eye, fp, 44, 0, near(t, carved - 6));
+                    return new Shot(eye, fp, 44, 0, near(t, carved - 6) || near(t, carved + 90));
                 }
                 if (t < warrior + 90) {
                     // the prophecy: a slow circle round him, the fog in the lights
@@ -1257,14 +1267,23 @@ public final class Cinematic {
                     Vec3 eye = b.position().add(right.scale(h * 1.8)).add(f.scale(-h * 0.6)).add(0, 0.8, 0);
                     return new Shot(eye, headA, 78, 0, near(t, 56), true);
                 }
-                if (t < 190) {
+                if (t < 160) {
                     // a long lens on Kukulcan's gold mask
                     Vec3 eye = c.add(0, 34, 0).add(headB.subtract(c).multiply(1, 0, 1).scale(0.3));
                     return new Shot(eye, headB, 30, 0, near(t, 124), true);
                 }
+                if (t < 238 && !band.isEmpty()) {
+                    // (2026-10-06, the user: "they are supposed to be hyping each other out") the band, up on their toes, egging each
+                    // other on (the singer's "are you ready?", their roar back): from the sand, pushing in over the singer
+                    double push = Mth.clamp((t - 160) / 78.0, 0, 1);
+                    Vec3 front = singer != null ? singer.position() : stage;
+                    Vec3 faces = front.lerp(stage, 0.35).add(0, 1.6, 0);
+                    Vec3 eye = front.add(stageFacing.scale(10.5 - 3.5 * push)).add(0, 1.8, 0);
+                    return new Shot(eye, faces, 56 - 8 * (float) push, 0, near(t, 160), true);
+                }
                 // high over it all: the two of them circling the coliseum of the dead
                 Vec3 eye = c.add(flat.scale(arenaA * 2.0)).add(0, 70, 0);
-                return new Shot(eye, c.add(0, 18, 0), 74, 0, near(t, 190), true);
+                return new Shot(eye, c.add(0, 18, 0), 74, 0, near(t, 160) || near(t, 238), true);
             }
             case P4_TALKING -> {
                 Vec3 fp = BossRenderer.facePos(b);

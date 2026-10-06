@@ -148,6 +148,161 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             boolean swipe = (fr.a == SpiritGiantEntity.SWIPE_L && i == 0) || (fr.a == SpiritGiantEntity.SWIPE_R && i == 1);
             if (swipe && fr.act < SpiritGiantEntity.SWIPE_FROM + 2) swipeBand(glow, fr, g, i);
         }
+        tells(glow, fr, g, partial);
+    }
+
+    // ------------------------------------------------------------------ the tells
+
+    /**
+     * What it is about to do, shown in the world (2026-10-06, the user: "like big tells the player can see"; the screen's side is
+     * client/GiantTells): the eyes swelling into suns with rings pulling in and a line to where each beam will go, a pillar of light
+     * over each spot a hand will come down on, over where La Mano will close and along the path of La Embestida.
+     */
+    private static void tells(VertexConsumer vc, Frame fr, SpiritGiantEntity g, float partial) {
+        Vec3 cam = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().subtract(fr.origin);
+        switch (fr.a) {
+            case SpiritGiantEntity.CHARGE -> laserTell(vc, fr, g, partial, cam);
+            case SpiritGiantEntity.SLAM_L, SpiritGiantEntity.SLAM_R -> {
+                float k = Mth.clamp(fr.act / SpiritGiantEntity.SLAM_HIT, 0, 1);
+                if (fr.act < SpiritGiantEntity.SLAM_HIT + 3) pillar(vc, fr, g.handMark(fr.a == SpiritGiantEntity.SLAM_L ? 0 : 1), 5.5F, k, VIOLET, 44F);
+            }
+            case SpiritGiantEntity.SLAM_BOTH -> {
+                float k = Mth.clamp(fr.act / SpiritGiantEntity.SLAM2_HIT, 0, 1);
+                if (fr.act < SpiritGiantEntity.SLAM2_HIT + 3) {
+                    for (int i = 0; i < 2; i++) pillar(vc, fr, g.handMark(i), 6F, k, VIOLET, 52F);
+                    Vec3 mid = g.handMark(0).lerp(g.handMark(1), 0.5);
+                    floorRing(vc, fr, mid, 9.5F * (1.5F - 0.5F * k), 0.7F, 0.2F + 0.8F * k, VIOLET, fr.t);
+                }
+            }
+            case SpiritGiantEntity.GRAB -> {
+                if (!g.caught() && fr.act < SpiritGiantEntity.GRAB_CLOSE + 3) {
+                    float k = Mth.clamp(fr.act / SpiritGiantEntity.GRAB_CLOSE, 0, 1);
+                    // the whole of its reach: a column of red over where the hand will close
+                    pillar(vc, fr, g.handMark(g.grabHand()), 4.4F, 0.35F + 0.65F * k, BLOOD, 90F);
+                    Vec3 to = g.goingTo();
+                    Vec3 mark = g.handMark(g.grabHand());
+                    if (to.lengthSqr() > 1 && fr.act < SpiritGiantEntity.GRAB_WADE && mark.distanceToSqr(to) > 1) {
+                        // and the line it wades along to get there
+                        floorLine(vc, fr, g.base(partial), to.add(mark.subtract(to).normalize().scale(10)), 1.4F, 0.3F + 0.5F * k, BLOOD, fr.t);
+                    }
+                }
+            }
+            case SpiritGiantEntity.LUNGE -> {
+                Vec3 to = g.goingTo();
+                if (fr.act < SpiritGiantEntity.LUNGE_STOP && to.lengthSqr() > 1) {
+                    float k = Mth.clamp(fr.act / SpiritGiantEntity.LUNGE_GO, 0, 1);
+                    Vec3 b = g.base(partial);
+                    Vec3 dir = to.subtract(b).multiply(1, 0, 1).normalize();
+                    // the lane it will tear through: a strip of fire-orange down the floor, chevrons running along it
+                    floorLine(vc, fr, b.add(dir.scale(3)), to.add(dir.scale(16)), 6.5F, 0.35F + 0.65F * k, EMBER, fr.t);
+                    pillar(vc, fr, to.add(dir.scale(10)), 3F, k, EMBER, 40F);
+                }
+            }
+            default -> {}
+        }
+    }
+
+    private static final int[] VIOLET = {200, 100, 255}, BLOOD = {255, 40, 80}, SKY = {150, 235, 255};
+
+    /** The eyes charging: two suns, rings falling into each, and a line from each to where its beam will land, thickening as it comes. */
+    private static void laserTell(VertexConsumer vc, Frame fr, SpiritGiantEntity g, float partial, Vec3 cam) {
+        float k = Mth.clamp(fr.act / GiantTells.LASER_CHARGE, 0, 1);
+        float flick = 0.75F + 0.25F * Mth.sin(fr.t * (1.2F + 3F * k));
+        Vec3 aim = g.aim();
+        Vec3 aimRel = aim.subtract(fr.origin);
+        for (int s : new int[]{-1, 1}) {
+            Vec3 eye = g.eye(s, partial).subtract(fr.origin);
+            // a sun in each socket
+            glow(vc, fr.m, eye, (2.5F + 6.5F * k * k) * flick, 150, 235, 255, (int) (120 + 135 * k));
+            glow(vc, fr.m, eye, (1.2F + 3.0F * k) * flick, 255, 255, 255, (int) (160 + 95 * k));
+            // the line its beam will take
+            Vec3 d = aimRel.subtract(eye);
+            if (d.lengthSqr() < 1) continue;
+            float pulse = 0.55F + 0.45F * Mth.sin(fr.t * (0.8F + 2.2F * k) + s);
+            ribbon(vc, fr.m, eye, aimRel, cam, 0.9F + 3.2F * k, 90, 220, 255, (int) ((70 + 150 * k) * pulse));
+            ribbon(vc, fr.m, eye, aimRel, cam, 0.2F + 0.6F * k, 255, 255, 255, (int) (140 + 115 * k));
+            // rings falling into the eye
+            Vec3 dn = d.normalize();
+            Vec3 u = dn.cross(new Vec3(0, 1, 0));
+            u = u.lengthSqr() < 1e-4 ? fr.r : u.normalize();
+            Vec3 v = dn.cross(u).normalize();
+            for (int r = 0; r < 3; r++) {
+                float ph = (fr.t * (0.09F + 0.1F * k) + r / 3F) % 1F;
+                float rad = 11F * (1F - ph) + 0.6F;
+                int al = (int) (230 * ph * (0.3F + 0.7F * k));
+                Vec3 centre = eye.add(dn.scale(1.5F + 3F * ph));
+                Vec3 prev = centre.add(u.scale(rad));
+                for (int i = 1; i <= 20; i++) {
+                    double a = Math.PI * 2 * i / 20;
+                    Vec3 p = centre.add(u.scale(Math.cos(a) * rad)).add(v.scale(Math.sin(a) * rad));
+                    ribbon(vc, fr.m, prev, p, cam, 0.5F + 0.4F * ph, 190, 245, 255, al);
+                    prev = p;
+                }
+            }
+        }
+        // where it will land: a column of light and a mark on the floor the size of the burn, flashing white as it fires
+        pillar(vc, fr, aim, 3.4F, k, SKY, 56F);
+    }
+
+    /**
+     * A column of light over a spot on the floor (world position {@code at}), {@code h} tall, brightening and thickening as {@code k}
+     * runs 0..1, with a ring on the floor of radius {@code r} closing in on it; whitening as it lands.
+     */
+    private static void pillar(VertexConsumer vc, Frame fr, Vec3 at, float r, float k, int[] col, float h) {
+        Vec3 c = at.subtract(fr.origin).add(0, 0.12, 0);
+        float flash = 0.5F + 0.5F * Mth.sin(fr.t * (0.7F + 2.6F * k));
+        int[] hot = {(int) Mth.lerp(k * k, col[0], 255), (int) Mth.lerp(k * k, col[1], 255), (int) Mth.lerp(k * k, col[2], 255)};
+        float w = r * (0.35F + 0.4F * k);
+        int a0 = (int) Math.min(255, (70 + 170 * k) * (0.7F + 0.3F * flash)), a1 = (int) (a0 * 0.12F);
+        for (int plane = 0; plane < 2; plane++) {
+            Vec3 side = plane == 0 ? new Vec3(w, 0, 0) : new Vec3(0, 0, w);
+            Vec3 top = c.add(0, h, 0);
+            quad2c(vc, fr.m, c.subtract(side), c.add(side), top.add(side.scale(0.25)), top.subtract(side.scale(0.25)), hot, a0, a1);
+        }
+        floorRing(vc, fr, at, r * (1.7F - 0.7F * k), 0.5F, 0.25F + 0.75F * k, hot, fr.t);
+    }
+
+    /** A ring flat on the floor round {@code at}: radius r, band {@code width} wide, alpha by k (0..1), flickering. */
+    private static void floorRing(VertexConsumer vc, Frame fr, Vec3 at, float r, float width, float k, int[] col, float t) {
+        Vec3 c = at.subtract(fr.origin).add(0, 0.14, 0);
+        int n = 36;
+        int al = (int) (Math.min(1F, k) * (150 + 100 * (0.5F + 0.5F * Mth.sin(t * 1.3F))));
+        for (int i = 0; i < n; i++) {
+            double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
+            Vec3 i0 = c.add(Math.cos(a0) * (r - width), 0, Math.sin(a0) * (r - width)), o0 = c.add(Math.cos(a0) * (r + width), 0, Math.sin(a0) * (r + width));
+            Vec3 i1 = c.add(Math.cos(a1) * (r - width), 0, Math.sin(a1) * (r - width)), o1 = c.add(Math.cos(a1) * (r + width), 0, Math.sin(a1) * (r + width));
+            quad2c(vc, fr.m, i0, o0, o1, i1, col, al, al);
+        }
+        // and the filled disc inside it, faint
+        for (int i = 0; i < n; i++) {
+            double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
+            Vec3 p0 = c.add(Math.cos(a0) * r, 0, Math.sin(a0) * r), p1 = c.add(Math.cos(a1) * r, 0, Math.sin(a1) * r);
+            quad2c(vc, fr.m, c, c, p1, p0, col, al / 3, al / 5);
+        }
+    }
+
+    /** A strip down the floor from {@code a} to {@code b}, {@code half} either side of the line, chevrons running along it. */
+    private static void floorLine(VertexConsumer vc, Frame fr, Vec3 a, Vec3 b, float half, float k, int[] col, float t) {
+        Vec3 d = b.subtract(a).multiply(1, 0, 1);
+        double len = d.length();
+        if (len < 1) return;
+        Vec3 dir = d.scale(1 / len), side = new Vec3(-dir.z, 0, dir.x).scale(half);
+        Vec3 s = a.subtract(fr.origin).add(0, 0.13, 0);
+        int segs = Math.max(2, (int) (len / 3));
+        int al = (int) (Math.min(1F, k) * 120);
+        for (int i = 0; i < segs; i++) {
+            Vec3 p0 = s.add(dir.scale(len * i / segs)), p1 = s.add(dir.scale(len * (i + 1) / segs));
+            // marching chevrons: every other segment lit, the lit ones sliding along
+            boolean lit = ((i + (int) (t * 0.5F)) & 1) == 0;
+            int a2 = lit ? al : al / 3;
+            quad2c(vc, fr.m, p0.subtract(side), p0.add(side), p1.add(side), p1.subtract(side), col, a2, a2);
+        }
+        // its edges, hot
+        int e = (int) (Math.min(1F, k) * 230);
+        for (int sgn = -1; sgn <= 1; sgn += 2) {
+            Vec3 o = side.scale(sgn);
+            quad2c(vc, fr.m, s.add(o), s.add(o.scale(1.06)), s.add(dir.scale(len)).add(o.scale(1.06)), s.add(dir.scale(len)).add(o), col, e, e);
+        }
     }
 
     // ------------------------------------------------------------------ the skull

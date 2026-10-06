@@ -79,7 +79,10 @@ public final class AutoShot {
     private static final boolean SKYLINE = MODE.equals("skyline");
     /** -Pautoshot=giant: the coliseum up, straight to phase four's storm: El Gigante hunting you, its lunge, La Mano catching you
      *  (lifted, the blast, the slam), one struggled free, then left to its own scheduler (papon_g*.png; every act logged). */
-    private static final boolean GIANT = MODE.equals("giant");
+    private static final boolean GIANT = MODE.equals("giant") || MODE.equals("tells");
+    /** -Pautoshot=tells: El Gigante's attack tells (2026-10-06): its laser, both slams, a swipe, La Mano and the lunge, each shot
+     *  through its wind-up from where you stand (papon_t*.png; the banner on your screen, the pillars and eyes in the world). */
+    private static final boolean TELLS = MODE.equals("tells");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -1061,6 +1064,7 @@ public final class AutoShot {
             case P4_PROPHECY -> t == 40 ? "w14_ten_thousand_years" : t == vb("p4.throne_look", 119) - 20 ? "w15_fog"
                     : t == vb("p4.throne", 133) + 30 ? "w15a_throne_over_shoulder" : t == vb("p4.throne", 133) + 80 ? "w15b_the_throne"
                     : t == vb("p4.carved", 262) - 20 ? "w15c_looking_up" : t == vb("p4.carved", 262) + 40 ? "w15d_carved"
+                    : t == vb("p4.carved", 262) + 62 ? "w15d2_band_listens" : t == vb("p4.carved", 262) + 82 ? "w15d3_band_listens_close"
                     : t == vb("p4.warrior", 368) + 50 ? "w15e_warrior" : t == vb("p4.prophecy_end", 563) - 20 ? "w15f_carry_the_world" : null;
             case P4_THRONE -> t == 40 ? "w16a_moctezuma_wide" : t == vb("p4.moctezuma", 18) + 100 ? "w16b_dolly" : t == vb("p4.moctezuma", 18) + 180 ? "w16c_saw_a_god"
                     : t == vb("p4.gates", 249) + 40 ? "w16d_gates" : t == vb("p4.gates", 249) + 100 ? "w16e_took_everything"
@@ -1077,7 +1081,7 @@ public final class AutoShot {
                     : t == vb("p4.guardian", 222) + 20 ? "w30_i_am_papon" : t == vb("p4.halfbaked_end", 322) - 10 ? "w31_dead_arena" : null;
             case P4_BOW -> t == 22 ? "w32_bow_forms" : t == 56 ? "w33_draw" : t == com.groid.papon.boss.PaponBossEntity.BOW_HIT - 2 ? "w34_arrow"
                     : t == com.groid.papon.boss.PaponBossEntity.BOW_SMOKE + 14 ? "w35_sky_torn" : t == vb("p4.bowline", 112) + 30 ? "w35b_come_down" : null;
-            case P4_SERPENTS -> t == 40 ? "w36_out_of_smoke" : t == 100 ? "w37_how_big" : t == 160 ? "w38_boros" : t == 230 ? "w39_circling" : null;
+            case P4_SERPENTS -> t == 40 ? "w36_out_of_smoke" : t == 100 ? "w37_how_big" : t == 160 ? "w38_boros" : t == 176 ? "w38b_band_hype_a" : t == 200 ? "w38c_band_hype_b" : t == 214 ? "w38d_band_ready" : t == 230 ? "w38e_band_fiesta" : t == 244 ? "w39_circling" : null;
             case P4_TALKING -> t == 14 ? "w40_now_were_talking" : null;
             case P4_TOBAND -> t == 20 ? "w41_to_the_band" : t == 50 ? "w41b_band_hyped" : t == 90 ? "w41c_band_hyped" : null;
             case P4_HONOR -> t == 50 ? "w42_one_last_song" : t == vb("p4.nod", 112) + 8 ? "w43_singer_nods" : t == vb("p4.song", 128) + 20 ? "w44_trumpets" : null;
@@ -1436,6 +1440,24 @@ public final class AutoShot {
     private static double giantFloor;
     private static Vec3 giantWatchAt;
 
+    /** The tells, one attack after another: you stand 28 blocks off it, looking at its head, and each is shot through its wind-up. */
+    private static void tellsPlan(Minecraft mc, int k, com.groid.papon.boss.SpiritGiantEntity g, double fy) {
+        String[] moves = {"laser", "slam", "slam2", "swipe", "grab", "lunge"};
+        int[][] shots = {{6, 12, 18, 23, 30, 40}, {5, 10, 16, 20}, {8, 16, 24, 29}, {5, 10, 15, 20}, {20, 36, 52, 64}, {6, 12, 18, 21}};
+        int i = (k - 280) / 150;
+        if (k < 280 || i >= moves.length) return;
+        int at = (k - 280) % 150;
+        if (at == 0) tpLook(flat(g.base().add(g.forward().scale(28)), fy), g.head(0));
+        if (at == 12) run("papon giant " + moves[i]);
+        if (at > 12 && at < 140 && g.act() != com.groid.papon.boss.SpiritGiantEntity.IDLE && !mc.player.isPassenger()) {
+            lookAtPoint(mc, g.head(0).add(0, -9, 0));
+            int ga = (int) g.actTime(0);
+            for (int s : shots[i]) {
+                if (ga == s) once(mc, String.format("t%d_%s_%02d_%s", i, moves[i], s, actName(g.act())));
+            }
+        }
+    }
+
     private static void giantTest(Minecraft mc) {
         switch (tick) {
             case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
@@ -1471,12 +1493,16 @@ public final class AutoShot {
             lastState = s.ordinal();
             PaponMod.LOG.info("[autoshot] giant test: boss -> {} at k {} stage {}", s, k, b.p4StageShown());
         }
-        if (k >= (Boolean.getBoolean("papon.autoshot.long") ? 3100 : 1640)) mc.stop();
+        if (k >= (TELLS ? 1500 : Boolean.getBoolean("papon.autoshot.long") ? 3100 : 1640)) mc.stop();
         // after the rage: the giant summoned, you at the far end from it, its stalk watched from the side
         if (k == 200) run("papon giant summon");
         if (g == null) return;
         Vec3 base = g.base(), f = g.forward(), r = g.right();
         double fy = c.y + 0.2;
+        if (TELLS) {
+            tellsPlan(mc, k, g, fy);
+            return;
+        }
         if (k == 340) tpLook(flat(base.add(f.scale(30)), fy), g.head(0));
         if (k > 340 && k < 420) lookAtPoint(mc, g.head(0).add(0, -6, 0));
         if (k == 360) shot(mc, "g00_stalk_a");

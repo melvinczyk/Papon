@@ -490,6 +490,9 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     /** This La Mano caught someone (the hand lifts and throws, rather than pressing the floor and going back). */
     public boolean caught() { return entityData.get(DATA_CAUGHT); }
 
+    /** Where La Mano wades to or La Embestida ends (what {@link #grab} and {@link #lungeTo} sync), zero when it is going nowhere. */
+    public Vec3 goingTo() { return new Vec3(entityData.get(DATA_GRAB_TO)); }
+
     /**
      * La Mano: it wades to {@code to} (turned to face {@code faceTo}) and its hand {@code hand} comes down on {@code mark}
      * (set by the caller once it has picked where you will be).
