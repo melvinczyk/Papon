@@ -1129,12 +1129,18 @@ public final class AutoShot {
                     {flat(base.add(f.scale(16)), fy), head.add(0, -5, 0)},
                     {flat(base.add(f.scale(13)).add(r.scale(9)), fy), head.add(0, -7, 0)},
                     {flat(base.add(f.scale(4)).add(r.scale(-14)), fy), head.add(0, -9, 0)},
+                    {flat(base.add(f.scale(44)), fy), base.add(0, 13, 0)},
                     {flat(base.add(f.scale(7)), fy), head.add(0, -12, 0)},
-                    {flat(base.add(f.scale(30)), fy), base.add(0, 13, 0)},
                     {flat(base.add(f.scale(12)).add(r.scale(-8)), fy), head.add(0, -4, 0)},
             };
             int v = Math.min(views.length - 1, (k - 40) / 48);
-            if ((k - 40) % 48 == 0) tpLook(views[v][0], views[v][1]);
+            // (2026-10-05) from across the arena when its reach comes (P4_GIGANTE's t 222): La Mano, shot through
+            if ((k - 40) % 48 == 0 && giant.act() != com.groid.papon.boss.SpiritGiantEntity.GRAB) tpLook(views[v][0], views[v][1]);
+            if (giant.act() == com.groid.papon.boss.SpiritGiantEntity.GRAB) {
+                int ga = (int) giant.actTime(0);
+                lookAtPoint(mc, giant.hand(giant.grabHand(), 0));
+                if (ga == 20 || ga == 45 || ga == 60 || ga == 70 || ga == 95 || ga == 118) shot(mc, String.format("z%02d_la_mano_%03d", v, ga));
+            }
             if ((k - 40) % 48 > 0 && (k - 40) % 48 < 40) lookAtPoint(mc, views[v][1]);
             if ((k - 40) % 48 == 20) shot(mc, String.format("z%02d_giant_view%d_%s", v, v, actName(giant.act())));
             if ((k - 40) % 48 == 36) shot(mc, String.format("z%02d_giant_view%db_%s", v, v, actName(giant.act())));

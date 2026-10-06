@@ -960,7 +960,8 @@ public final class Cinematic {
                 }
                 if (t < proph + 10) {
                     // him, small under it, the night come down over the arena
-                    Vec3 eye = b.position().subtract(flat.scale(h * 5.0)).add(new Vec3(-flat.z, 0, flat.x).scale(h * 1.6)).add(0, h * 0.5, 0);
+                    // (close enough to stay on the sand: further back it sat inside the old coliseum's stands, all black)
+                    Vec3 eye = b.position().subtract(flat.scale(Math.min(h * 2.8, arenaB * 0.45))).add(new Vec3(-flat.z, 0, flat.x).scale(h * 1.2)).add(0, h * 0.7, 0);
                     return new Shot(eye, b.position().add(0, h, 0).lerp(moon, 0.25), 56, 0, near(t, lit + 34), true);
                 }
                 if (t < luna) {

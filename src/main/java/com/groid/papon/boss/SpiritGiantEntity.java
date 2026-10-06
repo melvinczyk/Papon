@@ -363,7 +363,8 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     protected void positionRider(net.minecraft.world.entity.Entity passenger, MoveFunction move) {
         if (passenger.getId() == held()) {
             Vec3 h = hand(grabHand(), 0);
-            move.accept(passenger, h.x, h.y - 1.5, h.z);
+            // hanging out of the bottom of its fist (your eyes clear of its knuckles: you see its face)
+            move.accept(passenger, h.x, h.y - 2.6, h.z);
             passenger.fallDistance = 0;
             return;
         }

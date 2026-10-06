@@ -377,13 +377,19 @@ public class PropRenderer extends EntityRenderer<BossProp> {
     private static final net.minecraft.world.level.block.state.BlockState SKULL =
             com.groid.papon.registry.ModBlocks.MUERTOS_SKULL.get().defaultBlockState();
 
-    /** A tzompantli post at (x, z): a pole with three sugar skulls skewered on it, risen {@code h} (0 under the floor .. 1). */
-    private static void post(PoseStack pose, MultiBufferSource buffers, double x, double z, float h, float yaw) {
+    /** A tzompantli post at (x, z): a pole with three sugar skulls skewered on it, risen {@code h} (0 under the floor .. 1), the
+     *  skulls' faces turned to {@code faceDeg} (a maths angle: the way the line runs, out of the ring), not all north. */
+    private static void post(PoseStack pose, MultiBufferSource buffers, double x, double z, float h, float yaw, double faceDeg) {
         if (h <= 0.02F) return;
+        net.minecraft.world.level.block.state.BlockState skull = SKULL;
+        if (skull.hasProperty(net.minecraft.world.level.block.HorizontalDirectionalBlock.FACING)) {
+            double a = Math.toRadians(faceDeg);
+            skull = skull.setValue(net.minecraft.world.level.block.HorizontalDirectionalBlock.FACING,
+                    net.minecraft.core.Direction.getNearest((float) Math.cos(a), 0, (float) Math.sin(a)));
+        }
         float tall = 3.6F;
         pose.pushPose();
         pose.translate(x, (h - 1) * (tall + 0.4F), z);
-        pose.mulPose(Axis.YP.rotationDegrees(yaw));
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
         Shapes.tube(vc, pose.last().pose(), pose.last().normal(), new net.minecraft.world.phys.Vec3(0, 0, 0), new net.minecraft.world.phys.Vec3(0, tall + 0.5, 0),
                 0.12F, 0.1F, POLE, 5, FULL);
@@ -391,7 +397,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
             pose.pushPose();
             pose.translate(-0.45, 0.25 + i * 1.08, -0.45);
             pose.scale(0.9F, 0.9F, 0.9F);
-            Minecraft.getInstance().getBlockRenderer().renderSingleBlock(SKULL, pose, buffers, FULL, OverlayTexture.NO_OVERLAY);
+            Minecraft.getInstance().getBlockRenderer().renderSingleBlock(skull, pose, buffers, FULL, OverlayTexture.NO_OVERLAY);
             pose.popPose();
         }
         pose.popPose();
@@ -420,7 +426,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
             if (d > reach || d > front) break;
             // a little off the line each side, so it reads as a hedge of them, not a ruler
             double off = ((k * 37 + p.getId()) % 5 - 2) * 0.18;
-            post(pose, buffers, dx * d - dz * off, dz * d + dx * off, postHeight((front - d) / BossProp.SKULL_SPEED), yaw + (k * 53) % 40 - 20);
+            post(pose, buffers, dx * d - dz * off, dz * d + dx * off, postHeight((front - d) / BossProp.SKULL_SPEED), yaw, p.getYRot());
         }
         if (front < reach) {
             VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
@@ -454,7 +460,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 if (inGap(ang, gap, r) || two && inGap(ang, gap + Math.PI, r)) continue;
                 double x = Math.cos(ang) * r, z = Math.sin(ang) * r;
                 if (fa > 0 && fb > 0 && (x / fa) * (x / fa) + (z / fb) * (z / fb) > 0.93) continue;
-                post(pose, buffers, x, z, ring == 0 ? Math.min(1, (float) ((age % 3) / 3) * 0.3F + 0.85F) : hs[ring], (float) Math.toDegrees(-ang) + 90F);
+                post(pose, buffers, x, z, ring == 0 ? Math.min(1, (float) ((age % 3) / 3) * 0.3F + 0.85F) : hs[ring], 0F, Math.toDegrees(ang));
             }
         }
     }

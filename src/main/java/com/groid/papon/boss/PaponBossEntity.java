@@ -10629,6 +10629,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 56 + o && g.act() == SpiritGiantEntity.IDLE) giantLaser(g, 26, 62, GIANT_TRACK);
         if (t == 150 + o && g.act() == SpiritGiantEntity.IDLE) {
             // out of its reach: it comes for you (La Mano); in reach, a sweep
+            PaponMod.LOG.info("[boss] el gigante: {} is {} blocks from it", target, target == null ? -1 : (int) flatTo(g, target));
             if (target != null && flatTo(g, target) > 24) giantGrab(level, g, target);
             else giantSwipe(g, target, SpiritGiantEntity.SWIPE_L);
         }
