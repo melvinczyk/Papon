@@ -1122,6 +1122,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         p4Watchdog(level);
         tickCooldowns();
+        if (p4PyroCd > 0) p4PyroCd--;
         if (soloDue > 0) soloDue--;
         if (soloCd > 0) soloCd--;
         if (cutawayDue > 0) cutawayDue--;
@@ -1598,6 +1599,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             return choosePhaseFour(level, target, d);
         }
         if (ascendedFight()) {
+            if (p3Opener) {
+                p3Opener = false;
+                misses = 0;
+                ColiseumCrowdEntity crowd = inColiseum() ? crowd(level) : null;
+                if (crowd != null) crowd.pyro(ColiseumCrowdEntity.PYRO_CHASE, 0);
+                crowdReact(level, CrowdMood.ROAR, 40);
+                return BossState.P3_FLASH;
+            }
             if (misses >= FRENZY) {
                 // a miss streak: no pause, the lightning
                 misses = 0;
@@ -3778,13 +3787,29 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void pyroCue(ServerLevel level, BossState s) {
         int kind = switch (s) {
             case ARENA_FRYER, ARENA_OLA, ARENA_STAMPEDE, P2_METEOR, P2_MASHER, P2_GRAVITY, P3_SOLAR, P3_NOVA, P3_VOLCAN, P3_MARIACHI,
-                 P3_COMET, P4_OUROBOROS, P4_PISTA, P4_SALSA, P4_FUSION, P4_ALIENTO -> ColiseumCrowdEntity.PYRO_ACCENT;
+                 P3_COMET, P3_FLASH, P3_LASER, P4_OUROBOROS, P4_PISTA, P4_SALSA, P4_FUSION, P4_ALIENTO -> ColiseumCrowdEntity.PYRO_ACCENT;
             case P4_RAGE, P4_JUICIO -> ColiseumCrowdEntity.PYRO_CHASE;
             default -> -1;
         };
+        // (2026-10-06, the user: "those pyrotechnics can periodically go off in the phase four fight during big hits or
+        // moments") his grand moves and the stage breaks: a volley of the dead's blue and purple fireworks inside the bowl
+        switch (s) {
+            case P4_OUROBOROS, P4_PISTA, P4_SALSA, P4_FUSION, P4_ALIENTO, P4_CASTILLO, P4_CEMPASUCHIL, P4_GIGANTE, P4_TANGO_WIN -> p4Fireworks(level, 3);
+            case P4_RAGE, P4_JUICIO -> p4Fireworks(level, 5);
+            default -> {}
+        }
         if (kind < 0) return;
         ColiseumCrowdEntity c = crowd(level);
         if (c != null) c.pyro(kind, 0);
+    }
+
+    /** Phase four's fireworks between the songs' own, on a cooldown so they stay moments (client/FlagFireworks: blue, purple). */
+    private int p4PyroCd;
+
+    private void p4Fireworks(ServerLevel level, int beats) {
+        if (!muertosFight() || p4PyroCd > 0) return;
+        p4PyroCd = 140;
+        salvoInside(level, beats);
     }
 
     /** Fireworks off the podium inside the bowl, bursting over the sand (client/FlagFireworks.inside). */
@@ -5294,8 +5319,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 bossEvent.setName(Component.translatable(BAR_KEY + ".phase3"));
             }
             finishCutscene(level);
+            // (2026-10-06, the user: "make him start with that cool lightning dash: it sets the tone for the new phase") no
+            // breath after "let's dance": straight into Relámpago Dorado, on the band, the pyro chasing round the bowl
+            p3Opener = true;
+            think = 0;
         }
     }
+
+    /** Set as "let's dance" ends: his first move of phase three is Relámpago Dorado (choose). */
+    private boolean p3Opener;
 
     /**
      * How dark the coliseum stays through phase three once his serenade is over: not at all (2026-10-05, the user: "the arena
@@ -5349,9 +5381,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
      */
 
     // cooldowns (ticks); each move's own state between ticks
-    private int aComboCd = 30, aFlashCd = 60, aCometCd = 140, aLaserCd = 160, aSolarCd = 520, aMariachiCd = 320, aDuelCd = 500,
-            aPinataCd = 380, aBrazierCd = 240, aNovaCd = 400, aNitroCd = 520, aSpamCd = 300, aTangoCd = 380, aSombreroCd = 200,
-            aVolcanCd = 300, aCalaveraCd = 260;
+    // (2026-10-06, the user: "his attack frequency needs to be increased") all at 60% of what they were (P3_PACE), so he is
+    // seldom left hovering with nothing ready
+    private int aComboCd = 18, aFlashCd = 36, aCometCd = 84, aLaserCd = 96, aSolarCd = 312, aMariachiCd = 192, aDuelCd = 300,
+            aPinataCd = 228, aBrazierCd = 144, aNovaCd = 240, aNitroCd = 312, aSpamCd = 180, aTangoCd = 228, aSombreroCd = 120,
+            aVolcanCd = 180, aCalaveraCd = 156;
+    private static final float P3_PACE = 0.6F;
+
+    private static int pace(int ticks) { return Math.round(ticks * P3_PACE); }
     private int flashLeft, flashT;
     private double laserPhase;
     @Nullable private Vec3 flashFrom, flashTo;
@@ -5427,42 +5464,42 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** The cooldowns Ascended's moves start, and their set-up. */
     private void startAscended(BossState pick, LivingEntity target) {
         switch (pick) {
-            case P3_COMBO -> aComboCd = 90;
+            case P3_COMBO -> aComboCd = pace(90);
             case P3_FLASH -> {
-                aFlashCd = 170;
+                aFlashCd = pace(170);
                 flashLeft = 5;
                 flashT = 0;
             }
             case P3_COMET -> {
-                aCometCd = 280;
+                aCometCd = pace(280);
                 cometsLeft = 2;
             }
-            case P3_LASER -> aLaserCd = 320;
-            case P3_SOLAR -> aSolarCd = 900;
-            case P3_BRAZIERS -> aBrazierCd = 420;
-            case P3_PINATA, P3_PINATA_SWING -> aPinataCd = 640;
-            case P3_SOMBRERO -> aSombreroCd = 560;
-            case P3_VOLCAN -> aVolcanCd = 720;
-            case P3_CALAVERAS -> aCalaveraCd = 620;
+            case P3_LASER -> aLaserCd = pace(320);
+            case P3_SOLAR -> aSolarCd = pace(900);
+            case P3_BRAZIERS -> aBrazierCd = pace(420);
+            case P3_PINATA, P3_PINATA_SWING -> aPinataCd = pace(640);
+            case P3_SOMBRERO -> aSombreroCd = pace(560);
+            case P3_VOLCAN -> aVolcanCd = pace(720);
+            case P3_CALAVERAS -> aCalaveraCd = pace(620);
             case P3_MARIACHI -> {
-                aMariachiCd = 640;
+                aMariachiCd = pace(640);
                 beatsFired = 0;
             }
             case P3_DUEL_FETCH -> {
-                aDuelCd = 1200;
+                aDuelCd = pace(1200);
                 duelPhase = 0;
                 duelGuitarist = -1;
                 duelResult = -1;
                 duelWho = target.getUUID();
             }
-            case P3_NOVA -> aNovaCd = 1300;
-            case P3_NITRO -> aNitroCd = 760;
+            case P3_NOVA -> aNovaCd = pace(1300);
+            case P3_NITRO -> aNitroCd = pace(760);
             case QTE_GRAB -> {
                 // the squeeze (the spam QTE), or in his coliseum now and then the tango, on the band's beat
                 boolean tango = inColiseum() && aTangoCd <= 0 && (aSpamCd > 0 || random.nextFloat() < 0.4F);
                 entityData.set(DATA_QTE, tango ? 4 : 5);
-                if (tango) aTangoCd = 460;
-                else aSpamCd = 380;
+                if (tango) aTangoCd = pace(460);
+                else aSpamCd = pace(380);
             }
             default -> {}
         }
@@ -9169,6 +9206,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (hurt) {
             recentHurt += amount / getMaxHealth();
             burst += amount;
+            // a real wallop on the Final Guardian: the bowl goes up in blue and purple
+            if (amount >= getMaxHealth() * 0.025F && level() instanceof ServerLevel sl) p4Fireworks(sl, 2);
         }
         if (hurt && attacker instanceof Player && crowdBooCd <= 0 && amount > getMaxHealth() * 0.008F && level() instanceof ServerLevel level) {
             crowdBooCd = 70;
@@ -9619,6 +9658,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickP4Souls(ServerLevel level) {
         int t = stateTicks;
         getNavigation().stop();
+        if (t == 1) for (MariachiEntity m : band(level)) m.rapt(random.nextInt(16));      // the hype stops dead: they watch
         Vec3 c = p4Center();
         Vec3 ground = p4Land != null ? new Vec3(getX(), inColiseum() && arena != null ? arena.floorY() : getY(), getZ()) : position();
         if (t == 1) p4Rise = ground;
@@ -9883,7 +9923,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             sayPlain("p4_honor", 110);
             crowdMood(level, CrowdMood.HUSH);
         }
-        if (t == beat("p4.nod", 112) && singer != null) singer.blurt("p4_listo", 40);
+        // (2026-10-06, the user: "the band needs to look at each other and say something like 'it's been an honor to be a
+        // mariachi in this life': the last song they will ever play, a big moment for them") a violinist turns to the singer;
+        // the singer answers him; a trumpeter to all of them; each time the rest turn to whoever speaks. Then back to him.
+        int fa = beat("p4.farewell_a", 104), fb = beat("p4.farewell_b", 160), fc = beat("p4.farewell_c", 214), nod = beat("p4.nod", 270);
+        MariachiEntity violin = member(level, BandRole.VIOLIN_1), trumpet = member(level, BandRole.TRUMPET_1);
+        if (t == fa && violin != null) farewell(level, violin, singer, "p4_honor_a", fb - fa);
+        if (t == fb && singer != null) farewell(level, singer, violin, "p4_honor_b", fc - fb);
+        if (t == fc && trumpet != null) farewell(level, trumpet, null, "p4_honor_c", nod - fc);
+        if (t == nod) for (MariachiEntity m : band(level)) m.turnTo(null, 0, random.nextInt(8));
+        if (t == nod && singer != null) singer.blurt("p4_listo", 40);
         if (t == beat("p4.song", 128)) {
             songId = Song.PERSONA_IDEAL;
             songStart = (int) (level.getGameTime() & 0x7FFFFFFF);
@@ -9891,6 +9940,22 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             crowdMood(level, CrowdMood.CHEER);
         }
         if (t >= beat("p4.honor_end", BossState.P4_HONOR.duration)) setBossState(BossState.P4_MUCHACHAS);
+    }
+
+    /** One of the band by his part, or null. */
+    @Nullable
+    private MariachiEntity member(ServerLevel level, BandRole role) {
+        for (MariachiEntity m : band(level)) if (m.getRole() == role) return m;
+        return null;
+    }
+
+    /** A line between the musicians: {@code who} says it (to {@code to}, or to them all), the rest turn to look at him. */
+    private void farewell(ServerLevel level, MariachiEntity who, @Nullable MariachiEntity to, String line, int ticks) {
+        who.blurt(line, Math.max(30, ticks - 6));
+        List<MariachiEntity> band = band(level);
+        Vec3 mid = band.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / Math.max(1, band.size()));
+        who.turnTo(to != null ? to.position() : mid, 400, 0);
+        for (MariachiEntity m : band) if (m != who) m.turnTo(who.position(), 400, 2 + random.nextInt(10));
     }
 
     /** Where the muchachas dance: on the sand in front of the stage, two each side of it. */

@@ -73,7 +73,7 @@ public final class PyroShow {
     private static double lastSongT = Double.NaN;
 
     private static final int GREEN = 0x1E9A48, WHITE = 0xF6F6F0, RED = 0xD42A2E, GOLD = 0xF2C14E, VIOLET = 0xA05CFF, JADE = 0x3CF0B4,
-            MARIGOLD = 0xFF9A1E, CRIMSON = 0xE0203A;
+            MARIGOLD = 0xFF9A1E, CRIMSON = 0xE0203A, BLUE = 0x2E6BFF, PURPLE = 0x9433FF, LAVENDER = 0xE6D6FF;
     /** Palettes: fire, the god's crimson and gold, the dead's spirit fire. */
     private static final int FIRE = 0, DIVINE = 1, SPIRIT = 2;
 
@@ -272,7 +272,7 @@ public final class PyroShow {
     }
 
     private static void cometsUp(ColiseumCrowdEntity crowd, double t, int n, int palette, int salt) {
-        int[] cols = palette == SPIRIT ? new int[]{VIOLET, JADE, MARIGOLD} : palette == DIVINE ? new int[]{CRIMSON, GOLD, WHITE}
+        int[] cols = palette == SPIRIT ? new int[]{BLUE, PURPLE, VIOLET} : palette == DIVINE ? new int[]{CRIMSON, GOLD, WHITE}
                 : new int[]{GREEN, WHITE, RED};
         for (int i = 0; i < n; i++) {
             double ang = (i + 0.5) * Math.PI * 2 / n + salt * 0.4;
@@ -308,7 +308,7 @@ public final class PyroShow {
         CompoundTag e = new CompoundTag();
         e.putByte("Type", (byte) 0);
         e.putIntArray("Colors", new int[]{colour});
-        e.putIntArray("FadeColors", new int[]{palette == SPIRIT ? MARIGOLD : GOLD});
+        e.putIntArray("FadeColors", new int[]{palette == SPIRIT ? LAVENDER : GOLD});
         e.putBoolean("Trail", true);
         e.putBoolean("Flicker", true);
         list.add(e);
@@ -340,7 +340,8 @@ public final class PyroShow {
     private static int[] flame(int palette, float s) {
         int[][] stops = switch (palette) {
             case DIVINE -> new int[][]{{255, 250, 225}, {255, 196, 70}, {240, 40, 52}, {150, 12, 40}};
-            case SPIRIT -> new int[][]{{235, 255, 245}, {90, 255, 190}, {170, 90, 255}, {80, 20, 160}};
+            // (2026-10-06, the user: blue and purple) a white-blue root, blue body, purple top, a deep violet that lifts off
+            case SPIRIT -> new int[][]{{230, 240, 255}, {80, 150, 255}, {160, 70, 255}, {70, 18, 150}};
             default -> new int[][]{{255, 248, 214}, {255, 186, 60}, {255, 96, 22}, {170, 30, 10}};
         };
         float x = Mth.clamp(s, 0, 1) * 3;
@@ -437,7 +438,7 @@ public final class PyroShow {
             float t0 = Math.max(0, a - 1.6F);
             Vec3 p1 = g.at.add(vx * a, vy * a - 0.5 * g2 * a * a, vz * a), p0 = g.at.add(vx * t0, vy * t0 - 0.5 * g2 * t0 * t0, vz * t0);
             float k = 1 - a / life;
-            int[] col = g.palette == SPIRIT ? new int[]{255, 196, 90} : g.palette == DIVINE ? new int[]{255, 226, 150} : new int[]{255, 236, 170};
+            int[] col = g.palette == SPIRIT ? new int[]{196, 180, 255} : g.palette == DIVINE ? new int[]{255, 226, 150} : new int[]{255, 236, 170};
             streak(vc, m, p0.subtract(cam), p1.subtract(cam), 0.06F, col, (int) (255 * k));
         }
     }

@@ -3747,19 +3747,24 @@ def b_p4_walk():
 
 def b_p4_honor():
     """BossState.P4_HONOR. Softly, to the band: his right hand on his heart, his head bowed (p4.honor: "Señores... it has been
-    an honor."), the hand opening to the singer ("But I need you to play one last song."); the nod back; the brass strikes
+    an honor."), the hand opening to the singer ("But I need you to play one last song."); he lets them have their moment
+    (p4.farewell_a-c: their goodbyes to each other), the hand back on his heart, head bowed; the nod back; the brass strikes
     up (p4.song): he steps back, arms opening, head nodding on the beat, eyes closed."""
     line, nod, song, end = beat('p4.honor', 10), beat('p4.nod', 112), beat('p4.song', 128), beat('p4.honor_end', 172)
+    fa = beat('p4.farewell_a', round(nod - 2.0, 2))
     a = B('p4_honor', end, 'hold')
     offer = round(line + 2.6, 2)
     a.rot('arm_r', [(0, [-20, 0, 16]), (round(line - 0.1, 2), HEART_R, 'easeInOutSine'), (offer, HEART_R), (round(offer + 0.6, 2), PALM_UP_R, 'easeInOutSine'),
+                    (fa, PALM_UP_R), (round(fa + 0.8, 2), HEART_R, 'easeInOutSine'), (round(nod - 0.2, 2), HEART_R), (nod, PALM_UP_R, 'easeInOutSine'),
                     (song, PALM_UP_R), (round(song + 0.6, 2), [-60, 0, 60], 'easeInOutSine'), (end, [-62, 0, 62])], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (round(line - 0.1, 2), 1.2), (round(offer + 0.6, 2), 1.4), (song, 1.4), (round(song + 0.6, 2), 1.3), (end, 1.3)])
+    stretch(a, 'arm_r', [(0, 1), (round(line - 0.1, 2), 1.2), (round(offer + 0.6, 2), 1.4), (fa, 1.4), (round(fa + 0.8, 2), 1.2), (round(nod - 0.2, 2), 1.2),
+                         (nod, 1.4), (song, 1.4), (round(song + 0.6, 2), 1.3), (end, 1.3)])
     a.rot('arm_l', [(0, [-10, 0, -20]), (song, [-10, 0, -20]), (round(song + 0.6, 2), [-60, 0, -60], 'easeInOutSine'), (end, [-62, 0, -62])], 'lin')
     stretch(a, 'arm_l', [(0, 1), (song, 1), (round(song + 0.6, 2), 1.3), (end, 1.3)])
     groove = [(round(song + 0.6 + 0.47 * i, 2), [6 if i % 2 else -2, 0, 0]) for i in range(int((end - song - 0.6) / 0.47))]
     a.rot('torso', [(0, [0, 0, 0]), (round(line + 0.6, 2), [16, 0, 0], 'easeInOutSine'), (round(offer - 0.2, 2), [14, 0, 0]),
-                    (round(offer + 0.6, 2), [4, 0, 0], 'easeInOutSine'), (nod, [6, 0, 0]), (round(song + 0.6, 2), [-8, 0, 0])] + groove, 'lin')
+                    (round(offer + 0.6, 2), [4, 0, 0], 'easeInOutSine'), (round(fa + 0.8, 2), [12, 0, 0], 'easeInOutSine'),
+                    (round(nod - 0.2, 2), [12, 0, 0]), (nod, [6, 0, 0], 'easeInOutSine'), (round(song + 0.6, 2), [-8, 0, 0])] + groove, 'lin')
     for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
         a.pos(brow, [(0, [0, 0.4, 0]), (end, [0, 0.4, 0])], 'lin')
         a.rot(brow, [(0, [0, 0, -6 * sgn]), (end, [0, 0, -6 * sgn])], 'lin')

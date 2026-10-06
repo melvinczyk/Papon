@@ -303,7 +303,7 @@ public enum BossState {
     /** Over to the band (walking: ends when he is there). */
     P4_TOBAND(200),
     /** Softly, to the band: "Señores... it has been an honor. But I need you to play one last song." The band strikes up. */
-    P4_HONOR(190),
+    P4_HONOR(500),
     /** "Hey! Where are the muchachas?": skeleton salsa dancers rise by the stage; he takes one by the hand and twirls her. */
     P4_MUCHACHAS(200),
     /** Round to you, smirking: "COME ON!!! SHOW ME A GOOD TIME!!!" The fight starts on the first sung word. */

@@ -441,7 +441,7 @@ public final class AutoShot {
             if (k == 8) run("gamemode spectator");
             if (singer != null && k == 10) {
                 // eye level with his mouth, a little to his left, so the mic is not in the way
-                Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+                Vec3 f = Vec3.directionFromRotation(0, singer.stageYaw());
                 Vec3 side = new Vec3(-f.z, 0, f.x);
                 Vec3 mouth = singer.position().add(0, singer.getBbHeight() * 0.6, 0);
                 tpLook(mouth.add(f.scale(2.4)).add(side.scale(0.8)).add(0, -1.5, 0), mouth);
@@ -449,7 +449,7 @@ public final class AutoShot {
             if (k >= 20 && k <= 80 && k % 6 == 2) shot(mc, "c3" + String.format("%02d", k) + "_singing");
             if (k == 90) run("tp @s ~ ~ ~ 0 0");
             if (singer != null && k == 92) {
-                Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+                Vec3 f = Vec3.directionFromRotation(0, singer.stageYaw());
                 tpLook(singer.position().add(f.scale(10)).add(0, 2, 0), singer.position().add(0, 1.2, 0));
             }
             if (k == 100) shot(mc, "c40_band_playing");
@@ -633,7 +633,7 @@ public final class AutoShot {
         for (int i = 0; i < at.length; i++) {
             var m = who.apply(roles[i]);
             if (m == null) continue;
-            Vec3 f = Vec3.directionFromRotation(0, m.getYRot());
+            Vec3 f = Vec3.directionFromRotation(0, m.stageYaw());
             Vec3 side = new Vec3(-f.z, 0, f.x);
             Vec3 eye = m.position().add(0, m.getBbHeight() * 0.62, 0);
             if (k == at[i]) tpLook(eye.add(f.scale(back[i])).add(side.scale(i == 2 ? -2.4 : 0.8)).add(0, i == 1 ? 1.6 : -0.9, 0), eye);
