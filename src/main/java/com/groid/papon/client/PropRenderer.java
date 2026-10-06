@@ -278,10 +278,29 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 return;
             }
         }
-        Minecraft.getInstance().getItemRenderer().renderStatic(stack, ItemDisplayContext.NONE, lit, OverlayTexture.NO_OVERLAY, pose,
-                buffers, p.level(), p.getId());
+        drawSolid(stack, pose, buffers, lit, p.level(), p.getId());
         pose.popPose();
         super.render(p, yaw, partialTick, pose, buffers, light);
+    }
+
+    /**
+     * An item model drawn as {@code renderStatic} would (NONE transforms, about its middle), but opaque: renderStatic puts
+     * every item without a block behind it in the translucent item sheet, which is not depth-sorted and is drawn late (and
+     * shader packs treat it as glass), so the giant potatoes, the monoliths and the skulls showed their far side through
+     * their near one from some angles (2026-10-06, the user: "see through from some angles... they need to look fully
+     * tangible"). Their textures have no see-through texels, so a cutout pass draws them as the solid things they are.
+     */
+    public static void drawSolid(ItemStack stack, PoseStack pose, MultiBufferSource buffers, int light,
+                                 @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level level, int seed) {
+        net.minecraft.client.renderer.entity.ItemRenderer ir = Minecraft.getInstance().getItemRenderer();
+        net.minecraft.client.resources.model.BakedModel model = ir.getModel(stack, level, null, seed);
+        pose.pushPose();
+        model = net.minecraftforge.client.ForgeHooksClient.handleCameraTransforms(pose, model, ItemDisplayContext.NONE, false);
+        pose.translate(-0.5F, -0.5F, -0.5F);
+        VertexConsumer vc = buffers.getBuffer(net.minecraft.client.renderer.Sheets.cutoutBlockSheet());
+        for (net.minecraft.client.resources.model.BakedModel pass : model.getRenderPasses(stack, true))
+            ir.renderModelLists(pass, stack, light, OverlayTexture.NO_OVERLAY, pose, vc);
+        pose.popPose();
     }
 
     private static final ResourceLocation PAPEL = PaponMod.id("textures/entity/papel_picado.png");

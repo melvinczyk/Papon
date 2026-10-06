@@ -81,6 +81,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
         if (role.lamplighter()) m.lamps.addAll(lamps);
         m.home = at;
         m.homeYaw = yaw;
+        m.entityData.set(DATA_HOME_YAW, yaw);
         m.moveTo(at.x, at.y, at.z, yaw, 0);
         m.setYHeadRot(yaw);
         m.yBodyRot = yaw;
@@ -96,6 +97,24 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
         entityData.define(DATA_SONG, 0);
         entityData.define(DATA_ROBBED, false);
         entityData.define(DATA_DEAD, false);
+        entityData.define(DATA_HOME_YAW, 0F);
+    }
+
+    /** Which way his place on the stage faces (synced: the cutscenes frame the stage by it, whichever way he is turned). */
+    private static final EntityDataAccessor<Float> DATA_HOME_YAW =
+            net.minecraft.network.syncher.SynchedEntityData.defineId(MariachiEntity.class, net.minecraft.network.syncher.EntityDataSerializers.FLOAT);
+
+    public float stageYaw() { return entityData.get(DATA_HOME_YAW); }
+
+    /** Someone he turns to look at for a while (the farewell before the last song), or null: his place's way. */
+    @Nullable private Vec3 turnAt;
+    private int lookTicks, lookDelay;
+
+    /** Turns to look at {@code at} for {@code ticks} ({@code delay} ticks from now), then back to the front. Null: back now. */
+    public void turnTo(@Nullable Vec3 at, int ticks, int delay) {
+        turnAt = at;
+        lookTicks = at == null ? 0 : ticks;
+        lookDelay = delay;
     }
 
     public boolean isDead() { return entityData.get(DATA_DEAD); }
@@ -106,6 +125,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
     public void home(Vec3 at, float yaw, java.util.List<net.minecraft.core.BlockPos> stageLamps) {
         home = at;
         homeYaw = yaw;
+        entityData.set(DATA_HOME_YAW, yaw);
         setYHeadRot(yaw);
         yBodyRot = yaw;
         if (getRole().lamplighter()) {
@@ -231,10 +251,17 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
     /** The last song is coming: up on their toes, hyping themselves up ({@code delay} ticks late, so nobody moves in step). */
     public void hype(int delay) { due(BandState.HYPED, delay); }
 
+    /**
+     * The souls rising out of the stands (P4_SOULS): the hype gone out of them, still, gazing up, hands clasped (2026-10-06,
+     * the user: "the band looks like it's playing music at the soul harvesting: they shouldn't be"). Nobody plays.
+     */
+    public void rapt(int delay) { due(BandState.AWED, delay); }
+
     /** "One last song": they settle, instruments up, waiting on the singer's nod. */
     public void settle() {
         dueState = null;
-        if (getBandState() == BandState.HYPED || getBandState() == BandState.SHOCKED) setBandState(BandState.READY);
+        BandState s = getBandState();
+        if (s == BandState.HYPED || s == BandState.SHOCKED || s == BandState.AWED) setBandState(BandState.READY);
     }
 
     /** A state he goes into in {@code delay} ticks (the scare's, the shock's, the hype's: everyone at his own moment). */
@@ -308,9 +335,17 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
             setPos(home.x, Math.max(getY(), home.y - 0.5), home.z);
             setDeltaMovement(0, getDeltaMovement().y, 0);
         }
-        setYRot(homeYaw);
-        yBodyRot = homeYaw;
-        setYHeadRot(homeYaw);
+        // his place's way, or (for a while) round to whoever he is looking at, turning there and back unhurried
+        float want = homeYaw;
+        if (lookDelay > 0) lookDelay--;
+        else if (lookTicks > 0 && turnAt != null) {
+            lookTicks--;
+            want = (float) (Mth.atan2(turnAt.z - getZ(), turnAt.x - getX()) * Mth.RAD_TO_DEG) - 90F;
+        }
+        float yaw = Mth.approachDegrees(getYRot(), want, 9F);
+        setYRot(yaw);
+        yBodyRot = yaw;
+        setYHeadRot(yaw);
         BandState s = getBandState();
         if (s.lamp()) setBandState(BandState.PLAY);                    // lost his way (a reload): back to playing
         if (lampCooldown > 0) lampCooldown--;
@@ -484,11 +519,14 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
         return Mth.clamp(1.0F + (1.08F - r.width) * 0.55F + (r.ordinal() % 2 == 0 ? 0.03F : -0.03F), 0.84F, 1.14F);
     }
 
-    /** The animations' cues, the band's way: the gasp in his own voice, no villager grumble (his lines say it). */
+    /** Vocal cues the band never makes: their recorded Spanish lines say it (no villager or animal grunts, yawns, sighs). */
+    private static final java.util.Set<String> MUTE = java.util.Set.of("grumble", "yelp", "sigh", "yawn", "grunt", "gulp", "hmm", "hype", "cheer");
+
+    /** The animations' cues, the band's way: the gasp in his own voice, nothing that isn't a recorded voice or foley. */
     @Override
     protected <T extends TacoNpc> void onSoundCue(software.bernie.geckolib.core.keyframe.event.SoundKeyframeEvent<T> event) {
         String cue = event.getKeyframeData().getSound();
-        if (cue.equals("grumble")) return;
+        if (MUTE.contains(cue)) return;
         if (cue.equals("gasp")) {
             level().playLocalSound(getX(), getEyeY(), getZ(), net.minecraft.sounds.SoundEvent.createVariableRangeEvent(com.groid.papon.PaponMod.id("voice.band.gasp")),
                     net.minecraft.sounds.SoundSource.NEUTRAL, 0.8F, voicePitch() * (0.96F + random.nextFloat() * 0.08F), false);
@@ -597,6 +635,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
         setDead(tag.getBoolean("Dead"));
         if (tag.contains("HX")) home = new Vec3(tag.getDouble("HX"), tag.getDouble("HY"), tag.getDouble("HZ"));
         homeYaw = tag.getFloat("HYaw");
+        entityData.set(DATA_HOME_YAW, homeYaw);
         lamps.clear();
         for (long l : tag.getLongArray("Lamps")) lamps.add(net.minecraft.core.BlockPos.of(l));
     }

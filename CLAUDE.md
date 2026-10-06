@@ -124,16 +124,18 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
 | Coliseum, crowd, band, songs | `boss/{Coliseum,ColiseumCrowdEntity,CrowdMood,MariachiEntity,BandRole,BandState,Song}`, `block/*` |
 | Phase four extras | `boss/{SkySerpentEntity,SerpentPath,SalsaDancerEntity,SpiritGiantEntity}`, `client/{SpiritGiantRenderer,GiantMesh,Shapes}` |
 | Singer's count-in voice | `tools/gen_singer_voice.py` → `sounds/voice/band/count.ogg`, `voice/singer.json` (`gen_band_anims.count`): at half time, a word every other beat, COUNT/P2_COUNT 5.6 s, "cuatro" over before the downbeat |
-| Mix (2026-10-05) | `client/VoiceDuck` (tiers: his voice; `music()` 0.5 under him; band voices `SoundMix.BAND` under the music, `band()`; `get()` effects/crowd 0.22 under him, 0.6 under the band); voices on the Voice slider (`Speech.say`), band sounds `attenuation_distance` 48 |
+| Mix (2026-10-05) | `client/VoiceDuck` (tiers: his voice; `music()` 0.8 under him (2026-10-06, was 0.5); band voices `SoundMix.BAND` under the music, `band()`; `get()` effects/crowd 0.22 under him, 0.6 under the band); `SoundMix.FIGHT` 0.5; voices on the Voice slider (`Speech.say`), band sounds `attenuation_distance` 48. Gain clamps at 1: louder music = louder files (`tools/master_music.py`: every song folder to -10 LUFS, one gain per song, lookahead limiter; idempotent). No vocal cues on the band or him but recorded lines (`MariachiEntity.MUTE`, `PaponBossEntity.MUTE_CUES`: the villager "hmm") |
+| Laser sounds | `tools/gen_laser_sounds.py` → `sounds/boss/laser_{charge,fire,burn,end}.ogg` (synthesized, loud; `SoundMix` leaves `boss.laser_*` alone) |
 | Diction audit | `tools/voice_clarity.py` (Whisper word confidence + WER per built line, `voice_modal.clarity`); `gen_boss_voice.CLEAR` lines retaken with `CLARITY`, picked words-then-confidence |
-| Band's voiced lines | `tools/gen_band_voice.py` (every `speech.papon.band.*` + the `gasp` cue, cloned from the singer's reference) → `sounds/voice/band/*.ogg`, `voice/band.json` (mouth env, bubble lengths); pitch per member `MariachiEntity.voicePitch` |
+| Band's voiced lines | `tools/gen_band_voice.py` (every `speech.papon.band.*` + the `gasp` cue, cloned from the singer's reference) → `sounds/voice/band/*.ogg`, `voice/band.json` (mouth env, bubble lengths); pitch per member `MariachiEntity.voicePitch`; new lines: `--takes a,b` then `--build a,b` (only those rewritten) |
 | Van / Skyline | `vehicle/CaravanEntity`, `client/CaravanRenderer`, `client/CaravanSounds` |
 | Skyline (2026-10-06) | mesh `tools/gen_skyline.py` → `meshes/skyline.json` (+ `groups`: opaque, glass, lamps, brake, reverse, gauges, gloss, underglow), `textures/entity/skyline.png` + `skyline_lamps.png`, rig-only `geo/entity/skyline.geo.json` (bone `door_r`: right-hand drive); `CaravanRenderer.drawSkyline` skins it (bone matrices caught in `renderCubesOfBone`), clear coat, needles, flares; preview `tools/mesh_preview.py skyline out.png`; seats `CaravanEntity.SKY_SEATS` |
 | Vehicle audio (2026-10-06) | `CaravanSounds.Sim` (rpm/gear/throttle/boost; `rpm(van)` drives the tach) + layered loops (`tools/gen_skyline_sounds.py`: `eng_idle/low/mid/high/decel` + `_in` cockpit set at -20 dBFS, `turbo`, `road`, `wind`, `shift`, `blip`, `pop`, `door_*`; loop starts picked for a clean decoded seam); van uses the same Sim with its two loops |
 | Boss bars | `client/BossBarRenderer` (phase one `boss_bar.png`; two to four `bar_p2/3/4.png` from `tools/gen_boss_bars.py`: trail, hit flash, stage ticks) |
 | La Mano HUD/camera | `client/GiantGrabHud` (struggle: jump → `PaponNetwork.Struggle`), `Cinematic.giantGrabShot` (outside camera while held, `pullIn` keeps it off walls) |
 | Cutscenes, shake, music, bar, night, fog, sky | `client/{Cinematic,ScreenShake,BossMusic,BossBarRenderer,NightLight,PotatoSky,MuertosSky,MuertosArena,BlurFx,ClientEvents}` |
-| Boss rendering/face | `client/{BossRenderer,BossModel,BossFace,BeamRenderer,PropRenderer}` |
+| Boss rendering/face | `client/{BossRenderer,BossModel,BossFace,BeamRenderer,PropRenderer}`; item-model props drawn opaque (`PropRenderer.drawSolid`, also `TumbleRenderer` and Ignis's head: `renderStatic`'s translucent sheet showed them see-through); `BossRenderer.eyePos` scaled (his eye beams left from his chest) |
+| Elbows (2026-10-06) | ascended/muertos arms: `fore_r/l` bones (forearm, cuff, fist) hinged at `gen_ascended.FORE_PIVOT`, children of `arm_*` (not the mesh: no shear); `BossModel.forearm` slides/stretches them with `arm_*_mesh` every frame (animations unchanged), `bend` blends two-segment poses (`gen_boss_anims.guitar_bent` → `STRUM_*`, `BENT_*`): the serenade, the duel, P4_GIGANTE, and any animation resting a hand on the guitar (`restingOnGuitar`, by closeness to the straight pose). `phase-one papon_boss` has no forearm (falls back to `set`) |
 | QTEs | `client/{QteClient,QteScreen,GuitarDuel,DanceOff,QtePlayerPose}`, `network/PaponNetwork` |
 | Band/crowd client | `client/{MariachiModel,MariachiRenderer,BandPoses,ColiseumCrowdRenderer,CrowdSounds,SongPlayer,FlagFireworks,VoiceDuck,SoundMix}` |
 | Pillow | `item/BodyPillowItem`, `entity/BodyPillowEntity`, `client/{PillowMesh,PillowItemRenderer,PillowLayer,PillowClient,BodyPillowRenderer}` |
@@ -176,12 +178,18 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   key-lit in `CaravanRenderer`). Blackout (`DATA_NIGHT`, `NightLight`) only through the serenade; `NIGHT_P3` = 0 (day), spotlight,
   crimson braziers. Ascended moves `P3_*` (combo, flash, comet, laser, solar + monoliths, mariachi, duel, piñata swing,
   braziers, nova/spent, nitro, sombrero, volcán, calaveras); QTEs kind 5 squeeze (K/L), kind 6 guitar duel (D F J K).
+  (2026-10-06) The fight opens on Relámpago Dorado (`p3Opener`, pyro chase); cooldowns at `P3_PACE` 0.6. Ojos de Papa: leans in as
+  it charges, the shot throws him back (`a_laser`), beams 1.05 wide with an eye flare and rings (`BeamRenderer.eyeBeam`).
 - Phase four (≤25%, `PHASE_FOUR_AT`): P4_FALL → P4_RISEUP → P4_IGNIS → P4_PROPHECY → **P4_THRONE** (appended) → P4_BRETHREN →
   P4_SOULS → P4_HALFBAKED (form 4, El Coliseo de los Muertos swapped in the flash) → P4_BOW → P4_SERPENTS → P4_TALKING →
   P4_TOBAND → P4_HONOR → P4_MUCHACHAS → P4_GOODTIME → IDLE on the first sung word. Stands silent fall→souls (`p4Hushed`).
   Band (2026-10-05, never cowering in phase four): `shock` at the fall (BandState SHOCKED: `jaw_drop` → `shocked_a/b`, jaws dropped
-  in the scar's band shot), `hype` from the prophecy (HYPED: `hype_<kind>` loops), shouts at the souls/serpents/TOBAND, `settle`
-  (READY) at P4_HONOR.
+  in the scar's band shot), `hype` from the prophecy (HYPED: `hype_<kind>` loops), `rapt` (AWED, still) through the souls (the
+  hype loops looked like playing), shouts at the souls/serpents/TOBAND, `settle` (READY) at P4_HONOR. (2026-10-06) Their farewell
+  before the singer's "Sí, jefe": `p4_honor_a/b/c` (violin to singer, singer back, trumpet to all; beats `p4.farewell_a..c`), the rest
+  turning to whoever speaks (`MariachiEntity.turnTo`; the stage's facing is the synced `stageYaw()`, never the singer's yaw), one band
+  shot in `Cinematic`. Phase four's fireworks and pyro are blue and purple (`FlagFireworks.dead`, `PyroShow` SPIRIT) with soul-fire
+  embers, souls and sparkles per burst; `p4Fireworks` volleys on his grand moves, the stage breaks and hits over 2.5%.
   Moonrise (P4_THRONE, beats `p4.moon` → `p4.moonlit`): daylight through the monologue; the moon up dark (`MuertosSky.lit`),
   `mistIn` banks rolling in off the stands and `DATA_FOG`/`DATA_NIGHT` ramping, then it lights and night falls (moon drawn in the
   day sky too: `NightLight` always calls `drawMoon`).
@@ -209,6 +217,14 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   shorter by stage, `tickStillLayer` (stand still 3.5/2.75/2 s: the moon's beam on you), `tickMuchachaLayer` (a rose thrown every
   few seconds), serpents dive from stage 1, `hover` tighter round you.
   Client: `MuertosSky.bolts` (sky lightning by stage, red moon at 3), `BossRenderer` aura flare/stutter.
+  **El Gigante's rift (2026-10-06)**: every summon has a clock (`SpiritGiantEntity.portal`, synced `DATA_PORTAL_END/LEN`; windows
+  600 + P4_GIGANTE's `extendPortal`, `GIANT_WINDOW_2/3` 760/900, El Juicio and the rage extend it): the floor ring burns down
+  (`SpiritGiantRenderer.floorRing`), the dead's arms pull at it (`spirits`, `pull()`), a bar under the boss bar (`BossBarRenderer.drawRift`).
+  Out of time it is dragged under: SINK reworked (`SINK_T` 156, `DRAG_*`: seized, clings to the floor, one last grab at you
+  `PaponBossEntity.giantGrasp` 18%, hands torn loose, the rift shuts); the boss sees SINK and respawns it after `giantRespawn`. No more
+  sinking to relocate (a lunge instead). Its body is solid (`GIANT_BODY` 6.5 round its middle: thrown out, 6%). Orders: he points
+  (`DATA_ORDER`, `BossModel.pointing`) and it heeds (`HEED` act: turns to him, nods) before La Mano always and some slams/lunges
+  (`order`). Leaving P4_GIGANTE no longer sinks it when its hunt is due. `/papon giant portal|sink`.
   **El Gigante as a threat (2026-10-06)**: after P4_GIGANTE before the storm it stays and hunts `GIANT_HUNT` (600 t) then sinks;
   `tickGiantLayer` stalks you (`SpiritGiantEntity.stalk`), answers in ~1.5 s when you stand within its reach (`giantNearTicks`), guards
   him (crowd him: slam/swipe there, `giantGuardCd`), picks by range (under it: slam/swipe; arm's length: La Embestida `LUNGE`, sweep,
@@ -292,7 +308,9 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
 - Pack mods' **assets may be reused** (e.g. `tools/src/papon_base.png`, `chort_base.png`); their code is study-only
   (`tools/decompile_refs.sh`). Reference mods: Walking Crops (`wkcr`), L_Ender's Cataclysm, Block Factory's Bosses (cutscenes).
 - Songs: `python tools/gen_song.py [--song para_siempre|persona_ideal] [--audio]` (demucs, librosa, Rhubarb in
-  `tools/.cache/rhubarb`) → `assets/papon/song/*.json`; `.ogg` segments only with `--audio`.
+  `tools/.cache/rhubarb`) → `assets/papon/song/*.json`; `.ogg` segments only with `--audio`; then `python tools/master_music.py`.
+- libsndfile's Vorbis encoder overflows the stack on Windows on one big write (Python dies with no output, exit 127 or
+  0xC00000FD): write `.ogg` in chunks (`master_music.py`, `gen_laser_sounds.py`).
 - Mesh celebs: run the mesh generator then `python3 tools/gen_npc_anims.py`; Blender headless decimation (`$BLENDER`).
   Preview: `python3.11 tools/anim_preview.py edp445 walk_edp445 8 side`.
 

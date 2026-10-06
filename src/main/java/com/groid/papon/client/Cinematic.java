@@ -610,7 +610,7 @@ public final class Cinematic {
         com.groid.papon.boss.MariachiEntity singer = band.stream().filter(m -> m.getRole().singer()).findFirst().orElse(null);
         Vec3 stage = band.isEmpty() ? b.position().add(f.scale(10))
                 : band.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / band.size());
-        Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.getYRot()) : new Vec3(0, 0, 1);
+        Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.stageYaw()) : new Vec3(0, 0, 1);
         Vec3 stageSide = new Vec3(-stageFacing.z, 0, stageFacing.x);
         Vec3 you = mc.player.position().add(0, 1.4, 0);
         switch (s) {
@@ -870,7 +870,7 @@ public final class Cinematic {
                 com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(120), e -> true));
         band.sort(java.util.Comparator.comparingInt(m -> m.getRole().ordinal()));
         com.groid.papon.boss.MariachiEntity singer = band.isEmpty() ? null : band.get(0);
-        Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.getYRot()) : new Vec3(0, 0, 1);
+        Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.stageYaw()) : new Vec3(0, 0, 1);
         Vec3 stage = band.isEmpty() ? c.add(0, 0, -20) : band.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / band.size());
         com.groid.papon.boss.ColiseumCrowdEntity crowd = mc.level.getEntitiesOfClass(com.groid.papon.boss.ColiseumCrowdEntity.class,
                 b.getBoundingBox().inflate(160), e -> true).stream().findFirst().orElse(null);
@@ -956,14 +956,16 @@ public final class Cinematic {
                     Vec3 eye = b.position().subtract(f.scale(h * 1.1)).add(right.scale(h * 1.1)).add(0, h * 0.7, 0);
                     return new Shot(eye, body, 58, 0, near(t, 0));
                 }
+                Vec3 held = BossRenderer.ignisHeadPos(b);
+                if (held == null) held = hand;
                 if (t < line + 40) {
                     // the head: Ignis, held up by him, close, its fire still flickering
-                    Vec3 eye = hand.add(f.scale(h * 1.7)).add(right.scale(h * 0.5)).add(0, h * 0.1, 0);
-                    return new Shot(eye, hand.add(0, -h * 0.15, 0), 44, 0, near(t, out));
+                    Vec3 eye = held.add(f.scale(h * 1.5)).add(right.scale(-h * 0.35)).add(0, h * 0.08, 0);
+                    return new Shot(eye, held, 44, 0, near(t, out));
                 }
                 if (t < line + 90) {
                     // the two faces, a slow arc round them
-                    Vec3 mid = fp.lerp(hand, 0.45);
+                    Vec3 mid = fp.lerp(held, 0.45);
                     double ang = -20 + (t - line - 40) * 0.6;
                     return new Shot(mid.add(yaw(f, ang).scale(h * 2.4)).add(0, h * 0.05, 0), mid, 48, 0, near(t, line + 40));
                 }
@@ -1280,6 +1282,16 @@ public final class Cinematic {
                 // chosen against the arena's middle, which lies almost on the line between him and the singer: the camera flipped
                 // from one side of them to the other as he swayed, cutting every time.
                 int song = VoiceLines.beat("p4.song", 128);
+                int fa = VoiceLines.beat("p4.farewell_a", 104), nod = VoiceLines.beat("p4.nod", 270);
+                if (t >= fa - 6 && t < nod - 4 && !band.isEmpty()) {
+                    // (2026-10-06) their own moment: one shot on the stage from the sand while they say goodbye to each
+                    // other, pushing in slowly; back on the two of them for the singer's answer to him
+                    float k = Mth.clamp((t - fa + 6) / (float) Math.max(1, nod - fa), 0F, 1F);
+                    Vec3 side = new Vec3(-stageFacing.z, 0, stageFacing.x);
+                    Vec3 at = stage.add(0, 1.5, 0);
+                    Vec3 eye = at.add(stageFacing.scale(11.5 - 2.5 * k)).add(side.scale(2.2)).add(0, 1.4 - 0.3 * k, 0);
+                    return new Shot(eye, at, 46, 0, near(t, fa - 6));
+                }
                 Vec3 sf = singer != null ? singer.position().add(0, singer.getBbHeight() * 0.72, 0) : stage.add(0, 1.5, 0);
                 Vec3 hf = b.position().add(0, h * 0.62, 0);               // his face's height off his feet (the tracked bone sways)
                 Vec3 mid = hf.lerp(sf, 0.5);
@@ -1301,7 +1313,7 @@ public final class Cinematic {
                     look = mid.lerp(at.add(0, 1.4, 0), pan);
                     eye = eye.add(at.subtract(mid).multiply(1, 0, 1).scale(0.12 * pan));
                 }
-                return new Shot(eye, look, 50 - 4 * push, 0, near(t, 0), true);
+                return new Shot(eye, look, 50 - 4 * push, 0, near(t, 0) || near(t, nod - 4), true);
             }
             case P4_MUCHACHAS -> {
                 int clap = VoiceLines.beat("p4.clap", 50), twirl = VoiceLines.beat("p4.twirl", 112), dip = VoiceLines.beat("p4.dip", 170);
@@ -1375,7 +1387,7 @@ public final class Cinematic {
         java.util.List<com.groid.papon.boss.MariachiEntity> band = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class,
                 b.getBoundingBox().inflate(64), e -> true);
         com.groid.papon.boss.MariachiEntity singer = band.stream().filter(m -> m.getRole().singer()).findFirst().orElse(null);
-        Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.getYRot()) : f.scale(-1);
+        Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.stageYaw()) : f.scale(-1);
         Vec3 stageSide = new Vec3(-stageFacing.z, 0, stageFacing.x);
         Vec3 stage = band.isEmpty() ? b.position().add(f.scale(10))
                 : band.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / band.size());

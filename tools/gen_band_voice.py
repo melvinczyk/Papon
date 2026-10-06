@@ -5,6 +5,7 @@ reference (tools/src/voice/singer_reference.mp3, gitignored), the members told a
   python tools/gen_band_voice.py --takes [a,b]   clone TAKES takes of every line (or only those) on Modal
   python tools/gen_band_voice.py                 pick a take per line, write sounds/voice/band/<line>.ogg, voice/band.json
                                                  (the mouth: loudness at 25 Hz) and the sounds.json entries
+  python tools/gen_band_voice.py --build a,b     the same for those lines only (the others' files and mouths kept as they are)
 
 The reference's transcript is gen_singer_voice's (--ref there). Needs what gen_singer_voice needs.
 """
@@ -57,6 +58,11 @@ DIRECTION = {
     'p4_hype_last': ('cheer', 'Rallying your bandmates before the last song of your lives: loud, fired up, a shout.'),
     'p4_hype_andale': ('cheer', 'Pumped up and excited, egging the band on, fast.'),
     'p4_hype_eso': ('cheer', 'Fired up, a big shout, fist in the air.'),
+    # (2026-10-06) "one last song": the last song of their lives, said to each other before the singer answers him
+    'p4_honor_a': ('moved', 'Turning to your oldest friend in the band, the singer: quietly moved, your voice catching, '
+                            'a warm smile: you both know this is the last song you will ever play.'),
+    'p4_honor_b': ('moved', 'Answering your old friend, a hand on his shoulder: warm, proud, smiling through tears, steady.'),
+    'p4_honor_c': ('moved', 'To the whole band, a slow grin spreading, resolve rising into a rallying call at the end.'),
     'gasp': ('yelp', 'A sharp startled gasp, jolted awake.'),
 }
 # what is spoken where the bubble's text has stage directions or is not a line
@@ -150,15 +156,20 @@ def pick(line, info):
     return best[3], best
 
 
-def build():
+def build(only=None):
     import gen_boss_voice as gbv
     import geo_util
     meta = json.load(open(os.path.join(CACHE, 'takes.json'), encoding='utf-8'))
     out_dir = os.path.join(ASSETS, 'sounds/voice/band')
     os.makedirs(out_dir, exist_ok=True)
     mouths = {}
+    band_json = os.path.join(ASSETS, 'voice/band.json')
+    if only and os.path.exists(band_json):
+        mouths = json.load(open(band_json, encoding='utf-8'))['lines']
     sounds = geo_util.read_sounds()
     for line in sorted(lines()):
+        if only and line not in only:
+            continue
         if line not in meta:
             print('no takes:', line)
             continue
@@ -185,5 +196,7 @@ if __name__ == '__main__':
     if '--takes' in sys.argv:
         i = sys.argv.index('--takes')
         takes(set(sys.argv[i + 1].split(',')) if len(sys.argv) > i + 1 else None)
+    elif '--build' in sys.argv:
+        build(set(sys.argv[sys.argv.index('--build') + 1].split(',')))
     else:
         build()

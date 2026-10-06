@@ -430,5 +430,12 @@
   "skyline.blip": {"sounds": [{"name": "papon:skyline/blip"}], "subtitle": "subtitles.papon.skyline.blip"},
   "skyline.pop": {"sounds": [{"name": "papon:skyline/pop"}], "subtitle": "subtitles.papon.skyline.pop"},
   "skyline.door_open": {"sounds": [{"name": "papon:skyline/door_open"}], "subtitle": "subtitles.papon.skyline.door_open"},
-  "skyline.door_close": {"sounds": [{"name": "papon:skyline/door_close"}], "subtitle": "subtitles.papon.skyline.door_close"}
+  "skyline.door_close": {"sounds": [{"name": "papon:skyline/door_close"}], "subtitle": "subtitles.papon.skyline.door_close"},
+  "boss.laser_charge": {"sounds": [{"name": "papon:boss/laser_charge", "attenuation_distance": 72}], "subtitle": "subtitles.papon.boss.laser"},
+  "boss.laser_fire": {"sounds": [{"name": "papon:boss/laser_fire", "attenuation_distance": 72}], "subtitle": "subtitles.papon.boss.laser"},
+  "boss.laser_burn": {"sounds": [{"name": "papon:boss/laser_burn", "attenuation_distance": 72}], "subtitle": "subtitles.papon.boss.laser"},
+  "boss.laser_end": {"sounds": [{"name": "papon:boss/laser_end", "attenuation_distance": 72}], "subtitle": "subtitles.papon.boss.laser"},
+  "voice.band.p4_honor_a": {"sounds": [{"name": "papon:voice/band/p4_honor_a", "attenuation_distance": 48}]},
+  "voice.band.p4_honor_b": {"sounds": [{"name": "papon:voice/band/p4_honor_b", "attenuation_distance": 48}]},
+  "voice.band.p4_honor_c": {"sounds": [{"name": "papon:voice/band/p4_honor_c", "attenuation_distance": 48}]}
 }

@@ -441,7 +441,7 @@ public final class AutoShot {
             if (k == 8) run("gamemode spectator");
             if (singer != null && k == 10) {
                 // eye level with his mouth, a little to his left, so the mic is not in the way
-                Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+                Vec3 f = Vec3.directionFromRotation(0, singer.stageYaw());
                 Vec3 side = new Vec3(-f.z, 0, f.x);
                 Vec3 mouth = singer.position().add(0, singer.getBbHeight() * 0.6, 0);
                 tpLook(mouth.add(f.scale(2.4)).add(side.scale(0.8)).add(0, -1.5, 0), mouth);
@@ -449,7 +449,7 @@ public final class AutoShot {
             if (k >= 20 && k <= 80 && k % 6 == 2) shot(mc, "c3" + String.format("%02d", k) + "_singing");
             if (k == 90) run("tp @s ~ ~ ~ 0 0");
             if (singer != null && k == 92) {
-                Vec3 f = Vec3.directionFromRotation(0, singer.getYRot());
+                Vec3 f = Vec3.directionFromRotation(0, singer.stageYaw());
                 tpLook(singer.position().add(f.scale(10)).add(0, 2, 0), singer.position().add(0, 1.2, 0));
             }
             if (k == 100) shot(mc, "c40_band_playing");
@@ -633,7 +633,7 @@ public final class AutoShot {
         for (int i = 0; i < at.length; i++) {
             var m = who.apply(roles[i]);
             if (m == null) continue;
-            Vec3 f = Vec3.directionFromRotation(0, m.getYRot());
+            Vec3 f = Vec3.directionFromRotation(0, m.stageYaw());
             Vec3 side = new Vec3(-f.z, 0, f.x);
             Vec3 eye = m.position().add(0, m.getBbHeight() * 0.62, 0);
             if (k == at[i]) tpLook(eye.add(f.scale(back[i])).add(side.scale(i == 2 ? -2.4 : 0.8)).add(0, i == 1 ? 1.6 : -0.9, 0), eye);
@@ -1391,6 +1391,8 @@ public final class AutoShot {
         if (b == null || tick < 172) return;
         if (b.getBossState().name().equals(st)) {
             int t = b.ticksInState();
+            // (a move, not a cutscene: the camera is yours) keep him in frame, flying or not
+            if (!b.getBossState().cutscene()) lookAtPoint(mc, b.position().add(0, b.getBbHeight() * 0.6, 0));
             for (String k : ticks) if (Integer.parseInt(k) == t) once(mc, "s_" + st.toLowerCase(java.util.Locale.ROOT) + "_" + k);
             if (t > Integer.parseInt(ticks[ticks.length - 1]) + 4) mc.stop();
         } else if (tick > 172 + 20 * 60) mc.stop();
@@ -1430,6 +1432,9 @@ public final class AutoShot {
     }
 
     private static int giantMark = -1, giantAct = -1;
+    private static Vec3 giantWatch, giantWatchF, giantWatchR;
+    private static double giantFloor;
+    private static Vec3 giantWatchAt;
 
     private static void giantTest(Minecraft mc) {
         switch (tick) {
@@ -1466,6 +1471,7 @@ public final class AutoShot {
             lastState = s.ordinal();
             PaponMod.LOG.info("[autoshot] giant test: boss -> {} at k {} stage {}", s, k, b.p4StageShown());
         }
+        if (k >= (Boolean.getBoolean("papon.autoshot.long") ? 3100 : 1640)) mc.stop();
         // after the rage: the giant summoned, you at the far end from it, its stalk watched from the side
         if (k == 200) run("papon giant summon");
         if (g == null) return;
@@ -1505,8 +1511,47 @@ public final class AutoShot {
             int ga = (int) g.actTime(0);
             if (ga == 85 || ga == 100 || ga == 120) once(mc, String.format("g3%03d_struggle", ga));
         }
+        // (2026-10-06) its body is solid: stood in its ribcage you are thrown out
+        if (k == 1160) tpLook(flat(g.base().add(g.forward().scale(1.2)), fy), g.head(0));
+        if (k == 1175) {
+            PaponMod.LOG.info("[autoshot] giant body: you are {} from its middle (thrown out if > 6.5)",
+                    String.format("%.1f", Math.sqrt(mc.player.distanceToSqr(g.base().x, mc.player.getY(), g.base().z))));
+            shot(mc, "g50_body");
+        }
+        // its rift's clock run short: the ring burning down, the dead reaching up for it; then dragged under
+        if (k == 1186) run("gamemode creative", "effect clear @s");         // out of its way: watched, not hunted (still in the arena)
+        if (k == 1190) {
+            run("papon giant portal");
+            giantWatch = g.base();
+            // the floor where we will stand: the first solid block down from well over it
+            // from the middle of the arena (the crowd entity's place), looking at it
+            Vec3 at = new Vec3(c.x, g.base().y, c.z);
+            giantWatchAt = at;
+            giantFloor = g.base().y;
+            for (int y = (int) g.base().y + 12; y > g.base().y - 60; y--) {
+                if (!mc.level.getBlockState(net.minecraft.core.BlockPos.containing(at.x, y, at.z)).isAir()) {
+                    giantFloor = y + 1;
+                    break;
+                }
+            }
+            PaponMod.LOG.info("[autoshot] giant watch: floor {} (its base {})", giantFloor, String.format("%.1f", g.base().y));
+            giantWatchF = g.forward();
+            giantWatchR = g.right();
+        }
+        if (giantWatch != null && k >= 1190 && k < 1700 && k % 20 == 10)
+        {
+            mc.player.getAbilities().flying = true;
+            mc.player.onUpdateAbilities();
+            tpLook(flat(giantWatchAt.lerp(giantWatch, 0.4), giantFloor + 24), flat(giantWatch, giantFloor + 4));
+        }
+        if (giantWatch != null && k > 1190 && k < 1700) lookAtPoint(mc, flat(giantWatch, giantFloor + 4));
+        if (k == 1230 || k == 1280 || k == 1320) shot(mc, "g5" + (k - 1190) / 40 + "_clock_" + (k - 1190));
+        if (k > 1190 && k < 1700 && g.act() == com.groid.papon.boss.SpiritGiantEntity.SINK) {
+            int ga = (int) g.actTime(0);
+            for (int at : new int[]{6, 20, 34, 48, 58, 64, 76, 92, 104, 116, 128, 140}) if (ga == at) once(mc, String.format("g6%03d_drag", at));
+        }
         // then on its own: you walk about the arena; every act logged, shots every 4 s
-        if (k > 1200 && k < 2600) {
+        if (k > 1700 && k < 3100) {
             if (k % 160 == 0) {
                 double a = k * 0.05;
                 tpLook(new Vec3(c.x + Math.cos(a) * 22, fy, c.z + Math.sin(a) * 12), g.head(0));
@@ -1514,7 +1559,6 @@ public final class AutoShot {
             if (k % 160 > 0) lookAtPoint(mc, g.head(0).add(0, -8, 0));
             if (k % 80 == 40) shot(mc, String.format("g4%04d_free_%s", k, actName(g.act())));
         }
-        if (k == (Boolean.getBoolean("papon.autoshot.long") ? 2600 : 1180)) mc.stop();
     }
 
     private static String v3(Vec3 v) { return String.format(java.util.Locale.ROOT, "(%.1f %.1f %.1f)", v.x, v.y, v.z); }

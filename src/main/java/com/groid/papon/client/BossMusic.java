@@ -91,7 +91,7 @@ public final class BossMusic {
                 return;
             }
             level = Math.min(level, 1F);
-            volume = level * 0.9F * VoiceDuck.music();
+            volume = level * VoiceDuck.music();
         }
     }
 }

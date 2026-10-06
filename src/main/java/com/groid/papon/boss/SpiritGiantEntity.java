@@ -39,7 +39,7 @@ import org.joml.Vector3f;
  */
 public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public static final int RISE = 0, IDLE = 1, CHARGE = 2, LASER = 3, SLAM_L = 4, SLAM_R = 5, SINK = 6, SWIPE_L = 7, SWIPE_R = 8,
-            SLAM_BOTH = 9, ROAR = 10, GRAB = 11, LUNGE = 12;
+            SLAM_BOTH = 9, ROAR = 10, GRAB = 11, LUNGE = 12, HEED = 13;
     /**
      * Ticks a rise and a sink take; a slam: the hand up, then down onto its mark at {@link #SLAM_HIT}, held, back.
      * The rise (2026-10-05, the user: "he should dig his way out of the ground instead of simply appearing... the arena ground
@@ -47,7 +47,25 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
      * {@link #DIG_HANDS}), a hand bursts up through it and slams down flat, then the other ({@link #DIG_HAND_T} later each), and it
      * hauls itself up out of the floor on them in two heaves (from {@link #DIG_HEAVE}), the skull breaking the surface first.
      */
-    public static final int RISE_T = 124, SINK_T = 44, SLAM_HIT = 21, SLAM_T = 40;
+    public static final int RISE_T = 124, SINK_T = 156, SLAM_HIT = 21, SLAM_T = 40;
+    /**
+     * Dragged back under (SINK; 2026-10-06, the user: "make Gigante fall back into the underworld when he despawns. Big and obvious:
+     * pulled back under, trying to hold on, but the underworld's spirits are stronger than even him... hungry to take you before
+     * the portal closes"): the dead's hands burst up out of the rift round its waist and seize it, jerking it down (to
+     * DRAG_SEIZE); it throws its hands down flat on the floor ahead of it and holds on (DRAG_CLING), dragged slowly down between
+     * them, its claws scoring the floor as they slide in; one last grab at you (a hand torn free at DRAG_CLAW, down on your spot
+     * at DRAG_CLAW_HIT, raked back to its hold); its left hand torn loose (DRAG_TEAR_L), then its right (DRAG_TEAR_R), and down it
+     * goes, the skull last, screaming (DRAG_UNDER); the rift snaps shut (DRAG_SHUT); gone at SINK_T.
+     */
+    public static final int DRAG_SEIZE = 18, DRAG_CLING = 30, DRAG_CLAW = 50, DRAG_CLAW_HIT = 64, DRAG_TEAR_L = 88, DRAG_TEAR_R = 102,
+            DRAG_UNDER = 128, DRAG_SHUT = 138;
+    /**
+     * Heeding him (HEED, 2026-10-06, the user: "make him respond to Papon's commands more"): its skull turns to him as he points
+     * and shouts, a nod and a growl (HEED_NOD), and it does what it was told (PaponBossEntity.order) at HEED_T.
+     */
+    public static final int HEED_T = 16, HEED_NOD = 9;
+    /** The dead's colour: the rift, the hands that take it back, its last grab's warning. */
+    public static final int RIFT = 0x9A5CFF;
     public static final int DIG_HANDS = 34, DIG_HAND_T = 14, DIG_HEAVE = 70;
     /**
      * La Mano (GRAB): it rears up, its hand drawn back over its head (to GRAB_LOCK); wades through the floor toward you, the
@@ -107,6 +125,11 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     private static final EntityDataAccessor<Boolean> DATA_CAUGHT = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.BOOLEAN);
     /** How far whoever it holds has struggled free (0..100). */
     private static final EntityDataAccessor<Integer> DATA_STRUGGLE = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
+    /** The rift it came up through: the game tick it closes (low 31 bits; 0 never) and how long it was open for. */
+    private static final EntityDataAccessor<Integer> DATA_PORTAL_END = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PORTAL_LEN = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
+    /** Dragged under: the hand it makes its last grab at you with (-1 none). */
+    private static final EntityDataAccessor<Integer> DATA_CLAW = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
     private boolean releasing;
     /** Presses of jump it takes to get out of its fist. */
     private int struggleNeed = 12;
@@ -158,6 +181,70 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         entityData.define(DATA_HELD, -1);
         entityData.define(DATA_CAUGHT, false);
         entityData.define(DATA_STRUGGLE, 0);
+        entityData.define(DATA_PORTAL_END, 0);
+        entityData.define(DATA_PORTAL_LEN, 0);
+        entityData.define(DATA_CLAW, -1);
+    }
+
+    // ------------------------------------------------------------------ the rift's clock (2026-10-06)
+    // (the user: "keep that theme the whole time he is summoned, like he's hungry to take you before the portal closes and he has
+    // to go back; a natural timer for his spawning that the player can see": the ring of the rift round its waist burns down like
+    // a clock (client/SpiritGiantRenderer), the dead's hands reach up and pull at it more and more as it runs out, and a bar
+    // under the boss's (client/BossBarRenderer))
+
+    private int now31() { return (int) (level().getGameTime() & 0x7FFFFFFF); }
+
+    /** The rift stays open {@code ticks} from now: then the dead drag it back down. */
+    public void portal(int ticks) {
+        entityData.set(DATA_PORTAL_END, Math.max(1, (now31() + ticks) & 0x7FFFFFFF));
+        entityData.set(DATA_PORTAL_LEN, Math.max(1, ticks));
+    }
+
+    /** At least {@code ticks} more before it closes (its clock lengthened, never shortened). */
+    public void extendPortal(int ticks) {
+        if (entityData.get(DATA_PORTAL_LEN) <= 0) {
+            portal(ticks);
+            return;
+        }
+        int left = portalTicksLeft();
+        if (left >= ticks) return;
+        entityData.set(DATA_PORTAL_END, Math.max(1, (now31() + ticks) & 0x7FFFFFFF));
+        entityData.set(DATA_PORTAL_LEN, entityData.get(DATA_PORTAL_LEN) + (ticks - Math.max(0, left)));
+    }
+
+    /** Ticks till the rift closes (negative: overdue), or Integer.MAX_VALUE with no clock. */
+    public int portalTicksLeft() {
+        if (entityData.get(DATA_PORTAL_LEN) <= 0) return Integer.MAX_VALUE;
+        int d = (entityData.get(DATA_PORTAL_END) - now31()) & 0x7FFFFFFF;
+        return d > (1 << 30) ? d - (1 << 31) : d;
+    }
+
+    /** How much of its time is left (1 just risen .. 0 closing), or -1 with no clock; 0 once it is being dragged under. */
+    public float portalLeft(float partial) {
+        int len = entityData.get(DATA_PORTAL_LEN);
+        if (len <= 0) return -1;
+        if (act() == SINK) return 0;
+        return Mth.clamp((portalTicksLeft() - partial) / len, 0, 1);
+    }
+
+    /** How hard the dead pull at it (0 none .. 1 dragging it under): from half its time on, all of it as the rift closes. */
+    public float pull(float partial) {
+        if (act() == SINK) {
+            float t = actTime(partial);
+            return t > DRAG_SHUT ? 0 : Mth.clamp(t / 6F, 0, 1);
+        }
+        float left = portalLeft(partial);
+        return left < 0 ? 0 : Mth.clamp((0.5F - left) / 0.5F, 0, 1) * 0.6F;
+    }
+
+    /** Its last grab at you as it goes under: the hand (-1 none). */
+    public int claw() { return entityData.get(DATA_CLAW); }
+
+    /** It turns to him to take an order (looking at {@code him}), nods, and waits for it (PaponBossEntity.order). */
+    public void heed(Vec3 him) {
+        if (act() != IDLE && act() != HEED) return;
+        aim(him);
+        act(HEED);
     }
 
     public void act(int act) {
@@ -181,7 +268,13 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                     level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.35F);
                     level.playSound(null, h.x, h.y, h.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.HOSTILE, 6.0F, 0.4F);
                 }
-                case SINK -> level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_DIG, SoundSource.HOSTILE, 6.0F, 0.5F);
+                case SINK -> {
+                    // seized: the dead's hands burst out of the rift round its waist, and it roars
+                    level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.45F);
+                    level.playSound(null, base().x, base().y, base().z, SoundEvents.SOUL_ESCAPE, SoundSource.HOSTILE, 6.0F, 0.4F);
+                    level.playSound(null, base().x, base().y, base().z, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 6.0F, 0.35F);
+                }
+                case HEED -> level.playSound(null, h.x, h.y, h.z, SoundEvents.RAVAGER_AMBIENT, SoundSource.HOSTILE, 5.0F, 0.3F);
                 default -> {}
             }
         }
@@ -190,6 +283,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public void sink() {
         if (act() == SINK) return;
         letGo();
+        entityData.set(DATA_CLAW, -1);
         act(SINK);
     }
 
@@ -233,9 +327,17 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         float t = actTime(partial);
         return switch (act()) {
             case RISE -> 0.5F * smooth((t - DIG_HEAVE) / 26F) + 0.5F * smooth((t - DIG_HEAVE - 30) / (RISE_T - DIG_HEAVE - 30F));
-            case SINK -> 1 - smooth(t / SINK_T);
+            case SINK -> dragRisen(t);
             default -> 1;
         };
+    }
+
+    /** Dragged under: jerked down, sinking between its hands as it holds on, lurching at each torn hand, then gone. */
+    private static float dragRisen(float t) {
+        if (t < DRAG_SEIZE) return 1 - 0.07F * smooth(t / DRAG_SEIZE);
+        if (t < DRAG_TEAR_L) return 0.93F - 0.27F * smooth((t - DRAG_SEIZE) / (DRAG_TEAR_L - DRAG_SEIZE)) - 0.012F * Math.abs(Mth.sin(t * 0.9F));
+        if (t < DRAG_TEAR_R + 10) return 0.66F - 0.3F * smooth((t - DRAG_TEAR_L) / (DRAG_TEAR_R + 10F - DRAG_TEAR_L));
+        return 0.36F * (1 - smooth((t - DRAG_TEAR_R - 10) / (DRAG_UNDER - DRAG_TEAR_R - 10F)));
     }
 
     /** How far the floor has broken open round it as it digs (0 whole .. 1), for the cracks and the debris. */
@@ -352,6 +454,9 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             case ROAR -> t < 14 ? -3.2 * smooth(t / 14F) : t < 36 ? -3.2 + 6.4 * smooth((t - 14) / 10F) : 3.2 * (1 - smooth((t - 36) / 14F));
             case RISE -> t < DIG_HEAVE ? 3.0 : 3.0 * (1 - smooth((t - DIG_HEAVE - 30) / 30F));       // hunched over its hands as it hauls
             case GRAB -> grabLean(t);
+            case HEED -> 1.2 * Math.sin(Math.PI * Mth.clamp(t / HEED_T, 0, 1));
+            case SINK -> t < DRAG_SEIZE ? -2.6 * smooth(t / DRAG_SEIZE) : t < DRAG_CLING ? -2.6 + 8.6 * smooth((t - DRAG_SEIZE) / (DRAG_CLING - DRAG_SEIZE))
+                    : t < DRAG_TEAR_L ? 6.0 : 6.0 * (1 - smooth((t - DRAG_TEAR_L) / 30F));
             case LUNGE -> t < LUNGE_GO ? -3.2 * smooth(t / LUNGE_GO) : t < LUNGE_STOP ? -3.2 + 12.2 * smooth((t - LUNGE_GO) / (LUNGE_STOP - LUNGE_GO))
                     : 9 * (1 - smooth((t - LUNGE_STOP - 6) / (LUNGE_T - LUNGE_STOP - 6F)));
             default -> 0;
@@ -484,6 +589,11 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                     : caught() ? caughtPitch(t) : -0.45F * (1 - smooth((t - GRAB_CLOSE - 12) / 26F));
             case LUNGE -> t < LUNGE_GO ? 0.4F * smooth(t / LUNGE_GO) : t < LUNGE_STOP ? 0.4F - 0.8F * smooth((t - LUNGE_GO) / 6F)
                     : -0.4F * (1 - smooth((t - LUNGE_STOP) / (LUNGE_T - LUNGE_STOP)));
+            // the nod to him: down and back up
+            case HEED -> -0.3F * Mth.sin(Mth.PI * Mth.clamp((t - HEED_NOD + 5) / 10F, 0, 1));
+            // thrown back as they seize it, glaring at you as it holds on, screaming up at the sky as it goes
+            case SINK -> t < DRAG_SEIZE ? 0.5F * smooth(t / DRAG_SEIZE) : t < DRAG_CLING ? 0.5F - 0.65F * smooth((t - DRAG_SEIZE) / 12F)
+                    : t < DRAG_TEAR_L ? -0.15F : -0.15F + 0.75F * smooth((t - DRAG_TEAR_L) / 24F);
             default -> 0;
         };
     }
@@ -564,6 +674,13 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         return base(partial).add(forward(partial).scale(12)).add(right(partial).scale((i == 0 ? 1 : -1) * 12)).add(0, 1.2, 0);
     }
 
+    /** Where its hand {@code i} holds on as it is dragged under: flat on the floor ahead of it, sliding in toward the rift. */
+    public Vec3 clingMark(int i, float partial) {
+        float t = actTime(partial);
+        double slide = 4.5 * smooth((t - DRAG_CLING) / (DRAG_TEAR_R - DRAG_CLING));
+        return base(partial).add(forward(partial).scale(15 - slide)).add(right(partial).scale((i == 0 ? 1 : -1) * (11.5 - slide * 0.4))).add(0, 0.9, 0);
+    }
+
     /** Where hand {@code i} is aimed (its slam's mark on the floor). */
     public Vec3 handMark(int i) { return new Vec3(entityData.get(i == 0 ? DATA_HAND_L : DATA_HAND_R)); }
 
@@ -635,6 +752,33 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             }
             if (t < GRAB_T_HELD - 18) return slam;
             return slam.lerp(rest, smooth((t - GRAB_T_HELD + 18) / 18F));
+        }
+        if (a == SINK) {
+            // seized and jerked; thrown down flat on the floor ahead of it, holding on, trembling, sliding in; one last grab at
+            // you; torn loose, flung up, and down after the rest of it
+            Vec3 cling = clingMark(i, partial);
+            float tear = i == 0 ? DRAG_TEAR_L : DRAG_TEAR_R;
+            if (t < DRAG_SEIZE) return rest.add(0, 3 * Math.sin(Math.PI * t / DRAG_SEIZE), 0);
+            if (t < DRAG_CLING) {
+                float k = (t - DRAG_SEIZE) / (DRAG_CLING - DRAG_SEIZE);
+                return rest.lerp(cling, k * k).add(0, Math.sin(Math.PI * k) * 7, 0);
+            }
+            if (i == claw() && t >= DRAG_CLAW && t < DRAG_CLAW_HIT + 18) {
+                Vec3 mark = handMark(i).add(0, 0.9, 0);
+                Vec3 high = cling.lerp(mark, 0.5).add(0, 13, 0);
+                if (t < DRAG_CLAW + 8) return cling.lerp(high, smooth((t - DRAG_CLAW) / 8F));
+                if (t < DRAG_CLAW_HIT) {
+                    float k = (t - DRAG_CLAW - 8) / (DRAG_CLAW_HIT - DRAG_CLAW - 8F);
+                    return high.lerp(mark, k * k);
+                }
+                if (t < DRAG_CLAW_HIT + 4) return mark;
+                return mark.lerp(cling, smooth((t - DRAG_CLAW_HIT - 4) / 14F));      // raked back across the floor
+            }
+            if (t < tear) return cling.add(Math.sin(t * 2.3 + i) * 0.15, Math.abs(Math.sin(t * 1.7 + i)) * 0.25, 0);
+            float k = (t - tear) / 26F;
+            Vec3 up = cling.add(0, 9, 0).add(forward(partial).scale(-4));
+            if (k < 0.35F) return cling.lerp(up, smooth(k / 0.35F));
+            return up.lerp(rest, smooth((k - 0.35F) / 0.65F));
         }
         if (a == LUNGE) {
             // claws up as it rears; raking the floor ahead of it as it throws itself along; planted, then back
@@ -739,6 +883,20 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         }
         float t = actTime(0);
         if (act() == RISE && t < RISE_T) dig(level, (int) t);
+        // the rift closes: the dead take it back (not out of the middle of a move, nor with someone in its fist, unless overdue)
+        if (act() != SINK && entityData.get(DATA_PORTAL_LEN) > 0) {
+            int left = portalTicksLeft();
+            if (left <= 0 && (act() == IDLE || act() == HEED || left < -300)) sink();
+            else if (left > 0 && left <= 100 && left % 20 == 0) {
+                // the last seconds: the rift groans, the dead stir under the floor
+                Vec3 b = base();
+                level.playSound(null, b.x, b.y, b.z, SoundEvents.SOUL_ESCAPE, SoundSource.HOSTILE, 4.0F, 0.35F + (100 - left) * 0.004F);
+                level.playSound(null, b.x, b.y, b.z, SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), SoundSource.HOSTILE, 3.0F, 0.5F);
+            }
+            t = actTime(0);
+        }
+        if (act() == HEED && t > HEED_T + 20) act(IDLE);          // nobody gave it its order
+        if (act() == SINK) drag(level, (int) t);
         if (act() == LUNGE) {
             if (t >= LUNGE_GO - 2 && t < LUNGE_STOP + 2) plough(level);
             if ((int) t == LUNGE_GO) {
@@ -813,6 +971,97 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             act(IDLE);
         }
         if (act() == SINK && t >= SINK_T) discard();
+    }
+
+    /** Dragged under (see {@link #DRAG_SEIZE}): the floor, the sounds, its last grab at you; the rift snapping shut. */
+    private void drag(ServerLevel level, int t) {
+        Vec3 b = base();
+        double floor = b.y;
+        net.minecraft.world.entity.player.Player near = level.getNearestPlayer(b.x, floor, b.z, 70, p -> !p.isSpectator() && !((net.minecraft.world.entity.player.Player) p).isCreative());
+        if (near != null && t % 4 == 0 && t < DRAG_TEAR_L) aim(near.position().add(0, 1, 0));
+        if (t < DRAG_SEIZE && t % 2 == 0) {
+            // the dead bursting up out of the rift round its waist
+            for (int k = 0; k < 4; k++) {
+                double a = random.nextDouble() * Math.PI * 2;
+                Fx.far(level, net.minecraft.core.particles.ParticleTypes.SOUL, b.x + Math.cos(a) * 8, floor + 0.4, b.z + Math.sin(a) * 6, 0,
+                        0.25 + random.nextDouble() * 0.2, 0);
+                Fx.far(level, net.minecraft.core.particles.ParticleTypes.SOUL_FIRE_FLAME, b.x + Math.cos(a) * 7, floor + 0.3, b.z + Math.sin(a) * 5,
+                        0, 0.35, 0);
+            }
+            if (t == 0) {
+                Fx.shock(level, b, 16F, RIFT);
+                Fx.chunks(level, b.add(0, 1, 0), 30, 0.8F, 0x3A3046, 1.2);
+                PaponNetwork.shake(level, b, 130, 1.0F, 20);
+            }
+        }
+        if (t == DRAG_CLING) {
+            for (int i = 0; i < 2; i++) {
+                Vec3 m = clingMark(i, 0);
+                Fx.chunks(level, m.add(0, 0.4, 0), 18, 0.7F, 0x3A3046, 1.0);
+                Fx.shock(level, new Vec3(m.x, floor, m.z), 6F, RIFT);
+                Fx.dust(level, new Vec3(m.x, floor, m.z), 3.0, 12);
+                level.playSound(null, m.x, floor, m.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 5.0F, 0.3F);
+                level.playSound(null, m.x, floor, m.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 4.0F, 0.5F);
+            }
+            PaponNetwork.shake(level, b, 120, 0.9F, 14);
+        }
+        if (t > DRAG_CLING && t < DRAG_TEAR_R && t % 4 == 0) {
+            // its claws scoring the floor as it is dragged in between them
+            for (int i = 0; i < 2; i++) {
+                if (t >= (i == 0 ? DRAG_TEAR_L : DRAG_TEAR_R) || (i == claw() && t >= DRAG_CLAW && t < DRAG_CLAW_HIT + 18)) continue;
+                Vec3 m = clingMark(i, 0);
+                Fx.scorch(level, new Vec3(m.x, floor, m.z), 2.4F, 500);
+                Fx.dust(level, new Vec3(m.x, floor, m.z), 2.0, 4);
+                if (t % 8 == 0) level.playSound(null, m.x, floor, m.z, SoundEvents.GRINDSTONE_USE, SoundSource.HOSTILE, 4.0F, 0.35F);
+            }
+            if (t % 12 == 0) PaponNetwork.shake(level, b, 110, 0.35F, 8);
+        }
+        if (t == DRAG_CLAW && near != null && near.distanceToSqr(b.x, near.getY(), b.z) < 34 * 34) {
+            // one last grab at you: the hand on your side torn off the floor and down on your spot
+            Vec3 at = new Vec3(near.getX(), floor, near.getZ());
+            int i = at.subtract(b).dot(right()) > 0 ? 1 : 0;
+            entityData.set(DATA_CLAW, i);
+            handTarget(i, at);
+            Fx.warnClosing(level, at, 5.5F, RIFT, DRAG_CLAW_HIT - DRAG_CLAW);
+            Vec3 h = head(0);
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 7.0F, 0.35F);
+        }
+        if (t == DRAG_CLAW_HIT && claw() >= 0 && level.getEntity(ownerId) instanceof PaponBossEntity boss) {
+            Vec3 m = handMark(claw());
+            boss.giantGrasp(level, m);
+            level.playSound(null, m.x, floor, m.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 5.0F, 0.45F);
+            PaponNetwork.shake(level, m, 90, 0.9F, 14);
+        }
+        if (t == DRAG_TEAR_L || t == DRAG_TEAR_R) {
+            // a hand torn off its hold
+            Vec3 m = clingMark(t == DRAG_TEAR_L ? 0 : 1, 0);
+            Fx.chunks(level, m.add(0, 0.5, 0), 22, 0.8F, 0x3A3046, 1.3);
+            debris(level, new Vec3(m.x, floor, m.z), 5, 0.6);
+            Vec3 h = head(0);
+            level.playSound(null, m.x, floor, m.z, SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.HOSTILE, 5.0F, 0.4F);
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, t == DRAG_TEAR_L ? 0.55F : 0.7F);
+            PaponNetwork.shake(level, b, 140, 1.1F, 18);
+        }
+        if (t == DRAG_UNDER - 16) {
+            Vec3 h = head(0);
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.GHAST_HURT, SoundSource.HOSTILE, 8.0F, 0.35F);
+            level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_DEATH, SoundSource.HOSTILE, 6.0F, 0.5F);
+        }
+        if (t > DRAG_TEAR_L && t < DRAG_UNDER && t % 3 == 0) {
+            Fx.dust(level, b.add((random.nextDouble() - 0.5) * 14, 0.3, (random.nextDouble() - 0.5) * 10), 3.0, 6);
+            Fx.far(level, net.minecraft.core.particles.ParticleTypes.SOUL, b.x + (random.nextDouble() - 0.5) * 10, floor + 1, b.z + (random.nextDouble() - 0.5) * 8,
+                    0, -0.15, 0);
+        }
+        if (t == DRAG_SHUT) {
+            // the rift snaps shut over it
+            Fx.shock(level, b, 22F, RIFT);
+            Fx.flash(level, b.add(0, 1.5, 0), 6F);
+            Fx.chunks(level, b.add(0, 0.6, 0), 30, 0.8F, 0x3A3046, 1.0);
+            level.playSound(null, b.x, floor, b.z, SoundEvents.RESPAWN_ANCHOR_DEPLETE.value(), SoundSource.HOSTILE, 6.0F, 0.5F);
+            level.playSound(null, b.x, floor, b.z, SoundEvents.BEACON_DEACTIVATE, SoundSource.HOSTILE, 6.0F, 0.5F);
+            level.playSound(null, b.x, floor, b.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 6.0F, 0.6F);
+            PaponNetwork.shake(level, b, 150, 1.2F, 22);
+        }
     }
 
     /**

@@ -38,8 +38,7 @@ public class TumbleRenderer<T extends Entity> extends EntityRenderer<T> {
         pose.mulPose(Axis.YP.rotationDegrees(-e.getYRot()));
         pose.mulPose(Axis.XP.rotationDegrees(age * spin));
         pose.scale(scale, scale, scale);
-        Minecraft.getInstance().getItemRenderer().renderStatic(stack.get(), ItemDisplayContext.NONE, light, OverlayTexture.NO_OVERLAY,
-                pose, buffers, e.level(), e.getId());
+        PropRenderer.drawSolid(stack.get(), pose, buffers, light, e.level(), e.getId());      // opaque: never see-through
         pose.popPose();
         super.render(e, yaw, partialTick, pose, buffers, light);
     }

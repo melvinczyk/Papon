@@ -1148,7 +1148,12 @@ def beats(lengths):
     b['p4.talking_end'] = b['p4.talking'] + L('p4_talking') + 24
     # P4_HONOR: soft, to the band; the singer nods; they strike up (the song's downbeat); the trumpets
     b['p4.honor'] = 14
-    b['p4.nod'] = b['p4.honor'] + L('p4_honor') + 10
+    # (2026-10-06) the band's farewell to each other before the singer answers him: a violinist to the singer, the singer back,
+    # a trumpeter to them all
+    b['p4.farewell_a'] = b['p4.honor'] + L('p4_honor') + 10
+    b['p4.farewell_b'] = b['p4.farewell_a'] + BL('p4_honor_a') + 3
+    b['p4.farewell_c'] = b['p4.farewell_b'] + BL('p4_honor_b') + 3
+    b['p4.nod'] = b['p4.farewell_c'] + BL('p4_honor_c') + 6
     b['p4.song'] = b['p4.nod'] + max(18, BL('p4_listo') + 4)          # the singer's "...Sí, jefe. One last song." first
     b['p4.honor_end'] = b['p4.song'] + 48
     # P4_MUCHACHAS: "Hey! Where are my muchachas?", the clap, the dancers rise, he goes to one and twirls her

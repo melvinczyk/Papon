@@ -2423,6 +2423,57 @@ def guitar_poses():
     return out
 
 
+def guitar_bent():
+    """His arms bent round the requinto (2026-10-06, the user: "his arms loom too long and weird when he plays"): the arms
+    hinge at the elbow (papon_ascended's fore_* bones, gen_ascended), the upper arm hanging down beside his belly and the
+    forearm coming across the front of the guitar, instead of one stretched stick from the shoulder. Each pose is the arm
+    (X, Y, Z), the upper arm's stretch, the forearm (X, Y, Z) and its stretch: the strumming fist over the soundhole, above
+    the strings (up), on them (mid) and through them (down), so the strum swings from the elbow; the fretting fist under the
+    neck low, mid and high. client/BossModel (BENT_*) blends them in wherever an animation puts his hands on the guitar."""
+    import numpy as np
+    from scipy.optimize import least_squares
+    from pose_solver import rot
+    k = GUITAR_SCALE
+    gpiv, grot = np.array([-7, 5, -10.4]), rot(0, 0, 86)
+    gw = lambda local: gpiv + grot @ (k * np.asarray(local, float))
+    upper = 4.0                               # shoulder (y 11) to elbow (y 7)
+
+    def fk(side, x):
+        sg = -1 if side == 'r' else 1
+        S, E0, F0 = np.array([8 * sg, 11, 0.]), np.array([10.5 * sg, 7, 0.]), np.array([10.5 * sg, 3, 0.])
+        Ra, Rf = rot(*x[:3]), rot(*x[4:7])
+        off = np.array([0, -(x[3] - 1) * upper, 0])
+        fore = lambda q: S + Ra @ (E0 + Rf @ ((np.asarray(q, float) - E0) * [1, x[7], 1]) + off - S)
+        return S + Ra @ (E0 + off - S), fore(F0), fore
+
+    def inside(p, m=2.2):
+        d = np.minimum(p - (np.array([-8, 4, -8]) - m), (np.array([8, 24, 8]) + m) - p)
+        return max(0.0, d.min()) if (d > 0).all() else 0.0
+
+    def solve(side, target, elbow, x0):
+        sg = -1 if side == 'r' else 1
+
+        def f(x):
+            E, F, fore = fk(side, x)
+            along = [fore([10.5 * sg, y, 0]) for y in (6.5, 5, 3.5, 2)] + [E]
+            # the fist on its mark, the elbow out by his side, nothing through his belly, the two halves stretched alike
+            return np.concatenate([(F - target) * 3, (E - elbow) * 0.25, [inside(p) * 4 for p in along],
+                                   [(x[3] - x[7]) * 1.5, x[1] * 0.01, x[5] * 0.01]])
+        r = least_squares(f, x0, bounds=([-200, -120, -120, 1, -170, -120, -120, 1], [60, 120, 120, 3, 60, 120, 120, 3]), max_nfev=4000)
+        return r.x
+
+    out = {}
+    x0 = np.array([-40, -20, 10, 1.8, -60, 0, -20, 1.8])
+    for name, dx in (('up', -2.2), ('mid', 0), ('down', 2.2)):
+        x0 = solve('r', gw([dx, 0.5, -3.8]), np.array([-13.5, 5.6, -7.8]), x0)
+        out['strum_' + name] = [round(float(v), 1) for v in x0]
+    x0 = np.array([-30, 20, -10, 1.8, -60, 0, 20, 1.8])
+    for name, y in (('low', 8.0), ('mid', 9.5), ('high', 11.2)):
+        x0 = solve('l', gw([0, y, -3.0]), np.array([13.0, 4.5, -7.5]), x0)
+        out['fret_' + name] = [round(float(v), 1) for v in x0]
+    return out
+
+
 GUITAR = None
 GUITAR_SCALE = 1.35
 SHOWN_G = [GUITAR_SCALE] * 3     # the requinto as he holds it (both bones), bigger than on the singer
@@ -3045,20 +3096,40 @@ def b_a_comet_land():
 
 
 def b_a_laser():
-    """5.5 s (BossState.P3_LASER, 110 t). Ojos de Papa: fingers to his temples as his eyes charge (0.5-1.7, shaking harder),
-    then flung back, chest out, head forward, as the beams burn (1.7-4.8); he lowers his head (to 5.5)."""
+    """5.5 s (BossState.P3_LASER, 110 t). Ojos de Papa (reworked 2026-10-06, the user: "he leans forward so you know the attack
+    is charging, a slight recoil as he uses it"). Fingers to his temples (to 0.6) and he leans in over you, further and
+    further as his eyes charge (0.7-1.7: head thrust forward, shaking harder, squashed down like a spring); the shot (1.7)
+    throws him back: head snapped up and back, knocked back through the air, arms flung out, stretched tall; then he forces
+    himself back into it, leaning into the beams as they burn (to 4.8), jolted back by every surge (a kick each 0.45 s);
+    they go out and he sags, head down (to 5.5)."""
     a = god(B('a_laser', 5.5, 'hold'))
     temple_r, temple_l = [-150, -60, 20], [-150, 60, -20]
-    shake = [(round(0.7 + 0.1 * i, 2), [temple_r[0] + (3 if i % 2 else -3), temple_r[1], temple_r[2]]) for i in range(10)]
-    shake_l = [(round(0.7 + 0.1 * i, 2), [temple_l[0] + (-3 if i % 2 else 3), temple_l[1], temple_l[2]]) for i in range(10)]
-    a.rot('arm_r', [(0, [-28, 0, 26]), (0.6, temple_r, 'easeOutBack')] + shake + [(1.7, temple_r), (1.85, [30, 0, 60], 'easeOutExpo'),
-                    (4.8, [24, 0, 64]), (5.5, [-28, 0, 26], 'easeInOutSine')], 'lin')
-    a.rot('arm_l', [(0, [-28, 0, -26]), (0.6, temple_l, 'easeOutBack')] + shake_l + [(1.7, temple_l), (1.85, [30, 0, -60], 'easeOutExpo'),
-                    (4.8, [24, 0, -64]), (5.5, [-28, 0, -26], 'easeInOutSine')], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (0.6, 1.5), (1.7, 1.5), (1.85, 1.2), (5.5, 1)])
-    stretch(a, 'arm_l', [(0, 1), (0.6, 1.5), (1.7, 1.5), (1.85, 1.2), (5.5, 1)])
-    a.rot('torso', [(0, [-6, 0, 0]), (0.6, [8, 0, 0]), (1.7, [10, 0, 0]), (1.85, [-22, 0, 0], 'easeOutExpo'),
-                    (3.2, [-18, 6, 0]), (4.8, [-22, -6, 0]), (5.5, [-6, 0, 0], 'easeInOutSine')], 'lin')
+    shake = [(round(0.7 + 0.1 * i, 2), [temple_r[0] + (4 + i * 0.6 if i % 2 else -4 - i * 0.6), temple_r[1], temple_r[2]]) for i in range(10)]
+    shake_l = [(round(0.7 + 0.1 * i, 2), [temple_l[0] + (-4 - i * 0.6 if i % 2 else 4 + i * 0.6), temple_l[1], temple_l[2]]) for i in range(10)]
+    a.rot('arm_r', [(0, [-28, 0, 26]), (0.6, temple_r, 'easeOutBack')] + shake + [(1.7, temple_r), (1.8, [40, 0, 78], 'easeOutExpo'),
+                    (2.3, [22, 0, 62], 'easeInOutSine'), (4.8, [24, 0, 64]), (5.5, [-28, 0, 26], 'easeInOutSine')], 'lin')
+    a.rot('arm_l', [(0, [-28, 0, -26]), (0.6, temple_l, 'easeOutBack')] + shake_l + [(1.7, temple_l), (1.8, [40, 0, -78], 'easeOutExpo'),
+                    (2.3, [22, 0, -62], 'easeInOutSine'), (4.8, [24, 0, -64]), (5.5, [-28, 0, -26], 'easeInOutSine')], 'lin')
+    stretch(a, 'arm_r', [(0, 1), (0.6, 1.5), (1.7, 1.5), (1.8, 1.3), (5.5, 1)])
+    stretch(a, 'arm_l', [(0, 1), (0.6, 1.5), (1.7, 1.5), (1.8, 1.3), (5.5, 1)])
+    # the surges: a jolt back, and he leans into it again
+    kicks = [round(2.3 + 0.45 * i, 2) for i in range(6)]
+    torso = [(0, [-6, 0, 0]), (0.6, [12, 0, 0], 'easeInOutSine'), (1.0, [20, 0, 0], 'easeInOutSine'), (1.5, [28, 0, 0], 'easeInQuad'),
+             (1.7, [32, 0, 0]), (1.8, [-30, 0, 0], 'easeOutExpo'), (2.25, [12, 0, 0], 'easeInOutSine')]
+    root = [(0, [0, 0, 0]), (0.6, [0, -0.6, -1.0], 'easeInOutSine'), (1.7, [0, -1.4, -2.6], 'easeInQuad'),
+            (1.8, [0, 1.2, 4.5], 'easeOutExpo'), (2.25, [0, 0.2, 1.4], 'easeInOutSine')]
+    for i, k in enumerate(kicks):
+        side = 4 if i % 2 else -4
+        torso += [(round(k + 0.05, 2), [-2, side, 0], 'easeOutExpo'), (round(k + 0.4, 2), [12, 0, 0], 'easeInOutSine')]
+        root += [(round(k + 0.05, 2), [0, 0.5, 2.6], 'easeOutExpo'), (round(k + 0.4, 2), [0, 0.2, 1.4], 'easeInOutSine')]
+    torso += [(4.8, [10, 0, 0]), (5.0, [-8, 0, 0], 'easeOutQuad'), (5.5, [18, 0, 0], 'easeInOutSine')]
+    root += [(4.8, [0, 0.2, 1.4]), (5.5, [0, -0.4, 0], 'easeInOutSine')]
+    a.rot('torso', torso, 'lin')
+    a.pos('root', root, 'lin')
+    # squashed down like a spring as he charges, stretched tall by the shot (god()'s broad chest the rest)
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (1.0, [1.07, 1.0, 1.07], 'easeInOutSine'), (1.7, [1.11, 0.95, 1.11], 'easeInQuad'),
+                     (1.8, [0.98, 1.12, 0.98], 'easeOutExpo'), (2.2, [1.05, 1.02, 1.05], 'easeInOutSine'), (4.8, [1.05, 1.02, 1.05]),
+                     (5.5, [1.04, 1.03, 1.04], 'easeInOutSine')], 'lin')
     flying_legs(a, 5.5, 20)
     a.sound(0.6, 'grunt').sound(1.7, 'roar')
     return a
@@ -3521,14 +3592,17 @@ def b_p4_ignis():
     out, line, thr, met, end = (beat('p4.head_out', 20), beat('p4.ignis', 34), beat('p4.throw', 109), beat('p4.met', 138), beat('p4.ignis_end', 200))
     a = B('p4_ignis', end, 'hold')
     a.scale('blood', [(0, SHOWN), (end, SHOWN)], 'lin')
-    show = [8, 0, 150]             # raised out to his side, above his shoulder: the head hangs from his fist beside his face
+    # (2026-10-06) held up in front of him, beside his face, toward you: the fist forward and up at the side of his face, the
+    # head drawn just in front of it (client/BossRenderer.ignisHeadPos); raised out to his side (8, 0, 150) it was behind him
+    show = [-133, 0, -10]
     turn = [(round(line + 0.5 + 0.9 * i, 2), [show[0] + (10 if i % 2 else -6), show[1], show[2] + (6 if i % 2 else -4)]) for i in range(int((thr - line - 1.2) / 0.9))]
     wind = round(thr - 0.3, 2)
     a.rot('arm_r', [(0, PALM_UP_R), (0.25, [10, -10, 30], 'easeInOutSine'), (0.6, [62, 20, 24], 'easeInOutSine'), (round(out - 0.05, 2), [60, 24, 20]),
                     (round(out + 0.45, 2), show, 'easeOutBack')] + turn + [(wind, [-150, 0, 34], 'easeInOutSine'),
                     (thr, [-36, -10, 16], 'easeOutExpo'), (round(thr + 0.5, 2), [-20, 0, 16]), (round(met - 0.1, 2), [-20, 0, 16]),
                     (round(met + 0.4, 2), PALM_UP_R, 'easeInOutSine'), (end, PALM_UP_R)], 'lin')
-    stretch(a, 'arm_r', [(0, 1.3), (0.6, 1.2), (round(out + 0.45, 2), 1.5), (wind, 1.6), (thr, 1.4), (round(thr + 0.5, 2), 1), (round(met + 0.4, 2), 1.35), (end, 1.35)])
+    stretch(a, 'arm_r', [(0, 1.3), (0.6, 1.2), (round(out + 0.45, 2), 2.3), (round(wind - 0.2, 2), 2.3), (wind, 1.6), (thr, 1.4), (round(thr + 0.5, 2), 1),
+                         (round(met + 0.4, 2), 1.35), (end, 1.35)])
     a.rot('arm_l', [(0, SCAR_L), (round(thr + 0.6, 2), SCAR_L), (round(thr + 0.9, 2), [-70, 30, -14]), (round(thr + 1.1, 2), [-74, 40, -10]),
                     (round(met + 0.4, 2), [-14, 0, -28], 'easeInOutSine'), (end, [-14, 0, -28])], 'lin')
     stretch(a, 'arm_l', [(0, 1.3), (round(thr + 0.6, 2), 1.3), (round(met + 0.4, 2), 1), (end, 1)])
@@ -3673,19 +3747,24 @@ def b_p4_walk():
 
 def b_p4_honor():
     """BossState.P4_HONOR. Softly, to the band: his right hand on his heart, his head bowed (p4.honor: "Señores... it has been
-    an honor."), the hand opening to the singer ("But I need you to play one last song."); the nod back; the brass strikes
+    an honor."), the hand opening to the singer ("But I need you to play one last song."); he lets them have their moment
+    (p4.farewell_a-c: their goodbyes to each other), the hand back on his heart, head bowed; the nod back; the brass strikes
     up (p4.song): he steps back, arms opening, head nodding on the beat, eyes closed."""
     line, nod, song, end = beat('p4.honor', 10), beat('p4.nod', 112), beat('p4.song', 128), beat('p4.honor_end', 172)
+    fa = beat('p4.farewell_a', round(nod - 2.0, 2))
     a = B('p4_honor', end, 'hold')
     offer = round(line + 2.6, 2)
     a.rot('arm_r', [(0, [-20, 0, 16]), (round(line - 0.1, 2), HEART_R, 'easeInOutSine'), (offer, HEART_R), (round(offer + 0.6, 2), PALM_UP_R, 'easeInOutSine'),
+                    (fa, PALM_UP_R), (round(fa + 0.8, 2), HEART_R, 'easeInOutSine'), (round(nod - 0.2, 2), HEART_R), (nod, PALM_UP_R, 'easeInOutSine'),
                     (song, PALM_UP_R), (round(song + 0.6, 2), [-60, 0, 60], 'easeInOutSine'), (end, [-62, 0, 62])], 'lin')
-    stretch(a, 'arm_r', [(0, 1), (round(line - 0.1, 2), 1.2), (round(offer + 0.6, 2), 1.4), (song, 1.4), (round(song + 0.6, 2), 1.3), (end, 1.3)])
+    stretch(a, 'arm_r', [(0, 1), (round(line - 0.1, 2), 1.2), (round(offer + 0.6, 2), 1.4), (fa, 1.4), (round(fa + 0.8, 2), 1.2), (round(nod - 0.2, 2), 1.2),
+                         (nod, 1.4), (song, 1.4), (round(song + 0.6, 2), 1.3), (end, 1.3)])
     a.rot('arm_l', [(0, [-10, 0, -20]), (song, [-10, 0, -20]), (round(song + 0.6, 2), [-60, 0, -60], 'easeInOutSine'), (end, [-62, 0, -62])], 'lin')
     stretch(a, 'arm_l', [(0, 1), (song, 1), (round(song + 0.6, 2), 1.3), (end, 1.3)])
     groove = [(round(song + 0.6 + 0.47 * i, 2), [6 if i % 2 else -2, 0, 0]) for i in range(int((end - song - 0.6) / 0.47))]
     a.rot('torso', [(0, [0, 0, 0]), (round(line + 0.6, 2), [16, 0, 0], 'easeInOutSine'), (round(offer - 0.2, 2), [14, 0, 0]),
-                    (round(offer + 0.6, 2), [4, 0, 0], 'easeInOutSine'), (nod, [6, 0, 0]), (round(song + 0.6, 2), [-8, 0, 0])] + groove, 'lin')
+                    (round(offer + 0.6, 2), [4, 0, 0], 'easeInOutSine'), (round(fa + 0.8, 2), [12, 0, 0], 'easeInOutSine'),
+                    (round(nod - 0.2, 2), [12, 0, 0]), (nod, [6, 0, 0], 'easeInOutSine'), (round(song + 0.6, 2), [-8, 0, 0])] + groove, 'lin')
     for brow, sgn in (('brow_r', 1), ('brow_l', -1)):
         a.pos(brow, [(0, [0, 0.4, 0]), (end, [0, 0.4, 0])], 'lin')
         a.rot(brow, [(0, [0, 0, -6 * sgn]), (end, [0, 0, -6 * sgn])], 'lin')
@@ -4336,3 +4415,4 @@ if __name__ == '__main__':
     print(write('gerbin', GERBIN, 'animation.gerbin.'))
     print(write('papon_boss', BOSS, 'animation.papon_boss.'))
     print('guitar poses (client/BossModel):', guitar_poses())
+    print('bent guitar arms (client/BossModel BENT_*):', guitar_bent())

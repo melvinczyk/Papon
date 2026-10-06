@@ -89,6 +89,44 @@ public final class BossBarRenderer {
         }
         event.setIncrement(54);
         drawPhase(g, mc, bar, tr, phase, cx, y, progress, time + partial);
+        if (phase == 4 && drawRift(g, mc, cx, y + 53, time + partial, partial)) event.setIncrement(68);
+    }
+
+    /**
+     * El Gigante's time (2026-10-06, the user: "a natural timer for his spawning that the player can see"): under the guardian's
+     * bar while it is up, a thin bar of the rift it came through, burning down, the dead's blue going violet and then red and
+     * pulsing as it closes; "dragged under" as the dead take it back. Its ring on the floor is the same clock.
+     */
+    private static boolean drawRift(GuiGraphics g, Minecraft mc, int cx, int y, float t, float partial) {
+        if (mc.level == null || mc.player == null) return false;
+        com.groid.papon.boss.SpiritGiantEntity giant = mc.level.getEntitiesOfClass(com.groid.papon.boss.SpiritGiantEntity.class,
+                mc.player.getBoundingBox().inflate(160), e -> e.portalLeft(0) >= 0 && (e.act() != com.groid.papon.boss.SpiritGiantEntity.SINK
+                        || e.actTime(0) < com.groid.papon.boss.SpiritGiantEntity.DRAG_SHUT)).stream().findFirst().orElse(null);
+        if (giant == null) return false;
+        float left = giant.portalLeft(partial);
+        boolean drag = giant.act() == com.groid.papon.boss.SpiritGiantEntity.SINK;
+        int w = 150, h = 4;
+        int x0 = cx - w / 2;
+        int col = left > 0.5F ? 0x3CD6FF : left > 0.2F ? 0xAA50FF : 0xFF3048;
+        float pulse = left <= 0.2F || drag ? 0.5F + 0.5F * Mth.sin(t * (drag ? 0.9F : 0.45F + (0.2F - left) * 3F)) : 1F;
+        String label = drag ? "EL GIGANTE \u2014 dragged under" : "EL GIGANTE \u2014 the rift closes";
+        int tw = mc.font.width(label);
+        g.pose().pushPose();
+        g.pose().translate(cx - tw * 0.35F, y, 0);
+        g.pose().scale(0.7F, 0.7F, 1);
+        g.drawString(mc.font, label, 0, 0, drag ? 0xD9B8FF : 0xC8E8FF, true);
+        g.pose().popPose();
+        int by = y + 8;
+        g.fill(x0 - 1, by - 1, x0 + w + 1, by + h + 1, 0xC0100818);
+        int fillW = Math.round(w * left);
+        if (fillW > 0) {
+            int a = (int) (180 + 75 * pulse);
+            g.fill(x0, by, x0 + fillW, by + h, (a << 24) | col);
+            g.fill(x0, by, x0 + fillW, by + 1, ((a / 2) << 24) | 0xFFFFFF);
+        }
+        // the burning edge
+        if (fillW > 0 && !drag) g.fill(x0 + fillW - 1, by - 1, x0 + fillW + 1, by + h + 1, 0xFFFFE6C0);
+        return true;
     }
 
     /** The trail and the flash, on the real clock (frame-rate free): it holds 0.7 s after a hit, then drains. */
