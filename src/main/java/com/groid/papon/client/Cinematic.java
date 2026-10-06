@@ -956,14 +956,16 @@ public final class Cinematic {
                     Vec3 eye = b.position().subtract(f.scale(h * 1.1)).add(right.scale(h * 1.1)).add(0, h * 0.7, 0);
                     return new Shot(eye, body, 58, 0, near(t, 0));
                 }
+                Vec3 held = BossRenderer.ignisHeadPos(b);
+                if (held == null) held = hand;
                 if (t < line + 40) {
                     // the head: Ignis, held up by him, close, its fire still flickering
-                    Vec3 eye = hand.add(f.scale(h * 1.7)).add(right.scale(h * 0.5)).add(0, h * 0.1, 0);
-                    return new Shot(eye, hand.add(0, -h * 0.15, 0), 44, 0, near(t, out));
+                    Vec3 eye = held.add(f.scale(h * 1.5)).add(right.scale(-h * 0.35)).add(0, h * 0.08, 0);
+                    return new Shot(eye, held, 44, 0, near(t, out));
                 }
                 if (t < line + 90) {
                     // the two faces, a slow arc round them
-                    Vec3 mid = fp.lerp(hand, 0.45);
+                    Vec3 mid = fp.lerp(held, 0.45);
                     double ang = -20 + (t - line - 40) * 0.6;
                     return new Shot(mid.add(yaw(f, ang).scale(h * 2.4)).add(0, h * 0.05, 0), mid, 48, 0, near(t, line + 40));
                 }

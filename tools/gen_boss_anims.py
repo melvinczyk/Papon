@@ -3592,14 +3592,17 @@ def b_p4_ignis():
     out, line, thr, met, end = (beat('p4.head_out', 20), beat('p4.ignis', 34), beat('p4.throw', 109), beat('p4.met', 138), beat('p4.ignis_end', 200))
     a = B('p4_ignis', end, 'hold')
     a.scale('blood', [(0, SHOWN), (end, SHOWN)], 'lin')
-    show = [8, 0, 150]             # raised out to his side, above his shoulder: the head hangs from his fist beside his face
+    # (2026-10-06) held up in front of him, beside his face, toward you: the fist forward and up at the side of his face, the
+    # head drawn just in front of it (client/BossRenderer.ignisHeadPos); raised out to his side (8, 0, 150) it was behind him
+    show = [-133, 0, -10]
     turn = [(round(line + 0.5 + 0.9 * i, 2), [show[0] + (10 if i % 2 else -6), show[1], show[2] + (6 if i % 2 else -4)]) for i in range(int((thr - line - 1.2) / 0.9))]
     wind = round(thr - 0.3, 2)
     a.rot('arm_r', [(0, PALM_UP_R), (0.25, [10, -10, 30], 'easeInOutSine'), (0.6, [62, 20, 24], 'easeInOutSine'), (round(out - 0.05, 2), [60, 24, 20]),
                     (round(out + 0.45, 2), show, 'easeOutBack')] + turn + [(wind, [-150, 0, 34], 'easeInOutSine'),
                     (thr, [-36, -10, 16], 'easeOutExpo'), (round(thr + 0.5, 2), [-20, 0, 16]), (round(met - 0.1, 2), [-20, 0, 16]),
                     (round(met + 0.4, 2), PALM_UP_R, 'easeInOutSine'), (end, PALM_UP_R)], 'lin')
-    stretch(a, 'arm_r', [(0, 1.3), (0.6, 1.2), (round(out + 0.45, 2), 1.5), (wind, 1.6), (thr, 1.4), (round(thr + 0.5, 2), 1), (round(met + 0.4, 2), 1.35), (end, 1.35)])
+    stretch(a, 'arm_r', [(0, 1.3), (0.6, 1.2), (round(out + 0.45, 2), 2.3), (round(wind - 0.2, 2), 2.3), (wind, 1.6), (thr, 1.4), (round(thr + 0.5, 2), 1),
+                         (round(met + 0.4, 2), 1.35), (end, 1.35)])
     a.rot('arm_l', [(0, SCAR_L), (round(thr + 0.6, 2), SCAR_L), (round(thr + 0.9, 2), [-70, 30, -14]), (round(thr + 1.1, 2), [-74, 40, -10]),
                     (round(met + 0.4, 2), [-14, 0, -28], 'easeInOutSine'), (end, [-14, 0, -28])], 'lin')
     stretch(a, 'arm_l', [(0, 1.3), (round(thr + 0.6, 2), 1.3), (round(met + 0.4, 2), 1), (end, 1)])

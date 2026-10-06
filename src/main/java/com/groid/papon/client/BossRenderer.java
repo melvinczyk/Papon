@@ -429,23 +429,32 @@ public class BossRenderer extends GeoEntityRenderer<PaponBossEntity> {
     }
 
     /**
-     * Ignis's head in his right fist (phase four, spiritProp 4): hanging from his grip by its crown, upright, its face the way
-     * he faces (to you), turning a little as he shows it off. Drawn where the fist was drawn (BossRenderer.bonePos).
+     * Ignis's head in his right fist (phase four, spiritProp 4): held up out in front of him beside his face, gripped from
+     * behind, upright, its face the way he faces (to you), turning a little as he shows it off. Drawn where the fist was
+     * drawn (BossRenderer.bonePos), pushed out in front of it (2026-10-06: it hung from the fist at his side, behind his face,
+     * and an extra half-block shift put it further behind him: the user saw it "hidden behind him").
      */
     private static void ignisHead(PaponBossEntity b, float partial, PoseStack pose, MultiBufferSource buffers) {
-        net.minecraft.world.phys.Vec3 hand = bonePos(b, "hand_r");
-        if (hand == null) return;
-        net.minecraft.world.phys.Vec3 at = hand.subtract(b.getPosition(partial));
+        net.minecraft.world.phys.Vec3 c = ignisHeadPos(b);
+        if (c == null) return;
+        net.minecraft.world.phys.Vec3 at = c.subtract(b.getPosition(partial));
         float s = 1.25F;
         pose.pushPose();
-        pose.translate(at.x, at.y - 0.85 * s, at.z);
+        pose.translate(at.x, at.y, at.z);
         pose.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180F - b.yBodyRot + 10F * net.minecraft.util.Mth.sin((b.tickCount + partial) * 0.07F)));
         pose.scale(s, s, s);
-        pose.translate(-0.5, 0, -0.5);
-        net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(
-                new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_IGNIS_HEAD.get()), net.minecraft.world.item.ItemDisplayContext.NONE,
-                net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, pose, buffers, b.level(), b.getId());
+        pose.translate(0, -0.23, 0);       // the model's middle (it spans 0..1.46 up; drawSolid centres it on 0.5)
+        PropRenderer.drawSolid(new net.minecraft.world.item.ItemStack(com.groid.papon.registry.ModItems.FX_IGNIS_HEAD.get()), pose, buffers,
+                net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, b.level(), b.getId());
         pose.popPose();
+    }
+
+    /** Where Ignis's head is held (its middle, world): just in front of his right fist, toward you (the camera frames it). */
+    @org.jetbrains.annotations.Nullable
+    public static net.minecraft.world.phys.Vec3 ignisHeadPos(PaponBossEntity b) {
+        net.minecraft.world.phys.Vec3 hand = bonePos(b, "hand_r");
+        if (hand == null) return null;
+        return hand.add(net.minecraft.world.phys.Vec3.directionFromRotation(0, b.yBodyRot).scale(0.75)).add(0, -0.2, 0);
     }
 
     private static final ResourceLocation SUN_STONE = PaponMod.id("textures/entity/sun_stone.png");
