@@ -108,7 +108,10 @@ public class BossProp extends Entity {
         /** El Beso de la Muerte: a vine of thorns and roses racing along the floor along its yaw (a maths angle); radius = its length. */
         VINE,
         /** El Beso de la Muerte: the great rose's burst, a ring of petals rolling out across the floor: radius = the ring's. */
-        PETAL_RING
+        PETAL_RING,
+        /** El Castillo: the fiesta's fireworks tower, risen out of the middle of the floor (its age is the move's clock; radius 1
+         *  once it has burst). */
+        CASTILLO
     }
 
     /** El Tzompantli's posts: spacing along a line or round a ring, the front's speed (blocks a tick), and a post's life: up by

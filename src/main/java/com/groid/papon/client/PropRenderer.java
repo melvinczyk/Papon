@@ -96,6 +96,10 @@ public class PropRenderer extends EntityRenderer<BossProp> {
                 drawPetalRing(p, pose, buffers, age, partialTick);
                 return;
             }
+            case CASTILLO -> {
+                drawCastillo(p, pose, buffers, age);
+                return;
+            }
             default -> {}
         }
         pose.pushPose();
@@ -577,6 +581,173 @@ public class PropRenderer extends EntityRenderer<BossProp> {
         }
     }
 
+    // ---- El Castillo
+
+    private static final int[] BAMBOO = {214, 176, 106}, BAMBOO_NODE = {150, 112, 62};
+
+    /**
+     * El Castillo (2026-10-05, the user: "much more visually obvious... do not let it blend into the environment"): a real fiesta
+     * castillo, solid and lit (it was a faint lattice of light): a bamboo tower as wide as a house and 26 blocks tall, rising out
+     * of the floor; four poles cross-braced, a platform at each tier with its wheel round it (spokes, a rim, paper fringes in the
+     * flag's colours at every tip), a crown of spokes on top round a giant sugar skull. Lit, a wheel spins and throws fountains
+     * of fire; the fuse burns down it from his hand; a column of light up it and a glow on the floor round it while it burns.
+     * Its age is the move's clock (spawned at its tick 1).
+     */
+    private static void drawCastillo(BossProp p, PoseStack pose, MultiBufferSource buffers, float age) {
+        if (p.radius() > 0) return;                         // burst
+        float t = age + 1;
+        float rise = Mth.clamp(t / com.groid.papon.boss.Fiesta.RISE, 0, 1);
+        rise = 1 - (1 - rise) * (1 - rise);
+        double top = com.groid.papon.boss.Fiesta.TOWER_TOP;
+        double sink = (1 - rise) * (top + 2);
+        double half = com.groid.papon.boss.Fiesta.TOWER_HALF;
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
+        Matrix4f m = pose.last().pose();
+        Matrix3f n = pose.last().normal();
+        net.minecraft.world.phys.Vec3 o = new net.minecraft.world.phys.Vec3(0, -sink, 0);
+        // the poles, with their nodes
+        for (int k = 0; k < 4; k++) {
+            double x = (k & 1) == 0 ? -half : half, z = (k & 2) == 0 ? -half : half;
+            Shapes.tube(vc, m, n, o.add(x, 0, z), o.add(x, top, z), 0.34F, 0.28F, BAMBOO, 6, FULL);
+            for (double y = 2; y < top; y += 2.6) Shapes.ball(vc, m, n, o.add(x, y, z), 0.36F, BAMBOO_NODE, FULL);
+        }
+        // the bracing: an X on every face between the platforms
+        double[][] faces = {{-half, -half, half, -half}, {half, -half, half, half}, {half, half, -half, half}, {-half, half, -half, -half}};
+        for (int tier = 0; tier <= com.groid.papon.boss.Fiesta.CASTILLO_TIERS; tier++) {
+            double y0 = tier == 0 ? 0.4 : com.groid.papon.boss.Fiesta.tierHeight(tier - 1), y1 = tier < com.groid.papon.boss.Fiesta.CASTILLO_TIERS
+                    ? com.groid.papon.boss.Fiesta.tierHeight(tier) : top - 1;
+            for (double[] f : faces) {
+                Shapes.tube(vc, m, n, o.add(f[0], y0, f[1]), o.add(f[2], y1, f[3]), 0.16F, 0.16F, BAMBOO, 5, FULL);
+                Shapes.tube(vc, m, n, o.add(f[2], y0, f[3]), o.add(f[0], y1, f[1]), 0.16F, 0.16F, BAMBOO, 5, FULL);
+                Shapes.tube(vc, m, n, o.add(f[0], y1, f[1]), o.add(f[2], y1, f[3]), 0.22F, 0.22F, BAMBOO_NODE, 5, FULL);
+            }
+        }
+        // the wheels: spokes out from the platform to a rim, a paper fringe at every tip, spinning once lit
+        for (int tier = 0; tier < com.groid.papon.boss.Fiesta.CASTILLO_TIERS; tier++) {
+            double y = com.groid.papon.boss.Fiesta.tierHeight(tier);
+            int s0 = com.groid.papon.boss.Fiesta.tierStart(tier);
+            boolean lit = t >= s0 && t < s0 + com.groid.papon.boss.Fiesta.TIER_RUN + 10;
+            int arms = com.groid.papon.boss.Fiesta.arms(tier) + 3;
+            double r = com.groid.papon.boss.Fiesta.wheelR(tier);
+            int spin = (tier & 1) == 0 ? 1 : -1;
+            double ang0 = t >= s0 ? spin * (Math.min(t, s0 + com.groid.papon.boss.Fiesta.TIER_RUN + 10) - s0) * 0.25 : tier * 0.4;
+            int col = com.groid.papon.boss.Fiesta.colour(tier * 2 + 1);
+            int[] paper = {col >> 16 & 255, col >> 8 & 255, col & 255};
+            net.minecraft.world.phys.Vec3 prevRim = null;
+            for (int k = 0; k <= arms; k++) {
+                double an = ang0 + k * Math.PI * 2 / arms;
+                net.minecraft.world.phys.Vec3 tip = o.add(Math.cos(an) * r, y, Math.sin(an) * r);
+                if (k < arms) {
+                    Shapes.tube(vc, m, n, o.add(Math.cos(an) * half * 1.1, y, Math.sin(an) * half * 1.1), tip, 0.14F, 0.12F, BAMBOO, 4, FULL);
+                    // the fringe: a little banner of paper hanging off the tip, fluttering
+                    double fl = Math.sin(t * 0.5 + k) * 0.2;
+                    net.minecraft.world.phys.Vec3 tan = new net.minecraft.world.phys.Vec3(-Math.sin(an), 0, Math.cos(an)).scale(0.55);
+                    Shapes.quad(vc, m, n, tip.subtract(tan), tip.add(tan), tip.add(tan).add(fl, -1.3, fl), tip.subtract(tan).add(fl, -1.3, fl),
+                            (k & 1) == 0 ? paper : new int[]{255, 244, 220}, FULL);
+                }
+                if (prevRim != null) Shapes.tube(vc, m, n, prevRim, tip, 0.1F, 0.1F, BAMBOO_NODE, 4, FULL);
+                prevRim = tip;
+            }
+        }
+        // the crown: spokes round a giant sugar skull, grinning down over the arena
+        double cy = top - 0.5;
+        for (int k = 0; k < 10; k++) {
+            double an = t * 0.05 + k * Math.PI / 5;
+            Shapes.tube(vc, m, n, o.add(0, cy, 0), o.add(Math.cos(an) * 3.6, cy + 1.6 + (k & 1), Math.sin(an) * 3.6), 0.14F, 0.1F, BAMBOO, 4, FULL);
+        }
+        pose.pushPose();
+        pose.translate(-1.6, cy - sink - 0.2, -1.6);
+        pose.scale(3.2F, 3.2F, 3.2F);
+        Minecraft.getInstance().getBlockRenderer().renderSingleBlock(SKULL, pose, buffers, FULL, OverlayTexture.NO_OVERLAY);
+        pose.popPose();
+        // ---- its light
+        VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
+        Matrix4f gm = pose.last().pose();
+        net.minecraft.client.Camera cam = Minecraft.getInstance().gameRenderer.getMainCamera();
+        net.minecraft.world.phys.Vec3 camRel = cam.getPosition().subtract(p.getPosition(Minecraft.getInstance().getFrameTime()));
+        int burning = 0;
+        for (int tier = 0; tier < com.groid.papon.boss.Fiesta.CASTILLO_TIERS; tier++) {
+            int s0 = com.groid.papon.boss.Fiesta.tierStart(tier);
+            if (t < s0 || t >= s0 + com.groid.papon.boss.Fiesta.TIER_RUN + 10) continue;
+            burning++;
+            double y = com.groid.papon.boss.Fiesta.tierHeight(tier) - sink;
+            int col = com.groid.papon.boss.Fiesta.colour(tier * 2 + 1);
+            int arms = com.groid.papon.boss.Fiesta.arms(tier) + 3;
+            double r = com.groid.papon.boss.Fiesta.wheelR(tier);
+            int spin = (tier & 1) == 0 ? 1 : -1;
+            double ang0 = spin * (t - s0) * 0.25;
+            for (int k = 0; k < arms; k++) {
+                double an = ang0 + k * Math.PI * 2 / arms;
+                net.minecraft.world.phys.Vec3 tip = new net.minecraft.world.phys.Vec3(Math.cos(an) * r, y, Math.sin(an) * r);
+                // a fountain of fire off each tip, sprayed back against the spin
+                net.minecraft.world.phys.Vec3 back = new net.minecraft.world.phys.Vec3(Math.sin(an) * spin, 0.15, -Math.cos(an) * spin).scale(2.2);
+                glowStreak(glow, gm, tip, tip.add(back), camRel, 0.6F, col, 230);
+                glowStar(glow, gm, tip, camRel, 0.9F, 0xFFF4C0, 255);
+            }
+            glowStar(glow, gm, new net.minecraft.world.phys.Vec3(0, y, 0), camRel, 2.4F + 0.4F * Mth.sin(t), col, 200);
+        }
+        // the fuse, burning down from his hand to the first wheel
+        if (t > com.groid.papon.boss.Fiesta.FUSE && t < com.groid.papon.boss.Fiesta.TIER_START) {
+            double k = (t - com.groid.papon.boss.Fiesta.FUSE) / (double) (com.groid.papon.boss.Fiesta.TIER_START - com.groid.papon.boss.Fiesta.FUSE);
+            double y = top + 1 - (top + 1 - com.groid.papon.boss.Fiesta.tierHeight(0)) * k - sink;
+            net.minecraft.world.phys.Vec3 f = new net.minecraft.world.phys.Vec3(half, y, half);
+            glowStar(glow, gm, f, camRel, 1.4F + 0.4F * Mth.sin(t * 2.3F), 0xFFE070, 255);
+            glowStreak(glow, gm, f, f.add(0, 2.5, 0), camRel, 0.5F, 0xFF8020, 200);
+        }
+        // while it burns: a column of light up it, and its glow on the floor
+        float lightK = Mth.clamp(burning / 2F, 0, 1);
+        if (rise > 0.2F) {
+            float base = 0.35F + 0.65F * lightK;
+            glowStreak(glow, gm, new net.minecraft.world.phys.Vec3(0, -sink, 0), new net.minecraft.world.phys.Vec3(0, top - sink + 4, 0), camRel, 7F, 0xFFB040,
+                    (int) (70 * base));
+            int ring = 32;
+            for (int i = 0; i < ring; i++) {
+                double a0 = Math.PI * 2 * i / ring, a1 = Math.PI * 2 * (i + 1) / ring;
+                float rr = 9F;
+                int al = (int) (120 * base);
+                glow.vertex(gm, 0, 0.06F, 0).color(255, 170, 60, al).endVertex();
+                glow.vertex(gm, (float) Math.cos(a0) * rr, 0.06F, (float) Math.sin(a0) * rr).color(255, 120, 40, 0).endVertex();
+                glow.vertex(gm, (float) Math.cos(a1) * rr, 0.06F, (float) Math.sin(a1) * rr).color(255, 120, 40, 0).endVertex();
+                glow.vertex(gm, 0, 0.06F, 0).color(255, 170, 60, al).endVertex();
+            }
+        }
+    }
+
+    /** An additive streak from a to b, turned to the camera. */
+    private static void glowStreak(VertexConsumer vc, Matrix4f m, net.minecraft.world.phys.Vec3 a, net.minecraft.world.phys.Vec3 b,
+                                   net.minecraft.world.phys.Vec3 cam, float w, int col, int al) {
+        net.minecraft.world.phys.Vec3 d = b.subtract(a);
+        net.minecraft.world.phys.Vec3 side = d.cross(cam.subtract(a.add(d.scale(0.5))));
+        if (side.lengthSqr() < 1e-10) return;
+        side = side.normalize().scale(w / 2);
+        net.minecraft.world.phys.Vec3[] q = {a.subtract(side), a.add(side), b.add(side.scale(0.3)), b.subtract(side.scale(0.3))};
+        int[] alpha = {al, al, 0, 0};
+        int r = col >> 16 & 255, g = col >> 8 & 255, bl = col & 255;
+        for (int[] o : new int[][]{{0, 1, 2, 3}, {3, 2, 1, 0}}) {
+            for (int i : o) vc.vertex(m, (float) q[i].x, (float) q[i].y, (float) q[i].z).color(r, g, bl, alpha[i]).endVertex();
+        }
+    }
+
+    /** An additive star at p, facing the camera. */
+    private static void glowStar(VertexConsumer vc, Matrix4f m, net.minecraft.world.phys.Vec3 p, net.minecraft.world.phys.Vec3 cam, float s, int col, int al) {
+        net.minecraft.world.phys.Vec3 toCam = cam.subtract(p).normalize();
+        net.minecraft.world.phys.Vec3 right = toCam.cross(new net.minecraft.world.phys.Vec3(0, 1, 0));
+        if (right.lengthSqr() < 1e-4) right = new net.minecraft.world.phys.Vec3(1, 0, 0);
+        right = right.normalize();
+        net.minecraft.world.phys.Vec3 up = right.cross(toCam).normalize();
+        int r = col >> 16 & 255, g = col >> 8 & 255, b = col & 255;
+        int seg = 10;
+        for (int i = 0; i < seg; i++) {
+            double a0 = Math.PI * 2 * i / seg, a1 = Math.PI * 2 * (i + 1) / seg;
+            net.minecraft.world.phys.Vec3 p0 = p.add(right.scale(Math.cos(a0) * s)).add(up.scale(Math.sin(a0) * s));
+            net.minecraft.world.phys.Vec3 p1 = p.add(right.scale(Math.cos(a1) * s)).add(up.scale(Math.sin(a1) * s));
+            vc.vertex(m, (float) p.x, (float) p.y, (float) p.z).color(r, g, b, al).endVertex();
+            vc.vertex(m, (float) p0.x, (float) p0.y, (float) p0.z).color(r, g, b, 0).endVertex();
+            vc.vertex(m, (float) p1.x, (float) p1.y, (float) p1.z).color(r, g, b, 0).endVertex();
+            vc.vertex(m, (float) p.x, (float) p.y, (float) p.z).color(r, g, b, al).endVertex();
+        }
+    }
+
     /** A soft light at {@code at} (relative to the prop). */
     private static void drawGlowAt(PoseStack pose, MultiBufferSource buffers, net.minecraft.world.phys.Vec3 at, float rad, int r, int g, int b, float k) {
         pose.pushPose();
@@ -859,7 +1030,7 @@ public class PropRenderer extends EntityRenderer<BossProp> {
      */
     @Override
     public boolean shouldRender(BossProp p, net.minecraft.client.renderer.culling.Frustum frustum, double x, double y, double z) {
-        double far = p.kind() == BossProp.Kind.GIANT_SPUD || p.kind() == BossProp.Kind.MASHER ? 192 : 160;
+        double far = p.kind() == BossProp.Kind.GIANT_SPUD || p.kind() == BossProp.Kind.MASHER || p.kind() == BossProp.Kind.CASTILLO ? 192 : 160;
         return p.distanceToSqr(x, y, z) < far * far;
     }
 

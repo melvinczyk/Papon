@@ -258,6 +258,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private static final RawAnimation A_D_PETALOS = loop("d_petalos");
     private static final RawAnimation A_D_CONDUCT = loop("d_conduct");
     private static final RawAnimation A_D_DANZA = loop("d_danza");
+    private static final RawAnimation A_D_TZOMPANTLI = loop("d_tzompantli");
     private static final RawAnimation A_D_LUNA = loop("d_luna");
     private static final RawAnimation A_P4_THRONE = once("p4_throne");
     private static final RawAnimation A_D_OUROBOROS = loop("d_ouroboros");
@@ -760,7 +761,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case ARENA_FRYER, ARENA_HECKLE, ARENA_OLA, ARENA_STAMPEDE, P2_MASHER, P2_GRAVITY, P2_METEOR, CHARGE,
                  P3_LASER, P3_SOLAR, P3_MARIACHI, P3_BRAZIERS, P3_NOVA, P3_COMET, P3_FLASH, P3_SOMBRERO, P3_VOLCAN, P3_CALAVERAS,
                  P3_PINATA_SWING, P3_PINATA, P4_GIGANTE, P4_GRIETA, P4_PETALOS, P4_PAPEL, P4_VELAS, P4_DANZA, P4_LUNA, P4_OUROBOROS, P4_PISTA,
-                 P4_CEMPASUCHIL, P4_CASTILLO, P4_TANGO, P4_ALIENTO, P4_FUSION, P4_RAGE, P4_JUICIO -> true;
+                 P4_CEMPASUCHIL, P4_CASTILLO, P4_TANGO, P4_ALIENTO, P4_FUSION, P4_RAGE, P4_JUICIO, P4_TZOMPANTLI, P4_BESO -> true;
             default -> false;
         };
     }
@@ -770,7 +771,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return switch (s) {
             case ARENA_FRYER, ARENA_OLA, ARENA_STAMPEDE, P2_MASHER, P2_GRAVITY, P2_METEOR, P3_LASER, P3_SOLAR, P3_MARIACHI,
                  P3_BRAZIERS, P3_COMET_LAND, P3_SOMBRERO, P3_VOLCAN, P3_CALAVERAS, P3_PINATA_SWING, P3_PINATA, P4_GIGANTE, P4_GRIETA, P4_PETALOS,
-                 P4_PAPEL, P4_VELAS, P4_DANZA, P4_LUNA, P4_OUROBOROS, P4_PISTA, P4_CEMPASUCHIL, P4_CASTILLO, P4_ALIENTO, P4_FUSION, P4_JUICIO -> true;
+                 P4_PAPEL, P4_VELAS, P4_DANZA, P4_LUNA, P4_OUROBOROS, P4_PISTA, P4_CEMPASUCHIL, P4_CASTILLO, P4_ALIENTO, P4_FUSION, P4_JUICIO,
+                 P4_TZOMPANTLI, P4_BESO -> true;
             default -> false;
         };
     }
@@ -818,7 +820,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                  P3_COMBO, P3_FLASH, P3_COMET, P3_LASER, P3_SOLAR, P3_MARIACHI, P3_DUEL_FETCH, P3_PINATA, P3_BRAZIERS, P3_NOVA, P3_NITRO,
                  P3_SOMBRERO, P3_VOLCAN, P3_CALAVERAS, P3_PINATA_SWING, P4_SOULS, P4_HALFBAKED,
                  P4_GIGANTE, P4_GRIETA, P4_PETALOS, P4_PAPEL, P4_VELAS, P4_DANZA, P4_LUNA, P4_MARTILLO, P4_OUROBOROS, P4_PISTA, P4_CEMPASUCHIL,
-                 P4_CASTILLO, P4_TANGO, P4_ALIENTO, P4_FUSION -> true;
+                 P4_CASTILLO, P4_TANGO, P4_ALIENTO, P4_FUSION, P4_TZOMPANTLI, P4_BESO -> true;
             default -> false;
         };
     }
@@ -1155,6 +1157,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         tickGiantLayer(level, target);
         tickSerpentLayer(level, target);
         tickTrails(level);
+        tickMuchachaLayer(level, target);
         tickChaos(level, target);
         if (stageDue()) {
             startRage(level);
@@ -1313,6 +1316,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P4_PAPEL -> tickP4Papel(level, target);
             case P4_VELAS -> tickP4Velas(level, target);
             case P4_DANZA -> tickP4Danza(level, target);
+            case P4_TZOMPANTLI -> tickP4Tzompantli(level, target);
+            case P4_BESO -> tickP4Beso(level, target);
             case P4_LUNA -> tickP4Luna(level, target);
             case P4_THRONE -> tickP4Throne(level);
             case P4_OUROBOROS -> tickP4Ouroboros(level, target);
@@ -1853,7 +1858,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                  P2_SNARE, P2_GRAVITY, BRICK, VAN_HOP, P3_COMBO, P3_FLASH, P3_COMET, P3_LASER, P3_SOLAR, P3_MARIACHI, P3_DUEL_FETCH,
                  P3_PINATA, P3_BRAZIERS, P3_NOVA, P3_NITRO, P3_SOMBRERO, P3_VOLCAN, P3_CALAVERAS, P3_PINATA_SWING, P4_MARTILLO, P4_GIGANTE,
                  P4_GRIETA, P4_PETALOS, P4_PAPEL, P4_VELAS, P4_DANZA, P4_LUNA, P4_SERPIENTES, P4_FLECHAS, P4_OUROBOROS, P4_PISTA,
-                 P4_CEMPASUCHIL, P4_CASTILLO, P4_SALSA, P4_TANGO, P4_ALIENTO, P4_FUSION, P4_RAGE, P4_JUICIO -> true;
+                 P4_CEMPASUCHIL, P4_CASTILLO, P4_SALSA, P4_TANGO, P4_ALIENTO, P4_FUSION, P4_RAGE, P4_JUICIO, P4_TZOMPANTLI, P4_BESO -> true;
             default -> false;
         };
         if (s == BossState.P4_FALL) {
@@ -1917,7 +1922,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                  P2_TOT, P2_SNARE, P2_GRAVITY, P3_COMBO, P3_FLASH, P3_COMET_LAND, P3_LASER, P3_SOLAR, P3_MARIACHI, P3_DUEL_SMASH,
                  P3_PINATA, P3_BRAZIERS, P3_NOVA, P3_SOMBRERO, P3_VOLCAN, P3_CALAVERAS, P3_PINATA_SWING, P4_MARTILLO, P4_GIGANTE, P4_GRIETA,
                  P4_PETALOS, P4_PAPEL, P4_VELAS, P4_DANZA, P4_LUNA, P4_OUROBOROS, P4_PISTA, P4_CEMPASUCHIL, P4_CASTILLO, P4_SALSA,
-                 P4_TANGO_WIN, P4_ALIENTO, P4_FUSION, P4_JUICIO -> true;
+                 P4_TANGO_WIN, P4_ALIENTO, P4_FUSION, P4_JUICIO, P4_TZOMPANTLI, P4_BESO -> true;
             default -> false;
         };
     }
@@ -10000,7 +10005,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (dLunaCd <= 0) o.add(BossState.P4_LUNA);
         if (dPetalosCd <= 0) o.add(BossState.P4_PETALOS);
         if (dPapelCd <= 0) o.add(BossState.P4_PAPEL);
-        if (dDanzaCd <= 0 && d < 40) o.add(BossState.P4_DANZA);
+        // (2026-10-05) La Danza's ring of echoes is gone: El Tzompantli in its place; the muchachas' own attack
+        if (col && dTzompantliCd <= 0) o.add(BossState.P4_TZOMPANTLI);
+        if (col && dBesoCd <= 0 && muchachaCount(level) >= 2) o.add(BossState.P4_BESO);
         if (dGrietaCd <= 0 && target.onGround()) o.add(BossState.P4_GRIETA);
         if (col && dGiganteCd <= 0) o.add(BossState.P4_GIGANTE);
         if (col && dVelasCd <= 0 && !arena.cracks().isEmpty()) o.add(BossState.P4_VELAS);
@@ -10036,6 +10043,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P4_VELAS, P4_PETALOS -> 2.0F;
             case P4_TANGO -> 1.8F;
             case P4_PAPEL, P4_LUNA -> 1.6F;
+            case P4_TZOMPANTLI -> 2.8F;
+            case P4_BESO -> 2.6F;
             case P4_DANZA, P4_SALSA -> 1.3F;
             case P4_FLECHAS -> 1.1F;
             default -> 0.8F;
@@ -10049,6 +10058,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P4_PETALOS -> dPetalosCd = 420;
             case P4_PAPEL -> dPapelCd = 400;
             case P4_DANZA -> dDanzaCd = 520;
+            case P4_TZOMPANTLI -> dTzompantliCd = 640;
+            case P4_BESO -> {
+                dBesoCd = 820;
+                muchachaLayerCd = Math.max(muchachaLayerCd, 300);
+            }
             case P4_GRIETA -> dGrietaCd = 620;
             case P4_GIGANTE -> dGiganteCd = 700;
             case P4_VELAS -> dVelasCd = 520;
@@ -10072,7 +10086,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         // (2026-10-05) from the storm on the serpents are part of his moves: one comes down across the floor in the middle of
         // whatever he is doing up close or on the floor (always at the end of the world)
         boolean assist = switch (pick) {
-            case P4_MARTILLO, P4_SALSA, P4_FLECHAS, P4_LUNA, P4_PETALOS, P4_PISTA, P4_PAPEL, P4_VELAS, P4_DANZA, P4_GRIETA, P4_CASTILLO -> true;
+            case P4_MARTILLO, P4_SALSA, P4_FLECHAS, P4_LUNA, P4_PETALOS, P4_PISTA, P4_PAPEL, P4_VELAS, P4_DANZA, P4_GRIETA, P4_CASTILLO,
+                 P4_TZOMPANTLI, P4_BESO -> true;
             default -> false;
         };
         if (assist && p4StageReached >= 2 && (p4StageReached >= 3 || random.nextBoolean())) {
@@ -10091,6 +10106,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         dPapelCd -= k;
         dVelasCd -= k;
         dDanzaCd -= k;
+        dTzompantliCd -= k;
+        dBesoCd -= k;
         dLunaCd -= k;
         dSerpientesCd -= k;
         dFlechasCd -= k;
@@ -10106,6 +10123,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     private int dAlientoCd = 240, dFusionCd = 700;
+    private int dTzompantliCd = 160, dBesoCd = 60, muchachaLayerCd = 400;
     private int dOuroCd = 200, dPistaCd = 60, dCaminoCd = 300, dCastilloCd = 420, dSalsaCd = 120, dTangoCd = 600;
 
     private int p4IdleTicks;
@@ -10195,6 +10213,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             if (isPhaseFour()) entityData.set(DATA_P4PROP, 1);
         }
         if (old == BossState.P4_FLECHAS && isPhaseFour()) entityData.set(DATA_P4PROP, 1);
+        if (old == BossState.P4_TZOMPANTLI && s != old) clearSkulls(level);
+        if (old == BossState.P4_CASTILLO && s != old && castilloTower != null) {
+            if (level.getEntity(castilloTower) instanceof BossProp tw && stateTicks < Fiesta.BURST) tw.discard();
+            castilloTower = null;
+        }
+        if (old == BossState.P4_BESO && s != old) endBeso(level);
         if (old == BossState.P4_OUROBOROS) clearOuroboros(level);
         if (old == BossState.P4_FUSION && s != old) clearFusion(level);
         // back to the hammer between moves (the dances put it away)
@@ -12070,6 +12094,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     // ---- El Castillo
 
     private final java.util.Set<Long> sparkHits = new java.util.HashSet<>();
+    @Nullable private UUID castilloTower;
 
     /**
      * El Castillo (about 13 s): "Light the castillo!" A fiesta's fireworks tower rises out of the middle of the floor with him
@@ -12088,11 +12113,36 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             say("p4_castillo", 50);
             level.playSound(null, c.x, floor, c.z, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 4.0F, 1.3F);
             PaponNetwork.shake(level, c, 100, 0.4F, 26);
+            // the tower itself (drawn by client/PropRenderer, as solid as the arena: it was a faint lattice of light)
+            BossProp tower = BossProp.create(level, BossProp.Kind.CASTILLO, this, new Vec3(c.x, floor, c.z)).life(Fiesta.BURST + 30);
+            level.addFreshEntity(tower);
+            castilloTower = tower.getUUID();
+            Fx.dust(level, new Vec3(c.x, floor, c.z), 4.0, 30);
         }
-        double top = floor + Fiesta.tierHeight(Fiesta.CASTILLO_TIERS - 1) + 6.2;
-        Vec3 perch = new Vec3(c.x, t < 26 ? floor + 2 + (top - floor - 2) * t / 26.0 : top, c.z);
+        if (t < Fiesta.RISE && t % 3 == 0) {
+            Fx.chunks(level, new Vec3(c.x, floor + 0.5, c.z), 10, 0.6F, 0x3A3046, 0.9);
+            PaponNetwork.shake(level, c, 90, 0.3F, 5);
+        }
+        double top = floor + Fiesta.TOWER_TOP + 3.0;
+        Vec3 perch = new Vec3(c.x, t < Fiesta.RISE ? floor + 2 + (top - floor - 2) * t / (double) Fiesta.RISE : top, c.z);
         flyTo(perch, 1.2);
-        if (target != null) turnToward(target.position(), 5F);
+        if (t >= Fiesta.RISE - 4 && t < Fiesta.TIER_START) {
+            // on top of it, all eyes on him: he looks down at his castillo and lights it
+            turnToward(target != null ? target.position() : c.add(0, 0, 10), 5F);
+        } else if (target != null) turnToward(target.position(), 5F);
+        if (t == Fiesta.FUSE) {
+            level.playSound(null, c.x, top, c.z, SoundEvents.FLINTANDSTEEL_USE, SoundSource.HOSTILE, 4.0F, 0.8F);
+            level.playSound(null, c.x, top, c.z, SoundEvents.TNT_PRIMED, SoundSource.HOSTILE, 5.0F, 0.7F);
+            Fx.flash(level, new Vec3(c.x, top - 1, c.z), 2.5F);
+            crowdReact(level, CrowdMood.GASP, 20);
+        }
+        if (t > Fiesta.FUSE && t < Fiesta.TIER_START) {
+            // the fuse burning down the tower to the first wheel
+            double k = (t - Fiesta.FUSE) / (double) (Fiesta.TIER_START - Fiesta.FUSE);
+            double y = top - 2 - (top - 2 - floor - Fiesta.tierHeight(0)) * k;
+            Fx.spark(level, new Vec3(c.x + Fiesta.TOWER_HALF, y, c.z + Fiesta.TOWER_HALF), 4, 0.2, 0.3F, 0xFFD060);
+            if (t % 3 == 0) level.playSound(null, c.x, y, c.z, SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 1.5F, 1.8F);
+        }
         int seed = p4Seed();
         for (int tier = 0; tier < Fiesta.CASTILLO_TIERS; tier++) {
             int s0 = Fiesta.tierStart(tier);
@@ -12114,6 +12164,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 double ex = e.getX() - c.x, ez = e.getZ() - c.z;
                 double rr = Fiesta.SPARK_HIT + e.getBbWidth() / 2;
                 for (double[] s : sp) {
+                    if (s[4] < Fiesta.DROP) continue;                 // still coming down off its wheel
                     double dx = s[0] - ex, dz = s[1] - ez;
                     if (dx * dx + dz * dz > rr * rr) continue;
                     if (!sparkHits.add(((long) e.getId() << 32) | (long) s[3])) continue;
@@ -12148,9 +12199,19 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (t == Fiesta.BURST) {
             Vec3 at = new Vec3(c.x, floor + Fiesta.tierHeight(2), c.z);
-            Fx.flash(level, at, 8F);
-            for (int k = 0; k < 6; k++) Fx.spark(level, at.add(0, k * 2, 0), 30, 4.0, 0.6F, Fiesta.colour(k));
-            Fx.shock(level, new Vec3(c.x, floor, c.z), 18F, 0xFF9618);
+            Fx.flash(level, at, 12F);
+            for (int k = 0; k < 8; k++) Fx.spark(level, at.add(0, k * 3 - 6, 0), 40, 6.0, 0.8F, Fiesta.colour(k));
+            Fx.shock(level, new Vec3(c.x, floor, c.z), 24F, 0xFF9618);
+            // the whole tower goes up: shockwaves of fire rolling out across the floor (jump them), burning pieces of it raining down
+            long now = level.getGameTime();
+            for (int k = 0; k < 2; k++) fusionRings.add(new double[]{c.x, c.z, now + k * 9});
+            Vec3 crown = new Vec3(c.x, floor + Fiesta.TOWER_TOP, c.z);
+            for (int k = 0; k < 10; k++) {
+                double ang = random.nextDouble() * Math.PI * 2, r = 6 + random.nextDouble() * Math.min(a, b) * 0.8;
+                Vec3 to = inSand(new Vec3(c.x + Math.cos(ang) * r, floor, c.z + Math.sin(ang) * r), 2, 0, 0);
+                castilloRocket(level, crown, new Vec3(to.x, floor, to.z), 20 + k * 2);
+            }
+            if (castilloTower != null && level.getEntity(castilloTower) instanceof BossProp tw) tw.setRadius(1F);      // burst (it flies apart)
             level.playSound(null, at.x, at.y, at.z, SoundEvents.FIREWORK_ROCKET_LARGE_BLAST_FAR, SoundSource.HOSTILE, 8.0F, 0.6F);
             level.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 5.0F, 0.6F);
             PaponNetwork.shake(level, at, 120, 0.8F, 24);
@@ -12872,6 +12933,478 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t >= BossState.P4_DANZA.duration) setBossState(BossState.IDLE);
     }
 
+    // ---- El Tzompantli (2026-10-05)
+
+    /** A wave of skull posts in progress: its prop, where it starts, its heading (degrees, a maths angle; a ring's gap), how far
+     *  it reaches, its front, when it starts moving, a ring or a line (and a ring's second gap), whom it has hit. */
+    private static final class SkullWave {
+        final UUID prop;
+        final Vec3 from;
+        final double heading;
+        final double reach;
+        double front;
+        final long start;
+        final boolean ring, two;
+        final java.util.Set<Integer> hit = new java.util.HashSet<>();
+
+        SkullWave(UUID prop, Vec3 from, double heading, double reach, long start, boolean ring, boolean two) {
+            this.prop = prop;
+            this.from = from;
+            this.heading = heading;
+            this.reach = reach;
+            this.start = start;
+            this.ring = ring;
+            this.two = two;
+        }
+    }
+
+    private final List<SkullWave> skullWaves = new ArrayList<>();
+    /** When his fists come down (each a wave): the animation's slam every 2 s (d_tzompantli). */
+    private static final int[] TZOMP_SLAMS = {28, 68, 108, 148, 188};
+
+    /**
+     * El Tzompantli (11.8 s; 2026-10-05, replacing La Danza, whose ring of blue echoes round you "does not look good"): the skull
+     * racks of the old gods. In the middle of the floor he lifts both fists and brings them down, and each time the floor answers:
+     * lines of sugar-skull posts burst up out of it one after another, racing out from him across the whole arena at you (a
+     * glowing crack runs ahead of each, the lines marked first; 10% and thrown up if one comes up under you), or a ring of them
+     * spreads out to the walls with a gap or two in it. Waves alternate lines and rings; more lines, tighter, by stage.
+     */
+    private void tickP4Tzompantli(ServerLevel level, @Nullable LivingEntity target) {
+        int t = stateTicks;
+        if (arena == null) {
+            setBossState(BossState.IDLE);
+            return;
+        }
+        Vec3 c = arena.centerVec();
+        double floor = deadFloor();
+        flyTo(new Vec3(c.x, floor + 0.3, c.z), 1.2);
+        if (target != null) turnToward(target.position(), 8F);
+        int st = Math.max(1, p4StageReached);
+        if (t == 2) {
+            clearSkulls(level);
+            say("p4_tzompantli", 60);
+            crowdReact(level, CrowdMood.GASP, 30);
+        }
+        int waves = st >= 2 ? 5 : 4;
+        for (int k = 0; k < waves; k++) {
+            if (t != TZOMP_SLAMS[k]) continue;
+            Vec3 o = new Vec3(c.x, floor, c.z);
+            Fx.shock(level, o, 6F, 0xFF7A2A);
+            PaponNetwork.shake(level, o, 120, 0.6F, 12);
+            level.playSound(null, o.x, o.y, o.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 4.0F, 0.5F);
+            level.playSound(null, o.x, o.y, o.z, SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 3.0F, 0.4F);
+            if (k % 2 == 0) {
+                int n = 3 + 2 * (st - 1);
+                double spread = st >= 3 ? 11 : st == 2 ? 13 : 17;
+                Vec3 aim = target != null ? predict(target, 24) : o.add(1, 0, 0);
+                double base = Math.toDegrees(Math.atan2(aim.z - o.z, aim.x - o.x));
+                if (k == 2) base += spread / 2;                          // the second fan offset: the gaps of the first are lines now
+                for (int i = 0; i < n; i++) skullLine(level, o, base + (i - (n - 1) / 2.0) * spread);
+                if (k == 4) for (int i = 0; i < n; i++) skullLine(level, o, base + 180 + (i - (n - 1) / 2.0) * spread);
+            } else {
+                double gap = target != null ? Math.toDegrees(Math.atan2(target.getZ() - o.z, target.getX() - o.x)) + 90 + random.nextInt(180) : random.nextInt(360);
+                skullRing(level, o, gap, st >= 2);
+            }
+        }
+        tickSkullWaves(level, floor);
+        if (t >= BossState.P4_TZOMPANTLI.duration) setBossState(BossState.IDLE);
+    }
+
+    /** A line of posts out of {@code o} along {@code deg} (a maths angle) to the edge of the sand; marked first. */
+    private void skullLine(ServerLevel level, Vec3 o, double deg) {
+        double a = Math.toRadians(deg);
+        double dx = Math.cos(a), dz = Math.sin(a);
+        Vec3 c = arena.centerVec();
+        double reach = 3;
+        while (reach < 140 && Coliseum.offset(o.x + dx * reach - c.x, o.z + dz * reach - c.z, arena.a, arena.b) < -1.2) reach += 1;
+        BossProp p = BossProp.create(level, BossProp.Kind.SKULL_LINE, this, o).line(deg, (int) reach).life(400);
+        level.addFreshEntity(p);
+        skullWaves.add(new SkullWave(p.getUUID(), o, deg, reach, level.getGameTime() + 10, false, false));
+        Fx.warnLine(level, o.add(dx * 2, 0, dz * 2), o.add(dx * reach, 0, dz * reach), 1.3F, 0xFF7A2A, 10 + (int) (reach / BossProp.SKULL_SPEED * 0.3));
+    }
+
+    /** A ring of posts spreading out of {@code o} to the walls, its gap at {@code gapDeg} (and opposite, if {@code two}). */
+    private void skullRing(ServerLevel level, Vec3 o, double gapDeg, boolean two) {
+        BossProp p = BossProp.create(level, BossProp.Kind.SKULL_RING, this, o).life(400);
+        p.setYRot((float) gapDeg);
+        p.setVariant(Math.min(255, arena.a) | Math.min(255, arena.b) << 8 | (two ? 1 << 16 : 0));
+        p.setRadius(3F);
+        level.addFreshEntity(p);
+        skullWaves.add(new SkullWave(p.getUUID(), o, gapDeg, arena.a + 2, level.getGameTime() + 8, true, two));
+        // the way through, marked in green right across the floor
+        for (int s = 0; s < (two ? 2 : 1); s++) {
+            double a = Math.toRadians(gapDeg + s * 180);
+            Fx.warnLine(level, o.add(Math.cos(a) * 4, 0, Math.sin(a) * 4), o.add(Math.cos(a) * arena.a, 0, Math.sin(a) * arena.a), 2.6F, 0x40E060, 60);
+        }
+    }
+
+    /** Every wave: its front on, the posts it brings up this tick, whoever they come up under. */
+    private void tickSkullWaves(ServerLevel level, double floor) {
+        long now = level.getGameTime();
+        java.util.Iterator<SkullWave> it = skullWaves.iterator();
+        while (it.hasNext()) {
+            SkullWave w = it.next();
+            Entity pe = level.getEntity(w.prop);
+            if (!(pe instanceof BossProp p)) {
+                it.remove();
+                continue;
+            }
+            if (now < w.start) continue;
+            double was = w.front;
+            w.front = (now - w.start) * BossProp.SKULL_SPEED + (w.ring ? 3 : 0);
+            p.setRadius((float) w.front);
+            if (w.front > w.reach + BossProp.SKULL_GONE * BossProp.SKULL_SPEED + 2) {
+                p.discard();
+                it.remove();
+                continue;
+            }
+            if (was >= w.reach) continue;
+            if ((now - w.start) % 3 == 0) level.playSound(null, w.from.x, floor, w.from.z, SoundEvents.BONE_BLOCK_BREAK, SoundSource.HOSTILE, 3.0F, 0.6F);
+            for (LivingEntity e : victims(level, arena.a + 8)) {
+                if (w.hit.contains(e.getId()) || e.getY() > floor + 3.6) continue;
+                double dx = e.getX() - w.from.x, dz = e.getZ() - w.from.z;
+                boolean hit;
+                if (w.ring) {
+                    double d = Math.sqrt(dx * dx + dz * dz);
+                    double ang = Math.atan2(dz, dx);
+                    double gap = Math.toRadians(w.heading);
+                    boolean inGap = gapAt(ang, gap, d) || w.two && gapAt(ang, gap + Math.PI, d);
+                    hit = d > was - 0.8 && d <= w.front + 0.8 && !inGap;
+                } else {
+                    double a = Math.toRadians(w.heading);
+                    double along = dx * Math.cos(a) + dz * Math.sin(a), across = -dx * Math.sin(a) + dz * Math.cos(a);
+                    hit = along > was - 1.0 && along <= w.front + 0.6 && along > 1.5 && Math.abs(across) < 1.4 + e.getBbWidth() / 2;
+                }
+                if (!hit) continue;
+                w.hit.add(e.getId());
+                if (deadHit(e, w.ring ? 0.12F : 0.1F)) {
+                    e.setDeltaMovement(e.getDeltaMovement().multiply(0.3, 0, 0.3).add(0, 1.05, 0));
+                    e.hurtMarked = true;
+                    Fx.chunks(level, e.position().add(0, 0.5, 0), 10, 0.5F, 0xF2E8D8, 0.6);
+                    level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 2.0F, 0.6F);
+                }
+            }
+        }
+    }
+
+    private static boolean gapAt(double ang, double gap, double r) {
+        double d = Math.abs(Mth.wrapDegrees(Math.toDegrees(ang - gap)));
+        return Math.toRadians(d) * Math.max(1, r) < BossProp.RING_GAP;
+    }
+
+    private void clearSkulls(ServerLevel level) {
+        for (SkullWave w : skullWaves) {
+            Entity e = level.getEntity(w.prop);
+            if (e != null) e.discard();
+        }
+        skullWaves.clear();
+    }
+
+    // ---- El Beso de la Muerte (2026-10-05)
+
+    /** A rose in the air: its prop, when and where it lands, how big a thicket it leaves. */
+    private record Rose(UUID prop, long lands, Vec3 at, float size) {}
+
+    /** A thicket standing: where, how big, until when (its thorns catch whoever walks into it). */
+    private record Thicket(Vec3 at, float size, long until) {}
+
+    private final List<Rose> roses = new ArrayList<>();
+    private final List<Thicket> thickets = new ArrayList<>();
+    /** The last kiss's vines: prop, start, heading (radians), reach, start tick, whom they have hit. */
+    private final List<Object[]> vines = new ArrayList<>();
+    @Nullable private UUID petalRing;
+    private final java.util.Set<Integer> petalRingHit = new java.util.HashSet<>();
+    private int besoNext, besoTurn;
+
+    /** The beats of El Beso: away, up round the arena, the roses from BESO_ROSES, the last kiss, the bloom, the burst, home. */
+    private static final int BESO_AWAY = 2, BESO_UP = 20, BESO_ROSES = 62, BESO_LAST = 164, BESO_VINES = 178, BESO_BLOOM = 214, BESO_BURST = 238,
+            BESO_HOME = 262;
+
+    private List<SalsaDancerEntity> muchachaList(ServerLevel level) {
+        List<SalsaDancerEntity> out = new ArrayList<>();
+        for (UUID id : muchachas) if (level.getEntity(id) instanceof SalsaDancerEntity d && d.isAlive()) out.add(d);
+        return out;
+    }
+
+    private int muchachaCount(ServerLevel level) { return muchachaList(level).size(); }
+
+    /**
+     * El Beso de la Muerte (14.8 s; 2026-10-05, the user: "the muchachas do essentially nothing... give them a major coordinated
+     * attack... Kiss of Death, roses, romantic imagery turned deadly"): "¡Muchachas!": they spin away into the floor and come up
+     * all round the arena; one after another each plucks the rose out of her hair, kisses it and throws it at you, and where it
+     * lands a thicket of thorned roses bursts up (9%, slowed; its thorns catch you while it stands). Then all of them at once: a
+     * last kiss blown to the middle, and thorn vines race across the floor from each of them to it (12%, thrown aside); there a
+     * great rose blooms, and bursts in a ring of petals rolling out to the walls (14%: jump it). He dances salsa in the middle
+     * through all of it. Then they spin away home to the stage.
+     */
+    private void tickP4Beso(ServerLevel level, @Nullable LivingEntity target) {
+        int t = stateTicks;
+        if (arena == null) {
+            setBossState(BossState.IDLE);
+            return;
+        }
+        Vec3 c = arena.centerVec();
+        double floor = deadFloor();
+        flyTo(new Vec3(c.x, floor + 0.2, c.z), 1.0);
+        if (target != null) turnToward(target.position(), 6F);
+        int st = Math.max(1, p4StageReached);
+        List<SalsaDancerEntity> girls = muchachaList(level);
+        if (t == BESO_AWAY) {
+            say("p4_beso", 60);
+            crowdMood(level, CrowdMood.FIESTA);
+            crowdReact(level, CrowdMood.ROAR, 40);
+            for (SalsaDancerEntity d : girls) d.away();
+            roses.clear();
+            vines.clear();
+            besoNext = BESO_ROSES;
+            besoTurn = random.nextInt(4);
+        }
+        if (t == BESO_UP) {
+            // up all round the arena, spread evenly, starting across from you
+            double y0 = target != null ? Math.atan2(target.getZ() - c.z, target.getX() - c.x) + Math.PI : random.nextDouble() * Math.PI * 2;
+            for (int i = 0; i < girls.size(); i++) {
+                double a = y0 + Math.PI * 2 * i / girls.size() + Math.PI / girls.size();
+                Vec3 at = new Vec3(c.x + Math.cos(a) * arena.a * 0.8, floor, c.z + Math.sin(a) * arena.b * 0.8);
+                girls.get(i).riseAt(at, c);
+                Fx.far(level, net.minecraft.core.particles.ParticleTypes.CHERRY_LEAVES, at.x, at.y + 1, at.z, 30, 1.2, 1.0, 1.2, 0.08);
+            }
+            level.playSound(null, c.x, floor + 4, c.z, SoundEvents.SOUL_ESCAPE, SoundSource.HOSTILE, 3.0F, 1.2F);
+        }
+        // the roses, one muchacha after another
+        if (t >= BESO_ROSES && t < BESO_LAST - 20 && t >= besoNext && target != null && !girls.isEmpty()) {
+            SalsaDancerEntity d = girls.get(besoTurn++ % girls.size());
+            if (d.ready()) {
+                besoKiss(level, d, target, st);
+                besoNext = t + (st >= 3 ? 7 : st == 2 ? 10 : 13);
+            } else besoNext = t + 2;
+        }
+        // the last kiss: all of them at once, to the middle
+        if (t == BESO_LAST) {
+            for (SalsaDancerEntity d : girls) d.kiss(c);
+            level.playSound(null, c.x, floor + 3, c.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.HOSTILE, 4.0F, 1.4F);
+            crowdReact(level, CrowdMood.GASP, 30);
+            for (SalsaDancerEntity d : girls) {
+                Vec3 from = new Vec3(d.getX(), floor, d.getZ());
+                Fx.warnLine(level, from, new Vec3(c.x, floor, c.z), 1.6F, 0xFF3C8C, BESO_VINES - BESO_LAST);
+            }
+        }
+        if (t == BESO_VINES) {
+            for (SalsaDancerEntity d : girls) {
+                Vec3 from = new Vec3(d.getX(), floor, d.getZ());
+                Vec3 to = new Vec3(c.x, floor, c.z);
+                double reach = Math.max(2, from.distanceTo(to) - 2.5);
+                double a = Math.atan2(to.z - from.z, to.x - from.x);
+                BossProp v = BossProp.create(level, BossProp.Kind.VINE, this, from).line(Math.toDegrees(a), (int) reach).life(BESO_HOME - BESO_VINES + 40);
+                level.addFreshEntity(v);
+                vines.add(new Object[]{v.getUUID(), from, a, reach, level.getGameTime(), new java.util.HashSet<Integer>()});
+            }
+            level.playSound(null, c.x, floor, c.z, SoundEvents.ROOTED_DIRT_BREAK, SoundSource.HOSTILE, 4.0F, 0.6F);
+        }
+        tickBesoVines(level, floor);
+        if (t == BESO_BLOOM) {
+            BossProp bloom = BossProp.create(level, BossProp.Kind.THORNS, this, new Vec3(c.x, floor, c.z)).life(BossProp.BLOOM_LIFE);
+            bloom.setRadius(6.5F);
+            bloom.setVariant(1);
+            level.addFreshEntity(bloom);
+            level.playSound(null, c.x, floor + 3, c.z, SoundEvents.CHERRY_LEAVES_PLACE, SoundSource.HOSTILE, 4.0F, 0.5F);
+            level.playSound(null, c.x, floor + 3, c.z, SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 3.0F, 1.4F);
+            Fx.warnClosing(level, new Vec3(c.x, floor, c.z), 9F, 0xFF3C8C, BESO_BURST - BESO_BLOOM);
+        }
+        if (t == BESO_BURST) {
+            BossProp ring = BossProp.create(level, BossProp.Kind.PETAL_RING, this, new Vec3(c.x, floor, c.z)).life(140);
+            ring.setRadius(2F);
+            level.addFreshEntity(ring);
+            petalRing = ring.getUUID();
+            petalRingHit.clear();
+            Fx.shock(level, new Vec3(c.x, floor, c.z), 14F, 0xFF3C8C);
+            PaponNetwork.shake(level, c, 120, 0.8F, 18);
+            level.playSound(null, c.x, floor + 2, c.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 5.0F, 0.7F);
+            level.playSound(null, c.x, floor + 2, c.z, SoundEvents.CHERRY_LEAVES_BREAK, SoundSource.HOSTILE, 5.0F, 0.6F);
+            crowdReact(level, CrowdMood.ROAR, 40);
+        }
+        tickPetalRing(level, floor);
+        if (t == BESO_HOME) for (SalsaDancerEntity d : girls) d.away();
+        if (t == BESO_HOME + 18) besoHome(level);
+        if (t >= BossState.P4_BESO.duration) setBossState(BossState.IDLE);
+    }
+
+    /** Muchacha {@code d} kisses her rose and throws it at where you will be; the thicket's ring marked where it will fall. */
+    private void besoKiss(ServerLevel level, SalsaDancerEntity d, LivingEntity target, int st) {
+        int flight = st >= 3 ? 18 : 22;
+        Vec3 land = inSand(predict(target, SalsaDancerEntity.KISS_THROW + flight), 2, 0, 0);
+        double floor = deadFloor();
+        land = new Vec3(land.x, floor, land.z);
+        d.kiss(land);
+        float size = st >= 3 ? 3.2F : 2.7F;
+        pendingKisses.add(new Object[]{d.getUUID(), level.getGameTime() + SalsaDancerEntity.KISS_THROW, land, flight, size});
+    }
+
+    /** Kisses blown, roses not thrown yet: muchacha, when it leaves her hand, where it lands, its flight, the thicket's size. */
+    private final List<Object[]> pendingKisses = new ArrayList<>();
+
+    private void tickRoses(ServerLevel level, double floor) {
+        long now = level.getGameTime();
+        java.util.Iterator<Object[]> pk = pendingKisses.iterator();
+        while (pk.hasNext()) {
+            Object[] k = pk.next();
+            if (now < (long) k[1]) continue;
+            pk.remove();
+            if (!(level.getEntity((UUID) k[0]) instanceof SalsaDancerEntity d)) continue;
+            Vec3 land = (Vec3) k[2];
+            int flight = (int) k[3];
+            BossProp rose = BossProp.create(level, BossProp.Kind.ROSE, this, d.hand()).toss(land.add(0, 0.3, 0), flight).life(flight + 2);
+            level.addFreshEntity(rose);
+            roses.add(new Rose(rose.getUUID(), now + flight, land, (float) k[4]));
+            Fx.warnClosing(level, land, (float) k[4] + 0.4F, 0xFF2A5A, flight);
+            level.playSound(null, d.getX(), d.getY() + 1.6, d.getZ(), SoundEvents.TRIDENT_THROW, SoundSource.HOSTILE, 1.4F, 1.4F);
+        }
+        java.util.Iterator<Rose> it = roses.iterator();
+        while (it.hasNext()) {
+            Rose r = it.next();
+            if (now < r.lands) continue;
+            it.remove();
+            BossProp th = BossProp.create(level, BossProp.Kind.THORNS, this, r.at).life(BossProp.THORNS_LIFE);
+            th.setRadius(r.size);
+            level.addFreshEntity(th);
+            thickets.add(new Thicket(r.at, r.size, now + BossProp.THORNS_LIFE - 10));
+            Fx.chunks(level, r.at.add(0, 0.6, 0), 12, 0.4F, 0x3A6A2A, 0.7);
+            level.playSound(null, r.at.x, r.at.y, r.at.z, SoundEvents.SWEET_BERRY_BUSH_PLACE, SoundSource.HOSTILE, 3.0F, 0.6F);
+            level.playSound(null, r.at.x, r.at.y, r.at.z, SoundEvents.ROOTED_DIRT_BREAK, SoundSource.HOSTILE, 3.0F, 0.8F);
+            for (LivingEntity e : victims(level, arena.a + 8)) {
+                if (e.distanceToSqr(r.at.x, e.getY(), r.at.z) > Mth.square(r.size + e.getBbWidth() / 2) || e.getY() > floor + 3) continue;
+                if (deadHit(e, 0.09F)) {
+                    e.addEffect(new MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 50, 1, false, true));
+                    e.setDeltaMovement(e.getDeltaMovement().multiply(0.2, 0, 0.2).add(0, 0.55, 0));
+                    e.hurtMarked = true;
+                }
+            }
+        }
+        // the thickets' thorns: walking into one catches you
+        thickets.removeIf(th -> now > th.until);
+        if (now % 10 == 0) {
+            for (Thicket th : thickets) {
+                for (LivingEntity e : victims(level, arena.a + 8)) {
+                    if (e.distanceToSqr(th.at.x, e.getY(), th.at.z) > Mth.square(th.size * 0.9) || e.getY() > floor + 2.4) continue;
+                    if (deadHit(e, 0.03F)) {
+                        e.addEffect(new MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 30, 2, false, true));
+                        level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH, SoundSource.HOSTILE, 1.4F, 0.8F);
+                    }
+                }
+            }
+        }
+    }
+
+    /** The last kiss's vines racing to the middle: whoever the front runs over, thrown aside. */
+    private void tickBesoVines(ServerLevel level, double floor) {
+        long now = level.getGameTime();
+        for (Object[] v : vines) {
+            if (!(level.getEntity((UUID) v[0]) instanceof BossProp p)) continue;
+            Vec3 from = (Vec3) v[1];
+            double a = (double) v[2], reach = (double) v[3];
+            double was = p.radius();
+            double front = Math.min(reach, (now - (long) v[4]) * 1.6);
+            p.setRadius((float) front);
+            if (front <= was) continue;
+            if ((now - (long) v[4]) % 4 == 0) level.playSound(null, from.x + Math.cos(a) * front, floor, from.z + Math.sin(a) * front,
+                    SoundEvents.SWEET_BERRY_BUSH_PLACE, SoundSource.HOSTILE, 2.0F, 0.6F);
+            @SuppressWarnings("unchecked") java.util.Set<Integer> hit = (java.util.Set<Integer>) v[5];
+            for (LivingEntity e : victims(level, arena.a + 8)) {
+                if (hit.contains(e.getId()) || e.getY() > floor + 2.6) continue;
+                double dx = e.getX() - from.x, dz = e.getZ() - from.z;
+                double along = dx * Math.cos(a) + dz * Math.sin(a), across = -dx * Math.sin(a) + dz * Math.cos(a);
+                if (along < was - 1 || along > front + 0.6 || Math.abs(across) > 1.4 + e.getBbWidth() / 2) continue;
+                hit.add(e.getId());
+                if (deadHit(e, 0.12F)) {
+                    double s = across >= 0 ? 1 : -1;
+                    e.setDeltaMovement(-Math.sin(a) * 1.2 * s, 0.6, Math.cos(a) * 1.2 * s);
+                    e.hurtMarked = true;
+                }
+            }
+        }
+    }
+
+    /** The great rose's burst: a low ring of petals rolling out to the walls (jump it: 14%, thrown outward). */
+    private void tickPetalRing(ServerLevel level, double floor) {
+        if (petalRing == null || !(level.getEntity(petalRing) instanceof BossProp p)) return;
+        double was = p.radius(), r = was + 1.0;
+        p.setRadius((float) r);
+        if (r > arena.a + 4) {
+            p.discard();
+            petalRing = null;
+            return;
+        }
+        Vec3 c = p.position();
+        for (LivingEntity e : victims(level, arena.a + 8)) {
+            if (petalRingHit.contains(e.getId()) || e.getY() > floor + 1.1) continue;
+            double d = Math.sqrt(e.distanceToSqr(c.x, e.getY(), c.z));
+            if (d < was - 0.7 || d > r + 0.5) continue;
+            petalRingHit.add(e.getId());
+            if (deadHit(e, 0.14F)) {
+                Vec3 out = e.position().subtract(c).multiply(1, 0, 1).normalize();
+                e.setDeltaMovement(out.scale(1.0).add(0, 0.6, 0));
+                e.hurtMarked = true;
+            }
+        }
+    }
+
+    /** Home to the stage, up in a whirl of petals. */
+    private void besoHome(ServerLevel level) {
+        List<SalsaDancerEntity> girls = muchachaList(level);
+        List<Vec3> spots = muchachaSpots(level);
+        for (int i = 0; i < girls.size() && i < spots.size(); i++) girls.get(i).riseAt(spots.get(i), p4Center());
+    }
+
+    /** Leaving El Beso (or cut short): the roses, vines and rings gone, the muchachas home. */
+    private void endBeso(ServerLevel level) {
+        for (Rose r : roses) {
+            Entity e = level.getEntity(r.prop);
+            if (e != null) e.discard();
+        }
+        roses.clear();
+        pendingKisses.clear();
+        for (Object[] v : vines) {
+            Entity e = level.getEntity((UUID) v[0]);
+            if (e != null) e.discard();
+        }
+        vines.clear();
+        if (petalRing != null && level.getEntity(petalRing) instanceof BossProp p) p.discard();
+        petalRing = null;
+        // anyone still away comes home
+        for (SalsaDancerEntity d : muchachaList(level)) {
+            if (d.getDancerState() == SalsaDancerEntity.State.AWAY || d.getDancerState() == SalsaDancerEntity.State.KISS) {
+                besoHome(level);
+                break;
+            }
+        }
+    }
+
+    /**
+     * The muchachas in the rest of the fight (2026-10-05: "they need to become an important part of the encounter"): every few
+     * seconds one of them, from her place by the stage, kisses her rose and throws it at you (a thicket where it lands), more
+     * often by stage. Not in his cutscenes, the dance-off or El Juicio Final, nor in El Beso (theirs).
+     */
+    private void tickMuchachaLayer(ServerLevel level, @Nullable LivingEntity target) {
+        if (!muertosFight() || target == null || arena == null || !inColiseum()) return;
+        BossState s = getBossState();
+        tickRoses(level, deadFloor());
+        if (s == BossState.P4_BESO) return;
+        if (s.phaseFour() || s == BossState.P4_TANGO || s == BossState.P4_TANGO_WIN || s == BossState.P4_TANGO_LOSE || s == BossState.P4_JUICIO
+                || s == BossState.P4_RAGE || s == BossState.DEATH) return;
+        if (--muchachaLayerCd > 0) return;
+        int st = Math.max(1, p4StageReached);
+        muchachaLayerCd = st >= 3 ? 90 + random.nextInt(50) : st == 2 ? 140 + random.nextInt(60) : 200 + random.nextInt(80);
+        List<SalsaDancerEntity> girls = muchachaList(level);
+        girls.removeIf(d -> !d.ready());
+        if (girls.isEmpty()) return;
+        SalsaDancerEntity d = girls.get(random.nextInt(girls.size()));
+        besoKiss(level, d, target, st);
+        // at the end of the world two at once
+        if (st >= 3 && girls.size() > 1) {
+            SalsaDancerEntity d2 = girls.get((girls.indexOf(d) + 1 + random.nextInt(girls.size() - 1)) % girls.size());
+            besoKiss(level, d2, target, st);
+        }
+    }
+
     @Override
     public void die(DamageSource source) {
         if (getBossState() == BossState.DEATH) return;
@@ -13177,6 +13710,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             case P4_TANGO_LOSE -> A_D_TANGO_LOSE;
             case P4_RAGE -> A_D_RAGE;
             case P4_JUICIO -> A_D_JUICIO;
+            case P4_TZOMPANTLI -> A_D_TZOMPANTLI;
+            case P4_BESO -> A_D_SALSA;
         };
         return event.setAndContinue(next);
     }

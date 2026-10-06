@@ -26,8 +26,8 @@ import java.util.List;
  *                             flashing in its colour with a white rim, then columns of spirit fire up out of them
  *   El Camino de Cempasúchil  the ectoplasm flooding the floor, rippling; the path of marigolds blooming across it, its
  *                             start wilting brown
- *   El Castillo               the fireworks tower (a glowing bamboo lattice with its wheels and crown) and the sparks its
- *                             wheels spin out across the floor, each a little star with a tail
+ *   El Castillo               the sparks its wheels throw off, dropping to the floor and spinning out across it, each a
+ *                             star with a tail (the tower itself is a prop: PropRenderer.drawCastillo)
  */
 @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class MuertosArena {
@@ -178,56 +178,7 @@ public final class MuertosArena {
 
     private static void castillo(VertexConsumer vc, Matrix4f m, PaponBossEntity b, float t, Vec3 c, double floor, double a, double bb, Vec3 cam) {
         int seed = b.p4Seed();
-        float burstK = t < Fiesta.BURST ? 1 : Math.max(0, 1 - (t - Fiesta.BURST) / 6F);
-        if (burstK > 0) {
-            double top = Fiesta.tierHeight(Fiesta.CASTILLO_TIERS - 1) + 4.5;
-            double rise = Math.min(1, t / 26.0);
-            double h = top * rise;
-            double half = 1.3;
-            int ba = (int) (130 * burstK);
-            // the lattice: four poles, cross-braced
-            for (int k = 0; k < 4; k++) {
-                double x = c.x + ((k & 1) == 0 ? -half : half), z = c.z + ((k & 2) == 0 ? -half : half);
-                bar(vc, m, new Vec3(x, floor, z), new Vec3(x, floor + h, z), 0.28, 230, 170, 90, ba, cam);
-            }
-            for (double y = 1.6; y < h; y += 1.8) {
-                for (int k = 0; k < 4; k++) {
-                    double[][] e = {{-half, -half, half, -half}, {half, -half, half, half}, {half, half, -half, half}, {-half, half, -half, -half}};
-                    bar(vc, m, new Vec3(c.x + e[k][0], floor + y, c.z + e[k][1]), new Vec3(c.x + e[k][2], floor + y + 0.9, c.z + e[k][3]), 0.16,
-                            230, 170, 90, ba / 2, cam);
-                }
-            }
-            // the wheels: dim until lit, then spinning and sparkling
-            for (int tier = 0; tier < Fiesta.CASTILLO_TIERS; tier++) {
-                double y = floor + Fiesta.tierHeight(tier) * rise;
-                if (y > floor + h) continue;
-                int s0 = Fiesta.tierStart(tier);
-                boolean lit = t >= s0 && t < s0 + Fiesta.TIER_RUN + 10;
-                int col = Fiesta.colour(tier * 2 + 1);
-                int arms = Fiesta.arms(tier);
-                double r = 2.4 + tier * 0.3;
-                int spin = (tier & 1) == 0 ? 1 : -1;
-                double ang0 = lit ? spin * (t - s0) * 0.25 : 0;
-                for (int k = 0; k < arms; k++) {
-                    double an = ang0 + k * Math.PI * 2 / arms;
-                    Vec3 hub = new Vec3(c.x, y, c.z);
-                    Vec3 tip = hub.add(Math.cos(an) * r, 0, Math.sin(an) * r);
-                    bar(vc, m, hub, tip, 0.18, lit ? 255 : 160, lit ? (col >> 8 & 255) : 120, lit ? (col & 255) : 80, lit ? (int) (220 * burstK) : ba / 2, cam);
-                    if (lit) star(vc, m, tip, cam, 0.7F, col, (int) (240 * burstK));
-                }
-                if (lit) star(vc, m, new Vec3(c.x, y, c.z), cam, 1.4F + 0.3F * Mth.sin(t), 0xFFF4C0, (int) (200 * burstK));
-            }
-            // the crown
-            if (t >= Fiesta.CROWN - 20) {
-                double y = floor + top;
-                float k = Mth.clamp((t - Fiesta.CROWN + 20) / 20F, 0, 1);
-                for (int i = 0; i < 8; i++) {
-                    double an = t * 0.3 + i * Math.PI / 4;
-                    Vec3 tip = new Vec3(c.x + Math.cos(an) * 2.2, y + 0.8 + (i % 2) * 0.8, c.z + Math.sin(an) * 2.2);
-                    star(vc, m, tip, cam, 0.8F * k, Fiesta.colour(i), (int) (230 * burstK * k));
-                }
-            }
-        }
+        // (2026-10-05) the tower is solid now, a prop of its own (client/PropRenderer.drawCastillo); here only its sparks
         // the sparks
         if (t >= Fiesta.TIER_START) {
             List<double[]> sp = Fiesta.sparks(seed, t, a, bb);
@@ -235,12 +186,17 @@ public final class MuertosArena {
             for (double[] s : sp) {
                 int tier = (int) s[2];
                 int col = Fiesta.colour(tier * 2 + 1);
-                Vec3 at = new Vec3(c.x + s[0], y, c.z + s[1]);
-                Vec3 from = at.subtract(c.x, y, c.z).multiply(1, 0, 1);
-                Vec3 tail = from.lengthSqr() < 1e-6 ? at : at.subtract(from.normalize().scale(1.4));
-                ribbon(vc, m, tail, at, cam, 0.35F, col, 140);
-                star(vc, m, at, cam, 0.55F, col, 255);
-                star(vc, m, at, cam, 0.22F, 0xFFFFFF, 255);
+                double age = s[4];
+                // thrown off its wheel's tip, it drops to the floor first (it hits once it is down), trailing fire from the wheel
+                double drop = Mth.clamp(age / Fiesta.DROP, 0, 1);
+                double yy = Mth.lerp(drop * drop, floor + Fiesta.tierHeight(tier), y);
+                Vec3 at = new Vec3(c.x + s[0], yy, c.z + s[1]);
+                Vec3 from = at.subtract(c.x, yy, c.z).multiply(1, 0, 1);
+                Vec3 tail = drop < 1 ? at.add(from.lengthSqr() < 1e-6 ? Vec3.ZERO : from.normalize().scale(-1.0)).add(0, 2.4 * (1 - drop) + 0.6, 0)
+                        : from.lengthSqr() < 1e-6 ? at : at.subtract(from.normalize().scale(2.2));
+                ribbon(vc, m, tail, at, cam, 0.5F, col, 170);
+                star(vc, m, at, cam, 0.85F, col, 255);
+                star(vc, m, at, cam, 0.32F, 0xFFFFFF, 255);
             }
         }
     }

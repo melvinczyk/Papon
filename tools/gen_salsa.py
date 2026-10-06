@@ -14,6 +14,9 @@ Animations (salsa_dancer.animation.json), on Persona Ideal's beat (0.47 s):
   twirled        5.5 s = TWIRLED (in step with the boss's p4_muchachas from p4.twirl): her hand up into his, three
                  turns under it, the skirt flying out; the dip; a few steps with him
   mourn          a loop: still, head hung
+  vanish         0.8 s = AWAY (El Beso de la Muerte): a spin down into the floor, arms up, the skirt flying
+  kiss           1.3 s = KISS: the rose plucked out of her hair, kissed, and thrown overarm at you (leaves her hand at 0.65 s:
+                 SalsaDancerEntity.KISS_THROW), a flourish after it
 
   python3.11 tools/gen_salsa.py
 """
@@ -258,7 +261,42 @@ def mourn():
     return a
 
 
-ANIMS = [salsa_a, salsa_b, salsa_c, rise, twirled, mourn]
+def vanish():
+    """0.8 s: a spin down into the floor, arms up over her head, the skirt flying out (rise, backwards)."""
+    a = S('vanish', 0.8, 'hold')
+    a.pos('root', [(0, [0, 0, 0]), (0.15, [0, 0.6, 0]), (0.8, [0, -26, 0], 'easeInCubic')], 'lin')
+    a.rot('root', [(0, [0, 0, 0]), (0.8, [0, 540, 0], 'easeInCubic')], 'lin')
+    a.rot('arm_r', [(0, FLOURISH_R), (0.2, [-10, 0, 160], 'easeOutBack'), (0.8, [-10, 0, 160])])
+    a.rot('arm_l', [(0, HIP_L), (0.2, [-10, 0, -160], 'easeOutBack'), (0.8, [-10, 0, -160])])
+    a.scale('skirt', [(0, [1, 1, 1]), (0.3, [1.3, 0.8, 1.3]), (0.8, [1.3, 0.8, 1.3])])
+    a.scale('skirt_2', [(0, [1, 1, 1]), (0.3, [1.4, 0.8, 1.4]), (0.8, [1.4, 0.8, 1.4])])
+    a.sound(0.05, 'whoosh')
+    return a
+
+
+def kiss():
+    """1.3 s (SalsaDancerEntity.State.KISS, 26 t): her right hand up to the rose in her hair (0-0.25), down to her lips, a kiss
+    on it, her head tipped (0.3-0.5), drawn back over her shoulder (0.55) and thrown overarm at you (0.65: KISS_THROW), her
+    whole body after it, the skirt swinging; a flourish, and back into the dance."""
+    a = S('kiss', 1.3, 'hold')
+    hair = [-160, -20, 40]
+    lips = [-120, 40, 30]
+    back = [-170, 10, 60]
+    throw = [-70, 0, 20]
+    a.rot('arm_r', [(0, FLOURISH_R), (0.25, hair, 'easeOutQuad'), (0.38, lips, 'easeInOutSine'), (0.5, lips), (0.58, back, 'easeOutQuad'),
+                    (0.68, throw, 'easeInExpo'), (0.9, [-80, 0, 40]), (1.3, FLOURISH_R, 'easeInOutSine')])
+    a.rot('arm_l', [(0, HIP_L), (0.5, HIP_L), (0.6, [-40, 0, -70], 'easeOutQuad'), (0.9, [-30, 0, -90]), (1.3, HIP_L, 'easeInOutSine')])
+    a.rot('torso', [(0, [0, 0, 0]), (0.38, [8, 10, 0], 'easeInOutSine'), (0.5, [6, 12, 0]), (0.58, [-14, -20, 0], 'easeOutQuad'),
+                    (0.7, [22, 18, 0], 'easeInExpo'), (0.95, [8, 6, 0]), (1.3, [0, 0, 0], 'easeInOutSine')])
+    a.rot('body', [(0, [0, 0, 0]), (0.4, [0, 0, 8]), (0.58, [-6, 0, -4]), (0.7, [10, 0, 4], 'easeInExpo'), (1.3, [0, 0, 0], 'easeInOutSine')])
+    a.rot('skirt', [(0, [0, 0, 0]), (0.7, [0, 20, 14], 'easeOutQuad'), (1.0, [0, -10, -8]), (1.3, [0, 0, 0])])
+    a.rot('leg_r', [(0.55, [0, 0, 0]), (0.7, [-30, 0, 0], 'easeOutQuad'), (1.0, [0, 0, 0])])
+    a.rot('hair', [(0.6, [0, 0, 0]), (0.75, [24, 0, 10]), (1.1, [0, 0, 0])])
+    a.sound(0.66, 'whoosh')
+    return a
+
+
+ANIMS = [salsa_a, salsa_b, salsa_c, rise, twirled, mourn, vanish, kiss]
 
 
 def write_anims():

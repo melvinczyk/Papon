@@ -3963,6 +3963,30 @@ def b_d_danza():
     return a
 
 
+def b_d_tzompantli():
+    """2.0 s loop (BossState.P4_TZOMPANTLI; PaponBossEntity.TZOMP_SLAMS every 40 t from 28). On his feet in the middle of the
+    floor: the hammer and his left fist hauled up over his head (0-1.15), held at the top, shaking with it, and both fists
+    smashed down into the floor (1.4) as the skull posts burst out of it; bent over the impact, a roar, up again."""
+    a = god(B('d_tzompantli', 2.0, True))
+    up_r, up_l = [-176, 0, 14], [-176, 0, -14]
+    down_r, down_l = [-60, -10, 8], [-60, 10, -8]
+    for arm, sgn, up, down in (('arm_r', 1, up_r, down_r), ('arm_l', -1, up_l, down_l)):
+        a.rot(arm, [(0, [-40, 0, 24 * sgn]), (1.0, up, 'easeInOutSine'), (1.15, [up[0] - 4, up[1], up[2] + 4 * sgn]), (1.25, up),
+                    (1.4, down, 'easeInExpo'), (1.7, [-56, -6 * sgn, 10 * sgn]), (2.0, [-40, 0, 24 * sgn], 'easeInOutSine')], 'lin')
+        stretch(a, arm, [(0, 1.2), (1.0, 1.65), (1.4, 1.5), (2.0, 1.2)])
+    a.rot('spirit_hammer', [(0, [0, 0, 0]), (1.25, [0, 0, 0]), (1.4, [80, 0, 0], 'easeInExpo'), (1.8, [80, 0, 0]), (2.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    a.rot('torso', [(0, [4, 0, 0]), (1.0, [-22, 0, 0], 'easeInOutSine'), (1.25, [-24, 0, 0]), (1.4, [42, 0, 0], 'easeInExpo'), (1.7, [36, 0, 0]),
+                    (2.0, [4, 0, 0], 'easeInOutSine')], 'lin')
+    a.pos('root', [(0, [0, 0, 0]), (1.0, [0, 1.2, 0], 'easeInOutSine'), (1.25, [0, 1.4, 0]), (1.4, [0, -2.2, 0], 'easeInExpo'), (1.75, [0, -2.0, 0]),
+                   (2.0, [0, 0, 0], 'easeInOutSine')], 'lin')
+    for leg, s in (('leg_r', 1), ('leg_l', -1)):
+        a.rot(leg, [(0, [0, 0, 4 * s]), (1.25, [0, 0, 6 * s]), (1.4, [-40, 0, 16 * s], 'easeInExpo'), (1.75, [-36, 0, 14 * s]), (2.0, [0, 0, 4 * s], 'easeInOutSine')], 'lin')
+    a.scale('body', [(0, [1.04, 1.03, 1.04]), (1.25, [1.0, 1.08, 1.0]), (1.4, [1.2, 0.86, 1.2], 'easeInExpo'), (1.6, [1.06, 1.02, 1.06]),
+                     (2.0, [1.04, 1.03, 1.04])], 'lin')
+    a.sound(1.4, 'slam').sound(1.5, 'roar')
+    return a
+
+
 def b_d_luna():
     """1.3 s loop (BossState.P4_LUNA, a volley every 26 t). Calling the moon down: the hammer and the left fist thrust up at it
     on each volley, the body arched back, then a breath."""
@@ -4271,7 +4295,7 @@ def b_d_tango_lose():
 
 PHASE_FOUR = [b_p4_fall, b_p4_riseup, b_p4_ignis, b_p4_prophecy, b_p4_throne, b_p4_brethren, b_p4_souls, b_p4_halfbaked, b_p4_bow, b_p4_watch,
               b_p4_talking, b_p4_walk, b_p4_honor, b_p4_muchachas, b_p4_goodtime, b_d_serpientes, b_d_flechas,
-              b_d_fly, b_d_martillo, b_d_gigante, b_d_grieta, b_d_petalos, b_d_conduct, b_d_danza, b_d_luna,
+              b_d_fly, b_d_martillo, b_d_gigante, b_d_grieta, b_d_petalos, b_d_conduct, b_d_danza, b_d_tzompantli, b_d_luna,
               b_d_ouroboros, b_d_salsa, b_d_camino, b_d_castillo, b_d_tango, b_d_tango_win, b_d_tango_lose, b_d_rage, b_d_juicio]
 
 
