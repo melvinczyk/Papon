@@ -248,6 +248,7 @@ public final class ClientEvents {
         float pt = event.getPartialTick();
         if (!Cinematic.isActive()) PotatoSplat.render(g, w, h, pt);
         GiantGrabHud.render(g, w, h, pt);
+        GiantTells.render(g, w, h, pt);
         float v = Cinematic.vignette(pt);
         if (v > 0) {
             Minecraft mc0 = Minecraft.getInstance();

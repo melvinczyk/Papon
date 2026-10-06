@@ -9518,6 +9518,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t >= beat("p4.ignis_end", BossState.P4_IGNIS.duration)) setBossState(BossState.P4_PROPHECY);
     }
 
+    /** The band, listening to him, turned to where he stands. */
+    private void bandWatch(ServerLevel level) {
+        Vec3 at = position().add(0, 1.5, 0);
+        for (MariachiEntity m : band(level)) m.watch(at);
+    }
+
     /** Where his throne is (his box over the band stand), or a point high over the stage without a coliseum. */
     public Vec3 throneSpot() {
         if (inColiseum() && arena != null) return arena.throne();
@@ -9535,9 +9541,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickP4Prophecy(ServerLevel level) {
         int t = stateTicks;
         int years = beat("p4.years", 10), look = beat("p4.throne_look", 119), carved = beat("p4.carved", 262);
-        // (2026-10-05, the user: "more lively, hyping themselves up for the last song") the shock wears off as his story
-        // starts: no fear left, up on their toes, each in his own time (silent: the stands are hushed till the souls)
-        if (t == 20) for (MariachiEntity m : band(level)) m.hype(random.nextInt(50));
+        // (2026-10-06, the user: "the band is animated singing while papon monologues... they should be listening intently") the
+        // shock wears off as his story starts and they listen: still, leaning in, mouths shut, eyes on him, each in his own time
+        // (the hype is for after he has risen: tickP4HalfBaked on)
+        if (t == 20) for (MariachiEntity m : band(level)) m.listen(random.nextInt(50));
+        if (t > 20 && t % 25 == 0) bandWatch(level);
         Vec3 c = onSand(p4Center());
         if (t < look && horizontalDist(c) > 3) {
             getNavigation().stop();
@@ -9580,6 +9588,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == beat("p4.gates", 249)) sayPlain("p4_gates", 120);
         if (t == mistake) sayPlain("p4_mistake", 160);
         if (t == mistake + 2) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.HOSTILE, 2.0F, 0.6F);
+        if (t % 25 == 0) bandWatch(level);
         if (t == moon) {
             // the moon, there in the day sky and dark (client/MuertosSky draws it unlit until p4.moonlit)
             entityData.set(DATA_MOON, 1);
@@ -9630,6 +9639,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         getNavigation().stop();
         setDeltaMovement(0, getDeltaMovement().y, 0);
         // to the stands behind you, then up to the moon
+        if (t % 25 == 0) bandWatch(level);
         int turn = beat("p4.turn", 194);
         Vec3 c = p4Center();
         if (t < beat("p4.grant", 114)) {
@@ -9687,16 +9697,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (crowd != null && t >= SOULS_STANDS && t <= SOULS_STANDS_END) {
             crowd.setDead((t - SOULS_STANDS) / (float) (SOULS_STANDS_END - SOULS_STANDS));
-            if (t % 5 == 0) level.playSound(null, crowd.getX(), crowd.getY() + 10, crowd.getZ(), SoundEvents.SOUL_ESCAPE, SoundSource.HOSTILE,
-                    4.0F, 0.5F + random.nextFloat() * 0.5F);
         }
-        if (t % 8 == 0) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.BEACON_AMBIENT, SoundSource.HOSTILE, 2.0F, 0.6F + t * 0.004F);
         List<MariachiEntity> band = band(level);
         for (int i = 0; i < band.size(); i++) {
             MariachiEntity m = band.get(i);
             if (t == soulAt(i)) {
                 cine(level, ModSounds.CINE_SOUL.get(), m.position().add(0, 1.5, 0), 1.1F + 0.04F * i);
-                level.playSound(null, m.getX(), m.getY() + 1, m.getZ(), SoundEvents.SOUL_ESCAPE, SoundSource.HOSTILE, 2.0F, 0.8F);
                 Fx.spark(level, m.position().add(0, 1, 0), 10, 0.5, 0.35F, 0x52FF84);
             }
             if (t == soulAt(i) + 14) cine(level, ModSounds.CINE_ABSORB.get(), position().add(0, 1.5, 0), 1.0F + 0.05F * i);
@@ -9729,23 +9735,23 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (target != null) turnToward(target.position(), 4F);
         if (t < flash) hold(p4Rise != null ? p4Rise.add(0, 3, 0) : position());
         if (t == line) sayPlain("p4_halfbaked", 90);
-        if (t == Math.max(line + 1, flash - 64)) cine(level, ModSounds.CINE_SWELL.get(), position().add(0, 2, 0), 1.0F);
+        // (2026-10-06, the user: "the phase four transformation sound is very bad, it needs to be completely redone") the vanilla
+        // fire-charge pings, warden roar, thunder and beacon are gone: his transformation is its own score (tools/gen_p4_sounds.py):
+        // the build (4.4 s: drone, climbing choir, a drum roll tightening to a buzz, a held breath), the flash, the emergence
+        if (t == Math.max(line + 1, flash - 88)) cine(level, ModSounds.CINE_SWELL.get(), position().add(0, 2, 0), 1.0F);
         if (t >= burst && t < flash) {
             for (int i = 0; i < 6; i++) {
                 double a = random.nextDouble() * Math.PI * 2;
                 Vec3 at = position().add(Math.cos(a) * getBbWidth(), random.nextDouble() * getBbHeight(), Math.sin(a) * getBbWidth());
                 Fx.spark(level, at, 2, 0.3, 0.5F, 0x52FF84);
             }
-            if (t % 5 == 0) level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.FIRECHARGE_USE, SoundSource.HOSTILE, 2.0F, 0.5F + (t - burst) * 0.02F);
             if (t == burst) {
                 sayPlain("p4_burst", 60);
-                level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 2.0F, 1.0F);
                 PaponNetwork.shake(level, position(), 96, 0.6F, flash - burst);
             }
         }
         if (t == flash) {
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.HOSTILE, 5.0F, 0.7F);
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 4.0F, 0.5F);
+            cine(level, ModSounds.CINE_AWAKEN.get(), position().add(0, 2, 0), 1.0F);
             PaponNetwork.shake(level, position(), 120, 1.0F, 30);
             entityData.set(DATA_FORM, 4);
             refreshDimensions();
@@ -9778,12 +9784,15 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             Fx.shock(level, position(), 14F, 0x52FF84);
             Fx.flash(level, position().add(0, getBbHeight() * 0.5, 0), 4F);
             Fx.chunks(level, position().add(0, getBbHeight() * 0.6, 0), 18, 0.35F, 0xEDE4CE, 0.6);
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 3.0F, 0.5F);
-            level.playSound(null, getX(), getY(), getZ(), SoundEvents.ENDER_DRAGON_FLAP, SoundSource.HOSTILE, 3.0F, 0.6F);
+            cine(level, ModSounds.CINE_EMERGE.get(), position().add(0, 2, 0), 1.0F);
+            // (2026-10-06, the user: "the band isn't talking in the phase 4 intro, they are supposed to be hyping each other out")
+            // he has risen: the band is up on its toes, egging each other on (nothing played), and the shouts begin
+            for (MariachiEntity m : band(level)) m.hype(random.nextInt(30));
             crowdMood(level, CrowdMood.FIESTA);
             crowdRoar(level, 60);
             salvo(level, 8);
         }
+        if (t == clear + 4) bandShout(level, BandRole.VIOLIN_1, "p4_hype_look", 44);
         if (t == beat("p4.guardian", 222)) sayPlain("p4_guardian", 60);
         if (t == beat("p4.title", 170)) title(level, "title.papon.guardian", 70);
         if (t >= beat("p4.halfbaked_end", BossState.P4_HALFBAKED.duration)) {
@@ -9824,6 +9833,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             level.playSound(null, getX(), getY() + 60, getZ(), SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 6.0F, 0.4F);
         }
         if (t == beat("p4.bowline", 112)) sayPlain("p4_bow", 80);
+        if (t == beat("p4.bowline", 112) + 86) bandShout(level, BandRole.GUITAR, "p4_hype_wow", 46);
         if (t >= beat("p4.bow_end", BossState.P4_BOW.duration)) setBossState(BossState.P4_SERPENTS);
     }
 
@@ -9867,7 +9877,13 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 40 && b != null) b.roar();
         if (t == 30) crowdReact(level, CrowdMood.GASP, 60);
         if (t == 150 && a != null) a.roar();
-        if (t == 96) bandShout(level, BandRole.TRUMPET_1, "p4_ay", 44);
+        // the band hyping each other up, call and answer, as the serpents come down
+        if (t == 14) bandShout(level, BandRole.TRUMPET_3, "p4_hype_serp", 50);
+        if (t == 74) bandShout(level, BandRole.CORO_2, "p4_hype_epic", 44);
+        if (t == 124) bandShout(level, BandRole.TRUMPET_1, "p4_ay", 44);
+        if (t == 172) bandShout(level, BandRole.SINGER, "p4_hype_ready", 36);
+        if (t == 208) for (BandRole r : new BandRole[]{BandRole.CORO_1, BandRole.TRUMPET_2, BandRole.VIOLIN_3, BandRole.GUITAR, BandRole.VIHUELA}) bandShout(level, r, "p4_hype_ready_a", 44);
+        if (t == 232) bandShout(level, BandRole.CORO_3, "p4_hype_fiesta", 40);
         if (t == 200) {
             crowdRoar(level, 50);
             salvo(level, 6);
@@ -11398,6 +11414,30 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         giantSweep = random.nextBoolean();
     }
 
+    private int giantTellAct = -1;
+    private float giantTellAt;
+    private boolean giantTellDone = true;
+
+    /** The cue that opens each of its attacks: loud over the whole arena, and each its own, so the ear tells them apart. */
+    private void giantTell(ServerLevel level, SpiritGiantEntity g, int act) {
+        Vec3 h = g.head(0);
+        net.minecraft.sounds.SoundEvent s = switch (act) {
+            case SpiritGiantEntity.CHARGE -> ModSounds.GIANT_LASER_CHARGE.get();
+            case SpiritGiantEntity.GRAB -> ModSounds.GIANT_TELL_GRAB.get();
+            case SpiritGiantEntity.SWIPE_L, SpiritGiantEntity.SWIPE_R -> ModSounds.GIANT_TELL_SWIPE.get();
+            case SpiritGiantEntity.SLAM_L, SpiritGiantEntity.SLAM_R, SpiritGiantEntity.SLAM_BOTH -> ModSounds.GIANT_TELL_SLAM.get();
+            case SpiritGiantEntity.LUNGE -> ModSounds.GIANT_TELL_LUNGE.get();
+            default -> null;
+        };
+        if (s != null) level.playSound(null, h.x, h.y, h.z, s, SoundSource.HOSTILE, 8.0F, 1.0F);
+    }
+
+    /** The beams went out (or the giant did): the burn's tail is cut for everyone who hears it. */
+    private void stopGiantBurn(ServerLevel level) {
+        var stop = new net.minecraft.network.protocol.game.ClientboundStopSoundPacket(ModSounds.GIANT_LASER_BURN.getId(), SoundSource.HOSTILE);
+        for (ServerPlayer p : level.players()) if (p.distanceToSqr(this) < 300 * 300) p.connection.send(stop);
+    }
+
     /** One hand (or both) down on where you will be: the marks, warned on the floor. */
     private void giantSlam(ServerLevel level, SpiritGiantEntity g, LivingEntity target, boolean both) {
         double floor = arena.floorY();
@@ -11675,11 +11715,14 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     }
 
     private void clearGiantBeams(ServerLevel level) {
+        boolean was = false;
         for (int i = 0; i < 2; i++) {
             BeamEntity b = giantBeam(level, i);
             if (b != null) b.discard();
+            was |= giantBeams[i] != null;
             giantBeams[i] = null;
         }
+        if (was) stopGiantBurn(level);
     }
 
     /**
@@ -11724,6 +11767,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             }
         }
         // the eyes: finding you, then the lasers
+        // (2026-10-06, the user: "I need to be able to tell when gigante is about to do his grab attack or laser attack") every attack
+        // opens with its own cue, loud over the whole arena (tools/gen_giant_sounds.py), as its tells are drawn (client/GiantTells)
+        boolean freshAct = act != giantTellAct || at < giantTellAt - 0.5F;
+        if (freshAct) giantTellDone = false;
+        giantTellAct = act;
+        giantTellAt = at;
+        if (!giantTellDone && at >= (act == SpiritGiantEntity.SLAM_BOTH ? 8 : 0)) {
+            giantTellDone = true;
+            giantTell(level, g, act);
+        }
         if (act == SpiritGiantEntity.CHARGE) {
             if (target != null) giantAim = giantAim.lerp(new Vec3(target.getX(), floor, target.getZ()), 0.12);
             g.aim(giantAim);
@@ -11746,16 +11799,21 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     level.addFreshEntity(b);
                     giantBeams[i] = b.getUUID();
                 }
+                // (2026-10-06, the user: "I can't hear gigante laser attack... loud and extremely powerful, the most powerful laser
+                // attack in the entire boss fight") the boom, the burn over the whole firing window, the sonic crack on top
                 Vec3 h = g.head(0);
-                level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 6.0F, 0.4F);
-                level.playSound(null, h.x, h.y, h.z, SoundEvents.BEACON_ACTIVATE, SoundSource.HOSTILE, 4.0F, 0.5F);
-                PaponNetwork.shake(level, c, 120, 0.7F, 36);
+                level.playSound(null, h.x, h.y, h.z, ModSounds.GIANT_LASER_FIRE.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
+                level.playSound(null, h.x, h.y, h.z, ModSounds.GIANT_LASER_BURN.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
+                level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 8.0F, 0.4F);
+                level.playSound(null, c.x, floor, c.z, ModSounds.GIANT_LASER_FIRE.get(), SoundSource.HOSTILE, 6.0F, 0.8F);
+                PaponNetwork.shake(level, c, 140, 1.0F, giantLaserLen);
             }
         }
         if (act == SpiritGiantEntity.LASER) {
             if (at >= giantLaserLen) {
                 g.act(SpiritGiantEntity.IDLE);
                 clearGiantBeams(level);
+                level.playSound(null, giantAim.x, giantAim.y, giantAim.z, ModSounds.GIANT_LASER_END.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
             } else {
                 if (giantLaserMode == GIANT_SWEEP) {
                     // swept right across the floor, side to side, from its end to the far one
@@ -11781,7 +11839,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                     Fx.scorch(level, giantAim, 3.2F, 220);
                     Fx.spark(level, giantAim.add(0, 0.5, 0), 8, 1.5, 0.55F, 0x9FF4FF);
                 }
-                if ((int) at % 8 == 0) level.playSound(null, giantAim.x, giantAim.y, giantAim.z, SoundEvents.FIRE_AMBIENT, SoundSource.HOSTILE, 3.0F, 0.5F);
+                // where it burns the floor: a sizzle and a thud, so whoever stands near the end of it hears the beam come
+                if ((int) at % 10 == 3) level.playSound(null, giantAim.x, giantAim.y, giantAim.z, ModSounds.GIANT_LASER_SIZZLE.get(), SoundSource.HOSTILE, 8.0F, 0.9F + random.nextFloat() * 0.2F);
+                if ((int) at % 4 == 0) PaponNetwork.shake(level, giantAim, 70, 0.35F, 6);
                 if ((int) at % 5 == 0) {
                     for (LivingEntity e : victims(level, arena.a + 6)) {
                         Vec3 mid = e.position().add(0, e.getBbHeight() * 0.5, 0);

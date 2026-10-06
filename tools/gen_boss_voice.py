@@ -704,6 +704,7 @@ def heard_energy(heard):
 
 # takes chosen by ear over the automatic pick: line -> take index
 PICKED = {'p4_burst': 1}         # the GPU's screams are thin: the one long roar
+SYNTH = {'p4_burst'}             # (2026-10-06) not read out by the model at all: tools/gen_p4_roar.py synthesizes it; build() leaves it as built
 
 
 def lives_ok(path):
@@ -1200,6 +1201,9 @@ def build(meta):
     report = []
     for line, (text, mood) in LINES.items():
         info = meta.get(line)
+        if line in SYNTH and line in built:
+            data['lines'][line] = built[line]               # synthesized (tools/gen_p4_roar.py): its audio and tracks as they are
+            continue
         if line not in FRESH and line in built and LINES[line][0] == lang.get('speech.papon.boss2.' + line):
             data['lines'][line] = built[line]               # as built (its audio untouched)
             continue

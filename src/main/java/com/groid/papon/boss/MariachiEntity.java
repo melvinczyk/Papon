@@ -248,8 +248,17 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
         due(BandState.SHOCKED, delay);
     }
 
-    /** The last song is coming: up on their toes, hyping themselves up ({@code delay} ticks late, so nobody moves in step). */
+    /** He has risen and the stage is theirs: up on their toes, hyping each other up ({@code delay} ticks late, so nobody moves in step). */
     public void hype(int delay) { due(BandState.HYPED, delay); }
+
+    /**
+     * His story (2026-10-06, the user: "the band is animated singing while papon monologues... they should be listening intently"):
+     * still, leaning in, mouths shut, eyes on him ({@code delay} ticks late, each in his own time).
+     */
+    public void listen(int delay) { due(BandState.LISTEN, delay); }
+
+    /** Eyes on {@code who} while he listens (called every half second or so: he turns there and stays). */
+    public void watch(Vec3 who) { if (getBandState() == BandState.LISTEN) turnTo(who, 50, 0); }
 
     /**
      * The souls rising out of the stands (P4_SOULS): the hype gone out of them, still, gazing up, hands clasped (2026-10-06,
@@ -261,7 +270,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
     public void settle() {
         dueState = null;
         BandState s = getBandState();
-        if (s == BandState.HYPED || s == BandState.SHOCKED || s == BandState.AWED) setBandState(BandState.READY);
+        if (s == BandState.HYPED || s == BandState.SHOCKED || s == BandState.AWED || s == BandState.LISTEN) setBandState(BandState.READY);
     }
 
     /** A state he goes into in {@code delay} ticks (the scare's, the shock's, the hype's: everyone at his own moment). */
@@ -594,6 +603,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
             case NERVOUS -> loop(role.ordinal() % 2 == 0 ? "nervous_a" : "nervous_b");
             case SHOCKED -> SHOCKED[role.ordinal() % 3 == 1 ? 1 : 0];
             case HYPED -> loop("hype_" + kind);
+            case LISTEN -> loop("listen_" + "abc".charAt(role.ordinal() % 3));
         };
         return event.setAndContinue(next);
     }

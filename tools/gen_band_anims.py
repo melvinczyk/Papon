@@ -28,7 +28,7 @@ Lengths of one-shots = BandState durations in Java:
   bow 2.5, whacked 2.5 (the singer, hit on the head: up in the air 0-0.9), jacket_slow 4.5,
   hat_slow 2.5, robbed 2.0, catch 1.5; loops: sleep_a/b/c 3.0, ready_* 2.0, play_* 1.88 (a bar of the song),
   scared 1.0, awed 3.48 (two bars of Para Siempre), nervous_a / nervous_b 2.4;
-  phase four: jaw_drop 0.6 (then the loops shocked_a / shocked_b 2.4), hype_* 3.2
+  phase four: jaw_drop 0.6 (then the loops shocked_a / shocked_b 2.4), listen_a/b/c 3.0, hype_* 3.2
 """
 import json
 import os
@@ -778,84 +778,89 @@ PUMP_R = [-170, 4, 30]          # a fist (or whatever is in it) punched up, out 
 PUMP_K = 1.7                     # (stretched: his arms are short and the sombrero is wide)
 
 
+LISTEN_L = 3.0
+
+
+def listen(name, v):
+    """3.0 s loop (phase four, his story: the prophecy, the Moctezuma, the moon): the band LISTENS, intently. Nothing is played
+    and nothing is sung (2026-10-06, the user: "the band is animated singing while papon monologues... they should be listening
+    intently to what papon is saying"): the mouth shut, leaning in a little toward him, still, a slow nod at the heavy lines, the
+    brows drawn down a hair in concentration. v 0: hands clasped low in front of him; 1: a hand to the chin, the other arm under
+    its elbow; 2: arms folded. (The entity turns him to face Papon: MariachiEntity.turnTo.)"""
+    L = LISTEN_L
+    a = state(M(name, L, True), True, True)
+    s = -1 if v == 1 else 1
+    a.pos('root', [(0, [0, 0, -0.4]), (L, [0, 0, -0.4])], 'lin')
+    # leaning in; two slow nods and the weight shifting a little from side to side
+    a.rot('torso', [(0, [9, 0, 1.2 * s]), (0.55, [13.5, 0, 0.4 * s], 'easeInOutSine'), (1.0, [9.5, 0, -0.6 * s], 'easeInOutSine'),
+                    (1.9, [9, 0, -1.2 * s]), (2.4, [14, 0, -0.2 * s], 'easeInOutSine'), (L, [9, 0, 1.2 * s], 'easeInOutSine')])
+    a.rot('root', [(0, [0, 1.6 * s, 0]), (L / 2, [0, -1.6 * s, 0]), (L, [0, 1.6 * s, 0])])
+    a.scale('body', [(0, [1, 1, 1]), (1.5, [1.012, 1.016, 1.012]), (L, [1, 1, 1])])
+    if v == 0:
+        a.rot('arm_r', [(0, [-62, -34, 0]), (1.5, [-64, -36, 0]), (L, [-62, -34, 0])])
+        a.rot('arm_l', [(0, [-62, 34, 0]), (1.5, [-64, 36, 0]), (L, [-62, 34, 0])])
+        stretch(a, 'arm_r', [(0, 1.1)])
+        stretch(a, 'arm_l', [(0, 1.1)])
+    elif v == 1:
+        # the right hand up to the chin, the left forearm across his belly to hold the elbow
+        a.rot('arm_r', [(0, [-134, -30, 8]), (1.5, [-136, -31, 8]), (L, [-134, -30, 8])])
+        a.rot('arm_l', [(0, [-66, 40, 0]), (1.5, [-68, 42, 0]), (L, [-66, 40, 0])])
+        stretch(a, 'arm_r', [(0, 1.25)])
+        stretch(a, 'arm_l', [(0, 1.1)])
+    else:
+        a.rot('arm_r', [(0, [-76, -54, 4]), (1.5, [-78, -55, 4]), (L, [-76, -54, 4])])
+        a.rot('arm_l', [(0, [-76, 54, -4]), (1.5, [-78, 55, -4]), (L, [-76, 54, -4])])
+        stretch(a, 'arm_r', [(0, 1.2)])
+        stretch(a, 'arm_l', [(0, 1.2)])
+    a.rot('trumpet', [(0, [52, 0, 0])], 'lin')
+    a.rot('violin', [(0, [40, 0, 0])], 'lin')
+    brows(a, [(0, 0.3, -6), (0.55, 0.7, -3), (1.0, 0.3, -6), (2.4, 0.8, -3), (L, 0.3, -6)])
+    mouth(a, [(0, 0), (L, 0)])
+    return a
+
+
 def hype(kind):
-    """3.2 s loop: phase four, the last song coming: no fear left in them, up on their toes, hyping each other up.
-    guitar (and the singer's requinto): chugging strums, a windmill, a fist pumped twice with a shout. trumpet: the
-    horn up for a warm-up toot, down, fist pumps. violin: the bow up like a sword, circling, conducting, a point at
-    the sky. coro: the maraca shaken high, the hand mic pumped, hips swaying. Mouths open on every shout."""
+    """3.2 s loop: phase four, after he has risen: no fear and nothing played (2026-10-06, the user: "they are supposed to be hyping
+    each other out"): up on their toes, turning to the bandmate on each side in turn, a fist pumped, a finger flung out at the man
+    next to them, arms up overhead. guitar / violin: the fist pumps and the other hand points; trumpet / coro: both arms up cheering
+    (the coro's meeting overhead). Voiced by the band's lines (boss/PaponBossEntity: p4_hype_*); the mouth a grin."""
     L = 3.2
     a = state(M('hype_' + kind, L, True), True, True)
     bounce(a, L)
-    a.rot('torso', [(0, [-4, 0, -4]), (0.8, [-6, 0, 4]), (1.6, [-4, 0, -4]), (2.4, [-8, 0, 4]), (L, [-4, 0, -4])])
-    a.rot('root', [(0, [0, -6, 0]), (1.6, [0, 6, 0]), (L, [0, -6, 0])])
-    shouts = []
-    if kind == 'guitar':
-        down, up = [-36, -52, 0], [-104, -52, 0]
-        guitar_pose(a, 0)
-        r = [(0, up)]
-        for i in range(4):                           # four chugs, a beat each
-            r += [(0.2 + i * 0.4, down, 'easeInQuad'), (0.4 + i * 0.4, up, 'easeOutQuad')]
-        # the windmill: the arm right round over his shoulder, down onto the strings
-        r += [(1.75, [-150, -20, 30], 'easeInOutSine'), (1.95, [-250, 0, 40]), (2.1, [-350, -20, 30]), (2.2, [-396, -52, 0], 'easeOutQuad'),
-              (2.4, [-396, -52, 0])]
-        a.rot('arm_r', r, 'lin')
-        # (the windmill ends a full turn round: the loop jumps back from -396 to -36 + -360, the same pose)
-        a.rot('arm_r', [(2.55, [-530, 4, 30], 'easeOutBack'), (2.7, [-470, -52, 0], 'easeInQuad'), (2.85, [-530, 4, 30], 'easeOutBack'),
-                        (3.05, [-464, -52, 0], 'easeInOutSine'), (L, [-464, -52, 0])], 'lin')
-        stretch(a, 'arm_r', [(0, 1.5), (1.6, 1.5), (1.95, 1.7), (2.2, 1.5), (2.55, PUMP_K), (2.7, 1.4), (2.85, PUMP_K), (3.05, 1.5), (L, 1.5)])
-        stretch(a, 'arm_l', [(0, 1.6)])
-        for i in range(4):
-            a.sound(round(0.2 + i * 0.4, 2), 'strum')
-        a.sound(2.2, 'strum')
-        shouts = [(2.55, 2.4), (2.85, 2.6)]
-    elif kind == 'trumpet':
-        p, d = TRUMPET_PLAY, TRUMPET_DOWN
-        a.rot('arm_r', [(0, d['r']['rot']), (0.3, p['r']['rot'], 'easeOutQuad'), (1.2, p['r']['rot']), (1.45, d['r']['rot'], 'easeInOutSine'),
-                        (1.9, d['r']['rot']), (2.05, PUMP_R, 'easeOutBack'), (2.25, d['r']['rot'], 'easeInQuad'), (2.6, d['r']['rot']),
-                        (2.75, PUMP_R, 'easeOutBack'), (2.95, d['r']['rot'], 'easeInQuad'), (L, d['r']['rot'])], 'lin')
-        a.rot('arm_l', [(0, d['l']['rot']), (0.3, p['l']['rot'], 'easeOutQuad'), (1.2, p['l']['rot']), (1.45, d['l']['rot'], 'easeInOutSine'), (L, d['l']['rot'])], 'lin')
-        stretch(a, 'arm_r', [(0, d['r']['k']), (0.3, p['r']['k']), (1.2, p['r']['k']), (1.45, d['r']['k']), (1.9, d['r']['k']), (2.05, PUMP_K), (2.25, d['r']['k']),
-                             (2.6, d['r']['k']), (2.75, PUMP_K), (2.95, d['r']['k']), (L, d['r']['k'])])
-        stretch(a, 'arm_l', [(0, d['l']['k']), (0.3, p['l']['k']), (1.2, p['l']['k']), (1.45, d['l']['k']), (L, d['l']['k'])])
-        a.rot('trumpet', [(0, [d['trumpet'], 0, 0]), (0.3, [p['trumpet'], 0, 0], 'easeOutQuad'), (0.5, [-12, 0, 0]), (0.9, [-18, 0, 0]),
-                          (1.2, [p['trumpet'], 0, 0]), (1.45, [d['trumpet'], 0, 0], 'easeInOutSine'), (L, [d['trumpet'], 0, 0])], 'lin')
-        for c in ('cheek_r', 'cheek_l'):
-            a.scale(c, [(0, HIDDEN), (0.32, HIDDEN), (0.4, [1, 1, 1]), (1.15, [1, 1, 1]), (1.22, HIDDEN), (L, HIDDEN)], 'lin')
-        for v, at in (('valve_1', 0.5), ('valve_2', 0.7), ('valve_3', 0.9)):
-            a.pos(v, [(0, [0, 0, 0]), (at, [0, 0, 0]), (at + 0.05, [0, -0.6, 0]), (at + 0.15, [0, 0, 0]), (L, [0, 0, 0])], 'lin')
-        a.sound(0.42, 'toot')
-        shouts = [(2.05, 2.4), (2.75, 2.6)]
-    elif kind == 'violin':
-        # the violin tucked under his left arm, the bow (right hand) a sword held up, circled, brought down, pointed out
-        a.rot('arm_l', [(0, [-40, 10, -16])], 'lin')
-        a.rot('violin', [(0, [40, 0, 0])], 'lin')
-        stretch(a, 'arm_l', [(0, 1.2)])
-        a.rot('arm_r', [(0, [-60, -10, 10]), (0.3, [-170, -6, 26], 'easeOutBack'), (0.55, [-164, -6, 38]), (0.8, [-172, -6, 18]), (1.05, [-164, -6, 38]),
-                        (1.3, [-172, -6, 18]), (1.6, [-90, -30, 0], 'easeInQuad'), (1.8, [-140, 0, 10], 'easeOutQuad'), (2.0, [-90, -30, 0], 'easeInQuad'),
-                        (2.3, [-118, 20, 30], 'easeOutBack'), (2.9, [-120, 20, 32]), (L, [-60, -10, 10], 'easeInOutSine')], 'lin')
-        stretch(a, 'arm_r', [(0, 1.15), (0.3, PUMP_K), (1.3, PUMP_K), (1.6, 1.2), (2.3, 1.5), (2.9, 1.5), (L, 1.15)])
-        a.rot('bow', [(0, BOW_MID['prop']), (0.3, [0, 20, 0], 'easeOutQuad'), (1.3, [0, 20, 0]), (1.6, BOW_MID['prop'], 'easeInOutSine'),
-                      (2.3, [0, 40, 0], 'easeOutQuad'), (2.9, [0, 40, 0]), (L, BOW_MID['prop'], 'easeInOutSine')], 'lin')
-        shouts = [(0.3, 2.2), (2.3, 2.8)]
-    else:   # coro
-        shake = osc(0.2, 1.6, 0.1, [-162, -8, 36], [-146, -8, 44])
-        a.rot('arm_r', [(0, [-40, -10, 12])] + shake + [(1.9, [-60, -10, 16], 'easeInOutSine'), (2.2, [-160, -8, 36], 'easeOutBack'),
-                                                         (2.5, [-60, -10, 16]), (2.8, [-160, -8, 36], 'easeOutBack'), (L, [-40, -10, 12], 'easeInOutSine')], 'lin')
-        stretch(a, 'arm_r', [(0, 1.2), (0.2, 1.7), (1.6, 1.7), (1.9, 1.2), (2.2, PUMP_K), (2.5, 1.2), (2.8, PUMP_K), (L, 1.2)])
-        a.rot('arm_l', [(0, CORO['down']['rot']), (0.4, [-160, 10, -34], 'easeOutBack'), (0.8, CORO['down']['rot']), (1.2, [-160, 10, -34], 'easeOutBack'),
-                        (1.6, CORO['down']['rot']), (L, CORO['down']['rot'])], 'lin')
-        stretch(a, 'arm_l', [(0, CORO['down']['k']), (0.4, PUMP_K), (0.8, CORO['down']['k']), (1.2, PUMP_K), (1.6, CORO['down']['k']), (L, CORO['down']['k'])])
-        a.rot('root', [(0, [0, -6, -5]), (0.4, [0, -2, 5]), (0.8, [0, 2, -5]), (1.2, [0, 6, 5]), (1.6, [0, 6, -5]), (2.0, [0, 2, 5]), (2.4, [0, -2, -5]),
-                       (2.8, [0, -6, 5]), (L, [0, -6, -5])])
-        for i in range(8):
-            a.sound(round(0.25 + i * 0.18, 2), 'maraca')
-        shouts = [(0.4, 2.0), (1.2, 2.2), (2.2, 2.6), (2.8, 2.4)]
-    mk = [(0, 0.3)]
-    for t, o in shouts:
-        mk += [(t - 0.06, 0.4), (t + 0.04, o, 'easeOutQuad'), (t + 0.3, 0.6, 'easeInQuad')]
-    mk.append((L, 0.3))
-    mouth(a, sorted(mk, key=lambda k: k[0]))
-    brows(a, [(0, 0.6, 0)] + [k for t, o in shouts for k in ((t, 1.2, -6, 'easeOutQuad'), (t + 0.4, 0.6, 0))] + [(L, 0.6, 0)])
+    flip = 1 if kind in ('guitar', 'trumpet') else -1
+    a.rot('torso', [(0, [-3, 0, -5]), (0.8, [-5, 0, 5]), (1.6, [-3, 0, -5]), (2.4, [-6, 0, 5]), (L, [-3, 0, -5])])
+    # to the man on one side, then the other: the whole body turns to him
+    a.rot('root', [(0, [0, -24 * flip, 0]), (0.55, [0, -24 * flip, 0]), (0.85, [0, 22 * flip, 0], 'easeInOutSine'), (1.6, [0, 22 * flip, 0]),
+                   (1.9, [0, -24 * flip, 0], 'easeInOutSine'), (L, [0, -24 * flip, 0])])
+    rest_r, rest_l = [-40, -10, 12], [-40, 10, -12]
+    if kind in ('guitar', 'violin'):
+        fist = [(0, rest_r), (0.2, PUMP_R, 'easeOutBack'), (0.5, rest_r, 'easeInQuad'), (0.7, PUMP_R, 'easeOutBack'), (1.0, rest_r, 'easeInQuad'),
+                (1.8, rest_r), (2.0, PUMP_R, 'easeOutBack'), (2.3, rest_r, 'easeInQuad'), (2.5, PUMP_R, 'easeOutBack'), (2.8, rest_r, 'easeInQuad'), (L, rest_r)]
+        point = [(0, rest_l), (1.05, rest_l), (1.25, [-84, 0, -72], 'easeOutBack'), (1.7, [-84, 0, -72]), (1.95, rest_l, 'easeInOutSine'), (L, rest_l)]
+        a.rot('arm_r' if flip > 0 else 'arm_l', fist if flip > 0 else [(t, [r[0], -r[1], -r[2]]) + tuple(rest) for t, r, *rest in fist], 'lin')
+        a.rot('arm_l' if flip > 0 else 'arm_r', point if flip > 0 else [(t, [r[0], -r[1], -r[2]]) + tuple(rest) for t, r, *rest in point], 'lin')
+        ks_f = [(0, 1.2), (0.2, PUMP_K), (0.5, 1.2), (0.7, PUMP_K), (1.0, 1.2), (1.8, 1.2), (2.0, PUMP_K), (2.3, 1.2), (2.5, PUMP_K), (2.8, 1.2), (L, 1.2)]
+        ks_p = [(0, 1.2), (1.05, 1.2), (1.25, 1.55), (1.7, 1.55), (1.95, 1.2), (L, 1.2)]
+        stretch(a, 'arm_r' if flip > 0 else 'arm_l', ks_f)
+        stretch(a, 'arm_l' if flip > 0 else 'arm_r', ks_p)
+        shouts = [0.2, 0.7, 2.0, 2.5]
+    else:
+        up_r, up_l = PUMP_R, [PUMP_R[0], -PUMP_R[1], -PUMP_R[2]]
+        if kind == 'coro':
+            up_r, up_l = [-150, -30, 14], [-150, 30, -14]                    # the hands meeting over his head
+        a.rot('arm_r', [(0, rest_r), (0.25, up_r, 'easeOutBack'), (0.7, [up_r[0] + 14, up_r[1], up_r[2] + 8]), (1.1, up_r), (1.5, [up_r[0] + 14, up_r[1], up_r[2] + 8]),
+                        (1.9, rest_r, 'easeInOutSine'), (2.3, up_r, 'easeOutBack'), (2.9, [up_r[0] + 14, up_r[1], up_r[2] + 8]), (L, rest_r, 'easeInOutSine')], 'lin')
+        a.rot('arm_l', [(0, rest_l), (0.25, up_l, 'easeOutBack'), (0.7, [up_l[0] + 14, up_l[1], up_l[2] - 8]), (1.1, up_l), (1.5, [up_l[0] + 14, up_l[1], up_l[2] - 8]),
+                        (1.9, rest_l, 'easeInOutSine'), (2.3, up_l, 'easeOutBack'), (2.9, [up_l[0] + 14, up_l[1], up_l[2] - 8]), (L, rest_l, 'easeInOutSine')], 'lin')
+        ks = [(0, 1.2), (0.25, PUMP_K), (1.5, PUMP_K), (1.9, 1.2), (2.3, PUMP_K), (2.9, PUMP_K), (L, 1.2)]
+        stretch(a, 'arm_r', ks)
+        stretch(a, 'arm_l', ks)
+        shouts = [0.25, 1.1, 2.3]
+    a.rot('trumpet', [(0, [52, 0, 0])], 'lin')
+    a.rot('violin', [(0, [40, 0, 0])], 'lin')
+    # a grin, not a song: the mouth only a little open (what they say is the band's recorded lines, MariachiModel.talk)
+    mouth(a, [(0, 0.5), (L, 0.5)])
+    brows(a, [(0, 0.8, -3)] + [k for t in shouts for k in ((t, 1.3, -6, 'easeOutQuad'), (t + 0.4, 0.8, -3))] + [(L, 0.8, -3)])
     return a
 
 
@@ -904,7 +909,8 @@ ALL = [sleep_a, sleep_b, sleep_c, startle, getup, resleep, jacket, hat, shades,
        lambda: play('coro'), bow, whacked, jacket_slow, hat_slow, lamp_walk, lamp_switch, scared, robbed, awed, catch,
        lambda: nervous('nervous_a', 1), lambda: nervous('nervous_b', -1),
        jaw_drop, lambda: shocked('shocked_a', False), lambda: shocked('shocked_b', True),
-       lambda: hype('guitar'), lambda: hype('trumpet'), lambda: hype('violin'), lambda: hype('coro')]
+       lambda: hype('guitar'), lambda: hype('trumpet'), lambda: hype('violin'), lambda: hype('coro'),
+       lambda: listen('listen_a', 0), lambda: listen('listen_b', 1), lambda: listen('listen_c', 2)]
 
 
 # the ones that start in a chair: written again sitting on the floor (everyone but Gordo)

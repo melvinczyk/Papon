@@ -47,9 +47,10 @@ public final class SoundMix {
             event.setSound(new Scaled(s, BAND * VoiceDuck.band()));
             return;
         }
-        // (his eye beams too: the user wanted them louder, and they are mastered to sit over the fight)
+        // (his eye beams too: the user wanted them louder, and they are mastered to sit over the fight; El Gigante's lasers and its
+        // attack cues likewise: "boss.laser_giant_*", "boss.giant_tell_*")
         if (PaponMod.MOD_ID.equals(id.getNamespace()) && (id.getPath().startsWith("voice.") || id.getPath().startsWith("boss.cine_")
-                || id.getPath().startsWith("boss.laser_"))) return;
+                || id.getPath().startsWith("boss.laser_") || id.getPath().startsWith("boss.giant_"))) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
         if (mc.level.getEntitiesOfClass(PaponBossEntity.class, new AABB(s.getX(), s.getY(), s.getZ(), s.getX(), s.getY(), s.getZ()).inflate(NEAR),
