@@ -1030,7 +1030,7 @@ public final class AutoShot {
         String n = switch (s) {
             case P4_FALL -> t == 6 ? "w01_thrown" : t == 30 ? "w02a_from_above" : t == vb("p4.land", 14) + 40 ? "w02_on_his_back"
                     : t == vb("p4.elbow", 66) + 10 ? "w02b_silent_arena" : t == vb("p4.look", 86) + 14 ? "w03_the_scar"
-                    : t == vb("p4.scar", 112) + 16 ? "w04_it_reopened" : t == vb("p4.fall_end", 184) - 10 ? "w04b_band_frozen" : null;
+                    : t == vb("p4.scar", 112) + 16 ? "w04_it_reopened" : t == vb("p4.fall_end", 184) - 26 ? "w04b_band_jaws" : t == vb("p4.fall_end", 184) - 2 ? "w04c_band_jaws_close" : null;
             case P4_RISEUP -> t == 20 ? "w05_struggles_up" : t == vb("p4.cough", 52) + 3 ? "w06_coughs_blood" : t == vb("p4.cough", 52) + 30 ? "w06b_over_shoulder"
                     : t == vb("p4.howgot", 92) + 20 ? "w07_how_i_got_it" : null;
             case P4_IGNIS -> t == 12 ? "w08_reaches_back" : t == vb("p4.head_out", 26) + 16 ? "w09_ignis_head" : t == vb("p4.ignis", 50) + 60 ? "w10a_two_faces"
@@ -1055,7 +1055,7 @@ public final class AutoShot {
                     : t == com.groid.papon.boss.PaponBossEntity.BOW_SMOKE + 14 ? "w35_sky_torn" : t == vb("p4.bowline", 112) + 30 ? "w35b_come_down" : null;
             case P4_SERPENTS -> t == 40 ? "w36_out_of_smoke" : t == 100 ? "w37_how_big" : t == 160 ? "w38_boros" : t == 230 ? "w39_circling" : null;
             case P4_TALKING -> t == 14 ? "w40_now_were_talking" : null;
-            case P4_TOBAND -> t == 20 ? "w41_to_the_band" : null;
+            case P4_TOBAND -> t == 20 ? "w41_to_the_band" : t == 50 ? "w41b_band_hyped" : t == 90 ? "w41c_band_hyped" : null;
             case P4_HONOR -> t == 50 ? "w42_one_last_song" : t == vb("p4.nod", 112) + 8 ? "w43_singer_nods" : t == vb("p4.song", 128) + 20 ? "w44_trumpets" : null;
             case P4_MUCHACHAS -> t == 30 ? "w45_muchachas" : t == vb("p4.rise", 60) + 30 ? "w46_they_rise" : t == vb("p4.twirl", 112) + 30 ? "w47_twirl"
                     : t == vb("p4.dip", 170) + 10 ? "w48_dip" : null;

@@ -242,6 +242,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
     private int dueIn;
 
     private void due(BandState s, int delay) {
+        if (!getBandState().ready() && !getBandState().lamp()) return;       // still asleep or dressing: he has not seen a thing
         scareDue = false;
         dueState = s;
         dueIn = delay;
