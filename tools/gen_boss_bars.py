@@ -376,21 +376,48 @@ def p3():
         a = i * math.pi / 10
         gx, gy = mx + math.cos(a) * 15.3, my + math.sin(a) * 15.3
         cv.paint(aa(circle(cv, gx, gy, 0.8)), (255, 226, 140))
-    # the god: a golden potato, eyes closed, serene, a halo behind his crown
-    cv.paint(aa(np.abs(circle(cv, mx, my - 1, 11.8)) - 0.5), (255, 240, 190), 0.9)
-    head = ellipse(cv, mx, my + 1.5, 8.6, 10.2)
-    cv.paint(aa(head), gold(cv, my - 9, my + 12))
-    cv.paint(aa(np.abs(head) - 0.4), (120, 66, 12))
-    cv.paint(aa(ellipse(cv, mx - 2.6, my - 4.6, 2.5, 1.4)), (255, 252, 230), 0.8)
-    for s in (-1, 1):
-        lid = np.abs(np.hypot((cv.x - (mx + s * 3.3)), (cv.y - (my + 0.4)) * 1.6) - 1.9) - 0.32
-        cv.paint(aa(lid) * (cv.y > my + 0.4), (110, 50, 10))
-    mouth = np.abs(np.hypot(cv.x - mx, (cv.y - (my + 4.4)) * 1.6) - 2.0) - 0.3
-    cv.paint(aa(mouth) * (cv.y > my + 5.2), (130, 60, 12))
-    # a crown of three points
-    crown = poly(cv, [(mx - 5.5, my - 7.5), (mx - 5.5, my - 11.5), (mx - 2.7, my - 9.2), (mx, my - 13), (mx + 2.7, my - 9.2), (mx + 5.5, my - 11.5), (mx + 5.5, my - 7.5)])
-    cv.paint(aa(crown), gold(cv, my - 13, my - 7))
-    cv.paint(aa(circle(cv, mx, my - 10, 0.9)), (220, 30, 50))
+    # (2026-10-06) the god himself, not a serene egg: crimson fire licking round the inside of the stone, a halo, the golden
+    # potato filling the disc, his eyes open and blazing white-gold in rings of crimson, stern brows, the smirk of a god
+    # who is enjoying this, a five-point crown set with rubies
+    for i in range(14):
+        a = i * 2 * math.pi / 14
+        fx, fy = mx + math.cos(a) * 12.6, my + math.sin(a) * 12.6
+        tip = (mx + math.cos(a + 0.18) * 15.6, my + math.sin(a + 0.18) * 15.6)
+        nx_, ny_ = -math.sin(a) * 1.5, math.cos(a) * 1.5
+        flame = poly(cv, [(fx - nx_, fy - ny_), tip, (fx + nx_, fy + ny_)])
+        cv.paint(aa(flame) * (rr < 16.2), (255, 70 + (i % 3) * 30, 40), 0.85)
+    cv.paint(aa(np.abs(circle(cv, mx, my - 1.5, 12.4)) - 0.55), (255, 236, 170), 0.95)
+    head = ellipse(cv, mx, my + 1.6, 9.6, 11.0)
+    cv.paint(aa(head), gold(cv, my - 10, my + 13))
+    # the potato's skin: a few darker eyes (its dimples) and a sheen off the brow
+    for ex_, ey_, er in ((-5.6, 6.0, 0.7), (5.2, 7.4, 0.6), (-3.0, 9.6, 0.55), (6.6, 1.0, 0.5)):
+        cv.paint(aa(circle(cv, mx + ex_, my + ey_, er)), (170, 104, 22), 0.8)
+    cv.paint(aa(ellipse(cv, mx - 3.0, my - 5.2, 2.8, 1.3)), (255, 252, 226), 0.75)
+    cv.paint(aa(np.abs(head) - 0.42), (118, 62, 10))
+    for sgn in (-1, 1):
+        ex_ = mx + sgn * 3.6
+        ey_ = my + 0.2
+        # the glow round each eye, the crimson ring, the white-gold blaze, a hot core
+        cv.paint(np.clip(1 - circle(cv, ex_, ey_, 0.0) / 4.0, 0, 1) ** 2, (255, 120, 60), 0.55)
+        cv.paint(aa(circle(cv, ex_, ey_, 2.15)), (200, 18, 40))
+        cv.paint(aa(circle(cv, ex_, ey_, 1.45)), (255, 236, 150))
+        cv.paint(aa(circle(cv, ex_, ey_, 0.7)), (255, 255, 250))
+        # a stern brow, low at the middle
+        brow = poly(cv, [(ex_ - sgn * 3.0, ey_ - 2.4), (ex_ + sgn * 2.6, ey_ - 4.2), (ex_ + sgn * 2.8, ey_ - 3.3), (ex_ - sgn * 2.8, ey_ - 1.7)])
+        cv.paint(aa(brow), (96, 46, 6))
+    # the smirk: higher on one side
+    smirk = np.abs(np.hypot(cv.x - (mx + 0.8), (cv.y - (my + 4.0)) * 1.7) - 2.6) - 0.36
+    cv.paint(aa(smirk) * (cv.y > my + 4.6) * (cv.x > mx - 2.4), (110, 48, 8))
+    # the crown: five points, a band, rubies
+    crown = poly(cv, [(mx - 7.2, my - 7.8), (mx - 7.8, my - 12.2), (mx - 4.6, my - 10.0), (mx - 2.6, my - 13.6), (mx, my - 10.6),
+                      (mx + 2.6, my - 13.6), (mx + 4.6, my - 10.0), (mx + 7.8, my - 12.2), (mx + 7.2, my - 7.8)])
+    cv.paint(aa(crown), gold(cv, my - 14, my - 7.5))
+    cv.paint(aa(np.abs(crown) - 0.3), (120, 66, 10))
+    cv.paint(aa(box(cv, mx - 7.2, my - 9.4, mx + 7.2, my - 7.8)), (255, 228, 140))
+    for gx_ in (-4.4, 0, 4.4):
+        cv.paint(aa(circle(cv, mx + gx_, my - 8.6, 0.75)), (220, 24, 48))
+    for gx_, gy_ in ((-7.8, -12.2), (-2.6, -13.6), (2.6, -13.6), (7.8, -12.2)):
+        cv.paint(aa(circle(cv, mx + gx_, my + gy_, 0.7)), (255, 246, 200))
     cv.paint(aa(np.abs(d) - 0.6), (110, 60, 10))
     cv.paint(aa(np.abs(d - 0.9) - 0.4), (255, 230, 150))
     # ---- the overlay: the sun's rays, sixteen, long and short (turned slowly by code)

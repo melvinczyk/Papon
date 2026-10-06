@@ -201,6 +201,8 @@ public final class ClientEvents {
         if (event.getOverlay().id().equals(VanillaGuiOverlay.MOUNT_HEALTH.id())) {
             event.setCanceled(true);
             if (van.getControllingPassenger() != mc.player) return;
+            // (2026-10-06) the Skyline's own speedo is lit on its dash: from the driver's seat no number floats over it
+            if (van.isSkyline() && mc.options.getCameraType() == net.minecraft.client.CameraType.FIRST_PERSON) return;
             double kmh = CaravanSounds.speedOf(van) * 20 * 3.6;
             var text = net.minecraft.network.chat.Component.translatable("hud.papon.speed", (int) Math.round(kmh))
                     .withStyle(net.minecraft.ChatFormatting.WHITE);

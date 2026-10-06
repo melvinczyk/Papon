@@ -1896,6 +1896,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             entityData.set(DATA_FORM, 4);
             entityData.set(DATA_P4PROP, 1);
             entityData.set(DATA_MOON, 2);
+            bossEvent.setName(Component.translatable(BAR_KEY + ".phase4"));
             refreshDimensions();
         }
         if (s.ordinal() >= BossState.P3_COMBO.ordinal() && s != BossState.WINDED && !ascendedFight()) {
@@ -1903,6 +1904,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             entityData.set(DATA_PHASE2, true);
             entityData.set(DATA_PHASE3, true);
             entityData.set(DATA_FORM, 3);
+            if (!muertosFight()) bossEvent.setName(Component.translatable(BAR_KEY + ".phase3"));
             refreshDimensions();
         }
         if (s == BossState.P4_RAGE || s == BossState.P4_JUICIO) {
@@ -10682,11 +10684,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         }
         if (t == 210 + o && g.act() == SpiritGiantEntity.IDLE) giantSwipe(g, target, SpiritGiantEntity.SWIPE_R);
         if (t == 300 + o && g.act() == SpiritGiantEntity.IDLE) giantLaser(g, 26, 40, GIANT_SWEEP);
-        if (t == 370 + o) {
-            if (st >= 2 && target != null && g.act() == SpiritGiantEntity.IDLE) giantSlam(level, g, target, true);       // in the storm it stays: both hands down instead
-            else if (st < 2) g.sink();
+        if (t == 370 + o && target != null && g.act() == SpiritGiantEntity.IDLE) giantSlam(level, g, target, true);   // both hands down to end it
+        if (t >= 430 + o) {
+            // (2026-10-06, the user: "I can essentially ignore him") before the storm it no longer sinks when his song for it ends:
+            // it stays in the arena hunting you on its own for half a minute more (tickGiantLayer), then goes back under
+            if (st < 2) {
+                giantHuntUntil = level.getGameTime() + GIANT_HUNT;
+                g.keep(GIANT_HUNT + 200);
+            }
+            setBossState(BossState.IDLE);
         }
-        if (t >= (st >= 2 ? 430 : 410) + o) setBossState(BossState.IDLE);
     }
 
     private boolean giantSweep;
@@ -11222,6 +11229,29 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return giantId != null && level.getEntity(giantId) instanceof SpiritGiantEntity g && g.isAlive() && g.act() != SpiritGiantEntity.SINK ? g : null;
     }
 
+    /** Dev and testing (/papon giant): one of El Gigante's acts at {@code target} now, summoning it first if it is not up. */
+    public boolean devGiant(String move, LivingEntity target) {
+        if (!(level() instanceof ServerLevel level) || arena == null) return false;
+        SpiritGiantEntity g = giant(level);
+        if (g == null || move.equals("summon")) {
+            if (g == null) summonGiant(level, target).keep(1200);
+            return true;
+        }
+        g.keep(1200);
+        if (g.act() != SpiritGiantEntity.IDLE) g.act(SpiritGiantEntity.IDLE);
+        switch (move) {
+            case "lunge" -> giantLunge(level, g, target);
+            case "grab" -> giantGrab(level, g, target);
+            case "swipe" -> giantSwipe(g, target, SpiritGiantEntity.SWIPE_L);
+            case "slam" -> giantSlam(level, g, target, false);
+            case "slam2" -> giantSlam(level, g, target, true);
+            case "laser" -> giantLaser(g, 26, 46, GIANT_TRACK);
+            default -> { return false; }
+        }
+        giantNext = 200;
+        return true;
+    }
+
     /** El Gigante up out of the floor at the end you are at (with nobody to go by, the end he is not at). */
     private SpiritGiantEntity summonGiant(ServerLevel level, @Nullable LivingEntity target) {
         Vec3 c = arena.centerVec();
@@ -11307,6 +11337,12 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
 
     @Nullable private Vec3 grabMark;
     private int giantPincerCd;
+    /** Before the storm (stage one): the game time until which El Gigante stays after his move for it, hunting (0: not). */
+    private long giantHuntUntil;
+    /** How long it hunts after P4_GIGANTE before the storm. */
+    private static final int GIANT_HUNT = 600;
+    /** Ticks you have stood within its reach while it was idle (it answers fast), and its guard of him on a cooldown. */
+    private int giantNearTicks, giantGuardCd;
 
     /**
      * La Embestida: it throws itself through the floor at where you will be, as far as it can go short of the walls, raking the
@@ -11345,13 +11381,25 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickGiantLayer(ServerLevel level, @Nullable LivingEntity target) {
         if (!muertosFight() || arena == null || !inColiseum()) return;
         SpiritGiantEntity g = giant(level);
-        boolean stays = p4StageReached >= 2;
+        boolean hunting = p4StageReached < 2 && giantHuntUntil > 0;
+        boolean stays = p4StageReached >= 2 || hunting;
         if (g != null) {
             g.fury(p4StageReached);
             if (stays) g.keep(400);
         }
         tickGiantHazards(level, g, target);
         if (!stays) return;
+        if (hunting && (g == null || level.getGameTime() >= giantHuntUntil) && (g == null || g.act() == SpiritGiantEntity.IDLE)) {
+            // the hunt is over: it roars and goes back down into the floor until he calls it again
+            giantHuntUntil = 0;
+            if (g != null) {
+                Vec3 h = g.head(0);
+                level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 6.0F, 0.4F);
+                g.sink();
+                giantId = null;
+            }
+            return;
+        }
         BossState s = getBossState();
         if (s == BossState.P4_GIGANTE || s == BossState.P4_JUICIO || s == BossState.P4_RAGE || s.phaseFour() || s == BossState.DEATH
                 || s == BossState.P4_TANGO || s == BossState.P4_TANGO_WIN || s == BossState.P4_TANGO_LOSE) return;
@@ -11379,6 +11427,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 g.stalk(target.position(), 0, 2.5F);
             }
             if (giantPincerCd > 0) giantPincerCd--;
+            if (giantGuardCd > 0) giantGuardCd--;
             Vec3 toYou = target.position().subtract(g.base()).multiply(1, 0, 1);
             Vec3 toHim = position().subtract(target.position()).multiply(1, 0, 1);
             if (giantPincerCd <= 0 && d < 30 && toHim.length() < 9 && toYou.lengthSqr() > 1 && toYou.normalize().dot(toHim.normalize()) > 0.55
@@ -11387,6 +11436,21 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 giantSwipe(g, target, toYou.dot(g.right()) > 0 ? SpiritGiantEntity.SWIPE_R : SpiritGiantEntity.SWIPE_L);
                 giantNext = Math.max(giantNext, 50);
                 return;
+            }
+            // (2026-10-06) it guards him: crowd him to hit him and its hand comes down where you stand (his window, while he is
+            // winded, is left alone before the end of the world)
+            if (giantGuardCd <= 0 && toHim.length() < 7 && d < 40 && (s != BossState.WINDED || p4StageReached >= 3)) {
+                giantGuardCd = p4StageReached >= 3 ? 150 : 220;
+                if (d < 13) giantSlam(level, g, target, false);
+                else giantSwipe(g, target, toYou.dot(g.right()) > 0 ? SpiritGiantEntity.SWIPE_R : SpiritGiantEntity.SWIPE_L);
+                giantNext = Math.max(giantNext, 45);
+                return;
+            }
+            // under it is no place to stand: a second and a half within its reach and it answers
+            giantNearTicks = d < 15 ? giantNearTicks + 1 : 0;
+            if (giantNearTicks > (p4StageReached >= 3 ? 18 : 30) && giantNext > 8) {
+                giantNext = 8;
+                giantNearTicks = 0;
             }
         }
         // you ran off to the far end of the arena: it comes after you through the floor and reaches for you (La Mano), or now and
@@ -11410,17 +11474,16 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             giantNext = 20;
             return;
         }
-        giantNext = st >= 3 ? 50 + random.nextInt(30) : 85 + random.nextInt(40);
-        List<Integer> moves = new ArrayList<>(List.of(0, 1, 2));
-        if (st >= 3) moves.add(3);
+        giantNext = st >= 3 ? 50 + random.nextInt(30) : st == 2 ? 85 + random.nextInt(40) : 105 + random.nextInt(45);
+        // (2026-10-06) what it does is where you are: under it, a hand down on you or a sweep; at its arm's length its lunge,
+        // the sweep or its eyes; out of its reach La Mano or its eyes
+        List<Integer> moves = new ArrayList<>();
         double far = flatTo(g, target);
-        if (far > 20) moves.add(4);                                 // La Mano: you are out of its reach
-        if (far > 34) moves.add(4);
-        if (far > 13 && far < 40) {                                 // La Embestida: it comes for you
-            moves.add(5);
-            if (st >= 3) moves.add(5);
-        }
-        moves.remove(Integer.valueOf(lastGiantMove));
+        if (far < 15) moves.addAll(List.of(2, 2, 0));
+        else if (far < 32) moves.addAll(List.of(5, 5, 0, 1));
+        else moves.addAll(List.of(4, 4, 1));
+        if (st >= 3) moves.add(far < 32 ? 3 : 4);
+        if (moves.stream().anyMatch(m1 -> m1 != lastGiantMove)) moves.removeIf(m0 -> m0 == lastGiantMove);
         int m = moves.get(random.nextInt(moves.size()));
         lastGiantMove = m;
         switch (m) {

@@ -102,6 +102,12 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
      */
     private static final double[][] SEATS = {{0.5, 0.62}, {-0.5, 0.62}, {0.5, -0.47}, {-0.5, -0.47}, {0.0, -1.75}};
     public static final double SEAT_HEIGHT = 0.5;
+    /**
+     * The Skyline's seats (2026-10-06, tools/gen_skyline.py): right-hand drive like the real R34, the driver on the right
+     * (-x here), low buckets (their cushions 7.5 px up: a seated player's head clears the roof, his eyes behind the wheel at
+     * the windshield), then the two little rear seats. x, z, and the seat's height.
+     */
+    private static final double[][] SKY_SEATS = {{-0.5, -0.24, 0.12}, {0.5, -0.24, 0.12}, {-0.46, -1.19, 0.19}, {0.46, -1.19, 0.19}};
 
     private static final double PLAYER_TOP = 0.78;
     private static final double BOSS_TOP = 1.35;
@@ -215,7 +221,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     public void remoteStart(int ticks) {
         if (ticks > 0 && idleTicks <= 0 && !level().isClientSide) {
             level().playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_START : ModSounds.CARAVAN_START).get(),
-                    SoundSource.NEUTRAL, 2.0F, 1.0F);
+                    SoundSource.NEUTRAL, isSkyline() ? 1.2F : 1.6F, 1.0F);
         }
         idleTicks = ticks;
     }
@@ -374,7 +380,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     }
 
     /** Where to stand to get in behind the wheel: outside the driver's door. */
-    public Vec3 driverDoor() { return local(HALF_WIDTH + 1.0, 0, 0.6); }
+    public Vec3 driverDoor() { return isSkyline() ? local(-HALF_WIDTH - 1.0, 0, -0.1) : local(HALF_WIDTH + 1.0, 0, 0.6); }
 
     /** The van's real speed along its heading, blocks per tick (measured on the server). */
     public double speed() { return level().isClientSide ? speed : measured; }
@@ -415,7 +421,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     /** Revs the engine and spins the back wheels where it stands (the boss's wind-up). */
     public void burnout(int ticks) {
         burnout = ticks;
-        level().playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_REV : ModSounds.CARAVAN_REV).get(), SoundSource.HOSTILE, 2.5F, 1.0F);
+        level().playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_REV : ModSounds.CARAVAN_REV).get(), SoundSource.HOSTILE,
+                isSkyline() ? 2.0F : 2.5F, 1.0F);
     }
 
     public void honk() {
@@ -632,7 +639,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         wallHit = false;
         if (crash) {
             crashed = true;
-            level.playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_CRASH.get(), SoundSource.NEUTRAL, 2.5F, 0.9F + random.nextFloat() * 0.2F);
+            level.playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_CRASH.get(), SoundSource.NEUTRAL, 2.0F, 0.9F + random.nextFloat() * 0.2F);
             Vec3 nose = local(0, 0.8, HALF_LENGTH * Math.signum(measuredPrev == 0 ? 1 : measuredPrev));
             com.groid.papon.fx.Fx.hit(level, nose, 1.4F, 0xFFFFFF);
             com.groid.papon.fx.Fx.smoke(level, nose, 3, 0.4, 1.0F, 0x5A5450);
@@ -640,7 +647,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         }
         if (screechCooldown == 0 && Math.abs(measured) > 0.42 && Math.abs(yawDelta) > 3.0F) {
             screechCooldown = 30;
-            level.playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_SCREECH.get(), SoundSource.NEUTRAL, 2.0F, 1.0F);
+            // (2026-10-06) the squeal a cue, not a siren: quieter, and the Skyline's tyres a little higher
+            level.playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_SCREECH.get(), SoundSource.NEUTRAL, 1.3F, isSkyline() ? 1.12F : 1.0F);
         }
         if (Math.abs(yawDelta) > 3.0F && Math.abs(measured) > 0.4 || burnout > 0) tyreSmoke(level);
         if (burnout > 0) burnout--;
@@ -762,6 +770,9 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
 
     /** Client: ticks the engine has been running (0 while it is off): the lamps flicker on with it. */
     public int engineTicks;
+    /** Client: slowing hard (the brake lamps) and backing up (the reverse lamps), from how it moves. */
+    public boolean braking, reversing;
+    private int brakeHold;
 
     private void clientVisuals() {
         engineTicks = isEngineOn() ? engineTicks + 1 : 0;
@@ -776,6 +787,13 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         bodyRoll += (Mth.clamp(yawDelta * (float) Math.abs(along) * 2.2F, -6F, 6F) - bodyRoll) * 0.25F;
         double accel = along - clientAlongPrev;
         clientAlongPrev = along;
+        reversing = along < -0.01;
+        // the brakes, not just lifting off (coasting slows it by under 0.025 a tick): its driver on the pedal, or slowing harder
+        boolean slowing;
+        if (getControllingPassenger() instanceof Player p) slowing = p.zza * Math.signum(along) < -0.01F && Math.abs(along) > 0.02;
+        else slowing = Math.abs(along) > 0.02 && accel * Math.signum(along) < -0.035;
+        brakeHold = slowing ? 6 : Math.max(0, brakeHold - 1);
+        braking = brakeHold > 0 && isEngineOn();
         bodyPitch += (Mth.clamp((float) accel * 60F, -4F, 4F) - bodyPitch) * 0.2F;
         if (isDoorOpen()) doorWasOpened = true;
     }
@@ -783,7 +801,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     // ------------------------------------------------------------------ passengers
 
     @Override
-    protected boolean canAddPassenger(Entity passenger) { return getPassengers().size() < SEATS.length; }
+    protected boolean canAddPassenger(Entity passenger) { return getPassengers().size() < (isSkyline() ? SKY_SEATS.length : SEATS.length); }
 
     @Nullable
     @Override
@@ -796,8 +814,9 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     protected void positionRider(Entity passenger, MoveFunction move) {
         int i = getPassengers().indexOf(passenger);
         if (i < 0) return;
-        double[] seat = SEATS[Math.min(i, SEATS.length - 1)];
-        Vec3 at = local(seat[0], SEAT_HEIGHT + passenger.getMyRidingOffset(), seat[1]);
+        double[][] seats = isSkyline() ? SKY_SEATS : SEATS;
+        double[] seat = seats[Math.min(i, seats.length - 1)];
+        Vec3 at = local(seat[0], (seat.length > 2 ? seat[2] : SEAT_HEIGHT) + passenger.getMyRidingOffset(), seat[1]);
         move.accept(passenger, at.x, at.y, at.z);
         if (passenger instanceof PaponBossEntity boss) {
             boss.setYRot(getYRot());
@@ -814,7 +833,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         super.addPassenger(passenger);
         openDoor();
         if (!level().isClientSide && getPassengers().size() == 1) {
-            level().playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_START : ModSounds.CARAVAN_START).get(), SoundSource.NEUTRAL, 2.0F, 1.0F);
+            level().playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_START : ModSounds.CARAVAN_START).get(), SoundSource.NEUTRAL,
+                    isSkyline() ? 1.1F : 1.6F, 1.0F);
         }
     }
 
@@ -841,7 +861,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     @Override
     public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
         int i = getPassengers().indexOf(passenger);
-        double side = (i < 0 || i % 2 == 0) ? 1 : -1;
+        double side = ((i < 0 || i % 2 == 0) ? 1 : -1) * (isSkyline() ? -1 : 1);
         Vec3 out = local(side * (HALF_WIDTH + 0.9), 0, i >= 2 ? -0.5 : 0.6);
         return new Vec3(out.x, getY(), out.z);
     }
@@ -921,12 +941,13 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
 
     private void onSoundCue(SoundKeyframeEvent<CaravanEntity> event) {
         String cue = event.getKeyframeData().getSound();
+        boolean sky = isSkyline();
         var sound = switch (cue) {
-            case "door_open" -> ModSounds.CARAVAN_DOOR_OPEN.get();
-            case "door_close" -> ModSounds.CARAVAN_DOOR_CLOSE.get();
+            case "door_open" -> (sky ? ModSounds.SKYLINE_DOOR_OPEN : ModSounds.CARAVAN_DOOR_OPEN).get();
+            case "door_close" -> (sky ? ModSounds.SKYLINE_DOOR_CLOSE : ModSounds.CARAVAN_DOOR_CLOSE).get();
             default -> null;
         };
-        if (sound != null) level().playLocalSound(getX(), getY(), getZ(), sound, SoundSource.NEUTRAL, 1.0F, 1.0F, false);
+        if (sound != null) level().playLocalSound(getX(), getY(), getZ(), sound, SoundSource.NEUTRAL, sky ? 0.85F : 1.0F, 1.0F, false);
     }
 
     @Override

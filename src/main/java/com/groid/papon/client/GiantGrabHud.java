@@ -56,7 +56,11 @@ public final class GiantGrabHud {
                 g.fill(ix, iy, w - ix, iy + sh, col);
                 g.fill(ix, h - iy - sh, w - ix, h - iy, col);
             }
-            if (charge >= 1.5F) g.fill(0, 0, w, h, 0xC8FFFFFF);
+            // the blast: a white flash that clears in a third of a second
+            if (charge >= 1.5F) {
+                int a = (int) (215 * Mth.clamp(1 - (t - SpiritGiantEntity.GRAB_BLAST) / 7F, 0, 1));
+                if (a > 0) g.fill(0, 0, w, h, (a << 24) | 0xFFFFFF);
+            }
         }
         if (t >= SpiritGiantEntity.GRAB_BLAST - 1) return;
         // the prompt and the meter, shaking with your struggle

@@ -465,13 +465,19 @@ def animations():
     def kf(pairs):
         return {('%.4g' % t if t else '0.0'): {'vector': v} for t, v in pairs}
     door_out = [0, -62, 0]
+    # the Skyline's driver's door is on the other side (right-hand drive, gen_skyline.py: door_r): it swings the other way
+    door_out_r = [0, 62, 0]
     anims = {
         'animation.caravan.door_open': {
             'loop': 'hold_on_last_frame', 'animation_length': 0.5,
             'bones': {'door_l': {'rotation': {
                 '0.0': {'vector': [0, 0, 0]},
                 '0.35': {'vector': [0, -66, 0], 'easing': 'easeOutQuad'},
-                '0.5': {'vector': door_out, 'easing': 'easeOutBack'}}}},
+                '0.5': {'vector': door_out, 'easing': 'easeOutBack'}}},
+                'door_r': {'rotation': {
+                    '0.0': {'vector': [0, 0, 0]},
+                    '0.35': {'vector': [0, 66, 0], 'easing': 'easeOutQuad'},
+                    '0.5': {'vector': door_out_r, 'easing': 'easeOutBack'}}}},
             'sound_effects': {'0.0': {'effect': 'door_open'}},
         },
         'animation.caravan.door_close': {
@@ -479,6 +485,10 @@ def animations():
             'bones': {
                 'door_l': {'rotation': {
                     '0.0': {'vector': door_out},
+                    '0.3': {'vector': [0, 0, 0], 'easing': 'easeInQuad'},
+                    '0.5': {'vector': [0, 0, 0]}}},
+                'door_r': {'rotation': {
+                    '0.0': {'vector': door_out_r},
                     '0.3': {'vector': [0, 0, 0], 'easing': 'easeInQuad'},
                     '0.5': {'vector': [0, 0, 0]}}},
                 'body': {'rotation': kf([(0, [0, 0, 0]), (0.3, [0, 0, 0]), (0.36, [0, 0, 1.2]), (0.5, [0, 0, 0])])}},

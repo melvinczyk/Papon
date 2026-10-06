@@ -433,6 +433,14 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         entityData.set(DATA_GRAB_TO, new Vector3f());
     }
 
+    /**
+     * Let go, whoever it held stays where its fist had them (on the floor after the slam, in the air when they wriggle
+     * free). The default put them at this entity's own position, the arena's middle (where it is kept for its tracking
+     * range), and the client does its own dismount: a slammed player came up in the middle of the arena.
+     */
+    @Override
+    public Vec3 getDismountLocationForPassenger(net.minecraft.world.entity.LivingEntity passenger) { return passenger.position(); }
+
     @Override
     protected void positionRider(net.minecraft.world.entity.Entity passenger, MoveFunction move) {
         if (passenger.getId() == held()) {

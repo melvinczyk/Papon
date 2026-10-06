@@ -1,82 +1,126 @@
 #!/usr/bin/env python3
 """The Skyline's own sounds (Ascended Papon's car; the van's are gen_sounds.py's): an RB26, the twin-turbo straight
-six, not the van's tired V6. All maths, no samples (pip install numpy soundfile).
+six. All maths, no samples (pip install numpy soundfile).
 
-Writes under src/main/resources/assets/papon/sounds/skyline/:
-  idle.ogg       950 rpm, an even six with a lumpy cam and a raspy exhaust, a seamless loop (CaravanSounds pitches it)
-  drive.ogg      5800 rpm on boost: the six screaming, the turbos whistling over it, road and wind, a seamless loop
-  start.ogg      a quick starter, the catch, a flare to 3000 and a crackle, settling to the lumpy idle
-  rev.ogg        the reveal: two blips, then flat out to 8000 with the turbos spooling up, the lift: the blow-off
-                 valve's "pssh" and its flutter, and the exhaust crackling and popping on the overrun
-  bov.ogg        the blow-off valve alone (between the rams)
-  backfire.ogg   one bang out of the exhaust, a flame with it (played pitched)
-  chirp.ogg      the key fob: two chirps and the locks clunking
-  glow.ogg       the underglow switching on: a relay click, the neon striking and stuttering, settling to a hum
+Redone 2026-10-06 (the user: "the current vehicle sounds are annoying and overly loud... entering the Skyline should feel
+like entering the cockpit of an extremely premium, powerful, cinematic vehicle... not a bunch of loud vehicle sounds
+playing at once"). The engine is no longer two loops (an idle and a 5800 rpm scream with a turbo whine baked into it,
+pitched by speed); it is layers that client/CaravanSounds mixes from a simulated engine (rpm, gear, throttle, boost):
+  eng_idle/low/mid/high.ogg   the six on the throttle at 950, 2200, 4300 and 7000 rpm, seamless loops, all at one
+                              loudness so the cross-fades between them never jump; pitched to the rpm between them
+  eng_decel.ogg               off the throttle at 4300: the overrun's burble (lifting, engine braking)
+  *_in.ogg                    the same from the cockpit: the bodywork and the glass between you and it (the highs gone,
+                              the boom of the shell under it, less rasp): insulated, deep, never shrill
+  turbo.ogg                   the turbos' spool (a breathy whistle, not a pure tone): only as boost builds
+  road.ogg, wind.ogg          the tyres' roar and the wind, by speed
+  shift.ogg, blip.ogg, pop.ogg  an upshift's mechanical clack, a downshift's rev-matched blip, one soft overrun pop
+  door_open.ogg, door_close.ogg  a heavy, damped door: the latch, the seal, a deep thud
+  start.ogg                   a quick starter, the catch, a controlled flare and the settle (no crackle)
+Kept: rev.ogg (the reveal), bov.ogg, backfire.ogg, chirp.ogg (the fob), glow.ogg (the underglow).
 
-  python3.11 tools/gen_skyline_sounds.py
+  python tools/gen_skyline_sounds.py           (PYTHONPATH=tools)
 """
-import numpy as np
+import os
 
-from gen_sounds import SR, save, t_of, fft_filter, padded_filter, peak, lowpass, highpass, band, fade, engine_pulse
+import numpy as np
+import soundfile as sf
+
+from gen_sounds import SR, OUT, save, t_of, fft_filter, padded_filter, peak, lowpass, highpass, band, fade, engine_pulse
 
 rng = np.random.default_rng(34)
 # a straight six: even firing, the cylinders much more alike than the van's V6
 CYL6 = np.array([1.0, 0.97, 1.02, 0.98, 1.01, 0.96])
 
 
+def seam_rank(y):
+    """Where the wrap's jolt (the error predicting each sample from the two before it) ranks among every other sample's."""
+    e = np.abs(y[2:] - (2 * y[1:-1] - y[:-2]))
+    return (e < abs(y[0] - (2 * y[-1] - y[-2]))).mean()
+
+
+def save_level(rel, x, rms_db=-20.0):
+    """Saves a loop at a set loudness (RMS, dBFS), peaks softly limited: layers mixed against each other must match. The
+    loop is circular, so it may start anywhere: of its quietest upward zero crossings, the start whose wrap survives the
+    encoder most smoothly (each tried: Vorbis leaves its own small step at the ends) is kept, so OpenAL's looping of the
+    decoded buffer does not tick."""
+    x = np.asarray(x, np.float64)
+    rms = np.sqrt(np.mean(x * x)) or 1.0
+    x = x * (10 ** (rms_db / 20) / rms)
+    if np.max(np.abs(x)) > 0.9:
+        x = np.tanh(x * 1.05) / np.tanh(1.05)
+    path = os.path.join(OUT, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    env = np.convolve(np.abs(x), np.ones(64) / 64, mode='same')
+    up = np.nonzero((x[:-1] <= 0) & (x[1:] > 0))[0]
+    best, best_rank = x, 2.0
+    for k in up[np.argsort(env[up])[:40]]:
+        cand = np.roll(x, -int(k + 1))
+        sf.write(path, cand, SR, format='OGG', subtype='VORBIS')
+        y, _ = sf.read(path)
+        r = seam_rank(y)
+        if r < best_rank:
+            best, best_rank = cand, r
+    sf.write(path, best, SR, format='OGG', subtype='VORBIS')
+    print(path, '%.1f s' % (len(x) / SR), '%d KB' % (os.path.getsize(path) // 1024), 'seam at the %.0fth percentile' % (100 * best_rank))
+
+
 def rb_response(load):
-    """An RB26 through a big exhaust: less low rumble than the V6, a rasp in the upper mids, brighter on boost."""
+    """An RB26 through a good exhaust: a deep body, a growl in the low mids, an edge on boost that never turns to fizz."""
     def r(f):
-        body = peak(f, 130, 2.0, 1.6) * peak(f, 340, 3.0, 2.2) * peak(f, 900, 3.5, 1.0 + 1.4 * load) * peak(f, 2300, 4.0, 0.3 + 0.8 * load)
-        return body * lowpass(f, 1600 + 3600 * load, 2) * highpass(f, 45, 2)
+        body = peak(f, 115, 2.0, 2.2) * peak(f, 310, 2.6, 1.8) * peak(f, 820, 3.2, 0.5 + 0.9 * load) * peak(f, 2100, 4.0, 0.15 + 0.35 * load)
+        return body * lowpass(f, 1400 + 2200 * load, 2) * highpass(f, 40, 2)
     return r
 
 
-def rasp(x, k):
-    """The exhaust's rasp: soft clipping, more of it with load."""
+def cabin(f, load):
+    """From the cockpit: the shell takes the top off (an insulated car), its boom lifts the lows."""
+    return lowpass(f, 650 + 450 * load, 2) * peak(f, 62, 1.6, 1.6) * peak(f, 150, 2.0, 0.9) * highpass(f, 30, 2)
+
+
+def soft(x, k):
+    """A little saturation, more with load (warmth, not rasp)."""
     x = x / (np.max(np.abs(x)) or 1)
-    return np.tanh(x * (1 + 3 * k)) / np.tanh(1 + 3 * k)
+    return np.tanh(x * (1 + 1.6 * k)) / np.tanh(1 + 1.6 * k)
 
 
-def six_loop(rpm, seconds, load, lope=0.0, road=0.0, whistle=0.0):
-    """A seamless loop of the six at `rpm`: whole engine cycles, filtered circularly. `lope`: the cam's lumpiness
-    (some firings weaker, the idle rocking); `whistle`: the turbos (a whine at a fixed pitch, breathing a little)."""
+def six_loop(rpm, seconds, load, lope=0.0, inside=False, burble=0.0):
+    """A seamless loop of the six at `rpm`: whole engine cycles, filtered circularly. `lope`: the cam's lumpiness at idle;
+    `burble`: off-throttle firings uneven and soft (the overrun)."""
     fire = rpm / 60 * 3
     firings = int(round(fire * seconds / 6)) * 6
     n = int(round(firings / fire * SR))
     fire = firings / (n / SR)
     x = np.zeros(n)
     for i in range(firings):
-        pos = (i / fire + rng.normal(0, 0.0001 + 0.0006 * lope)) * SR
+        pos = (i / fire + rng.normal(0, 0.00008 + 0.0005 * lope + 0.0004 * burble)) * SR
         k = int(pos) % n
         frac = pos - int(pos)
-        # the cam: every few firings a weak one (the overlap), the idle loping
-        a = CYL6[i % 6] * (1 + rng.normal(0, 0.03)) * (1 - lope * 0.5 * (i % 12 in (3, 4, 10)))
+        a = CYL6[i % 6] * (1 + rng.normal(0, 0.025 + 0.12 * burble)) * (1 - lope * 0.45 * (i % 12 in (3, 4, 10)))
+        if burble and rng.random() < 0.12 * burble:
+            a *= 0.3                                 # a skipped firing on the overrun
         x[k] += a * (1 - frac)
         x[(k + 1) % n] += a * frac
     pulse = np.zeros(n)
-    p = engine_pulse(int(0.05 * SR), f_res=230.0, tau=0.0045)
+    p = engine_pulse(int(0.05 * SR), f_res=210.0, tau=0.005)
     pulse[:len(p)] = p
     eng = np.fft.irfft(np.fft.rfft(x) * np.fft.rfft(pulse), n)
     eng = fft_filter(eng, rb_response(load))
-    eng = rasp(eng, load)
+    eng = soft(eng, 0.25 + 0.45 * load)
     t = t_of(n)
-    noise = fft_filter(rng.normal(0, 1, n), lambda f: band(f, 120, 900 + 2400 * load))
-    out = eng + noise * (0.03 + 0.1 * load)
-    # the cam's rock, locked to the cycle
-    out *= 1 + lope * 0.18 * np.sin(2 * np.pi * (fire / 6) * t)
-    if whistle:
-        # the turbos: two whines a little apart (one per turbo), beating; whole cycles so the loop stays seamless
-        for fw, g in ((3600, 1.0), (3640, 0.7)):
-            fw = round(fw * seconds) / seconds
-            out += np.sin(2 * np.pi * fw * t) * 0.05 * whistle * g * (1 + 0.15 * np.sin(2 * np.pi * (2 / seconds) * t))
-        out += fft_filter(rng.normal(0, 1, n), lambda f: band(f, 2500, 7000)) * 0.03 * whistle
-    if road:
-        out += fft_filter(rng.normal(0, 1, n), lambda f: lowpass(f, 600, 2) * highpass(f, 40)) * road * 0.8
+    # intake and mechanical noise under it, breathing with the cycle
+    noise = fft_filter(rng.normal(0, 1, n), lambda f: band(f, 90, 700 + 1600 * load))
+    out = eng + noise * (0.025 + 0.06 * load) * (1 + 0.3 * np.sin(2 * np.pi * (fire / 6) * t))
+    out *= 1 + lope * 0.16 * np.sin(2 * np.pi * (fire / 6) * t)
+    if inside:
+        out = fft_filter(out, lambda f: cabin(f, load))
+        # the shell's own low hum, locked to the firing (a seamless loop), and the cabin's air (the vents, the tyres through
+        # the floor): a faint broad bed that a real cockpit always has
+        out += np.sin(2 * np.pi * (fire / 2) * t) * 0.05 * np.std(out) * (1 + load)
+        out += fft_filter(rng.normal(0, 1, n), lambda f: band(f, 250, 5000)) * np.std(out) * 0.02
     return out
 
 
-def six_sweep(rpm_of, load_of, seconds, boost_of=None):
+def six_sweep(rpm_of, load_of, seconds, boost_of=None, whine=1.0):
     """A one-shot of the six with the rpm (and load, and boost) changing: rpm_of(t), load_of(t), boost_of(t) 0..1."""
     n = int(seconds * SR)
     t = t_of(n)
@@ -88,20 +132,19 @@ def six_sweep(rpm_of, load_of, seconds, boost_of=None):
     x = np.zeros(n)
     for j, k in enumerate(idx):
         x[k] = CYL6[j % 6] * (0.45 + 0.9 * load[k]) * (1 + rng.normal(0, 0.04))
-    p = engine_pulse(int(0.05 * SR), f_res=230.0, tau=0.0045)
+    p = engine_pulse(int(0.05 * SR), f_res=210.0, tau=0.005)
     eng = np.convolve(x, p)[:n]
     dull = padded_filter(eng, rb_response(0.1))
     bright = padded_filter(eng, rb_response(1.0))
     out = dull * (1 - load) + bright * load
-    out = rasp(out, 0.6) * (0.5 + 0.5 * np.clip(rpm / 8000, 0, 1) ** 0.5)
-    out += padded_filter(rng.normal(0, 1, n), lambda f: band(f, 150, 2500)) * (0.03 + 0.09 * load)
+    out = soft(out, 0.5) * (0.5 + 0.5 * np.clip(rpm / 8000, 0, 1) ** 0.5)
+    out += padded_filter(rng.normal(0, 1, n), lambda f: band(f, 120, 2200)) * (0.025 + 0.07 * load)
     if boost_of is not None:
         b = boost_of(t)
-        # the spool: the whine rises with the boost (pitch and level), a hiss of intake air under it
-        fw = 1400 + 3600 * b
-        out += np.sin(2 * np.pi * np.cumsum(fw) / SR) * 0.11 * b ** 1.5
-        out += np.sin(2 * np.pi * np.cumsum(fw * 1.012) / SR) * 0.07 * b ** 1.5
-        out += padded_filter(rng.normal(0, 1, n), lambda f: band(f, 2000, 8000)) * 0.05 * b
+        # the spool: a breathy whistle rising with the boost, a hiss of intake air under it
+        fw = 1300 + 2600 * b
+        out += np.sin(2 * np.pi * np.cumsum(fw) / SR) * 0.05 * whine * b ** 1.5
+        out += padded_filter(rng.normal(0, 1, n), lambda f: peak(f, 2600, 6, 3) * band(f, 1200, 6000)) * 0.04 * b
     return out
 
 
@@ -127,7 +170,7 @@ def bang(seconds=0.5, size=1.0):
     return np.tanh((crack + thump + tail) * 1.8)
 
 
-def crackle(seconds, density=14.0, start_density=None):
+def crackle(seconds, density=14.0):
     """The overrun: pops and crackles out of the exhaust, sparser as it goes."""
     n = int(seconds * SR)
     out = np.zeros(n)
@@ -144,40 +187,104 @@ def crackle(seconds, density=14.0, start_density=None):
     return out
 
 
-def main():
-    save('skyline/idle.ogg', six_loop(950, 2.0, 0.2, lope=1.0))
-    save('skyline/drive.ogg', six_loop(5800, 2.0, 0.95, road=0.4, whistle=1.0))
+def loop_noise(seconds, response, mod=None):
+    """Filtered noise as a seamless loop (circular), optionally amplitude-modulated by a function of t (whole cycles)."""
+    n = int(seconds * SR)
+    x = fft_filter(rng.normal(0, 1, n), response)
+    if mod is not None:
+        x *= mod(t_of(n))
+    return x
 
-    # the start: a quick, high starter, the catch, a flare to 3000 with a crack, settling to the lope
-    total = 2.6
+
+def thud(seconds, f0, tau, click=0.0, seal=0.0):
+    """A heavy panel closing: a damped low body, a latch click, the seal's breath."""
+    n = int(seconds * SR)
+    t = t_of(n)
+    body = np.sin(2 * np.pi * (f0 + 40 * np.exp(-t / 0.02)) * t) * np.exp(-t / tau)
+    body += 0.5 * np.sin(2 * np.pi * f0 * 1.9 * t) * np.exp(-t / (tau * 0.6))
+    knock = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 120, 900)) * np.exp(-t / 0.015)
+    out = body * 1.2 + knock * 0.6
+    if click:
+        k = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 2500, 7000)) * np.exp(-t / 0.003)
+        out += k * click
+    if seal:
+        s = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 300, 1800)) * np.exp(-((t - 0.03) / 0.04) ** 2)
+        out += s * seal
+    return out
+
+
+def main():
+    # ---- the engine's layers, outside and inside
+    for name, rpm, load, lope, burble in (('idle', 950, 0.25, 1.0, 0), ('low', 2200, 0.75, 0.15, 0), ('mid', 4300, 0.9, 0, 0),
+                                          ('high', 7000, 1.0, 0, 0), ('decel', 4300, 0.12, 0, 1.0)):
+        level = -22.0 if name == 'decel' else -20.0
+        save_level('skyline/eng_%s.ogg' % name, six_loop(rpm, 2.0, load, lope=lope, burble=burble), level)
+        save_level('skyline/eng_%s_in.ogg' % name, six_loop(rpm, 2.0, load, lope=lope, burble=burble, inside=True), level)
+
+    # ---- the turbos: a breathy whistle and the rush of air, gently breathing (a seamless loop)
+    sec = 2.0
+    n = int(sec * SR)
+    t = t_of(n)
+    whistle = loop_noise(sec, lambda f: peak(f, 2600, 14, 8) * band(f, 1800, 4200))
+    whistle = whistle / np.std(whistle)
+    tone = np.sin(2 * np.pi * round(2600 * sec) / sec * t + 0.6 * np.sin(2 * np.pi * 3 / sec * t)) * 0.35
+    air = loop_noise(sec, lambda f: band(f, 600, 7000) * peak(f, 1500, 1.5, 0.8))
+    air = air / np.std(air)
+    save_level('skyline/turbo.ogg', (whistle * 0.55 + tone + air * 0.5) * (1 + 0.12 * np.sin(2 * np.pi * 2 / sec * t)), -24.0)
+    # ---- the road: the tyres' roar and the tread's thrum
+    road = loop_noise(2.0, lambda f: lowpass(f, 420, 2) * highpass(f, 35) + 0.2 * band(f, 600, 1600),
+                      lambda tt: 1 + 0.18 * np.sin(2 * np.pi * 24 / 2.0 * tt))
+    save_level('skyline/road.ogg', road, -22.0)
+    # ---- the wind: a broad rush with slow gusts
+    wind = loop_noise(3.0, lambda f: band(f, 180, 2400) * peak(f, 500, 1.2, 0.6),
+                      lambda tt: 1 + 0.25 * np.sin(2 * np.pi * 1 / 3.0 * tt) + 0.1 * np.sin(2 * np.pi * 3 / 3.0 * tt))
+    save_level('skyline/wind.ogg', wind, -24.0)
+
+    # ---- the start: a quick starter, the catch, a controlled flare to 2600, settling to the lope
+    total = 2.4
     n = int(total * SR)
     t = t_of(n)
-    crank_s = 0.55
+    crank_s = 0.42
     nc = int(crank_s * SR)
     tc = t[:nc]
-    whine_f = 1150 + 80 * np.sin(2 * np.pi * 13 * tc)
+    whine_f = 820 + 50 * np.sin(2 * np.pi * 11 * tc)
     crank = np.zeros(n)
-    crank[:nc] = fade((np.sin(2 * np.pi * np.cumsum(whine_f) / SR) * 0.25 + padded_filter(rng.normal(0, 1, nc), lambda f: band(f, 400, 3000)) * 0.3)
-                      * (0.6 + 0.4 * np.abs(np.sin(2 * np.pi * 13 * tc))), 0.01, 0.04)
+    crank[:nc] = fade((np.sin(2 * np.pi * np.cumsum(whine_f) / SR) * 0.18 + padded_filter(rng.normal(0, 1, nc), lambda f: band(f, 300, 2200)) * 0.22)
+                      * (0.6 + 0.4 * np.abs(np.sin(2 * np.pi * 11 * tc))), 0.01, 0.04)
 
     def rpm_s(tt):
-        up = 300 + 2700 * np.clip((tt - crank_s) / 0.28, 0, 1) ** 0.6
-        down = 3000 - 2050 * np.clip((tt - crank_s - 0.35) / 0.9, 0, 1) ** 0.7
-        return np.maximum(1, np.where(tt < crank_s + 0.35, up, down) * (tt > crank_s - 0.05))
+        up = 300 + 2300 * np.clip((tt - crank_s) / 0.3, 0, 1) ** 0.7
+        down = 2600 - 1650 * np.clip((tt - crank_s - 0.4) / 1.0, 0, 1) ** 0.8
+        return np.maximum(1, np.where(tt < crank_s + 0.4, up, down) * (tt > crank_s - 0.05))
 
     def load_s(tt):
-        return np.clip(1 - np.abs(tt - crank_s - 0.2) / 0.45, 0.15, 1)
+        return np.clip(1 - np.abs(tt - crank_s - 0.22) / 0.5, 0.15, 0.85)
 
     eng = six_sweep(rpm_s, load_s, total)
     eng[:nc] *= np.linspace(0, 1, nc) ** 6
-    pops = np.zeros(n)
-    for at in (crank_s + 0.42, crank_s + 0.55, crank_s + 0.62):
-        b = bang(0.4, 0.9) * 0.5
-        k = int(at * SR)
-        pops[k:k + len(b)] += b[:n - k]
-    save('skyline/start.ogg', fade(crank * 0.8 + eng + pops, 0.005, 0.3))
+    save('skyline/start.ogg', fade(fft_filter(crank * 0.7 + eng, lambda f: lowpass(f, 3200, 2)), 0.005, 0.3))
 
-    # the reveal's rev: blip, blip, then flat out, the spool, the lift and the blow-off, crackling on the overrun
+    # ---- an upshift: the gearbox's clack and a short breath of air
+    n = int(0.35 * SR)
+    t = t_of(n)
+    clack = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 800, 3500)) * np.exp(-t / 0.008)
+    clunk = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 90, 500)) * np.exp(-t / 0.03)
+    air = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 2000, 7000)) * np.exp(-((t - 0.05) / 0.05) ** 2) * 0.25
+    save('skyline/shift.ogg', fade(clack * 0.7 + clunk * 1.0 + air, 0.0005, 0.05))
+
+    # ---- a downshift's blip: up and back down in under half a second
+    def rpm_b(tt):
+        return 2600 + 2400 * np.sin(np.pi * np.clip(tt / 0.42, 0, 1)) ** 1.5
+
+    save('skyline/blip.ogg', fade(six_sweep(rpm_b, lambda tt: np.clip(0.9 - tt * 1.5, 0.15, 0.9), 0.6), 0.003, 0.15))
+    # ---- one soft overrun pop
+    save('skyline/pop.ogg', fade(fft_filter(bang(0.3, 0.55), lambda f: lowpass(f, 2400, 2)), 0.0005, 0.08))
+    # ---- the doors: heavy and damped
+    save('skyline/door_open.ogg', fade(thud(0.5, 140, 0.03, click=0.9, seal=0.5) * 0.6, 0.0005, 0.1))
+    save('skyline/door_close.ogg', fade(thud(0.7, 72, 0.06, click=0.5, seal=0.8), 0.0005, 0.12))
+
+    # ---- the reveal's rev (the new engine's roar, a cutscene): blip, blip, flat out, the spool, the lift and the
+    # blow-off, crackling on the overrun
     total = 4.6
 
     def rpm_r(tt):
@@ -196,16 +303,16 @@ def main():
     def boost_r(tt):
         return np.clip((tt - 1.7) / 0.8, 0, 1) ** 1.4 * (tt < 2.72) + np.clip(1 - (tt - 2.72) / 0.12, 0, 1) * (tt >= 2.72)
 
-    rev = six_sweep(rpm_r, load_r, total, boost_r)
+    rev = six_sweep(rpm_r, load_r, total, boost_r, whine=1.4)
     n = len(rev)
     b = bov(1.0)
     k = int(2.72 * SR)
-    rev[k:k + len(b)] += b[:n - k] * 0.9
+    rev[k:k + len(b)] += b[:n - k] * 0.8
     c = crackle(1.6, 16)
     k = int(2.85 * SR)
-    rev[k:k + len(c)] += c[:n - k] * 0.55
+    rev[k:k + len(c)] += c[:n - k] * 0.45
     for at in (0.42, 1.0):                      # a pop after each blip
-        p = bang(0.3, 0.8) * 0.45
+        p = bang(0.3, 0.8) * 0.4
         k = int(at * SR)
         rev[k:k + len(p)] += p[:n - k]
     save('skyline/rev.ogg', fade(rev, 0.005, 0.4))
@@ -234,15 +341,40 @@ def main():
     buzz = sum(np.sin(2 * np.pi * 100 * h * t) / h for h in (1, 2, 3, 5, 7)) * 0.35
     zap = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 2000, 9000)) * 0.15
     gate = np.zeros(n)
-    on_at = [(0.05, 0.09), (0.14, 0.17), (0.22, 0.3), (0.34, 0.36), (0.4, total)]
-    for a, b2 in on_at:
+    for a, b2 in [(0.05, 0.09), (0.14, 0.17), (0.22, 0.3), (0.34, 0.36), (0.4, total)]:
         gate[int(a * SR):int(b2 * SR)] = 1
     gate = np.convolve(gate, np.ones(80) / 80, mode='same')
     level = np.where(t < 0.6, 1.0, 0.35 + 0.65 * np.exp(-(t - 0.6) / 0.25))
     swell = np.sin(2 * np.pi * np.cumsum(180 + 900 * np.clip((t - 0.4) / 0.35, 0, 1)) / SR) * 0.12 * np.exp(-np.abs(t - 0.75) / 0.2)
     out = click * 0.8 + (buzz + zap * (t < 0.45)) * gate * level + swell
     save('skyline/glow.ogg', fade(out, 0.001, 0.4))
+    # the old two-loop engine is gone
+    for old in ('idle.ogg', 'drive.ogg'):
+        p = os.path.join(OUT, 'skyline', old)
+        if os.path.exists(p):
+            os.remove(p)
+
+
+# the sound events (sounds.json): the engine's layers, the one-shots; subtitles only where a sound means something
+EVENTS = {'eng_idle': 'engine', 'eng_low': None, 'eng_mid': None, 'eng_high': None, 'eng_decel': None,
+          'eng_idle_in': 'engine', 'eng_low_in': None, 'eng_mid_in': None, 'eng_high_in': None, 'eng_decel_in': None,
+          'turbo': 'turbo', 'road': None, 'wind': None, 'shift': 'shift', 'blip': 'blip', 'pop': 'pop',
+          'door_open': 'door_open', 'door_close': 'door_close'}
+
+
+def register():
+    from geo_util import read_sounds, write_sounds
+    sounds = read_sounds()
+    for old in ('skyline.idle', 'skyline.drive'):
+        sounds.pop(old, None)
+    for name, sub in EVENTS.items():
+        e = {'sounds': [{'name': 'papon:skyline/' + name}]}
+        if sub:
+            e['subtitle'] = 'subtitles.papon.skyline.' + sub
+        sounds['skyline.' + name] = e
+    write_sounds(sounds)
 
 
 if __name__ == '__main__':
     main()
+    register()

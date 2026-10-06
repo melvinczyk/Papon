@@ -25,8 +25,25 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> CARAVAN_DOOR_CLOSE = sound("caravan.door_close");
     public static final RegistryObject<SoundEvent> CARAVAN_HIT = sound("caravan.hit");
     // the Skyline (tools/gen_skyline_sounds.py): an RB26, not the van's V6
-    public static final RegistryObject<SoundEvent> SKYLINE_IDLE = sound("skyline.idle");
-    public static final RegistryObject<SoundEvent> SKYLINE_DRIVE = sound("skyline.drive");
+    /** The Skyline's engine in layers (tools/gen_skyline_sounds.py; mixed by client/CaravanSounds), outside and from the cockpit. */
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_IDLE = sound("skyline.eng_idle");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_LOW = sound("skyline.eng_low");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_MID = sound("skyline.eng_mid");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_HIGH = sound("skyline.eng_high");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_DECEL = sound("skyline.eng_decel");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_IDLE_IN = sound("skyline.eng_idle_in");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_LOW_IN = sound("skyline.eng_low_in");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_MID_IN = sound("skyline.eng_mid_in");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_HIGH_IN = sound("skyline.eng_high_in");
+    public static final RegistryObject<SoundEvent> SKYLINE_ENG_DECEL_IN = sound("skyline.eng_decel_in");
+    public static final RegistryObject<SoundEvent> SKYLINE_TURBO = sound("skyline.turbo");
+    public static final RegistryObject<SoundEvent> SKYLINE_ROAD = sound("skyline.road");
+    public static final RegistryObject<SoundEvent> SKYLINE_WIND = sound("skyline.wind");
+    public static final RegistryObject<SoundEvent> SKYLINE_SHIFT = sound("skyline.shift");
+    public static final RegistryObject<SoundEvent> SKYLINE_BLIP = sound("skyline.blip");
+    public static final RegistryObject<SoundEvent> SKYLINE_POP = sound("skyline.pop");
+    public static final RegistryObject<SoundEvent> SKYLINE_DOOR_OPEN = sound("skyline.door_open");
+    public static final RegistryObject<SoundEvent> SKYLINE_DOOR_CLOSE = sound("skyline.door_close");
     public static final RegistryObject<SoundEvent> SKYLINE_START = sound("skyline.start");
     public static final RegistryObject<SoundEvent> SKYLINE_REV = sound("skyline.rev");
     public static final RegistryObject<SoundEvent> SKYLINE_BOV = sound("skyline.bov");

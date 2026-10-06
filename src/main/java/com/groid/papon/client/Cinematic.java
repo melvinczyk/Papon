@@ -323,6 +323,11 @@ public final class Cinematic {
         Vec3 right = new Vec3(-f.z, 0, f.x);
         Vec3 body = b.position().add(0, 1.3, 0);
         qte = false;
+        Shot grab = giantGrabShot();
+        if (grab != null) {
+            qte = true;             // you are in shot, in its fist
+            return grab;
+        }
         if (QteClient.focus(b)) {
             // in slow motion, over your shoulder, his face filling the frame; pushing in as it goes on
             qte = true;
@@ -392,6 +397,88 @@ public final class Cinematic {
                     : null;
             default -> null;
         };
+    }
+
+    private static int grabCut = -1;
+
+    /**
+     * La Mano from outside (2026-10-06, the user: "Oh shit, he actually caught me... pick the player up high enough that his
+     * enormous size becomes visually obvious"; from your own eyes you only saw the inside of its fist): while El Gigante holds
+     * you, the camera is out in the arena. Caught: low on the floor beyond where you stood, its whole body looming over you as
+     * you go up. Hoisted: over its fist, looking down past your feet at the arena far below. Brought to its face: over your
+     * shoulder onto its skull, pushing in as its eyes charge (mash to struggle). The slam: wide and side-on, the arm coming down
+     * with you in it. Then back to your eyes, on the floor. Null when it holds nobody of yours.
+     */
+    @Nullable
+    private static Shot giantGrabShot() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || !(mc.player.getVehicle() instanceof com.groid.papon.boss.SpiritGiantEntity g) || !g.holds(mc.player)
+                || g.act() != com.groid.papon.boss.SpiritGiantEntity.GRAB) {
+            grabCut = -1;
+            return null;
+        }
+        float t = g.actTime(0);
+        Vec3 me = mc.player.position();
+        Vec3 base = g.base();
+        Vec3 away = me.subtract(base).multiply(1, 0, 1);
+        away = away.lengthSqr() < 1e-4 ? g.forward() : away.normalize();
+        Vec3 side = new Vec3(-away.z, 0, away.x);
+        int beat = t < com.groid.papon.boss.SpiritGiantEntity.GRAB_CLOSE + 14 ? 0 : t < com.groid.papon.boss.SpiritGiantEntity.GRAB_BRING ? 1
+                : t < com.groid.papon.boss.SpiritGiantEntity.GRAB_SLAM_UP ? 2 : 3;
+        boolean cut = beat != grabCut;
+        grabCut = beat;
+        double floor = base.y;
+        switch (beat) {
+            case 0 -> {
+                // caught: from the floor beyond your spot, looking up at you going up with all of it over you
+                double k = smooth(Mth.clamp((t - com.groid.papon.boss.SpiritGiantEntity.GRAB_CLOSE) / 14.0, 0, 1));
+                Vec3 from = new Vec3(me.x, floor + 1.4, me.z);
+                Vec3 eye = pullIn(mc, from, from.add(away.scale(11)).add(side.scale(4)), g);
+                Vec3 look = me.add(0, 1, 0).lerp(g.head(0), 0.25 * k);
+                return new Shot(eye, look, 70 - 6 * (float) k, 0, cut, true);
+            }
+            case 1 -> {
+                // high over its head: past your dangling feet, the arena far below
+                Vec3 eye = pullIn(mc, me.add(0, 1, 0), me.add(away.scale(5.5)).add(side.scale(2.2)).add(0, 3.0, 0), g);
+                Vec3 look = me.add(0, -5, 0).subtract(away.scale(2));
+                return new Shot(eye, look, 76, 0, cut, true);
+            }
+            case 2 -> {
+                // face to face: over your shoulder onto its skull (its eyes, not the top of its head under the hat), pushing in as
+                // they come up to full
+                Vec3 skull = g.eye(-1, 0).lerp(g.eye(1, 0), 0.5);
+                Vec3 u = me.add(0, 1.6, 0).subtract(skull);
+                u = u.lengthSqr() < 1e-4 ? away : u.normalize();
+                Vec3 s2 = new Vec3(-u.z, 0, u.x).normalize();
+                float charge = Math.max(0, g.charge(0));
+                double push = Math.min(1, charge);
+                // far enough back that its whole skull is in frame over your shoulder, its eyes swelling; pushing in as they charge
+                Vec3 head = me.add(0, 1.6, 0);
+                Vec3 eye = pullIn(mc, head, head.add(u.scale(7.5 - 2.5 * push)).add(s2.scale(2.4)).add(0, 0.9, 0), g);
+                float fov = charge >= 1.5F ? 80 : 64 - 10 * (float) push;
+                return new Shot(eye, skull.add(0, 1.2, 0).lerp(head, 0.2), fov, 0, cut, true);
+            }
+            default -> {
+                if (t > com.groid.papon.boss.SpiritGiantEntity.GRAB_SLAM + 6) return null;
+                // the slam: from out on the sand beyond where it will put you down, low, the fist coming down at the lens with you
+                Vec3 mark = g.handMark(g.grabHand());
+                Vec3 land = new Vec3(mark.x, floor, mark.z);
+                Vec3 out = land.subtract(new Vec3(base.x, floor, base.z));
+                out = out.lengthSqr() < 1e-4 ? g.forward() : out.normalize();
+                Vec3 perp = new Vec3(-out.z, 0, out.x);
+                Vec3 eye = pullIn(mc, land.add(0, 1.5, 0), land.add(out.scale(13)).add(perp.scale(5)).add(0, 3.5, 0), g);
+                Vec3 fist = g.hand(g.grabHand(), 0);
+                return new Shot(eye, fist.lerp(land, 0.45), 72, 0, cut, true);
+            }
+        }
+    }
+
+    /** {@code eye}, or short of the first block between {@code from} and it (the stands, a wall), a block and a half clear. */
+    private static Vec3 pullIn(Minecraft mc, Vec3 from, Vec3 eye, Entity subject) {
+        Vec3 hit = firstHit(mc, from, eye.add(eye.subtract(from).normalize().scale(1.5)), subject);
+        if (hit.distanceToSqr(from) >= eye.distanceToSqr(from)) return eye;
+        Vec3 back = eye.subtract(from).normalize();
+        return from.distanceTo(hit) > 2.5 ? hit.subtract(back.scale(1.5)) : from.add(back.scale(1.0));
     }
 
     /**

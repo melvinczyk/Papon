@@ -36,6 +36,11 @@ public final class SkinnedMesh {
     public final float[] weights;
     /** Corners per polygon in {@link #indices}: 4 (quads; a triangle repeats its last corner) or 3. */
     public final int corners;
+    /**
+     * Named runs of {@link #indices} (start, count) a renderer draws in passes of their own (the Skyline's glass, lamps,
+     * gauges, paint); empty for a mesh drawn whole. A run may repeat polygons another one has.
+     */
+    public final Map<String, int[]> groups = new HashMap<>();
 
     private SkinnedMesh(JsonObject json) {
         texture = new ResourceLocation(json.get("texture").getAsString());
@@ -49,6 +54,12 @@ public final class SkinnedMesh {
         joints = ints(json.getAsJsonArray("joints"));
         weights = floats(json.getAsJsonArray("weights"));
         corners = json.has("corners") ? json.get("corners").getAsInt() : 3;
+        if (json.has("groups")) {
+            for (var e : json.getAsJsonObject("groups").entrySet()) {
+                JsonArray r = e.getValue().getAsJsonArray();
+                groups.put(e.getKey(), new int[]{r.get(0).getAsInt(), r.get(1).getAsInt()});
+            }
+        }
         for (int i = 0; i < positions.length; i += 3) {
             positions[i] = -positions[i] / 16F;
             positions[i + 1] /= 16F;
