@@ -1430,6 +1430,9 @@ public final class AutoShot {
     }
 
     private static int giantMark = -1, giantAct = -1;
+    private static Vec3 giantWatch, giantWatchF, giantWatchR;
+    private static double giantFloor;
+    private static Vec3 giantWatchAt;
 
     private static void giantTest(Minecraft mc) {
         switch (tick) {
@@ -1466,6 +1469,7 @@ public final class AutoShot {
             lastState = s.ordinal();
             PaponMod.LOG.info("[autoshot] giant test: boss -> {} at k {} stage {}", s, k, b.p4StageShown());
         }
+        if (k >= (Boolean.getBoolean("papon.autoshot.long") ? 3100 : 1640)) mc.stop();
         // after the rage: the giant summoned, you at the far end from it, its stalk watched from the side
         if (k == 200) run("papon giant summon");
         if (g == null) return;
@@ -1513,11 +1517,32 @@ public final class AutoShot {
             shot(mc, "g50_body");
         }
         // its rift's clock run short: the ring burning down, the dead reaching up for it; then dragged under
+        if (k == 1186) run("gamemode creative", "effect clear @s");         // out of its way: watched, not hunted (still in the arena)
         if (k == 1190) {
             run("papon giant portal");
-            tpLook(flat(g.base().add(g.forward().scale(24)).add(g.right().scale(22)), fy + 4), g.base().add(0, 9, 0));
+            giantWatch = g.base();
+            // the floor where we will stand: the first solid block down from well over it
+            // from the middle of the arena (the crowd entity's place), looking at it
+            Vec3 at = new Vec3(c.x, g.base().y, c.z);
+            giantWatchAt = at;
+            giantFloor = g.base().y;
+            for (int y = (int) g.base().y + 12; y > g.base().y - 60; y--) {
+                if (!mc.level.getBlockState(net.minecraft.core.BlockPos.containing(at.x, y, at.z)).isAir()) {
+                    giantFloor = y + 1;
+                    break;
+                }
+            }
+            PaponMod.LOG.info("[autoshot] giant watch: floor {} (its base {})", giantFloor, String.format("%.1f", g.base().y));
+            giantWatchF = g.forward();
+            giantWatchR = g.right();
         }
-        if (k > 1190 && k < 1700) lookAtPoint(mc, g.base().add(0, 8, 0));
+        if (giantWatch != null && k >= 1190 && k < 1700 && k % 20 == 10)
+        {
+            mc.player.getAbilities().flying = true;
+            mc.player.onUpdateAbilities();
+            tpLook(flat(giantWatchAt.lerp(giantWatch, 0.4), giantFloor + 24), flat(giantWatch, giantFloor + 4));
+        }
+        if (giantWatch != null && k > 1190 && k < 1700) lookAtPoint(mc, flat(giantWatch, giantFloor + 4));
         if (k == 1230 || k == 1280 || k == 1320) shot(mc, "g5" + (k - 1190) / 40 + "_clock_" + (k - 1190));
         if (k > 1190 && k < 1700 && g.act() == com.groid.papon.boss.SpiritGiantEntity.SINK) {
             int ga = (int) g.actTime(0);
@@ -1532,7 +1557,6 @@ public final class AutoShot {
             if (k % 160 > 0) lookAtPoint(mc, g.head(0).add(0, -8, 0));
             if (k % 80 == 40) shot(mc, String.format("g4%04d_free_%s", k, actName(g.act())));
         }
-        if (k == (Boolean.getBoolean("papon.autoshot.long") ? 3100 : 1640)) mc.stop();
     }
 
     private static String v3(Vec3 v) { return String.format(java.util.Locale.ROOT, "(%.1f %.1f %.1f)", v.x, v.y, v.z); }

@@ -117,6 +117,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         sk.draw(solid);
         sk.paint(solid);
         hat(solid, fr);
+        spirits(null, solid, fr, g, sk, partial);
 
         // ---- the light: one additive buffer
         VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
@@ -141,7 +142,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         // where it comes up through the floor: a ring of cracks glowing with the dead, burning down like a clock
         floorRing(glow, fr, g, partial);
         // the dead reaching up out of the rift for it: a few as its time runs out, a host dragging it under
-        spirits(glow, fr, g, sk, partial);
+        spirits(glow, null, fr, g, sk, partial);
         // the swipe's band, marked on the floor before it comes
         for (int i = 0; i < 2; i++) {
             boolean swipe = (fr.a == SpiritGiantEntity.SWIPE_L && i == 0) || (fr.a == SpiritGiantEntity.SWIPE_R && i == 1);
@@ -826,7 +827,11 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
      * from the ring round its waist, wavering, each ending in a hand of four clutching fingers round its spine, its shoulders,
      * its wrists. None while it is fresh; from half its time a few, tugging, more as the rift closes; dragging it under, a host.
      */
-    private static void spirits(VertexConsumer vc, Frame fr, SpiritGiantEntity g, Skeleton sk, float partial) {
+    private static final int[] GHOST = {64, 30, 104}, GHOST_HAND = {84, 44, 132};
+
+    /** As bone ({@code solid}: a dark violet body, so they read in daylight too) or as light ({@code vc}: the glow round it). */
+    private static void spirits(@org.jetbrains.annotations.Nullable VertexConsumer vc, @org.jetbrains.annotations.Nullable Solid solid, Frame fr,
+                                SpiritGiantEntity g, Skeleton sk, float partial) {
         float pull = g.pull(partial);
         if (pull <= 0.01F) return;
         boolean drag = fr.a == SpiritGiantEntity.SINK;
@@ -858,9 +863,12 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 Vec3 p = root.add(d.scale(u)).add(0, Math.sin(Math.PI * u) * 2.2, 0)
                         .add(side.scale(Math.sin(fr.t * 0.21 + k * 1.7 + u * 5) * wob * Math.sin(Math.PI * u)));
                 float w = (float) (0.75 - 0.35 * u) * (drag ? 1.15F : 1F);
-                int al = (int) ((drag ? 150 : 95) * Math.min(1, pull * 1.6) * (0.55 + 0.45 * u));
-                ribbon(vc, fr.m, prev.subtract(fr.origin), p.subtract(fr.origin), cam.subtract(fr.origin), w, 150, 70, 255, al);
-                ribbon(vc, fr.m, prev.subtract(fr.origin), p.subtract(fr.origin), cam.subtract(fr.origin), w * 0.35F, 220, 200, 255, al);
+                int al = (int) ((drag ? 230 : 150) * Math.min(1, pull * 1.6) * (0.55 + 0.45 * u));
+                if (solid != null) solid.tube(prev, p, w * 0.42F, w * 0.38F, GHOST, 6);
+                if (vc != null) {
+                    ribbon(vc, fr.m, prev.subtract(fr.origin), p.subtract(fr.origin), cam.subtract(fr.origin), w * 2.0F, 150, 70, 255, al);
+                    ribbon(vc, fr.m, prev.subtract(fr.origin), p.subtract(fr.origin), cam.subtract(fr.origin), w * 0.6F, 220, 200, 255, al);
+                }
                 prev = p;
             }
             if (reach < 1) continue;
@@ -871,7 +879,8 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 double fa = (fgr - 1.5) * 0.5;
                 Vec3 base = grip.add(side.scale(Math.sin(fa) * 0.9)).subtract(fwd.scale(0.4));
                 Vec3 tip = base.add(fwd.scale(1.3)).add(up2.scale(-0.9 - 0.2 * Mth.sin(fr.t * 0.3F + fgr))).add(side.scale(Math.sin(fa) * 0.6));
-                ribbon(vc, fr.m, base.subtract(fr.origin), tip.subtract(fr.origin), cam.subtract(fr.origin), 0.32F, 190, 140, 255, drag ? 170 : 110);
+                if (solid != null) solid.tube(base, tip, 0.2F, 0.13F, GHOST_HAND, 5);
+                if (vc != null) ribbon(vc, fr.m, base.subtract(fr.origin), tip.subtract(fr.origin), cam.subtract(fr.origin), 0.6F, 190, 140, 255, drag ? 230 : 150);
             }
         }
     }
