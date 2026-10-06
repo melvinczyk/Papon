@@ -273,6 +273,8 @@ slouches against the wall on a bed, squeezed/folded by use; the user's picture `
   line (P4_HONOR did: the camera swapped sides constantly); pick sides from something fixed (the stage's facing).
 - Voice: `gen_boss_voice.py` with no args retakes every line whose cached signature changed (all of phase four on Windows): to add
   lines, take and build only them (`g.generate(new)`, `g.FRESH = set(new)`, `g.build(meta)`).
+- **Never `compileJava` while a dev client is starting** (it reads half-written classes: "modClass is null", mod loading fails);
+  and when waiting on an autoshot run, wait for its new screenshots, not for "Stopping!" (the last run's log still has it).
 - iCloud makes `* 2` duplicates under `build/` (namespace `papon 2` build failure):
   `find build -name "* [0-9]" -prune -exec rm -rf {} +`.
 
