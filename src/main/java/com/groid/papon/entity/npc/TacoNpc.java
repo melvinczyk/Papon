@@ -47,6 +47,8 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
     private int speechTicks;
     /** Client: ticks left of voice babble for the line now showing. */
     private int babbleTicks;
+    /** Client: ticks since the line now showing was said. */
+    private int speechAge;
 
     protected TacoNpc(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -98,11 +100,17 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
         if (DATA_STATE.equals(key) && level().isClientSide) clientStateTicks = 0;
-        if (DATA_SPEECH.equals(key) && level().isClientSide) { babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech()); }
+        if (DATA_SPEECH.equals(key) && level().isClientSide) {
+            babbleTicks = getSpeech().isEmpty() ? 0 : Speech.babbleLength(getSpeech());
+            speechAge = 0;
+        }
     }
 
     /** Client: whether a line is being spoken right now (drives the talking jaw). */
     public boolean isBabbling() { return babbleTicks > 0; }
+
+    /** Client: ticks since the line now showing was said (a recorded line's mouth follows its clip from here). */
+    public int speechAge() { return speechAge; }
 
     /** Pitch and sound used for this character's talking blips. */
     protected abstract Speech.Voice voice();
@@ -112,6 +120,7 @@ public abstract class TacoNpc extends PathfinderMob implements GeoEntity, Speech
         super.tick();
         if (level().isClientSide) {
             clientStateTicks++;
+            speechAge++;
             if (babbleTicks > 0) {
                 babbleTicks--;
                 if (!Speech.voiced(getSpeech())) voice().blip(this, babbleTicks);

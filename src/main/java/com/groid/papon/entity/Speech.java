@@ -36,6 +36,11 @@ public final class Speech {
         void setSpeech(String encoded, int ticks);
     }
 
+    /** A speaker whose recorded lines play at his own pitch (the band: one cloned voice, each member his own register). */
+    public interface Pitched {
+        float voicePitch();
+    }
+
     /** Says {@code key} as {@code speaker} for {@code ticks}: a bubble, and if {@code chat} a chat line too. */
     public static void say(Entity speaker, ChatFormatting nameColor, String key, boolean chat, boolean gloss, int ticks,
                            Object... args) {
@@ -46,7 +51,7 @@ public final class Speech {
         ResourceLocation voice = voiceOf(key);
         if (voice != null) {
             level.playSound(null, speaker.getX(), speaker.getEyeY(), speaker.getZ(), SoundEvent.createVariableRangeEvent(voice),
-                    SoundSource.HOSTILE, 3.0F, 1.0F);
+                    SoundSource.HOSTILE, 3.0F, speaker instanceof Pitched p ? p.voicePitch() : 1.0F);
             return;
         }
         if (!chat) return;
@@ -64,10 +69,10 @@ public final class Speech {
         }
     }
 
-    /** The recorded clip for a line of Chef Papon's (or the singer's count-in), or null for anyone else's. */
+    /** The recorded clip for a line of Chef Papon's or the band's, or null for anyone else's (who babble). */
     public static ResourceLocation voiceOf(String key) {
-        if (key.equals("speech.papon.band.count")) return new ResourceLocation("papon", "voice.band.count");    // the singer's count-in
-        for (String who : new String[] {"boss", "boss2", "vendor"}) {
+        // the band (2026-10-05): every line cloned from the singer's reference (tools/gen_band_voice.py, the count-in gen_singer_voice.py)
+        for (String who : new String[] {"boss", "boss2", "vendor", "band"}) {
             String prefix = "speech.papon." + who + ".";
             if (key.startsWith(prefix)) return new ResourceLocation("papon", "voice." + who + "." + key.substring(prefix.length()));
         }

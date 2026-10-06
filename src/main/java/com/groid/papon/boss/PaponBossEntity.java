@@ -3711,6 +3711,11 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         return l;
     }
 
+    /** A line from one of the band (if he is on the stage). */
+    private void bandShout(ServerLevel level, BandRole who, String line, int ticks) {
+        for (MariachiEntity m : band(level)) if (m.getRole() == who) m.blurt(line, ticks);
+    }
+
     @Nullable
     private MariachiEntity singer(ServerLevel level) {
         for (MariachiEntity m : band(level)) if (m.getRole().singer()) return m;
@@ -4907,11 +4912,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == beat("toss.talk1", 66) || t == beat("toss.talk2", 88)) {
             // whispering to each other, scared stiff (their own shot: client/Cinematic)
             boolean first = t == beat("toss.talk1", 66);
-            for (MariachiEntity m : band(level)) {
-                if (first ? m.getRole() == BandRole.GUITAR : m.getRole().singer()) m.blurt(first ? "p3_what" : "p3_play", 36);
-                if (!first && m.getRole() == BandRole.VIHUELA) m.blurt("p3_loco", 36);
-            }
+            for (MariachiEntity m : band(level)) if (first ? m.getRole() == BandRole.GUITAR : m.getRole().singer()) m.blurt(first ? "p3_what" : "p3_play", 36);
         }
+        // (2026-10-05) their lines are recorded now: the vihuela's mutter after the singer's, not over it
+        if (t == beat("toss.talk3", beat("toss.talk2", 88) + 2)) bandShout(level, BandRole.VIHUELA, "p3_loco", 36);
         if (t >= beat("toss.end", BossState.P3_TOSS.duration)) setBossState(BossState.P3_FELT);
     }
 
@@ -9208,10 +9212,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         face(from);
         // (2026-10-04, the user: "the crowd needs to be silent") not a sound from the stands from here to the souls
         crowdMood(level, CrowdMood.HUSH);
-        for (MariachiEntity m : band(level)) {
-            m.stop();
-            m.scare(4 + random.nextInt(10));
-        }
+        // (2026-10-05, the user: "they should not be in fear... their jaws dropped, surprised the player reopened the scar")
+        for (MariachiEntity m : band(level)) m.shock(2 + random.nextInt(9));
         level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 2.0F, 0.4F);
         level.playSound(null, getX(), getY() + 1, getZ(), SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 1.0F, 0.5F);
         Fx.hit(level, position().add(0, getBbHeight() * 0.6, 0), 2.4F, 0xD02020);
@@ -9359,6 +9361,9 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     private void tickP4Prophecy(ServerLevel level) {
         int t = stateTicks;
         int years = beat("p4.years", 10), fog = beat("p4.fog", 40), look = beat("p4.throne_look", 119), carved = beat("p4.carved", 262);
+        // (2026-10-05, the user: "more lively, hyping themselves up for the last song") the shock wears off as his story
+        // starts: no fear left, up on their toes, each in his own time (silent: the stands are hushed till the souls)
+        if (t == 20) for (MariachiEntity m : band(level)) m.hype(random.nextInt(50));
         Vec3 c = onSand(p4Center());
         if (t < look && horizontalDist(c) > 3) {
             getNavigation().stop();
@@ -9491,6 +9496,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 m.setDead(true);
                 level.playSound(null, m.getX(), m.getY(), m.getZ(), SoundEvents.SKELETON_AMBIENT, SoundSource.HOSTILE, 1.4F, 0.8F);
             }
+        }
+        if (t == soulAt(0) + 26) {
+            MariachiEntity singer = singer(level);
+            if (singer != null) singer.blurt("p4_bones", 50);              // in the band's shot: his own bones, and he loves it
         }
         if (t == beat("p4.feel", 214)) {
             sayPlain("p4_feel", 100);
@@ -9650,6 +9659,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         if (t == 40 && b != null) b.roar();
         if (t == 30) crowdReact(level, CrowdMood.GASP, 60);
         if (t == 150 && a != null) a.roar();
+        if (t == 96) bandShout(level, BandRole.TRUMPET_1, "p4_ay", 44);
         if (t == 200) {
             crowdRoar(level, 50);
             salvo(level, 6);
@@ -9689,6 +9699,10 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
             setBossState(BossState.P4_HONOR);
             return;
         }
+        // the band sees him coming: one last song, and they can't wait
+        if (stateTicks == 12) bandShout(level, BandRole.CORO_1, "p4_hype_last", 46);
+        if (stateTicks == 70) bandShout(level, BandRole.TRUMPET_2, "p4_hype_andale", 36);
+        if (stateTicks == 112) bandShout(level, BandRole.VIOLIN_3, "p4_hype_eso", 36);
         getNavigation().stop();
         getMoveControl().setWantedPosition(to.x, to.y, to.z, d > 3 ? 0.85 : 0.4 + d * 0.15);
         if (singer != null && d < 6) turnToward(singer.position(), 6F);
@@ -9702,6 +9716,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
         setDeltaMovement(0, getDeltaMovement().y, 0);
         MariachiEntity singer = singer(level);
         if (singer != null) face(singer.position());
+        if (t == 1) for (MariachiEntity m : band(level)) m.settle();      // quiet now: he is talking to them
         if (t == beat("p4.honor", 10)) {
             sayPlain("p4_honor", 110);
             crowdMood(level, CrowdMood.HUSH);

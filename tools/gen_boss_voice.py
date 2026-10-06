@@ -884,6 +884,14 @@ def beats(lengths):
     `lengths`: line -> seconds."""
     import math
     L = lambda k: int(math.ceil(lengths.get(k, 2.0) * 20))
+    # (2026-10-05) the band's lines are recorded too (gen_band_voice.py): room for them, not talked over (x1.1: a member
+    # with a low voice plays his slower)
+    band = {}
+    band_path = os.path.join(ASSETS, 'voice/band.json')
+    if os.path.exists(band_path):
+        bj = json.load(open(band_path, encoding='utf-8'))
+        band = {k: len(v) / bj['rate'] for k, v in bj['lines'].items()}
+    BL = lambda k: int(math.ceil(band.get(k, 1.2) * 20 * 1.1))
     b = {}
     # on one knee: the chuckle and "You made me... BLEED", then up on "Okay... OKAY. Enough..." and two neck cracks
     # (every line gets a beat of silence after it: he lets them land)
@@ -952,7 +960,7 @@ def beats(lengths):
     b['glare.focus'] = b['glare.noise'] + L('p3_noise') + 6
     b['glare.scare'] = b['glare.focus'] + 30
     b['glare.maraca'] = b['glare.scare'] + 14
-    b['glare.face'] = b['glare.scare'] + 34
+    b['glare.face'] = b['glare.scare'] + max(34, BL('p3_stop') - 6)      # the singer's "...he is LOOKING at us" first
     b['glare.notstyle'] = b['glare.face'] + 10
     b['glare.realplay'] = b['glare.notstyle'] + L('notstyle') + 14
     b['glare.end'] = b['glare.realplay'] + L('realplay') + 10
@@ -979,7 +987,7 @@ def beats(lengths):
     b['ascend.god'] = b['ascend.roar'] + L('ascend') + 2
     b['ascend.crowd'] = b['ascend.god'] + L('p3_god') + 6
     b['ascend.band'] = b['ascend.crowd'] + 34
-    b['ascend.end'] = b['ascend.band'] + 36
+    b['ascend.end'] = b['ascend.band'] + max(36, BL('p3_wings') + 6)
     # the power goes through him and nearly puts him down: he staggers, catches himself, looks at his hands, "Whoa, WHOA...
     # so much POWER.", and the grin; then the serenade
     b['power.line'] = 22
@@ -995,8 +1003,9 @@ def beats(lengths):
     b['toss.glance'] = 58
     # (2026-10-04) the band, scared, whispering to each other in a tighter shot: "What do we do?!", "Play, PLAY!"
     b['toss.talk1'] = b['toss.glance'] + 8
-    b['toss.talk2'] = b['toss.glance'] + 30
-    b['toss.end'] = b['toss.glance'] + 62
+    b['toss.talk2'] = b['toss.talk1'] + max(22, BL('p3_what') + 4)
+    b['toss.talk3'] = b['toss.talk2'] + max(0, BL('p3_play') + 2)          # the vihuela's "Este señor está LOCO..."
+    b['toss.end'] = max(b['toss.glance'] + 62, b['toss.talk3'] + BL('p3_loco') + 10)
     # he turns to you, slowly, the power going through him: "Hmmm... I haven't felt this way... in a LOOOOONG
     # time." and an evil smile, held
     b['felt.line'] = 14
@@ -1102,7 +1111,7 @@ def beats(lengths):
     # P4_HONOR: soft, to the band; the singer nods; they strike up (the song's downbeat); the trumpets
     b['p4.honor'] = 14
     b['p4.nod'] = b['p4.honor'] + L('p4_honor') + 10
-    b['p4.song'] = b['p4.nod'] + 18
+    b['p4.song'] = b['p4.nod'] + max(18, BL('p4_listo') + 4)          # the singer's "...Sí, jefe. One last song." first
     b['p4.honor_end'] = b['p4.song'] + 48
     # P4_MUCHACHAS: "Hey! Where are my muchachas?", the clap, the dancers rise, he goes to one and twirls her
     b['p4.muchachas'] = 4
