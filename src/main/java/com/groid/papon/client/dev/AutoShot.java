@@ -1505,8 +1505,26 @@ public final class AutoShot {
             int ga = (int) g.actTime(0);
             if (ga == 85 || ga == 100 || ga == 120) once(mc, String.format("g3%03d_struggle", ga));
         }
+        // (2026-10-06) its body is solid: stood in its ribcage you are thrown out
+        if (k == 1160) tpLook(flat(g.base().add(g.forward().scale(1.2)), fy), g.head(0));
+        if (k == 1175) {
+            PaponMod.LOG.info("[autoshot] giant body: you are {} from its middle (thrown out if > 6.5)",
+                    String.format("%.1f", Math.sqrt(mc.player.distanceToSqr(g.base().x, mc.player.getY(), g.base().z))));
+            shot(mc, "g50_body");
+        }
+        // its rift's clock run short: the ring burning down, the dead reaching up for it; then dragged under
+        if (k == 1190) {
+            run("papon giant portal");
+            tpLook(flat(g.base().add(g.forward().scale(24)).add(g.right().scale(22)), fy + 4), g.base().add(0, 9, 0));
+        }
+        if (k > 1190 && k < 1700) lookAtPoint(mc, g.base().add(0, 8, 0));
+        if (k == 1230 || k == 1280 || k == 1320) shot(mc, "g5" + (k - 1190) / 40 + "_clock_" + (k - 1190));
+        if (k > 1190 && k < 1700 && g.act() == com.groid.papon.boss.SpiritGiantEntity.SINK) {
+            int ga = (int) g.actTime(0);
+            for (int at : new int[]{6, 20, 34, 48, 58, 64, 76, 92, 104, 116, 128, 140}) if (ga == at) once(mc, String.format("g6%03d_drag", at));
+        }
         // then on its own: you walk about the arena; every act logged, shots every 4 s
-        if (k > 1200 && k < 2600) {
+        if (k > 1700 && k < 3100) {
             if (k % 160 == 0) {
                 double a = k * 0.05;
                 tpLook(new Vec3(c.x + Math.cos(a) * 22, fy, c.z + Math.sin(a) * 12), g.head(0));
@@ -1514,7 +1532,7 @@ public final class AutoShot {
             if (k % 160 > 0) lookAtPoint(mc, g.head(0).add(0, -8, 0));
             if (k % 80 == 40) shot(mc, String.format("g4%04d_free_%s", k, actName(g.act())));
         }
-        if (k == (Boolean.getBoolean("papon.autoshot.long") ? 2600 : 1180)) mc.stop();
+        if (k == (Boolean.getBoolean("papon.autoshot.long") ? 3100 : 1640)) mc.stop();
     }
 
     private static String v3(Vec3 v) { return String.format(java.util.Locale.ROOT, "(%.1f %.1f %.1f)", v.x, v.y, v.z); }

@@ -71,6 +71,7 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
         if (boss.isMuertos() || boss.getBossState().phaseFour()) spiritProps(boss, state.getPartialTick());
         if (boss.getBossState() == BossState.P4_TANGO) tango(boss, state.getPartialTick());
         else if (boss.muertosFight()) groove(boss, state.getPartialTick());
+        pointing(boss, state.getPartialTick());
         BossFace.apply(getAnimationProcessor(), boss, state.getPartialTick());
     }
 
@@ -176,6 +177,22 @@ public class BossModel extends DefaultedEntityGeoModel<PaponBossEntity> {
         }
         set("l", -128, 0, -34, 1.35F, 1);
         set("r", -74, 34, 18, 1.3F, 1);
+    }
+
+    /**
+     * He orders El Gigante (PaponBossEntity.order, 2026-10-06): his right arm flung out, a finger at you, for a second, over
+     * whatever he is doing (not while he plays it his guitar: that is his order then).
+     */
+    private void pointing(PaponBossEntity boss, float partial) {
+        int at = boss.orderTick();
+        BossState s = boss.getBossState();
+        if (at == 0 || s == BossState.P4_GIGANTE || s.cutscene()) return;
+        long now = boss.level().getGameTime() & 0x7FFFFFFFL;
+        float t = ((now - at) & 0x7FFFFFFFL) + partial;
+        if (t > 28) return;
+        float k = t < 5 ? t / 5F : t > 20 ? (28 - t) / 8F : 1F;
+        k = k * k * (3 - 2 * k);
+        set("r", -104, -10, 18, 1.7F, k * 0.9F);
     }
 
     private void serenade(PaponBossEntity boss, float partial) {

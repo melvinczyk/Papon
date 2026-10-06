@@ -101,6 +101,10 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         if (fr.a == SpiritGiantEntity.SWIPE_L || fr.a == SpiritGiantEntity.SWIPE_R || fr.a == SpiritGiantEntity.RISE || fr.a == SpiritGiantEntity.SLAM_BOTH) jaw = 30F;
         if (fr.a == SpiritGiantEntity.GRAB) jaw = fr.act < SpiritGiantEntity.GRAB_CLOSE ? 22F + 10F * Mth.sin(fr.t * 0.6F) : 34F + 4F * Mth.sin(fr.t * 2.1F);
         if (fr.a == SpiritGiantEntity.LUNGE) jaw = fr.act < SpiritGiantEntity.LUNGE_GO ? 10F + 26F * fr.act / SpiritGiantEntity.LUNGE_GO : 36F - 20F * Math.min(1, (fr.act - SpiritGiantEntity.LUNGE_STOP) / 20F);
+        // heeding him: a low growl through barely parted teeth; dragged under: roaring, gnashing, screaming as it goes
+        if (fr.a == SpiritGiantEntity.HEED) jaw = 9F + 5F * Mth.sin(fr.t * 0.9F);
+        if (fr.a == SpiritGiantEntity.SINK) jaw = fr.act < SpiritGiantEntity.DRAG_CLING ? 36F : fr.act < SpiritGiantEntity.DRAG_TEAR_L
+                ? 18F + 10F * Math.abs(Mth.sin(fr.t * 0.7F)) : 38F + 3F * Mth.sin(fr.t * 2.9F);
         fr.jaw = jaw;
 
         Skeleton sk = new Skeleton(g, fr, partial);
@@ -111,6 +115,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         skull(bone, fr, GiantMesh.JAW, fr.jaw, false, 0);
         Solid solid = new Solid(bone, fr);
         sk.draw(solid);
+        sk.paint(solid);
         hat(solid, fr);
 
         // ---- the light: one additive buffer
@@ -133,8 +138,10 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         }
         // its heart: a marigold glow behind the sternum
         glow(glow, fr.m, sk.heart.subtract(fr.origin), 2.2F + 0.3F * fr.breath, 255, 160, 30, (int) (120 * fr.glow));
-        // where it comes up through the floor: a ring of cracks glowing with the dead
-        floorRing(glow, fr, g);
+        // where it comes up through the floor: a ring of cracks glowing with the dead, burning down like a clock
+        floorRing(glow, fr, g, partial);
+        // the dead reaching up out of the rift for it: a few as its time runs out, a host dragging it under
+        spirits(glow, fr, g, sk, partial);
         // the swipe's band, marked on the floor before it comes
         for (int i = 0; i < 2; i++) {
             boolean swipe = (fr.a == SpiritGiantEntity.SWIPE_L && i == 0) || (fr.a == SpiritGiantEntity.SWIPE_R && i == 1);
@@ -344,8 +351,9 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             for (int i = 0; i < sides; i++) {
                 double a0 = Math.PI * 2 * i / sides, a1 = Math.PI * 2 * (i + 1) / sides;
                 Vec3 n0 = s1.scale(Math.cos(a0)).add(s2.scale(Math.sin(a0))), n1 = s1.scale(Math.cos(a1)).add(s2.scale(Math.sin(a1)));
-                // the underside a little darker: the bone's own shadow
-                float k0 = 0.62F + 0.38F * (float) (0.5 + 0.5 * n0.y), k1 = 0.62F + 0.38F * (float) (0.5 + 0.5 * n1.y);
+                // the underside a little darker: the bone's own shadow; and old bone's grain, a little different down each facet
+                float g0 = GRAIN[(i * 5 + sides) % GRAIN.length], g1 = GRAIN[((i + 1) % sides * 5 + sides) % GRAIN.length];
+                float k0 = (0.62F + 0.38F * (float) (0.5 + 0.5 * n0.y)) * g0, k1 = (0.62F + 0.38F * (float) (0.5 + 0.5 * n1.y)) * g1;
                 v(a.add(n0.scale(ra)), n0, col, k0);
                 v(b.add(n0.scale(rb)), n0, col, k0);
                 v(b.add(n1.scale(rb)), n1, col, k1);
@@ -392,6 +400,9 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
     }
 
     private static Vec3 sph(double t, double p) { return new Vec3(Math.cos(t) * Math.cos(p), Math.sin(t), Math.cos(t) * Math.sin(p)); }
+
+    /** Weathered bone: each facet of a bone a shade apart (stable: by the facet's place round the bone). */
+    private static final float[] GRAIN = {1.0F, 0.95F, 1.04F, 0.97F, 0.91F, 1.02F, 0.98F, 1.05F, 0.94F, 1.0F, 0.96F};
 
     /** The same shapes as a faint shell of the dead's blue fire round the bone. */
     private static final class Glow implements Out {
@@ -592,6 +603,70 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             }
         }
 
+        /**
+         * (2026-10-06, the user: "improve his textures where you can") painted like a sugar skull all over, not only on its
+         * face: a marigold medallion on its sternum with a pink heart, beads of colour on the ends of its ribs, marigold dots
+         * down the spines of its vertebrae, painted bands round its arms above the elbow and at the wrist, a ring of dots on
+         * each shoulder.
+         */
+        void paint(Solid out) {
+            Vec3 f = fr.f, r = fr.r;
+            int[][] beads = {PINK, CYAN, GOLD};
+            for (int i = 4; i + 1 < spine.length - 2; i += 2) {
+                Vec3 a = turnPart(i, spine[i]), b = turnPart(i + 1, spine[i + 1]);
+                Vec3 mid = a.lerp(b, 0.5);
+                float rad = (float) Mth.lerp(i / (double) spine.length, 1.15, 0.6);
+                Vec3 back = f.scale(-1).add(0, -0.45, 0).normalize();
+                out.ball(mid.add(back.scale(rad * 1.6)), rad * 0.3F, GOLD);
+            }
+            // the medallion: a marigold disc on the sternum, a pink heart in it
+            Vec3 chest = manubrium.lerp(heart, 0.35).add(f.scale(0.9));
+            out.ball(chest, 1.15F, GOLD);
+            out.ball(chest.add(f.scale(0.75)).add(r.scale(0.32)).add(0, 0.2, 0), 0.42F, PINK);
+            out.ball(chest.add(f.scale(0.75)).add(r.scale(-0.32)).add(0, 0.2, 0), 0.42F, PINK);
+            out.ball(chest.add(f.scale(0.78)).add(0, -0.25, 0), 0.38F, PINK);
+            for (int k = 0; k < 8; k++) {
+                double a = Math.PI * 2 * k / 8;
+                out.ball(chest.add(r.scale(Math.cos(a) * 1.45)).add(0, Math.sin(a) * 1.45, 0).add(f.scale(0.35)), 0.26F, k % 2 == 0 ? PINK : CYAN);
+            }
+            // beads on the ribs' front ends (where the paint would go on a calavera)
+            float br = 1 + 0.035F * fr.breath;
+            for (int k = 0; k < 8; k++) {
+                int vi = spine.length - 6 - k;
+                if (vi < 2) break;
+                Vec3 at = turnPart(vi, spine[vi]);
+                double w = (2.6 + 4.6 * Math.sin(Math.PI * (k + 1.6) / 12.5)) * br;
+                double depth = (2.4 + 2.8 * Math.sin(Math.PI * (k + 1.0) / 11)) * br;
+                double drop = 2.6 + 0.25 * k;
+                double th = Math.PI * 0.5;
+                for (int s = -1; s <= 1; s += 2) {
+                    double x = s * w * Math.sin(th);
+                    double z = -0.9 * Math.sin(Math.min(th * 2.2, Math.PI)) * 0.6 + (depth + 0.6) * (1 - Math.cos(th)) / 2 - 0.4;
+                    double y = -drop * (1 - Math.cos(th)) / 2;
+                    Vec3 p = turn(at.add(r.scale(x)).add(f.scale(z)).add(0, y, 0));
+                    out.ball(p.add(r.scale(s * 0.38)), 0.3F, beads[(k + (s > 0 ? 1 : 0)) % 3]);
+                }
+            }
+            // the arms: painted bands above the elbow and at the wrist, dots round the shoulder
+            for (int i = 0; i < 2; i++) {
+                int s = i == 0 ? 1 : -1;
+                Vec3 sh = shoulder[i], h = hand[i];
+                Vec3 el = elbow(sh, h, r.scale(s), f);
+                Vec3 up1 = el.subtract(sh).normalize();
+                Vec3 b0 = el.subtract(up1.scale(2.4));
+                out.tube(b0, b0.add(up1.scale(0.45)), 0.88F, 0.86F, PINK, 8);
+                out.tube(b0.add(up1.scale(0.7)), b0.add(up1.scale(1.0)), 0.86F, 0.85F, CYAN, 8);
+                Vec3 fa = h.subtract(el).normalize();
+                Vec3 w0 = h.subtract(fa.scale(1.6));
+                out.tube(w0, w0.add(fa.scale(0.5)), 0.62F, 0.6F, GOLD, 7);
+                for (int k = 0; k < 6; k++) {
+                    double a = Math.PI * 2 * k / 6;
+                    Vec3 o = f.scale(Math.cos(a) * 1.25).add(0, Math.sin(a) * 1.25, 0);
+                    out.ball(sh.add(o).add(r.scale(s * 0.55)), 0.24F, k % 2 == 0 ? GOLD : PINK);
+                }
+            }
+        }
+
         /** The part of the spine above the chest turns with the twist; the lumbar under the floor does not. */
         Vec3 turnPart(int i, Vec3 p) {
             if (twist == 0 || i < 6) return p;
@@ -668,23 +743,41 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
     // ------------------------------------------------------------------ the light round it
 
     /** Where it comes up through the floor: cracks out from its waist and a glow, the dead's blue. */
-    private static void floorRing(VertexConsumer vc, Frame fr, SpiritGiantEntity g) {
+    private static void floorRing(VertexConsumer vc, Frame fr, SpiritGiantEntity g, float partial) {
         float dug = g.dug(0);
-        float shown = Math.max(fr.risen, dug);
+        boolean drag = fr.a == SpiritGiantEntity.SINK;
+        float shown = drag ? 1F : Math.max(fr.risen, dug);
+        if (drag && fr.act > SpiritGiantEntity.DRAG_SHUT + 4) return;
         if (shown <= 0.01F) return;
         Vec3 c = fr.base.subtract(fr.origin).add(0, 0.08, 0);
         Vec3 f = fr.f, r = fr.r;
         // digging: the cracks run out from where it will come up before anything of it shows, flickering with the dead's light
         float flick = fr.a == SpiritGiantEntity.RISE && fr.act < SpiritGiantEntity.DIG_HEAVE ? 0.75F + 0.25F * Mth.sin(fr.t * 1.3F) : 1F;
         int al = (int) (110 * shown * fr.glow * flick);
-        int n = 28;
+        // (2026-10-06) the rift's clock: the ring burns down round from its front as its time runs out, the dead's blue going violet,
+        // then red and pulsing in its last fifth; the part burnt out only embers. Dragged under, it blazes violet and closes.
+        float left = g.portalLeft(partial);
+        float shrink = drag ? 1F - Mth.clamp((fr.act - SpiritGiantEntity.DRAG_UNDER) / (float) (SpiritGiantEntity.DRAG_SHUT - SpiritGiantEntity.DRAG_UNDER), 0F, 1F) : 1F;
+        int[] lit = ringColour(drag ? 0.3F : left, fr.t);
+        if (drag) al = (int) (200 * shrink);
+        int n = 48;
         for (int i = 0; i < n; i++) {
             double a0 = Math.PI * 2 * i / n, a1 = Math.PI * 2 * (i + 1) / n;
-            Vec3 p0 = c.add(r.scale(Math.cos(a0) * 7.5)).add(f.scale(Math.sin(a0) * 5.5));
-            Vec3 p1 = c.add(r.scale(Math.cos(a1) * 7.5)).add(f.scale(Math.sin(a1) * 5.5));
-            Vec3 q0 = c.add(r.scale(Math.cos(a0) * 10.5)).add(f.scale(Math.sin(a0) * 8));
-            Vec3 q1 = c.add(r.scale(Math.cos(a1) * 10.5)).add(f.scale(Math.sin(a1) * 8));
-            quad2(vc, fr.m, p0, p1, q1, q0, al, 0);
+            // round from straight ahead of it, the way a clock's hand goes
+            double u = (i + 0.5) / n;
+            boolean on = drag || left < 0 || u <= left;
+            double s0 = Math.PI / 2 - a0, s1 = Math.PI / 2 - a1;
+            Vec3 p0 = c.add(r.scale(Math.cos(s0) * 7.5 * shrink)).add(f.scale(Math.sin(s0) * 5.5 * shrink));
+            Vec3 p1 = c.add(r.scale(Math.cos(s1) * 7.5 * shrink)).add(f.scale(Math.sin(s1) * 5.5 * shrink));
+            Vec3 q0 = c.add(r.scale(Math.cos(s0) * 10.5 * shrink)).add(f.scale(Math.sin(s0) * 8 * shrink));
+            Vec3 q1 = c.add(r.scale(Math.cos(s1) * 10.5 * shrink)).add(f.scale(Math.sin(s1) * 8 * shrink));
+            if (on) quad2c(vc, fr.m, p0, p1, q1, q0, lit, al, 0);
+            else quad2c(vc, fr.m, p0, p1, q1, q0, EMBER, (int) (al * 0.22F), 0);
+            // the burning edge: a bright flare where the clock has burnt down to
+            if (left >= 0 && !drag && Math.abs(u - left) < 0.5 / n + 1e-4) {
+                Vec3 e = p0.lerp(q0, 0.5);
+                glow(vc, fr.m, e, 2.2F + 0.4F * Mth.sin(fr.t * 0.8F), lit[0], lit[1], lit[2], 230);
+            }
         }
         // the cracks: jagged lines out over the floor
         long seed = g.getId() * 31L;
@@ -700,6 +793,101 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 quad2(vc, fr.m, p.subtract(w), q.subtract(w.scale(0.6)), q.add(w.scale(0.6)), p.add(w), (int) (al * 1.6 * Math.max(0, 1 - s * 0.14)),
                         (int) (al * 1.6 * Math.max(0, 1 - (s + 1) * 0.14)));
                 p = q;
+            }
+        }
+    }
+
+    private static final int[] EMBER = {255, 110, 60};
+
+    /** The rift's colour by how much of its time is left: the dead's blue, violet, then a red pulsing faster. */
+    private static int[] ringColour(float left, float t) {
+        if (left < 0 || left > 0.5F) return CYAN;
+        if (left > 0.2F) {
+            float k = (0.5F - left) / 0.3F;
+            return new int[]{(int) Mth.lerp(k, CYAN[0], 170), (int) Mth.lerp(k, CYAN[1], 80), (int) Mth.lerp(k, CYAN[2], 255)};
+        }
+        float pulse = 0.5F + 0.5F * Mth.sin(t * (0.5F + (0.2F - left) * 6F));
+        return new int[]{(int) Mth.lerp(pulse, 170, 255), (int) Mth.lerp(pulse, 80, 40), (int) Mth.lerp(pulse, 255, 70)};
+    }
+
+    /** {@link #quad2} in a colour of its own. */
+    private static void quad2c(VertexConsumer vc, Matrix4f m, Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3, int[] col, int a0, int a1) {
+        int[][] order = {{0, 1, 2, 3}, {3, 2, 1, 0}};
+        Vec3[] p = {p0, p1, p2, p3};
+        int[] al = {Math.min(255, a0), Math.min(255, a1), Math.min(255, a1), Math.min(255, a0)};
+        for (int[] o : order) {
+            for (int i : o) vc.vertex(m, (float) p[i].x, (float) p[i].y, (float) p[i].z).color(col[0], col[1], col[2], al[i]).endVertex();
+        }
+    }
+
+    /**
+     * The dead of the underworld, reaching up out of the rift for it (2026-10-06, the user: "pulled back under... the underworld
+     * spirits are stronger than even him... keep that theme the whole time he is summoned"): spectral arms of violet light up
+     * from the ring round its waist, wavering, each ending in a hand of four clutching fingers round its spine, its shoulders,
+     * its wrists. None while it is fresh; from half its time a few, tugging, more as the rift closes; dragging it under, a host.
+     */
+    private static void spirits(VertexConsumer vc, Frame fr, SpiritGiantEntity g, Skeleton sk, float partial) {
+        float pull = g.pull(partial);
+        if (pull <= 0.01F) return;
+        boolean drag = fr.a == SpiritGiantEntity.SINK;
+        int n = Math.round(14 * pull);
+        Vec3 cam = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        for (int k = 0; k < n; k++) {
+            // where it rises from on the ring, and what it takes hold of
+            double a = Math.PI * 2 * ((k * 0.381966) % 1.0) + fr.t * 0.004 * (k % 2 == 0 ? 1 : -1);
+            Vec3 root = fr.base.add(fr.r.scale(Math.cos(a) * 8.6)).add(fr.f.scale(Math.sin(a) * 6.4)).add(0, 0.1, 0);
+            Vec3 grip = switch (k % 5) {
+                case 0 -> sk.hand[0];
+                case 1 -> sk.hand[1];
+                case 2 -> sk.shoulder[k / 5 % 2];
+                case 3 -> sk.spine[Math.min(sk.spine.length - 4, 5 + (k * 3) % 6)];
+                default -> sk.heart;
+            };
+            // reaching up: it grows out of the rift over a few ticks (dragging: at the seizure, each at its own moment)
+            float reach = drag ? Mth.clamp((fr.act - (k % 4) * 2) / 7F, 0F, 1F) : 1F;
+            if (reach <= 0) continue;
+            Vec3 d = grip.subtract(root);
+            Vec3 side = d.cross(new Vec3(0, 1, 0));
+            side = side.lengthSqr() < 1e-4 ? fr.r : side.normalize();
+            int segs = 9;
+            Vec3 prev = root;
+            float wob = drag ? 0.9F : 0.5F;
+            for (int s = 1; s <= segs; s++) {
+                double u = s / (double) segs * reach;
+                // bowed out and up, wavering like smoke
+                Vec3 p = root.add(d.scale(u)).add(0, Math.sin(Math.PI * u) * 2.2, 0)
+                        .add(side.scale(Math.sin(fr.t * 0.21 + k * 1.7 + u * 5) * wob * Math.sin(Math.PI * u)));
+                float w = (float) (0.75 - 0.35 * u) * (drag ? 1.15F : 1F);
+                int al = (int) ((drag ? 150 : 95) * Math.min(1, pull * 1.6) * (0.55 + 0.45 * u));
+                ribbon(vc, fr.m, prev.subtract(fr.origin), p.subtract(fr.origin), cam.subtract(fr.origin), w, 150, 70, 255, al);
+                ribbon(vc, fr.m, prev.subtract(fr.origin), p.subtract(fr.origin), cam.subtract(fr.origin), w * 0.35F, 220, 200, 255, al);
+                prev = p;
+            }
+            if (reach < 1) continue;
+            // the hand: four fingers clutching round what it holds
+            Vec3 fwd = d.normalize();
+            Vec3 up2 = fwd.cross(side).normalize();
+            for (int fgr = 0; fgr < 4; fgr++) {
+                double fa = (fgr - 1.5) * 0.5;
+                Vec3 base = grip.add(side.scale(Math.sin(fa) * 0.9)).subtract(fwd.scale(0.4));
+                Vec3 tip = base.add(fwd.scale(1.3)).add(up2.scale(-0.9 - 0.2 * Mth.sin(fr.t * 0.3F + fgr))).add(side.scale(Math.sin(fa) * 0.6));
+                ribbon(vc, fr.m, base.subtract(fr.origin), tip.subtract(fr.origin), cam.subtract(fr.origin), 0.32F, 190, 140, 255, drag ? 170 : 110);
+            }
+        }
+    }
+
+    /** A soft band from a to b, {@code w} wide, turned to the camera: bright down its middle, fading to its edges. */
+    private static void ribbon(VertexConsumer vc, Matrix4f m, Vec3 a, Vec3 b, Vec3 cam, float w, int r, int g, int bl, int al) {
+        Vec3 dir = b.subtract(a);
+        Vec3 side = dir.cross(cam.subtract(a.add(b).scale(0.5)));
+        if (side.lengthSqr() < 1e-8) return;
+        side = side.normalize().scale(w / 2);
+        for (int half = -1; half <= 1; half += 2) {
+            Vec3 s = side.scale(half);
+            Vec3[] p = {a, b, b.add(s), a.add(s)};
+            int[] alpha = {al, al, 0, 0};
+            for (int[] o : new int[][]{{0, 1, 2, 3}, {3, 2, 1, 0}}) {
+                for (int i : o) vc.vertex(m, (float) p[i].x, (float) p[i].y, (float) p[i].z).color(r, g, bl, Math.min(255, alpha[i])).endVertex();
             }
         }
     }

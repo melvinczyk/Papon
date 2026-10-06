@@ -146,6 +146,42 @@ final class GiantMesh {
         return rgb((236 * k) + (1 - ao) * 8, (229 * k) + (1 - ao) * 14, (210 * k) + (1 - ao) * 40);
     }
 
+    /**
+     * (2026-10-06, the user: "improve his textures where you can") weathered bone: a mottle of warmer and paler patches, and
+     * fine dark cracks running over it, where the field's noise crosses its middle.
+     */
+    private static int bone(float ao, float x, float y, float z) {
+        float n = noise(x * 0.55F, y * 0.55F, z * 0.55F) * 0.65F + noise(x * 1.3F + 7, y * 1.3F, z * 1.3F) * 0.35F;
+        float mottle = 0.9F + 0.16F * n;
+        float crack = Math.abs(noise(x * 0.32F + 31, y * 0.32F, z * 0.32F + 11) - 0.5F);
+        if (crack < 0.008F && ao > 0.6F) mottle *= 0.88F;
+        float k = (0.42F + 0.58F * ao) * mottle;
+        float warm = (n - 0.5F) * 10;
+        return rgb((236 * k) + (1 - ao) * 8 + warm, (229 * k) + (1 - ao) * 14, (210 * k) + (1 - ao) * 40 - warm);
+    }
+
+    /** Smooth value noise, 0..1 (hashed lattice, trilinear with smoothstep). */
+    private static float noise(float x, float y, float z) {
+        int xi = (int) Math.floor(x), yi = (int) Math.floor(y), zi = (int) Math.floor(z);
+        float fx = x - xi, fy = y - yi, fz = z - zi;
+        fx = fx * fx * (3 - 2 * fx);
+        fy = fy * fy * (3 - 2 * fy);
+        fz = fz * fz * (3 - 2 * fz);
+        float v = 0;
+        for (int c = 0; c < 8; c++) {
+            int dx = c & 1, dy = (c >> 1) & 1, dz = (c >> 2) & 1;
+            float w = (dx == 1 ? fx : 1 - fx) * (dy == 1 ? fy : 1 - fy) * (dz == 1 ? fz : 1 - fz);
+            v += w * hash(xi + dx, yi + dy, zi + dz);
+        }
+        return v;
+    }
+
+    private static float hash(int x, int y, int z) {
+        int h = x * 374761393 + y * 668265263 + z * 1274126177;
+        h = (h ^ (h >>> 13)) * 1274126177;
+        return ((h ^ (h >>> 16)) & 0xFFFF) / 65535F;
+    }
+
     private static int paintSkull(float x, float y, float z, float ao) {
         if (upperTeeth(x, y, z) < 0.12F) return rgb(250 * (0.6F + 0.4F * ao), 248 * (0.6F + 0.4F * ao), 238 * (0.6F + 0.4F * ao));
         for (int s = -1; s <= 1; s += 2) {
@@ -153,6 +189,24 @@ final class GiantMesh {
             if (in > -0.25F && in < 0.35F && z < 8.6F) return rgb(20, 16, 30);              // down in the socket: black
         }
         if (nose(x, y, z) < 0.35F) return rgb(26, 20, 34);
+        // a pink rim round the heart of its nose
+        if (nose(x, y, z) < 0.85F && z > 6.5F) return rgb(255 * (0.6F + 0.4F * ao), 62 * (0.6F + 0.4F * ao), 150 * (0.6F + 0.4F * ao));
+        // rings of dots round its temples, pink and the dead's blue by turns
+        for (int s = -1; s <= 1; s += 2) {
+            float dx = x - s * 8.9F, dy = y + 1.0F, dz = z - 1.8F;
+            float d = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (d > 3.3F && d < 4.6F && Math.abs(x) > 6.2F) {
+                double ang = Math.atan2(dy, dz);
+                int dot = (int) Math.floor((ang + Math.PI) / (Math.PI / 6));
+                double c = -Math.PI + (dot + 0.5) * (Math.PI / 6);
+                float py = (float) (Math.sin(c) * 3.95), pz = (float) (Math.cos(c) * 3.95);
+                float e = (dy - py) * (dy - py) + (dz - pz) * (dz - pz);
+                if (e < 0.32F) {
+                    float k = 0.6F + 0.4F * ao;
+                    return dot % 2 == 0 ? rgb(255 * k, 70 * k, 170 * k) : rgb(70 * k, 205 * k, 255 * k);
+                }
+            }
+        }
         if (z > 4.2F) {
             // the petals round each socket, pink and marigold by turns
             for (int s = -1; s <= 1; s += 2) {
@@ -187,7 +241,7 @@ final class GiantMesh {
                 if (dx * dx + dy * dy < 0.18F) return rgb(255, 176, 40);
             }
         }
-        return bone(ao);
+        return bone(ao, x, y, z);
     }
 
     private static int paintJaw(float x, float y, float z, float ao) {
@@ -200,7 +254,7 @@ final class GiantMesh {
                 if ((dx - px) * (dx - px) + (dy) * (dy) < 0.16F) return rgb(255, 160, 40);
             }
         }
-        return bone(ao);
+        return bone(ao, x, y, z);
     }
 
     // ------------------------------------------------------------------ surface nets

@@ -59,7 +59,7 @@ import java.util.UUID;
  *   van                 a van in front of you (testing; normally it comes with the truck)
  *   bossstate <STATE>   force the nearest boss into a state (testing)
  *   cutaway <WHO>       cut to the band now (TRUMPETS, VIOLINS, GUITARRON, STRINGS, CORO, STANDS; testing)
- *   giant <MOVE>        El Gigante now: summon, lunge, grab, swipe, slam, slam2, laser (testing)
+ *   giant <MOVE>        El Gigante now: summon, lunge, grab, swipe, slam, slam2, laser; portal (its rift closes in 8 s), sink (testing)
  */
 public final class PaponCommand {
     private PaponCommand() {}
@@ -97,7 +97,7 @@ public final class PaponCommand {
                 .then(Commands.literal("van").executes(PaponCommand::van))
                 .then(Commands.literal("serpents").executes(PaponCommand::serpents))
                 .then(Commands.literal("giant").then(Commands.argument("move", StringArgumentType.word())
-                        .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"summon", "lunge", "grab", "swipe", "slam", "slam2", "laser"}, b))
+                        .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"summon", "lunge", "grab", "swipe", "slam", "slam2", "laser", "portal", "sink"}, b))
                         .executes(c -> giant(c, StringArgumentType.getString(c, "move")))))
                 .then(Commands.literal("bossstate").then(Commands.argument("state", StringArgumentType.word())
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
