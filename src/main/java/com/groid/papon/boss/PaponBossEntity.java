@@ -4190,12 +4190,30 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 if (t % 10 == 1) getNavigation().moveTo(target.getX(), target.getY(), target.getZ(), 0.9);
             } else { getNavigation().stop(); }
             if (t < aura) turnToward(target.position(), 8F);
-            else turnToward(target.position().add(Vec3.directionFromRotation(0, getYRot() + 90).scale(6)), 2.5F);
+        }
+        // (2026-10-06) the aura farm is played to the stands across from the band, square on to them (client/Cinematic.auraShot)
+        MariachiEntity singer = singer(level);
+        if (t >= aura && singer != null && arena != null) {
+            turnToward(arena.centerVec().add(Vec3.directionFromRotation(0, singer.getYRot()).scale(Coliseum.B + 10)), 5F);
         }
         if (t == beat("apology.line", 30)) sayPlain("apology", 100);
         if (t == aura) {
             crowdReact(level, CrowdMood.SWOON, 90);
             level.playSound(null, getX(), getY(), getZ(), SoundEvents.BEACON_POWER_SELECT, SoundSource.HOSTILE, 2.0F, 0.7F);
+        }
+        int wink = beat("apology.wink", 144);
+        if (t == wink) {
+            // the wink: the stands scream
+            ColiseumCrowdEntity c = crowd(level);
+            if (c != null) c.react(CrowdMood.SWOON, 80, true);
+            level.playSound(null, getX(), getY() + getBbHeight() * 0.8, getZ(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.HOSTILE, 3.0F, 1.6F);
+            Fx.glint(level, position().add(0, getBbHeight() * 0.82, 0).add(Vec3.directionFromRotation(0, getYRot()).scale(0.6)), 1.4F, 0xFFF4C0);
+        }
+        // and as the guitar comes round again they clap him in on the beat, louder and louder, to "where were we?"
+        int end = beat("apology.end", BossState.P2_APOLOGY.duration);
+        if (t == Math.max(wink + 62, end - 86)) {
+            crowdMood(level, CrowdMood.CLAP);
+            crowdRoar(level, 16);
         }
         if (t > aura && t % 6 == 0) {
             double a = t * 0.4;

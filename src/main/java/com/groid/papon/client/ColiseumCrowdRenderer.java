@@ -651,6 +651,43 @@ public class ColiseumCrowdRenderer extends EntityRenderer<ColiseumCrowdEntity> {
             }
         }
         if (!flames.isEmpty()) drawFlames(buffers.getBuffer(PaponRenderTypes.glow()), t);
+        if (deadSweep < 1) drawFlashes(buffers.getBuffer(PaponRenderTypes.glow()), ps, crowd, mood, deadSweep, partial);
+    }
+
+    /**
+     * (2026-10-06) Phones up: camera flashes popping all through the living stands while he shows off (a swoon, a roar, the
+     * chant), a few a tick, each a hard white star for three ticks. Which seats flash is a hash of the game tick, the same on
+     * every frame of it (no state). Not in the dead's stands.
+     */
+    private void drawFlashes(VertexConsumer vc, PoseStack ps, ColiseumCrowdEntity crowd, CrowdMood mood, float deadSweep, float partial) {
+        int rate = switch (mood) {
+            case SWOON -> 6;
+            case ROAR -> 4;
+            case CHANT, CLAP -> 2;
+            case CHEER, WAVE -> 1;
+            default -> 0;
+        };
+        if (rate == 0 || seats.isEmpty()) return;
+        long now = crowd.level().getGameTime();
+        org.joml.Matrix4f m = ps.last().pose();
+        Vector3f v = new Vector3f();
+        for (long tick = now - 2; tick <= now; tick++) {
+            float age = (now - tick) + partial;
+            float a = 1F - age / 3F;
+            if (a <= 0) continue;
+            for (int j = 0; j < rate; j++) {
+                long h = (tick * 0x9E3779B97F4A7C15L + j * 0xC2B2AE3D27D4EB4FL) ^ crowd.seed();
+                h ^= h >>> 29;
+                int i = (int) Math.floorMod(h * 0xBF58476D1CE4E5B9L >>> 17, (long) seats.size());
+                Coliseum.Seat s = seats.get(i);
+                if (turned(s.seed(), deadSweep)) continue;
+                m.transformPosition(s.x(), s.y() + 1.55F, s.z(), v);
+                float k = a * a;
+                quad(vc, v.x(), v.y(), v.z(), 0.55F * k, 0.55F * k, 0.85F, 0.9F, 1F, 0.55F * k);
+                quad(vc, v.x(), v.y(), v.z(), 0.12F, 0.12F, 1F, 1F, 1F, k);
+                quad(vc, v.x(), v.y(), v.z(), 0.9F * k, 0.05F, 1F, 1F, 1F, 0.6F * k);
+            }
+        }
     }
 
     /**

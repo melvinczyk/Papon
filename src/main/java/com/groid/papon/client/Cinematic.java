@@ -598,11 +598,8 @@ public final class Cinematic {
                     return new Shot(mid.add(right.scale(7.5)).add(0, 1.4, 0), mid, 58, 0, t == 0);
                 }
                 if (t < aura) return new Shot(body.add(f.scale(4.0)).add(right.scale(1.4)).add(0, -0.8, 0), face, 48, 0, t == close);
-                // the aura farm: a slow low orbit, a little slower the longer it has to last
-                double span = Math.max(68, VoiceLines.beat("apology.end", 178) - aura);
-                double orbit = Math.toRadians(20 + (t - aura) * 1.5 * 68 / span);
-                Vec3 dir = f.scale(Math.cos(orbit)).add(right.scale(Math.sin(orbit)));
-                return new Shot(b.position().add(dir.scale(5.2)).add(0, 0.4, 0), body.add(0, 0.5, 0), 50, 0, t == aura);
+                return auraShot(b, t - aura, VoiceLines.beat("apology.end", 178) - aura, VoiceLines.beat("apology.wink", 144) - aura,
+                        body, face, stage, stageFacing, stageSide);
             }
             case P2_RESUME -> {
                 int whip = VoiceLines.beat("resume.total", 36) - 8;        // whip out as the line ends and he sings
@@ -663,6 +660,51 @@ public final class Cinematic {
                 return null;
             }
         }
+    }
+
+    /**
+     * The aura farm after "Such POOR hospitality..." (2026-10-06, the user: the camera trailing his back through a silent crowd
+     * "I do NOT like"): he turns to the stands across from the band and lets them have it, and the camera plays it as a showman's
+     * moment, never from behind him. All the angles hang off the stage's facing, fixed for the whole beat (never a side picked
+     * by a dot product against the middle: it flips). {@code k} ticks into the aura, {@code len} long, the wink at {@code wink}:
+     *   a low hero angle out in front of him, the band stand behind him, pushing in, the stands' cameras flashing
+     *   in close for the wink (his face, a little below it)
+     *   the stands themselves, swooning: tracking along the rows across from the band, low on the sand, looking up into them
+     *   the wide: from high over those stands, the whole bowl clapping on the beat, craning down onto him for "where were we?"
+     */
+    private static Shot auraShot(PaponBossEntity b, int k, int len, int wink, Vec3 body, Vec3 face, Vec3 stage, Vec3 sf, Vec3 side) {
+        int closeAt = Math.max(14, wink - 6), standsAt = wink + 22, wideAt = Math.max(standsAt + 40, len - 86);
+        if (k < closeAt) {
+            double p = smooth(Math.min(1, k / (double) closeAt));
+            Vec3 eye = body.add(sf.scale(6.4 - p * 1.6)).add(side.scale(1.8 - p * 0.6)).add(0, -1.1 + p * 0.3, 0);
+            return new Shot(eye, face.add(0, -0.2, 0), 52 - (float) p * 6, 0, k == 0);
+        }
+        if (k < standsAt) {
+            double p = (k - closeAt) / (double) (standsAt - closeAt);
+            Vec3 eye = face.add(sf.scale(3.3 - p * 0.3)).add(side.scale(0.5)).add(0, -0.25, 0);
+            return new Shot(eye, face.add(0, 0.05, 0), 40, 0, near(k, closeAt));
+        }
+        Vec3 c = arenaMiddle(b);
+        if (k < wideAt) {
+            // the rows across from the stand, from the edge of the sand: pan along them as they swoon and faint
+            double p = (k - standsAt) / (double) (wideAt - standsAt);
+            double reach = com.groid.papon.boss.Coliseum.B - 3.0;
+            Vec3 eye = c.add(sf.scale(reach)).add(side.scale(-9 + p * 14)).add(0, 2.2, 0);
+            Vec3 look = c.add(sf.scale(com.groid.papon.boss.Coliseum.B + 12)).add(side.scale(-4 + p * 12)).add(0, 10 + p, 0);
+            return new Shot(eye, look, 64, 0, near(k, standsAt), true);
+        }
+        // the whole bowl from high over those stands, craning down and in onto him as the clapping builds
+        double p = smooth(Math.min(1, (k - wideAt) / (double) Math.max(1, len - wideAt)));
+        Vec3 high = c.add(sf.scale(com.groid.papon.boss.Coliseum.B + 6)).add(side.scale(4)).add(0, 19, 0);
+        Vec3 low = body.add(sf.scale(7.5)).add(side.scale(2.2)).add(0, 1.6, 0);
+        Vec3 look = stage.add(0, 2, 0).lerp(face, 0.35 + 0.65 * p);
+        return new Shot(high.lerp(low, p), look, 66 - (float) p * 18, 0, near(k, wideAt), true);
+    }
+
+    /** The middle of the arena he is in (the crowd stands there), or where he is. */
+    private static Vec3 arenaMiddle(PaponBossEntity b) {
+        return Minecraft.getInstance().level.getEntitiesOfClass(com.groid.papon.boss.ColiseumCrowdEntity.class, b.getBoundingBox().inflate(80), e -> true)
+                .stream().findFirst().map(Entity::position).orElse(b.position());
     }
 
     /**
