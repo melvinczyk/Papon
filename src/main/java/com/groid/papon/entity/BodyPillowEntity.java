@@ -36,7 +36,10 @@ import org.jetbrains.annotations.Nullable;
  *             Right-click her and you climb on the bed with her (you ride her, client/PillowClient; the bed creaks,
  *             hearts; sneak to get off): she lies down on her back and you plank over her ({@link Act#HUMP}); jump and
  *             she rolls over onto her knees, face down and hips up, you kneeling behind her ({@link Act#BEHIND}); jump
- *             to roll her back. Off the bed, she sits back up
+ *             to roll her back. Right-click her from beside the bed instead and you stand at its side: she lies across
+ *             the bed on her back, hips at its edge, her legs up on your shoulders ({@link Act#SIDE_BACK}); jump and she
+ *             is on her knees at the side of the bed, bent over it ({@link Act#SIDE_KNEES}). Off the bed, she sits back
+ *             up. Long enough at it and you finish: Post Nut Clarity (effect/PostNutClarityEffect)
  *   on the edge  sat on the side of the bed facing the room, her lap on the mattress, her legs over the side and her feet
  *             just off the floor (the side with room for you: {@link #pickEdge}). Right-click her and you get down on the
  *             floor at her feet and lick them ({@link Act#FLOOR}); jump and you kneel up and lift her feet to your face
@@ -53,6 +56,10 @@ public class BodyPillowEntity extends Entity {
     private static final EntityDataAccessor<Integer> DATA_EDGE = SynchedEntityData.defineId(BodyPillowEntity.class, EntityDataSerializers.INT);
     /** The rider's other way: her feet lifted to their face ({@link Act#LIFT}), or her on her knees ({@link Act#BEHIND}). */
     private static final EntityDataAccessor<Boolean> DATA_LIFT = SynchedEntityData.defineId(BodyPillowEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Where her rider came at her from: -1 the foot (on the bed with her), else the side of the bed (2D data value). */
+    private static final EntityDataAccessor<Integer> DATA_SIDE = SynchedEntityData.defineId(BodyPillowEntity.class, EntityDataSerializers.INT);
+    /** At the side of the bed: beside its head block (0) or its foot block (1). */
+    private static final EntityDataAccessor<Integer> DATA_HALF = SynchedEntityData.defineId(BodyPillowEntity.class, EntityDataSerializers.INT);
     public static final int SLOUCH = 0, EDGE = 1;
     /** How far off the bed's centre line it lies (the sleeper moves over the other way). */
     public static final double SIDE = 0.27;
@@ -65,12 +72,14 @@ public class BodyPillowEntity extends Entity {
      * What whoever is with her is doing: planked over her on her back, on the floor at her feet, kneeling with her feet held
      * up, kneeling behind her on her knees.
      */
-    public enum Act { HUMP, FLOOR, LIFT, BEHIND }
+    public enum Act { HUMP, FLOOR, LIFT, BEHIND, SIDE_BACK, SIDE_KNEES }
 
     /** Laid down: her hips along the bed from its head block's centre, on her back, and on her knees (raised {@link #HIPS_UP}). */
     public static final double LIE_HIPS = 0.75, KNEEL_HIPS = 0.45, HIPS_UP = 0.295;
     /** The rider, along the bed from the head block's centre toward the foot: planked (the eyes over her face), kneeling behind her. */
     public static final double PLANK_AT = 0.35, BEHIND_AT = 0.62;
+    /** At the side of the bed: her hips out from the middle of its block toward you (at its edge); you, standing, out from it. */
+    public static final double SIDE_HIPS = 0.45, SIDE_BACK_AT = 0.98, SIDE_KNEES_AT = 0.8;
 
     /** Ticks someone has been with her (the hint comes after the game's "Press Shift to dismount"). */
     private int with;
@@ -131,6 +140,7 @@ public class BodyPillowEntity extends Entity {
     @Nullable
     public Act act() {
         if (!(getFirstPassenger() instanceof Player)) return null;
+        if (pose() == SLOUCH && humpSide() != null) return entityData.get(DATA_LIFT) ? Act.SIDE_KNEES : Act.SIDE_BACK;
         if (pose() == SLOUCH) return entityData.get(DATA_LIFT) ? Act.BEHIND : Act.HUMP;
         return entityData.get(DATA_LIFT) ? Act.LIFT : Act.FLOOR;
     }
@@ -138,6 +148,57 @@ public class BodyPillowEntity extends Entity {
     public float lift(float partial) { return Mth.lerp(partial, liftO, lift); }
 
     public float down(float partial) { return Mth.lerp(partial, downO, down); }
+
+    /** Her hips, laid down for whoever is humping her (on the bed, or at its edge from its side). */
+    public Vec3 hips() {
+        Direction side = humpSide();
+        if (side == null) return alongBed(Mth.lerp(lift, LIE_HIPS, KNEEL_HIPS), Mth.lerp(lift, 0, HIPS_UP));
+        return sideSpot().add(side.getStepX() * SIDE_HIPS, MATTRESS, side.getStepZ() * SIDE_HIPS);
+    }
+
+    /** A humping act (on the bed or at its side): the ones that count toward finishing. */
+    public static boolean humping(@Nullable Act act) {
+        return act == Act.HUMP || act == Act.BEHIND || act == Act.SIDE_BACK || act == Act.SIDE_KNEES;
+    }
+
+    /** The side of the bed her rider stands at, or null when they are on the bed with her (from the foot). */
+    @Nullable
+    public Direction humpSide() {
+        int v = entityData.get(DATA_SIDE);
+        return v < 0 ? null : Direction.from2DDataValue(v);
+    }
+
+    /** At the side of the bed: the middle of the block (head or foot half) she lies across, on the floor. */
+    public Vec3 sideSpot() {
+        BlockPos half = entityData.get(DATA_HALF) == 0 ? bed() : bed().relative(facing().getOpposite());
+        return Vec3.atBottomCenterOf(half);
+    }
+
+    /**
+     * Where to have her for someone right-clicking from {@code from}: the side of the bed they are beside (and the half of it
+     * they are nearer), if there is floor there to stand on; else the foot, on the bed with her. Sets DATA_SIDE/DATA_HALF.
+     */
+    private void approach(Vec3 from) {
+        Direction f = facing(), cw = f.getClockWise();
+        Vec3 rel = from.subtract(middle());
+        double along = rel.x * f.getStepX() + rel.z * f.getStepZ(), across = rel.x * cw.getStepX() + rel.z * cw.getStepZ();
+        int side = -1, half = 0;
+        // beside the bed (further out past its side than past its foot), not at its foot or behind the headboard
+        if (Math.abs(across) - 0.5 > -1 - along && along > -1.6) {
+            Direction d = across > 0 ? cw : cw.getOpposite();
+            int near = along >= 0 ? 0 : 1;
+            for (int h : new int[]{near, 1 - near}) {
+                BlockPos block = h == 0 ? bed() : bed().relative(f.getOpposite());
+                if (clear(block.relative(d))) {
+                    side = d.get2DDataValue();
+                    half = h;
+                    break;
+                }
+            }
+        }
+        entityData.set(DATA_SIDE, side);
+        entityData.set(DATA_HALF, half);
+    }
 
     /** Along the bed from its head block's centre, toward the foot, at the mattress's top. */
     public Vec3 alongBed(double back, double up) {
@@ -193,13 +254,17 @@ public class BodyPillowEntity extends Entity {
         entityData.define(DATA_POSE, SLOUCH);
         entityData.define(DATA_EDGE, 0);
         entityData.define(DATA_LIFT, false);
+        entityData.define(DATA_SIDE, -1);
+        entityData.define(DATA_HALF, 0);
     }
 
     @Override
     public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
         super.onSyncedDataUpdated(key);
         // the rider's eyes go down to the floor, up to kneeling (eyeHeight)
-        if (DATA_LIFT.equals(key) || DATA_POSE.equals(key)) getPassengers().forEach(Entity::refreshDimensions);
+        if (DATA_LIFT.equals(key) || DATA_POSE.equals(key) || DATA_SIDE.equals(key)) getPassengers().forEach(Entity::refreshDimensions);
+        // where they came at her from can land after they got on (the passengers and the data are separate packets)
+        if (DATA_SIDE.equals(key)) getPassengers().forEach(this::turnToHer);
     }
 
     @Override
@@ -208,9 +273,9 @@ public class BodyPillowEntity extends Entity {
         liftO = lift;
         downO = down;
         Act act = act();
-        float want = act == Act.LIFT || act == Act.BEHIND ? 1 : 0;
+        float want = act == Act.LIFT || act == Act.BEHIND || act == Act.SIDE_KNEES ? 1 : 0;
         lift += Mth.clamp(want - lift, -0.09F, 0.09F);
-        down += Mth.clamp((act == Act.HUMP || act == Act.BEHIND ? 1 : 0) - down, -0.08F, 0.08F);
+        down += Mth.clamp((humping(act) ? 1 : 0) - down, -0.08F, 0.08F);
         if (level().isClientSide) return;
         if (tickCount % 20 == 0 && !level().getBlockState(bed()).is(BlockTags.BEDS)) {
             dropIt();
@@ -220,17 +285,32 @@ public class BodyPillowEntity extends Entity {
             with = 0;
             return;
         }
-        if (++with == 4) say(p, pose() == EDGE ? "kneel" : "climb");
+        if (++with == 4) say(p, pose() == EDGE ? "kneel" : humpSide() != null ? "side" : "climb");
         int t = p.tickCount;
-        if (act() == Act.HUMP || act() == Act.BEHIND) {
+        if (humping(act())) {
+            // long enough at it and you are done: off the bed, and the clarity sets in
+            if (p instanceof net.minecraft.server.level.ServerPlayer sp && com.groid.papon.effect.PostNutClarityEffect.humped(sp)) {
+                ejectPassengers();
+                return;
+            }
             // the bed creaking in time (client/PillowClient.thrust: a stroke every 7 ticks), hearts, a word now and then
             if (t % 7 == 2) {
                 server.playSound(null, getX(), getY(), getZ(), SoundEvents.WOOD_STEP, SoundSource.PLAYERS, 0.7F, 0.6F + random.nextFloat() * 0.15F);
                 server.playSound(null, getX(), getY(), getZ(), SoundEvents.WOOL_STEP, SoundSource.PLAYERS, 0.6F, 0.8F);
             }
-            if (act() == Act.BEHIND && t % 7 == 3) server.playSound(null, p.getX(), p.getY() + 0.4, p.getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.PLAYERS, 0.35F, 1.7F);
-            if (t % 20 == 5) server.sendParticles(ParticleTypes.HEART, p.getX(), p.getY() + 1.0, p.getZ(), 2, 0.3, 0.3, 0.3, 0.02);
-            if (t % 90 == 30) say(p, (act() == Act.BEHIND && random.nextBoolean() ? "behind." : "hump.") + random.nextInt(4));
+            if ((act() == Act.BEHIND || act() == Act.SIDE_KNEES) && t % 7 == 3) server.playSound(null, p.getX(), p.getY() + 0.4, p.getZ(), SoundEvents.SLIME_SQUISH_SMALL, SoundSource.PLAYERS, 0.35F, 1.7F);
+            if (t % 20 == 5) {
+                Vec3 hips = hips();
+                server.sendParticles(ParticleTypes.HEART, hips.x, hips.y + 0.5, hips.z, 2, 0.3, 0.2, 0.3, 0.02);
+            }
+            if (t % 90 == 30) {
+                String set = switch (act()) {
+                    case BEHIND, SIDE_KNEES -> random.nextBoolean() ? "behind." : "hump.";
+                    case SIDE_BACK -> random.nextBoolean() ? "side." : "hump.";
+                    default -> "hump.";
+                };
+                say(p, set + random.nextInt(4));
+            }
             return;
         }
         // at her feet: a lick about twice a second (client/PillowClient.lick), drips off her toes, now and then a kick of
@@ -312,7 +392,7 @@ public class BodyPillowEntity extends Entity {
         entityData.set(DATA_LIFT, up);
         player.refreshDimensions();
         if (pose() == SLOUCH) {
-            say(player, up ? "roll_behind" : "roll_front");
+            say(player, humpSide() != null ? up ? "side_knees" : "side_back" : up ? "roll_behind" : "roll_front");
             level().playSound(null, getX(), getY(), getZ(), SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 1.0F, up ? 0.9F : 0.75F);
             level().playSound(null, getX(), getY(), getZ(), SoundEvents.WOOD_STEP, SoundSource.PLAYERS, 0.8F, 0.55F);
             return;
@@ -338,6 +418,7 @@ public class BodyPillowEntity extends Entity {
             case BEHIND -> 1.2F;
             case FLOOR -> 0.45F;
             case LIFT -> 1.05F;
+            case SIDE_BACK, SIDE_KNEES -> Float.NaN;             // standing at the side of the bed
         };
     }
 
@@ -348,11 +429,16 @@ public class BodyPillowEntity extends Entity {
     protected void addPassenger(Entity passenger) {
         super.addPassenger(passenger);
         passenger.refreshDimensions();
-        // turned to her: to the headboard, or down at her feet
-        float yaw = pose() == EDGE ? edge().getOpposite().toYRot() : facing().toYRot();
+        turnToHer(passenger);
+    }
+
+    /** Turned to her: to the headboard, across the bed from its side, or down at her feet. */
+    private void turnToHer(Entity passenger) {
+        Direction side = humpSide();
+        float yaw = pose() == EDGE ? edge().getOpposite().toYRot() : side != null ? side.getOpposite().toYRot() : facing().toYRot();
         passenger.setYRot(yaw);
         passenger.setYHeadRot(yaw);
-        passenger.setXRot(pose() == EDGE ? 8 : 75);
+        passenger.setXRot(pose() == EDGE ? 8 : side != null ? 50 : 75);
         if (passenger instanceof LivingEntity le) le.setYBodyRot(yaw);
     }
 
@@ -379,7 +465,16 @@ public class BodyPillowEntity extends Entity {
             if (passenger instanceof LivingEntity le) le.setYBodyRot(e.getOpposite().toYRot());
             return;
         }
-        // on the bed: planked over her (the eyes over her head), or kneeling behind her hips
+        Direction side = humpSide();
+        if (side != null) {
+            // standing on the floor at the side of the bed, at her hips (she lies across it)
+            double out = Mth.lerp(lift, SIDE_BACK_AT, SIDE_KNEES_AT);
+            Vec3 at = sideSpot().add(side.getStepX() * out, 0, side.getStepZ() * out);
+            move.accept(passenger, at.x, at.y, at.z);
+            if (passenger instanceof LivingEntity le) le.setYBodyRot(side.getOpposite().toYRot());
+            return;
+        }
+        // on the bed: planked over her (the eyes over her face), or kneeling behind her hips
         Direction f = facing();
         Vec3 at = alongBed(Mth.lerp(lift, PLANK_AT, BEHIND_AT), 0);
         move.accept(passenger, at.x, at.y, at.z);
@@ -403,6 +498,11 @@ public class BodyPillowEntity extends Entity {
         if (pose() == EDGE) {
             Direction e = edge();
             Vec3 at = middle().add(e.getStepX() * 1.3, 0, e.getStepZ() * 1.3);
+            return new Vec3(at.x, bed().getY() + 0.05, at.z);
+        }
+        Direction side = humpSide();
+        if (side != null) {
+            Vec3 at = sideSpot().add(side.getStepX() * 1.1, 0, side.getStepZ() * 1.1);
             return new Vec3(at.x, bed().getY() + 0.05, at.z);
         }
         Direction f = facing();
@@ -441,7 +541,10 @@ public class BodyPillowEntity extends Entity {
             say(player, "no_room");
             return InteractionResult.CONSUME;
         }
-        // onto the bed with her, or down on the floor at her feet
+        // onto the bed with her (or at its side, wherever you came at her from), or down on the floor at her feet; not
+        // in the clarity after
+        if (com.groid.papon.effect.PostNutClarityEffect.refractory(player)) return InteractionResult.CONSUME;
+        if (pose() == SLOUCH) approach(player.position());
         entityData.set(DATA_LIFT, false);
         player.startRiding(this);
         level().playSound(null, getX(), getY(), getZ(), SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 1.0F, 0.7F);

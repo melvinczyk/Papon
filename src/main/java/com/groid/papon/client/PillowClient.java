@@ -42,6 +42,8 @@ import java.util.Set;
  *             and she lies down on her back, you planked over her on straight arms, the hips driving
  *             down into her (the pillow squashed on every thrust, the bed creaking); jump and she rolls
  *             over onto her knees, you kneeling behind her gripping her hips; jump to roll her back.
+ *             From beside the bed you stand at its side: her on her back across it, your arms round her
+ *             legs up on your shoulders; jump: her on her knees there, bent over it.
  *             With someone asleep in the bed it lies beside them instead, and they sleep rolled onto
  *             their side, facing her
  *   her feet  sat on the edge of the bed (sneak + right-click her), her feet just off the floor; right-click
@@ -243,6 +245,20 @@ public final class PillowClient {
         BodyPillowEntity.Act act = act(entity);
         if (act == null) return;
         float partial = Minecraft.getInstance().getFrameTime();
+        if (act == BodyPillowEntity.Act.SIDE_BACK || act == BodyPillowEntity.Act.SIDE_KNEES) {
+            // standing at the side of the bed, hips driving at hers; on her back, your arms round her legs up on your shoulders
+            pose(model, entity, Mode.HUMP);
+            if (kneel(entity, partial) < 0.5F) {
+                float th = thrust(entity.tickCount + partial);
+                model.rightArm.xRot = -1.75F - 0.08F * th;
+                model.leftArm.xRot = -1.75F - 0.08F * th;
+                model.rightArm.yRot = -0.42F;
+                model.leftArm.yRot = 0.42F;
+                model.rightArm.zRot = 0;
+                model.leftArm.zRot = 0;
+            }
+            return;
+        }
         if (act == BodyPillowEntity.Act.BEHIND || act == BodyPillowEntity.Act.HUMP && kneel(entity, partial) > 0.5F) {
             pose(model, entity, Mode.HUMP);
             return;
@@ -327,7 +343,7 @@ public final class PillowClient {
         BodyPillowEntity.Act act = act(mc.player);
         if (act == null) return;
         float t = mc.player.tickCount + (float) event.getPartialTick();
-        if (act == BodyPillowEntity.Act.HUMP || act == BodyPillowEntity.Act.BEHIND) {
+        if (BodyPillowEntity.humping(act)) {
             event.setPitch(event.getPitch() + 1.6F * thrust(t));
             return;
         }
@@ -357,6 +373,16 @@ public final class PillowClient {
             model.leftArmPose = RIDE;
             if (pillow.pose() == BodyPillowEntity.EDGE) {
                 atHerFeet(p, pillow, ps, event.getPartialTick());
+                PUSHED.add(p);
+                return;
+            }
+            Direction side = pillow.humpSide();
+            if (side != null) {
+                // standing at the side of the bed: the whole body rocking in with the hips, leaning back a touch on each
+                float th = thrust(t);
+                ps.pushPose();
+                ps.translate(-side.getStepX() * 0.07 * th, 0, -side.getStepZ() * 0.07 * th);
+                ps.mulPose(new Quaternionf().rotateAxis(0.06F * th, side.getStepZ(), 0, -side.getStepX()));
                 PUSHED.add(p);
                 return;
             }

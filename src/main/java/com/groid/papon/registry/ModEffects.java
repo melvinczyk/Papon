@@ -30,5 +30,9 @@ public final class ModEffects {
     /** A potato from the stands in the face: a tenth of the screen in mash for five seconds. */
     public static final RegistryObject<MobEffect> SPLATTERED = REGISTRY.register("splattered", com.groid.papon.effect.SplatteredEffect::new);
 
+    /** After humping the body pillow long enough: slow and nauseous for fifteen seconds, and in no mood to do it again. */
+    public static final RegistryObject<MobEffect> POST_NUT_CLARITY = REGISTRY.register("post_nut_clarity",
+            com.groid.papon.effect.PostNutClarityEffect::new);
+
     private ModEffects() {}
 }

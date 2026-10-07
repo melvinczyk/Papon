@@ -32,7 +32,8 @@ import java.util.function.Consumer;
  *   hold use           hug it: arms wrapped round it, cheek on it, swaying (client/PillowClient); hearts
  *                      and a purr now and then, and a line of what Gerbin would say
  *   hold use, sneaking lick it (the tongue out, the head bobbing into it): slurps, drips
- *   hold use, looking down   hump it (folded over at the hips, squashed on every thrust): hearts
+ *   hold use, looking down   hump it (folded over at the hips, squashed on every thrust): hearts; long enough and
+ *                      you finish (effect/PostNutClarityEffect)
  *   use on a bed       lay it on the bed (entity/BodyPillowEntity): it slouches against the headboard; right-click
  *                      it to climb on with it; sneak + right-click to sit her on the edge of the bed, her feet down,
  *                      and right-click her then to get down on the floor and lick them (jump: lift them to your
@@ -82,7 +83,16 @@ public class BodyPillowItem extends Item {
         if (!(level instanceof ServerLevel server) || !(user instanceof Player player)) return;
         int held = getUseDuration(stack) - remaining;
         double x = player.getX(), y = player.getEyeY() - 0.3, z = player.getZ();
+        // in the clarity after (effect/PostNutClarityEffect) you can only bring yourself to hug her
+        if ((humping(player) || player.isCrouching()) && com.groid.papon.effect.PostNutClarityEffect.refractory(player)) {
+            player.stopUsingItem();
+            return;
+        }
         if (humping(player)) {
+            if (player instanceof net.minecraft.server.level.ServerPlayer sp && com.groid.papon.effect.PostNutClarityEffect.humped(sp)) {
+                player.stopUsingItem();
+                return;
+            }
             // a stroke every 7 ticks (client/PillowClient.thrust)
             if (player.tickCount % 7 == 2) {
                 server.playSound(null, x, y - 0.6, z, SoundEvents.WOOL_STEP, SoundSource.PLAYERS, 0.8F, 0.7F + level.random.nextFloat() * 0.2F);
