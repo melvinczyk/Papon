@@ -59,7 +59,8 @@ import java.util.UUID;
  *   van                 a van in front of you (testing; normally it comes with the truck)
  *   bossstate <STATE>   force the nearest boss into a state (testing)
  *   cutaway <WHO>       cut to the band now (TRUMPETS, VIOLINS, GUITARRON, STRINGS, CORO, STANDS; testing)
- *   giant <MOVE>        El Gigante now: summon, lunge, grab, swipe, slam, slam2, laser; portal (its rift closes in 8 s), sink (testing)
+ *   giant <MOVE>        El Gigante now: summon, lunge, grab, swipe, slam, slam2, laser; portal (its rift closes in 8 s), sink (testing;
+ *                       with no boss near, a wild one: summoned here, or the nearest told what to do)
  */
 public final class PaponCommand {
     private PaponCommand() {}
@@ -127,7 +128,20 @@ public final class PaponCommand {
         ServerLevel level = c.getSource().getLevel();
         net.minecraft.world.phys.Vec3 at = c.getSource().getPosition();
         var bosses = level.getEntitiesOfClass(PaponBossEntity.class, new net.minecraft.world.phys.AABB(at, at).inflate(160));
-        if (bosses.isEmpty()) return fail(c, "No boss nearby.");
+        if (bosses.isEmpty()) {
+            // no fight: a wild one (its spawn egg's), summoned here or told what to do
+            var wild = level.getEntitiesOfClass(com.groid.papon.boss.SpiritGiantEntity.class, new net.minecraft.world.phys.AABB(at, at).inflate(160),
+                    com.groid.papon.boss.SpiritGiantEntity::wild);
+            if (move.equals("summon")) {
+                var g = com.groid.papon.registry.ModEntities.SPIRIT_GIANT.get().create(level);
+                if (g == null) return 0;
+                g.moveTo(at.x, at.y, at.z, c.getSource().getRotation().y, 0);
+                level.addFreshEntity(g);
+                return 1;
+            }
+            if (wild.isEmpty()) return fail(c, "No boss or wild giant nearby (/papon giant summon).");
+            return wild.get(0).devAct(move) ? 1 : fail(c, "No giant move " + move + " (or nobody in survival for it to go after).");
+        }
         if (!(c.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity e)) return fail(c, "Run it as a player.");
         return bosses.get(0).devGiant(move, e) ? 1 : fail(c, "No giant move " + move + " (or no coliseum).");
     }

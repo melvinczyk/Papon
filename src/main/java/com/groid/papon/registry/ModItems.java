@@ -87,10 +87,14 @@ public final class ModItems {
 
     public static final RegistryObject<Item> GERBIN_SPAWN_EGG = egg("gerbin", ModEntities.GERBIN, 0x2E2E32, 0xF2F2EE);
     public static final RegistryObject<Item> PAPON_BOSS_SPAWN_EGG = egg("papon_boss", ModEntities.PAPON_BOSS, 0xD9AA51, 0x2C201A);
+    /** El Gigante on its own (not a Mob: the egg only places it; SpawnEggItem spawns any entity type). */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static final RegistryObject<Item> SPIRIT_GIANT_SPAWN_EGG = REGISTRY.register("spirit_giant_spawn_egg",
+            () -> new ForgeSpawnEggItem((Supplier) ModEntities.SPIRIT_GIANT, 0xE8E2D2, 0x40E2FF, new Item.Properties().rarity(Rarity.EPIC)));
 
     public static final List<RegistryObject<Item>> SPAWN_EGGS = List.of(WANDERING_PAPON_SPAWN_EGG, TACO_VENDOR_SPAWN_EGG,
             CUSTOMER_PAPON_SPAWN_EGG, DON_POLLO_SPAWN_EGG, EDP445_SPAWN_EGG, BADLANDS_CHUGS_SPAWN_EGG, REVIEWBRAH_SPAWN_EGG,
-            GERBIN_SPAWN_EGG, PAPON_BOSS_SPAWN_EGG);
+            GERBIN_SPAWN_EGG, PAPON_BOSS_SPAWN_EGG, SPIRIT_GIANT_SPAWN_EGG);
 
     private static RegistryObject<Item> egg(String name, Supplier<? extends EntityType<? extends Mob>> type, int base, int spots) {
         return REGISTRY.register(name + "_spawn_egg", () -> new ForgeSpawnEggItem(type, base, spots, new Item.Properties()));
