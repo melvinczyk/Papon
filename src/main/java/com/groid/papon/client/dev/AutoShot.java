@@ -1484,7 +1484,7 @@ public final class AutoShot {
     private static Vec3 flat(Vec3 p, double y) { return new Vec3(p.x, y, p.z); }
 
     private static String actName(int act) {
-        String[] n = {"rise", "idle", "charge", "laser", "slam_l", "slam_r", "sink", "swipe_l", "swipe_r", "slam_both", "roar", "grab", "lunge"};
+        String[] n = {"rise", "idle", "charge", "laser", "slam_l", "slam_r", "sink", "swipe_l", "swipe_r", "slam_both", "roar", "grab", "lunge", "heed", "stomp"};
         return act >= 0 && act < n.length ? n[act] : "act" + act;
     }
 
@@ -1721,6 +1721,19 @@ public final class AutoShot {
             return;
         }
         int a = tick - wildArrived;
+        if (a == 10) {
+            // the forest there hid its legs: cleared, trunks and leaves, for a lot round where it will walk
+            for (int x = 5952; x < 6080; x += 32) {
+                for (int z = 5952; z < 6112; z += 32) {
+                    for (int y = 60; y < 156; y += 32) {
+                        for (String what : new String[]{"#minecraft:leaves", "#minecraft:logs", "minecraft:snow", "minecraft:fern",
+                                "minecraft:grass"}) {
+                            run(String.format(java.util.Locale.ROOT, "fill %d %d %d %d %d %d air replace %s", x, y, z, x + 31, y + 31, z + 31, what));
+                        }
+                    }
+                }
+            }
+        }
         if (a == 40) {
             mc.player.getInventory().selected = 0;
             shot(mc, "w00_egg");
@@ -1751,35 +1764,62 @@ public final class AutoShot {
                     String.format("%.1f", Math.sqrt(mc.player.distanceToSqr(g.base().x, mc.player.getY(), g.base().z))), g.portalTicksLeft());
         }
         Vec3 base = g.base(), f = g.forward(), r = g.right();
-        // the dig, from the side, back far enough to take it all in
-        if (k == 2) tpLook(base.add(f.scale(34)).add(r.scale(22)), base.add(0, 12, 0));
-        if (k > 2 && k < 160) lookAtPoint(mc, base.add(0, 10 + 12 * Math.min(1, k / 124.0), 0));
-        if (k == 40 || k == 64 || k == 90 || k == 120 || k == 150) shot(mc, "w0" + (k / 30 + 1) + "_dig_" + k);
-        // the hunt: you back off and it comes; every act shot as it lands
-        if (k == 170) tpLook(base.add(f.scale(40)), g.head(0));
-        if (k > 170 && k < 1300) lookAtPoint(mc, g.head(0).add(0, -8, 0));
-        if (k == 200) shot(mc, "w10_stalk");
-        if (k == 300) run("papon giant swipe");
-        if (k == 320) shot(mc, "w11_swipe");
-        if (k == 380) run("papon giant slam2");
-        if (k == 404) shot(mc, "w12_slam2");
-        if (k == 460) run("papon giant laser");
-        if (k == 480 || k == 500) shot(mc, "w13_laser_" + k);
-        if (k == 560) tpLook(base.add(f.scale(36)), g.head(0));
-        if (k == 570) run("papon giant lunge");
-        if (k == 590 || k == 600) shot(mc, "w14_lunge_" + k);
-        if (k == 680) tpLook(base.add(f.scale(50)), g.head(0));
-        if (k == 690) run("papon giant grab");
-        if (k == 690 + 60 || k == 690 + 100 || k == 690 + 130) shot(mc, "w15_grab_" + (k - 690));
-        if (k == 1000 || k == 1100 || k == 1200) shot(mc, "w2" + (k - 1000) / 100 + "_free_" + k);
+        // the dig and the stand, from the side, back far enough to take it all in
+        if (k == 2) tpLook(base.add(f.scale(48)).add(r.scale(32)), base.add(0, 14, 0));
+        if (k > 2 && k < 176) lookAtPoint(mc, base.add(0, 10 + 20 * Math.min(1, k / 170.0), 0));
+        if (k == 40 || k == 64 || k == 90 || k == 120 || k == 150 || k == 172) shot(mc, "w0" + (k / 30 + 1) + "_dig_" + k);
+        // its walk (2026-10-06, on its legs): it goes after a husk far off while you watch it from the side
+        if (k == 180) {
+            run("gamemode creative", "kill @e[type=husk]");
+            Vec3 bait = base.add(f.scale(36));
+            run(String.format(java.util.Locale.ROOT, "execute positioned %.1f 0 %.1f positioned over motion_blocking_no_leaves run summon husk ~ ~ ~ "
+                    + "{NoAI:1b,PersistenceRequired:1b,Invulnerable:1b}", bait.x, bait.z));
+            tpGround(base.add(f.scale(18)).add(r.scale(50)), base.add(f.scale(14)).add(0, 22, 0));
+        }
+        if (k > 186 && k < 440) lookAtPoint(mc, g.pelvis(0).add(0, k % 80 < 40 ? 4 : -6, 0));
+        mc.options.hideGui = k > 186 && k < 440;
+        if (k >= 220 && k <= 420 && k % 25 == 0) shot(mc, String.format("w1%d_walk_%d", (k - 220) / 25, k));
+        if (k == 430) shot(mc, "w19_walk_close");
+        // the hunt: you in front of it, every act shot as it lands
+        if (k == 440) {
+            run("kill @e[type=husk]", "gamemode survival");
+            tpGround(base.add(f.scale(36)), g.head(0));
+        }
+        if (k > 440 && k < 1500) lookAtPoint(mc, g.head(0).add(0, -18, 0));
+        if (k == 470) run("papon giant stomp");
+        if (k == 470 + 14 || k == 470 + 27 || k == 470 + 34) shot(mc, "w2" + (k - 470) / 14 + "_stomp_" + (k - 470));
+        if (k == 540) tpGround(base.add(f.scale(24)), g.head(0));
+        if (k == 550) run("papon giant swipe");
+        if (k == 550 + 14 || k == 550 + 22) shot(mc, "w3" + (k - 550) / 14 + "_swipe_" + (k - 550));
+        if (k == 620) run("papon giant slam2");
+        if (k == 620 + 16 || k == 620 + 30) shot(mc, "w4" + (k - 620) / 16 + "_slam2_" + (k - 620));
+        if (k == 700) run("papon giant laser");
+        if (k == 720 || k == 740) shot(mc, "w5" + (k - 700) / 20 + "_laser");
+        if (k == 800) tpGround(base.add(f.scale(36)), g.head(0));
+        if (k == 810) run("papon giant lunge");
+        if (k == 810 + 18 || k == 810 + 30) shot(mc, "w6" + (k - 810) / 18 + "_lunge_" + (k - 810));
+        if (k == 900) tpGround(base.add(f.scale(50)), g.head(0));
+        if (k == 910) run("papon giant grab");
+        if (k == 910 + 60 || k == 910 + 100 || k == 910 + 130) shot(mc, "w7" + (k - 910) / 40 + "_grab_" + (k - 910));
+        if (k == 1200 || k == 1300 || k == 1400) shot(mc, "w8" + (k - 1200) / 100 + "_free_" + k);
         // its rift closes: dragged under
-        if (k == 1300) {
-            tpLook(base.add(f.scale(38)).add(r.scale(14)), g.head(0));
+        if (k == 1500) {
+            tpGround(base.add(f.scale(44)).add(r.scale(18)), g.head(0));
             run("papon giant portal");
         }
-        if (k > 1300) lookAtPoint(mc, base.add(0, 14, 0));
-        if (k == 1480 || k == 1520 || k == 1560 || k == 1600) shot(mc, "w3" + (k - 1480) / 40 + "_drag_" + k);
-        if (k >= 1700) mc.stop();
+        if (k > 1500) lookAtPoint(mc, base.add(0, 16, 0));
+        if (k == 1680 || k == 1720 || k == 1760 || k == 1800) shot(mc, "w9" + (k - 1680) / 40 + "_drag_" + k);
+        if (k >= 1900) mc.stop();
+    }
+
+    /** Stands you on the ground at x, z of {@code at}, looking at {@code look}. */
+    private static void tpGround(Vec3 at, Vec3 look) {
+        Minecraft mc = Minecraft.getInstance();
+        double gy = mc.level == null ? at.y : mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, Mth.floor(at.x), Mth.floor(at.z));
+        double dx = look.x - at.x, dy = look.y - (gy + 1.62), dz = look.z - at.z;
+        float yaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * Mth.RAD_TO_DEG);
+        run(String.format(java.util.Locale.ROOT, "execute positioned %.2f 0 %.2f positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ %.1f %.1f", at.x, at.z, yaw, pitch));
     }
 
     private static void giantTest(Minecraft mc) {

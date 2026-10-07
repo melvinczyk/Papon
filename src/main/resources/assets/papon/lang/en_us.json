@@ -807,6 +807,8 @@
   "hud.papon.giant.grab.hint": "RUN: it reaches across the whole arena for the red pillar",
   "hud.papon.giant.lunge": "¡LA EMBESTIDA!",
   "hud.papon.giant.lunge.hint": "Get out of the lane it tears through",
+  "hud.papon.giant.stomp": "¡LA PISADA!",
+  "hud.papon.giant.stomp.hint": "Out from under its foot before it comes down",
   "subtitles.papon.boss.giant_laser_charge": "El Gigante's eyes charge",
   "subtitles.papon.boss.giant_laser_fire": "El Gigante fires",
   "subtitles.papon.boss.giant_laser_burn": "El Gigante's beams burn",

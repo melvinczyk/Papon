@@ -187,6 +187,10 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                     }
                 }
             }
+            case SpiritGiantEntity.STOMP -> {
+                float k = Mth.clamp(fr.act / SpiritGiantEntity.STOMP_HIT, 0, 1);
+                if (fr.act < SpiritGiantEntity.STOMP_HIT + 3) pillar(vc, fr, g.goingTo(), 5F, k, VIOLET, 40F);
+            }
             case SpiritGiantEntity.LUNGE -> {
                 Vec3 to = g.goingTo();
                 if (fr.act < SpiritGiantEntity.LUNGE_STOP && to.lengthSqr() > 1) {
@@ -616,11 +620,21 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         Vec3 neck, heart, manubrium, manubriumRaw;
         final Vec3[] shoulder = new Vec3[2], hand = new Vec3[2];
         final double twist;
+        /** On its legs (the spawn egg's giant): its trunk's forward and up (bent at the hips), the middle of its waist, its legs. */
+        final boolean walker;
+        final Vec3 F, U, centre;
+        Vec3 pelvis;
+        final Vec3[] hip = new Vec3[2], knee = new Vec3[2], ankle = new Vec3[2];
 
         Skeleton(SpiritGiantEntity g, Frame fr, float partial) {
             this.g = g;
             this.fr = fr;
             this.partial = partial;
+            walker = g.walker();
+            F = g.torsoForward(partial);
+            U = g.torsoUp(partial);
+            pelvis = g.pelvis(partial);
+            centre = walker ? pelvis : fr.base;
             // twisting into a swipe: the shoulders turn with the sweeping hand
             double tw = 0;
             if (fr.a == SpiritGiantEntity.SWIPE_L || fr.a == SpiritGiantEntity.SWIPE_R) {
@@ -628,43 +642,57 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 double k = fr.act < SpiritGiantEntity.SWIPE_T - 8 ? 1 : Math.max(0, (SpiritGiantEntity.SWIPE_T - fr.act) / 8.0);
                 tw = SpiritGiantEntity.swipeAngle(i, fr.act) * 0.32 * k;
             }
+            if (walker) {
+                // striding, its shoulders swing against its hips
+                for (int i = 0; i < 2; i++) {
+                    hip[i] = g.hipJoint(i, partial);
+                    knee[i] = g.knee(i, partial);
+                    ankle[i] = g.ankle(i, partial);
+                }
+                double lead = ankle[0].subtract(ankle[1]).dot(fr.f);
+                if (fr.a == SpiritGiantEntity.IDLE) tw += Mth.clamp(lead * 0.018, -0.16, 0.16);
+            }
             twist = tw;
-            // the spine: from below the floor up to under the skull, bowed back through the chest
-            Vec3 up = fr.up;
+            // the spine: from below the floor up to under the skull, bowed back through the chest (on its legs: up out of its pelvis)
             Vec3 skullBase = fr.head.add(fr.ny.scale(-6.4 * V)).add(fr.nz.scale(-2.2 * V));
-            Vec3 p0 = fr.base.add(fr.f.scale(-1.0)).add(0, -4.5 - fr.sunk, 0);
-            Vec3 p2 = skullBase;
-            double lean = g.lean(partial);
-            Vec3 p1 = fr.base.add(fr.f.scale(-3.2 + lean * 0.3)).add(0, 12 - fr.sunk, 0);
+            Vec3 p0, p1, p2 = skullBase;
+            if (walker) {
+                p0 = pelvis.add(U.scale(-0.8)).add(F.scale(-1.8));
+                p1 = pelvis.add(F.scale(-3.4)).add(U.scale(12));
+            } else {
+                double lean = g.lean(partial);
+                p0 = fr.base.add(fr.f.scale(-1.0)).add(0, -4.5 - fr.sunk, 0);
+                p1 = fr.base.add(fr.f.scale(-3.2 + lean * 0.3)).add(0, 12 - fr.sunk, 0);
+            }
             for (int i = 0; i < spine.length; i++) {
                 double t = i / (double) (spine.length - 1);
                 spine[i] = p0.scale((1 - t) * (1 - t)).add(p1.scale(2 * (1 - t) * t)).add(p2.scale(t * t));
             }
             neck = spine[spine.length - 4];
             Vec3 chestTop = spine[spine.length - 5];
-            manubriumRaw = chestTop.add(fr.f.scale(3.6)).add(0, -0.8, 0);
+            manubriumRaw = chestTop.add(F.scale(3.6)).add(U.scale(-0.8));
             manubrium = turn(manubriumRaw);
-            heart = turn(spine[9].add(fr.f.scale(3.0)));
+            heart = turn(spine[9].add(F.scale(3.0)));
             for (int i = 0; i < 2; i++) {
-                shoulder[i] = turn(g.shoulder(i, partial).add(0, 0.25 * fr.breath, 0));
+                shoulder[i] = turn(g.shoulder(i, partial).add(U.scale(0.25 * fr.breath)));
                 hand[i] = g.hand(i, partial);
             }
         }
 
-        /** Turned with the twist about the spine's line through the base. */
+        /** Turned with the twist about the spine's line through the base (on its legs: about its trunk, through its waist). */
         Vec3 turn(Vec3 p) {
             if (twist == 0) return p;
-            Vec3 rel = p.subtract(fr.base);
+            Vec3 rel = p.subtract(centre);
             double c = Math.cos(twist), s = Math.sin(twist);
-            // about the vertical: positive toward its right
-            Vec3 f = fr.f, r = fr.r;
+            // about its trunk's up: positive toward its right
+            Vec3 f = F, r = fr.r;
             double fc = rel.dot(f), rc = rel.dot(r);
             double f2 = fc * c - rc * s, r2 = fc * s + rc * c;
-            return fr.base.add(f.scale(f2)).add(r.scale(r2)).add(0, rel.y, 0);
+            return centre.add(f.scale(f2)).add(r.scale(r2)).add(rel.subtract(f.scale(fc)).subtract(r.scale(rc)));
         }
 
         void draw(Out out) {
-            Vec3 f = fr.f, r = fr.r, up = fr.up;
+            Vec3 f = F, r = fr.r, up = U;
             // the vertebrae: a body, its spine pointing back and down, its processes out to the sides
             for (int i = 0; i + 1 < spine.length; i++) {
                 Vec3 a = turnPart(i, spine[i]), b = turnPart(i + 1, spine[i + 1]);
@@ -672,7 +700,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 Vec3 mid = a.add(d.scale(0.5));
                 float rad = (float) Mth.lerp(i / (double) spine.length, 1.15, 0.6);
                 out.tube(a.add(d.scale(0.12)), a.add(d.scale(0.82)), rad, rad * 0.95F, BONE, 8);
-                Vec3 back = f.scale(-1).add(0, -0.45, 0).normalize();
+                Vec3 back = f.scale(-1).add(U.scale(-0.45)).normalize();
                 out.tube(mid, mid.add(back.scale(rad * 2.1)), rad * 0.42F, rad * 0.22F, BONE, 5);
                 for (int s = -1; s <= 1; s += 2) out.tube(mid, mid.add(r.scale(s * rad * 1.7)).add(f.scale(-0.25)), rad * 0.3F, rad * 0.2F, BONE, 5);
             }
@@ -680,7 +708,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             // well below the back, as a real ribcage hangs), the true ribs joined to the sternum by cartilage that turns back up to
             // it (the costal arch), the lowest two floating free; small at the top, widest in the middle
             float br = 1 + 0.035F * fr.breath;
-            Vec3 sternTop = manubriumRaw.add(0, -0.6, 0), xiphoid = null;
+            Vec3 sternTop = manubriumRaw.add(U.scale(-0.6)), xiphoid = null;
             for (int k = 0; k < 10; k++) {
                 int vi = spine.length - 6 - k;
                 if (vi < 2) break;
@@ -690,8 +718,8 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 double drop = 2.6 + 0.25 * k;
                 boolean floating = k >= 8;
                 double end = floating ? 0.55 : 0.78;
-                Vec3 sternum = sternTop.add(0, -1.15 * Math.min(k, 6), 0).add(f.scale(-0.06 * Math.min(k, 6)));
-                if (k == 6) xiphoid = sternum.add(0, -1.6, 0).add(f.scale(-0.3));
+                Vec3 sternum = sternTop.add(U.scale(-1.15 * Math.min(k, 6))).add(f.scale(-0.06 * Math.min(k, 6)));
+                if (k == 6) xiphoid = sternum.add(U.scale(-1.6)).add(f.scale(-0.3));
                 float rr = 0.42F - 0.012F * Math.abs(k - 4);
                 for (int s = -1; s <= 1; s += 2) {
                     Vec3 prev = null;
@@ -702,14 +730,14 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                         double x = s * w * Math.sin(th);
                         double z = -0.9 * Math.sin(Math.min(th * 2.2, Math.PI)) * 0.6 + (depth + 0.6) * (1 - Math.cos(th)) / 2 - 0.4;
                         double y = -drop * (1 - Math.cos(th)) / 2;
-                        Vec3 p = turn(at.add(r.scale(x)).add(f.scale(z)).add(0, y, 0));
+                        Vec3 p = turn(at.add(r.scale(x)).add(f.scale(z)).add(U.scale(y)));
                         if (prev != null) out.tube(prev, p, rr, rr * 0.94F, BONE, 6);
                         prev = p;
                     }
                     if (!floating) {
                         // the cartilage: forward and back up to the sternum (the lower ones to its tip)
                         Vec3 to = k <= 6 ? turn(sternum.add(r.scale(s * 0.55))) : turn(xiphoid != null ? xiphoid.add(r.scale(s * 0.9)) : sternum);
-                        Vec3 mid = prev.lerp(to, 0.5).add(f.scale(0.5)).add(0, -0.35, 0);
+                        Vec3 mid = prev.lerp(to, 0.5).add(f.scale(0.5)).add(U.scale(-0.35));
                         out.tube(prev, mid, rr * 0.8F, rr * 0.72F, CART, 5);
                         out.tube(mid, to, rr * 0.72F, rr * 0.62F, CART, 5);
                     }
@@ -717,11 +745,12 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             }
             if (xiphoid != null) {
                 out.tube(manubrium, turn(sternTop), 0.85F, 0.7F, BONE, 6);
-                out.tube(turn(sternTop), turn(xiphoid.add(0, 1.0, 0)), 0.62F, 0.5F, BONE, 6);
-                out.tube(turn(xiphoid.add(0, 1.0, 0)), turn(xiphoid), 0.42F, 0.16F, BONE, 5);
+                out.tube(turn(sternTop), turn(xiphoid.add(U.scale(1.0))), 0.62F, 0.5F, BONE, 6);
+                out.tube(turn(xiphoid.add(U.scale(1.0))), turn(xiphoid), 0.42F, 0.16F, BONE, 5);
             }
-            // the iliac crests, breaking up through the floor round its waist
-            for (int s = -1; s <= 1; s += 2) {
+            // the iliac crests, breaking up through the floor round its waist (on its legs: the whole pelvis, and the legs under it)
+            if (walker) legs(out);
+            else for (int s = -1; s <= 1; s += 2) {
                 Vec3 prev = null;
                 for (int j = 0; j <= 6; j++) {
                     double th = Math.PI * 0.85 * j / 6;
@@ -736,12 +765,12 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             for (int i = 0; i < 2; i++) {
                 int s = i == 0 ? 1 : -1;
                 Vec3 sh = shoulder[i];
-                Vec3 mid = manubrium.lerp(sh, 0.5).add(0, 0.9, 0).add(f.scale(0.4));
+                Vec3 mid = manubrium.lerp(sh, 0.5).add(U.scale(0.9)).add(f.scale(0.4));
                 out.tube(manubrium, mid, 0.55F, 0.6F, BONE, 6);
-                out.tube(mid, sh.add(f.scale(-0.4)).add(0, 0.6, 0), 0.6F, 0.75F, BONE, 6);
+                out.tube(mid, sh.add(f.scale(-0.4)).add(U.scale(0.6)), 0.6F, 0.75F, BONE, 6);
                 // the shoulder blade: flat on the back of the ribs, from behind the shoulder in toward the spine
-                Vec3 blade0 = sh.add(f.scale(-1.6)).add(r.scale(-s * 1.4)).add(0, 0.3, 0);
-                Vec3 blade1 = upperBack.add(r.scale(s * 2.2)).add(f.scale(-2.3)).add(0, 0.4, 0);
+                Vec3 blade0 = sh.add(f.scale(-1.6)).add(r.scale(-s * 1.4)).add(U.scale(0.3));
+                Vec3 blade1 = upperBack.add(r.scale(s * 2.2)).add(f.scale(-2.3)).add(U.scale(0.4));
                 Vec3 blade2 = lowBack.add(r.scale(s * 3.2)).add(f.scale(-2.5));
                 out.plate(turn(blade0), turn(blade1), turn(blade2), 0.4F, BONE_DARK);
                 out.ball(sh, 1.35F, BONE);
@@ -760,30 +789,131 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         }
 
         /**
+         * Its pelvis and legs (the walker, 2026-10-06): a sacrum and tailbone down from the spine between two iliac wings (their
+         * crests a thick rim, the blade filled in) curling round to the front; each hip socket ringed by the pubis forward to the
+         * symphysis and the ischium down and back. Each leg a femur from its head in the socket, out over the trochanter and down to
+         * the knee's two condyles and the kneecap; the tibia and the thinner fibula beside it down to the ankle's knobs; a foot of
+         * heel, five metatarsals fanned from the ankle and toes of two bones curling to claws, the big toe inside.
+         */
+        void legs(Out out) {
+            Vec3 r = fr.r;
+            Vec3 sac = pelvis.add(U.scale(-3.4)).add(F.scale(-2.4));
+            out.tube(spine[0], sac, 1.35F, 0.6F, BONE, 7);
+            out.tube(sac, sac.add(U.scale(-1.4)).add(F.scale(0.7)), 0.5F, 0.18F, BONE, 5);
+            Vec3 sym = pelvis.add(F.scale(2.6)).add(U.scale(-4.6));
+            for (int i = 0; i < 2; i++) {
+                int s = i == 0 ? 1 : -1;
+                Vec3 socket = hip[i];
+                // the wing: its crest round from the sacrum to the front, the blade between it and the socket
+                Vec3 prev = null;
+                for (int j = 0; j <= 6; j++) {
+                    double th = Math.PI * 0.85 * j / 6;
+                    Vec3 c = pelvis.add(r.scale(s * (1.3 + 4.4 * Math.sin(th)))).add(F.scale(-2.3 + 4.6 * (1 - Math.cos(th)) / 2))
+                            .add(U.scale(0.7 - 0.6 * Math.sin(th)));
+                    if (prev != null) {
+                        out.tube(prev, c, 0.55F, 0.5F, BONE, 6);
+                        out.plate(prev, c, socket.add(U.scale(0.6)), 0.35F, BONE_DARK);
+                    }
+                    prev = c;
+                }
+                out.ball(socket, 1.25F, BONE_DARK);
+                // the pubis forward to the symphysis; the ischium down and back from the socket, and round to it
+                out.tube(socket.add(F.scale(0.6)), sym.add(r.scale(s * 0.55)), 0.62F, 0.5F, BONE, 6);
+                Vec3 isch = socket.add(U.scale(-2.6)).add(F.scale(-0.9)).add(r.scale(-s * 0.8));
+                out.tube(socket, isch, 0.75F, 0.62F, BONE, 6);
+                out.ball(isch, 0.7F, BONE);
+                out.tube(isch, sym.add(r.scale(s * 0.5)).add(U.scale(-0.7)), 0.5F, 0.42F, BONE, 6);
+                leg(out, i, s);
+            }
+            out.ball(sym.add(U.scale(-0.3)), 0.72F, BONE);
+        }
+
+        /** The way leg {@code i}'s kneecap faces: out of the bend. */
+        Vec3 kneeFront(int i) {
+            Vec3 thigh = knee[i].subtract(hip[i]).normalize(), shin = ankle[i].subtract(knee[i]).normalize();
+            Vec3 kf = thigh.subtract(shin);
+            return kf.lengthSqr() < 1e-4 ? fr.f : kf.normalize();
+        }
+
+        void leg(Out out, int i, int s) {
+            Vec3 r = fr.r;
+            Vec3 h = hip[i], k = knee[i], a = ankle[i];
+            Vec3 thigh = k.subtract(h).normalize(), shin = a.subtract(k).normalize();
+            Vec3 kf = kneeFront(i);
+            Vec3 kside = thigh.cross(kf);
+            kside = kside.lengthSqr() < 1e-4 ? r : kside.normalize();
+            if (kside.dot(r) * s < 0) kside = kside.scale(-1);               // toward its outside
+            // the femur: its head in the socket, the neck out to the trochanter, the shaft down to the knee
+            Vec3 troch = h.add(r.scale(s * 1.7)).add(U.scale(-0.7));
+            out.ball(h, 1.1F, BONE);
+            out.tube(h, troch, 0.72F, 0.85F, BONE, 7);
+            out.ball(troch, 0.95F, BONE);
+            out.tube(troch, k.subtract(thigh.scale(1.0)), 0.9F, 0.78F, BONE, 8);
+            // the knee: two condyles, the kneecap over them
+            for (int c = -1; c <= 1; c += 2) out.ball(k.add(kside.scale(c * 0.62)).subtract(thigh.scale(0.4)), 0.95F, BONE);
+            out.ball(k.add(kf.scale(1.05)), 0.72F, BONE_DARK);
+            // the tibia, thick, and the fibula on the outside
+            out.tube(k.add(shin.scale(0.5)), a.subtract(shin.scale(0.5)), 0.82F, 0.56F, BONE, 8);
+            out.tube(k.add(shin.scale(0.9)).add(kside.scale(0.95)), a.subtract(shin.scale(0.2)).add(kside.scale(0.75)), 0.36F, 0.3F, BONE, 6);
+            out.ball(a.add(kside.scale(0.75)), 0.5F, BONE);
+            out.ball(a.subtract(kside.scale(0.6)), 0.5F, BONE);
+            out.ball(a, 0.8F, BONE);
+            foot(out, i, s, a);
+        }
+
+        /** The foot: rolled off its toes as it lifts, its toes up as it comes down, flat planted; the big toe inside. */
+        void foot(Out out, int i, int s, Vec3 a) {
+            float k = g.step(i, partial);
+            double pitch = k < 0 ? 0 : k < 0.5 ? -0.55 * Math.sin(Math.PI * k * 2) : 0.4 * Math.sin(Math.PI * (k - 0.5) * 2);
+            Vec3 ff = Vec3.directionFromRotation(0, g.footYaw(i, partial));
+            Vec3 fs = new Vec3(-ff.z, 0, ff.x);
+            Vec3 fwd = ff.scale(Math.cos(pitch)).add(0, Math.sin(pitch), 0), dn = ff.scale(Math.sin(pitch)).add(0, -Math.cos(pitch), 0);
+            Vec3 heel = a.add(fwd.scale(-2.3)).add(dn.scale(0.75));
+            out.tube(a, heel, 0.85F, 0.72F, BONE, 7);
+            out.ball(heel, 0.78F, BONE);
+            float sc = 1.15F;
+            for (int m = 0; m < 5; m++) {
+                // m 0 the big toe, inside (toward its middle), out to the little toe
+                double across = (m - 2) * s;
+                Vec3 m0 = a.add(fwd.scale(0.9)).add(dn.scale(0.45)).add(fs.scale(across * 0.38));
+                Vec3 m1 = a.add(fwd.scale(4.6 - 0.3 * Math.abs(m - 1))).add(dn.scale(1.0)).add(fs.scale(across * 0.82));
+                float w = (m == 0 ? 0.44F : 0.34F) * sc;
+                out.tube(m0, m1, w, w * 0.85F, BONE, 6);
+                out.ball(m1, w * 0.95F, BONE);
+                double len = (m == 0 ? 1.5 : 1.25 - 0.1 * m) * sc;
+                Vec3 t1 = m1.add(fwd.scale(len)).add(dn.scale(0.15));
+                Vec3 t2 = t1.add(fwd.scale(len * 0.75)).add(dn.scale(0.5));
+                out.tube(m1, t1, w * 0.8F, w * 0.7F, BONE, 5);
+                out.ball(t1, w * 0.72F, BONE);
+                out.tube(t1, t2, w * 0.65F, w * 0.25F, BONE, 5);
+            }
+        }
+
+        /**
          * (2026-10-06, the user: "improve his textures where you can") painted like a sugar skull all over, not only on its
          * face: a marigold medallion on its sternum with a pink heart, beads of colour on the ends of its ribs, marigold dots
          * down the spines of its vertebrae, painted bands round its arms above the elbow and at the wrist, a ring of dots on
          * each shoulder.
          */
         void paint(Solid out) {
-            Vec3 f = fr.f, r = fr.r;
+            Vec3 f = F, r = fr.r;
             int[][] beads = {PINK, CYAN, GOLD};
             for (int i = 4; i + 1 < spine.length - 2; i += 2) {
                 Vec3 a = turnPart(i, spine[i]), b = turnPart(i + 1, spine[i + 1]);
                 Vec3 mid = a.lerp(b, 0.5);
                 float rad = (float) Mth.lerp(i / (double) spine.length, 1.15, 0.6);
-                Vec3 back = f.scale(-1).add(0, -0.45, 0).normalize();
+                Vec3 back = f.scale(-1).add(U.scale(-0.45)).normalize();
                 out.ball(mid.add(back.scale(rad * 1.6)), rad * 0.3F, GOLD);
             }
             // the medallion: a marigold disc on the sternum, a pink heart in it
             Vec3 chest = manubrium.lerp(heart, 0.35).add(f.scale(0.9));
             out.ball(chest, 1.15F, GOLD);
-            out.ball(chest.add(f.scale(0.75)).add(r.scale(0.32)).add(0, 0.2, 0), 0.42F, PINK);
-            out.ball(chest.add(f.scale(0.75)).add(r.scale(-0.32)).add(0, 0.2, 0), 0.42F, PINK);
-            out.ball(chest.add(f.scale(0.78)).add(0, -0.25, 0), 0.38F, PINK);
+            out.ball(chest.add(f.scale(0.75)).add(r.scale(0.32)).add(U.scale(0.2)), 0.42F, PINK);
+            out.ball(chest.add(f.scale(0.75)).add(r.scale(-0.32)).add(U.scale(0.2)), 0.42F, PINK);
+            out.ball(chest.add(f.scale(0.78)).add(U.scale(-0.25)), 0.38F, PINK);
             for (int k = 0; k < 8; k++) {
                 double a = Math.PI * 2 * k / 8;
-                out.ball(chest.add(r.scale(Math.cos(a) * 1.45)).add(0, Math.sin(a) * 1.45, 0).add(f.scale(0.35)), 0.26F, k % 2 == 0 ? PINK : CYAN);
+                out.ball(chest.add(r.scale(Math.cos(a) * 1.45)).add(U.scale(Math.sin(a) * 1.45)).add(f.scale(0.35)), 0.26F, k % 2 == 0 ? PINK : CYAN);
             }
             // beads on the ribs' front ends (where the paint would go on a calavera)
             float br = 1 + 0.035F * fr.breath;
@@ -799,7 +929,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                     double x = s * w * Math.sin(th);
                     double z = -0.9 * Math.sin(Math.min(th * 2.2, Math.PI)) * 0.6 + (depth + 0.6) * (1 - Math.cos(th)) / 2 - 0.4;
                     double y = -drop * (1 - Math.cos(th)) / 2;
-                    Vec3 p = turn(at.add(r.scale(x)).add(f.scale(z)).add(0, y, 0));
+                    Vec3 p = turn(at.add(r.scale(x)).add(f.scale(z)).add(U.scale(y)));
                     out.ball(p.add(r.scale(s * 0.38)), 0.3F, beads[(k + (s > 0 ? 1 : 0)) % 3]);
                 }
             }
@@ -817,9 +947,20 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
                 out.tube(w0, w0.add(fa.scale(0.5)), 0.62F, 0.6F, GOLD, 7);
                 for (int k = 0; k < 6; k++) {
                     double a = Math.PI * 2 * k / 6;
-                    Vec3 o = f.scale(Math.cos(a) * 1.25).add(0, Math.sin(a) * 1.25, 0);
+                    Vec3 o = f.scale(Math.cos(a) * 1.25).add(U.scale(Math.sin(a) * 1.25));
                     out.ball(sh.add(o).add(r.scale(s * 0.55)), 0.24F, k % 2 == 0 ? GOLD : PINK);
                 }
+            }
+            if (!walker) return;
+            // its legs: bands round the thigh over the knee, a gold one at the ankle, a pink dot on each kneecap
+            for (int i = 0; i < 2; i++) {
+                Vec3 th = knee[i].subtract(hip[i]).normalize(), sh = ankle[i].subtract(knee[i]).normalize();
+                Vec3 b0 = knee[i].subtract(th.scale(3.2));
+                out.tube(b0, b0.add(th.scale(0.5)), 0.86F, 0.85F, PINK, 8);
+                out.tube(b0.add(th.scale(0.8)), b0.add(th.scale(1.15)), 0.84F, 0.83F, CYAN, 8);
+                Vec3 w0 = ankle[i].subtract(sh.scale(2.0));
+                out.tube(w0, w0.add(sh.scale(0.5)), 0.66F, 0.64F, GOLD, 7);
+                out.ball(knee[i].add(kneeFront(i).scale(1.62)), 0.34F, PINK);
             }
         }
 
@@ -835,7 +976,7 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
         void hand(Out out, int i, Vec3 elbow, Vec3 wrist) {
             int s = i == 0 ? 1 : -1;
             Vec3 up = fr.up;
-            double floor = fr.base.y - fr.sunk + 1.2;
+            double floor = fr.base.y - (walker ? 0 : fr.sunk) + 1.2;
             boolean low = wrist.y < floor + 2.5;
             Vec3 along = wrist.subtract(elbow).normalize();
             // flat on the floor the fingers lie along it, pointing out ahead of it
@@ -996,7 +1137,13 @@ public class SpiritGiantRenderer extends EntityRenderer<SpiritGiantEntity> {
             // where it rises from on the ring, and what it takes hold of
             double a = Math.PI * 2 * ((k * 0.381966) % 1.0) + fr.t * 0.004 * (k % 2 == 0 ? 1 : -1);
             Vec3 root = fr.base.add(fr.r.scale(Math.cos(a) * 8.6)).add(fr.f.scale(Math.sin(a) * 6.4)).add(0, 0.1, 0);
-            Vec3 grip = switch (k % 5) {
+            Vec3 grip = sk.walker ? switch (k % 5) {
+                case 0 -> sk.ankle[0];
+                case 1 -> sk.ankle[1];
+                case 2 -> sk.knee[k / 5 % 2];
+                case 3 -> sk.pelvis;
+                default -> sk.hand[k / 5 % 2];
+            } : switch (k % 5) {
                 case 0 -> sk.hand[0];
                 case 1 -> sk.hand[1];
                 case 2 -> sk.shoulder[k / 5 % 2];

@@ -40,6 +40,8 @@ public final class GiantTells {
                     !g.caught() && at < SpiritGiantEntity.GRAB_CLOSE + 4 ? new Tell("grab", 0xFF2046, at / SpiritGiantEntity.GRAB_CLOSE) : null;
             case SpiritGiantEntity.LUNGE ->
                     at < SpiritGiantEntity.LUNGE_STOP + 2 ? new Tell("lunge", 0xFF5A1E, at / SpiritGiantEntity.LUNGE_GO) : null;
+            case SpiritGiantEntity.STOMP ->
+                    at < SpiritGiantEntity.STOMP_HIT + 4 ? new Tell("stomp", 0xC050FF, at / SpiritGiantEntity.STOMP_HIT) : null;
             default -> null;
         };
     }
