@@ -34,7 +34,9 @@ import java.util.function.Consumer;
  *   hold use, sneaking lick it (the tongue out, the head bobbing into it): slurps, drips
  *   hold use, looking down   hump it (folded over at the hips, squashed on every thrust): hearts
  *   use on a bed       lay it on the bed (entity/BodyPillowEntity): it slouches against the headboard; right-click
- *                      it to climb on with it; sleep there and she lies beside you, you on your side facing her
+ *                      it to climb on with it; sneak + right-click to sit her on the edge of the bed, her feet down,
+ *                      and right-click her then to get down on the floor and lick them (jump: lift them to your
+ *                      face); punch her to take her back; sleep there and she lies beside you, you on your side facing her
  */
 public class BodyPillowItem extends Item {
     public BodyPillowItem(Properties properties) { super(properties); }
@@ -126,5 +128,6 @@ public class BodyPillowItem extends Item {
         tooltip.add(Component.translatable("item.papon.body_pillow.tooltip.0").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.ITALIC));
         tooltip.add(Component.translatable("item.papon.body_pillow.tooltip.1").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("item.papon.body_pillow.tooltip.2").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("item.papon.body_pillow.tooltip.3").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

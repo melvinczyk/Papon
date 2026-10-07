@@ -43,6 +43,7 @@ public final class ClientEvents {
         FlagFireworks.tick();
         PyroShow.tick();
         GiantGrabHud.tick();
+        PillowClient.tick();
         PotatoSky.tick();
     }
 
@@ -58,6 +59,7 @@ public final class ClientEvents {
     public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
         if (Cinematic.isActive()) event.setRoll(event.getRoll() + Cinematic.roll());
         ScreenShake.apply(event);
+        PillowClient.camera(event);
     }
 
     /** The sky turns while he transforms: gold as the salt comes down, then blood-orange through the scream. */
@@ -141,7 +143,7 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onHand(RenderHandEvent event) {
-        if (Cinematic.isActive()) event.setCanceled(true);
+        if (Cinematic.isActive() || PillowClient.hidesHands()) event.setCanceled(true);
     }
 
     /**

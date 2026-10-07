@@ -68,7 +68,10 @@ public final class AutoShot {
     private static final boolean NIGHTS = MODE.equals("nights");
     /** -Pautoshot=ending: a truck, the reveal, his fall, Gerbin's pillow, back to the truck: the bald chef's wave and menu; the pillow hugged, licked, in bed. */
     private static final boolean ENDING = MODE.equals("ending");
-    /** -Pautoshot=pillow: a bed against a wall; the pillow hugged, licked and humped (third and first person), slouched on the bed, humped there. */
+    /**
+     * -Pautoshot=pillow: a bed against a wall; the pillow hugged, licked and humped (third and first person), slouched on the bed,
+     * humped there; sat on the edge of the bed, her feet licked from the floor, then lifted to the face (side, front, first person).
+     */
     private static final boolean PILLOW = MODE.equals("pillow");
     /** -Pautoshot=state:STATE[:FORM]:t1,t2,...  a boss here (form 3 Ascended or 4 the Final Guardian), straight into STATE; the
      *  cutscene camera's view (or yours) shot at those ticks in it (papon_s_STATE_t.png). For checking one beat quickly. */
@@ -592,7 +595,48 @@ public final class AutoShot {
             case 395 -> shot(mc, "pl13_bed_hump_back");
             case 400 -> opts.setCameraType(CameraType.THIRD_PERSON_FRONT);
             case 415 -> shot(mc, "pl14_bed_hump_front");
-            case 425 -> mc.stop();
+            case 418 -> opts.setCameraType(CameraType.FIRST_PERSON);
+            case 428 -> shot(mc, "pl15_bed_hump_fp");
+            // sat on the edge of the bed (sneak + right-click), her feet licked from the floor, then lifted to the face
+            case 432 -> run("ride @s dismount");
+            case 440 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), true);
+            case 446 -> {
+                var pillow = nearest(mc, com.groid.papon.entity.BodyPillowEntity.class);
+                if (pillow != null) mc.gameMode.interact(mc.player, pillow, net.minecraft.world.InteractionHand.MAIN_HAND);
+            }
+            case 450 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
+            case 458 -> edgeCam(mc, 2.8, 0.9, 0.0, 0.3);
+            case 466 -> shot(mc, "pl16_edge_front");
+            case 468 -> edgeCam(mc, 1.6, 0.35, 2.4, 0.25);
+            case 476 -> shot(mc, "pl17_edge_side_low");
+            case 478 -> {
+                mc.setCameraEntity(mc.player);
+                opts.hideGui = false;
+                var pillow = nearest(mc, com.groid.papon.entity.BodyPillowEntity.class);
+                if (pillow != null) mc.gameMode.interact(mc.player, pillow, net.minecraft.world.InteractionHand.MAIN_HAND);
+            }
+            case 500 -> edgeCam(mc, 1.4, 0.9, 2.6, 0.2);
+            case 508 -> shot(mc, "pl18_floor_side");
+            case 510 -> edgeCam(mc, 3.4, 1.2, -1.3, 0.25);
+            case 518 -> shot(mc, "pl19_floor_behind");
+            case 520 -> {
+                mc.setCameraEntity(mc.player);
+                opts.hideGui = false;
+                opts.setCameraType(CameraType.FIRST_PERSON);
+            }
+            case 532 -> shot(mc, "pl20_floor_fp");
+            case 536 -> com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.PillowSwap());
+            case 548 -> shot(mc, "pl21_lifting_fp");
+            case 562 -> shot(mc, "pl22_lift_fp");
+            case 564 -> edgeCam(mc, 1.6, 1.1, 2.4, 0.7);
+            case 572 -> shot(mc, "pl23_lift_side");
+            case 574 -> edgeCam(mc, 2.2, 1.3, -1.8, 0.8);
+            case 582 -> shot(mc, "pl24_lift_behind");
+            case 584 -> {
+                mc.setCameraEntity(mc.player);
+                opts.hideGui = false;
+            }
+            case 590 -> mc.stop();
             default -> {}
         }
     }
@@ -937,6 +981,40 @@ public final class AutoShot {
         bedCam.yHeadRotO = yaw;
         mc.setCameraEntity(bedCam);
         mc.options.setCameraType(CameraType.FIRST_PERSON);
+    }
+
+    /**
+     * The client-only camera beside the pillow sat on the edge of its bed: {@code out} from the bed's middle out over her side,
+     * {@code up}, {@code along} the bed toward its foot; looking at the floor at her feet ({@code lookUp} high, 0.9 out).
+     */
+    private static void edgeCam(Minecraft mc, double out, double up, double along, double lookUp) {
+        var pillow = nearest(mc, com.groid.papon.entity.BodyPillowEntity.class);
+        if (pillow == null) return;
+        if (bedCam == null) {
+            bedCam = new net.minecraft.world.entity.decoration.ArmorStand(mc.level, 0, 0, 0);
+            bedCam.setInvisible(true);
+        }
+        var e = pillow.edge();
+        var f = pillow.facing();
+        Vec3 mid = pillow.middle();
+        Vec3 c = mid.add(e.getStepX() * 0.9, lookUp, e.getStepZ() * 0.9);
+        Vec3 at = mid.add(e.getStepX() * out - f.getStepX() * along, up, e.getStepZ() * out - f.getStepZ() * along);
+        Vec3 d = c.subtract(at.add(0, bedCam.getEyeHeight(), 0));
+        float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
+        bedCam.moveTo(at.x, at.y, at.z, yaw, pitch);
+        bedCam.xo = at.x;
+        bedCam.yo = at.y;
+        bedCam.zo = at.z;
+        bedCam.yRotO = yaw;
+        bedCam.xRotO = pitch;
+        bedCam.setYHeadRot(yaw);
+        bedCam.yHeadRotO = yaw;
+        mc.setCameraEntity(bedCam);
+        mc.options.setCameraType(CameraType.FIRST_PERSON);
+        mc.options.hideGui = true;
+        PaponMod.LOG.info("[autoshot] pillow pose {} edge {} act {} rider {}", pillow.pose(), e, pillow.act(),
+                mc.player.getVehicle() == pillow ? mc.player.position() + " eye " + mc.player.getEyeHeight() : "none");
     }
 
     /** The client-only camera at {@code off} from the player (yaw 0: facing south), looking at their hips. */

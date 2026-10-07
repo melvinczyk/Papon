@@ -32,6 +32,13 @@ public class PillowLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
     @Override
     public void render(PoseStack ps, MultiBufferSource buffers, int light, AbstractClientPlayer player, float limbSwing, float limbSwingAmount,
                        float partial, float age, float headYaw, float headPitch) {
+        PlayerModel<AbstractClientPlayer> parent = getParentModel();
+        var act = PillowClient.act(player);
+        if (act != null) {
+            // with her on a bed: nothing carried; at her feet, the tongue out
+            if (act != com.groid.papon.entity.BodyPillowEntity.Act.HUMP) tongue(ps, buffers, light, parent, PillowClient.lick(age));
+            return;
+        }
         ItemStack stack = player.getMainHandItem();
         boolean main = true;
         if (!(stack.getItem() instanceof BodyPillowItem)) {
