@@ -61,6 +61,7 @@ public class PaponMod {
         event.put(ModEntities.SALSA_DANCER.get(), TacoNpc.createAttributes().build());
         event.put(ModEntities.PAPON_BOSS.get(), PaponBossEntity.createAttributes().build());
         event.put(ModEntities.CARAVAN.get(), CaravanEntity.createAttributes().build());
+        event.put(ModEntities.MAKIMA.get(), com.groid.papon.entity.MakimaEntity.createAttributes().build());
         event.put(ModEntities.FOIL_POTATO.get(), com.groid.papon.boss.FoilPotatoEntity.createAttributes().build());
     }
 

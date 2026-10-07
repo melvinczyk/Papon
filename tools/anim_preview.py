@@ -136,8 +136,12 @@ def main():
     out = sys.argv[5] if len(sys.argv) > 5 else os.path.join(ROOT, 'tools/.cache', '%s_%s.png' % (name, anim_name))
     geo = json.load(open(os.path.join(ASSETS, 'geo/entity/%s_mesh.geo.json' % name)))['minecraft:geometry'][0]
     mesh = json.load(open(os.path.join(ASSETS, 'meshes/%s.json' % name)))
-    anims = json.load(open(os.path.join(ASSETS, 'animations/entity/customer.animation.json')))['animations']
-    anim = anims['animation.customer.' + anim_name]
+    own = os.path.join(ASSETS, 'animations/entity/%s.animation.json' % name)     # a rig with a file of its own (makima)
+    if os.path.exists(own):
+        anim = json.load(open(own))['animations']['animation.%s.%s' % (name, anim_name)]
+    else:
+        anim = json.load(open(os.path.join(ASSETS, 'animations/entity/customer.animation.json')))['animations'][
+            'animation.customer.' + anim_name]
     length = anim.get('animation_length', 1.0)
     P = np.array(mesh['positions'], float).reshape(-1, 3)
     J = np.array(mesh['joints']).reshape(-1, 2)
@@ -169,7 +173,8 @@ def main():
                'faces': [list(dict.fromkeys(f)) for f in idx.tolist()],
                'frames': [x.round(3).tolist() for x in posed],
                'props': [[(v.round(3).tolist(), f) for v, f in cs] for cs in props],
-               'times': times, 'view': view, 'out': out}, open(tmp, 'w'))
+               'times': times, 'view': view, 'out': out,
+               'spacing': float(os.environ.get('PREVIEW_SPACING', 1.7))}, open(tmp, 'w'))
     r = subprocess.run([BLENDER, '-b', '--factory-startup', '--python', os.path.join(ROOT, 'tools/blender_filmstrip.py'),
                         '--', tmp], capture_output=True, text=True)
     if 'wrote' not in r.stdout:

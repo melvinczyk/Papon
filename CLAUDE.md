@@ -113,6 +113,10 @@ over it). **Post Nut Clarity** (`effect/PostNutClarityEffect`): 30 s of humping 
 3 min: -35% speed, lower jumps, attacks -30%/slower, mining halved, can't sleep, nausea at first then in waves, only hugging
 her; grey thoughts from a pool (`message.papon.clarity.N`, counts in `THOUGHTS/NOT_NOW/SLEEPLESS`: lore, you killed him for this).
 
+**Makima (2026-10-07)**: a real Makima from the user's model (`~/Downloads/chainsawman-makima`), bigger than life (~2 blocks), humpable in
+several positions (missionary, doggy, bent over, cowgirl; jump cycles), moving her arms and body with every thrust, her mouth
+watering (drool). Each thrust into the body pillow has a 1/5000 chance of turning it into her, as a mob.
+
 **User's song/voice files (gitignored, never download, e.g. from YouTube)**: `tools/src/song/` (Canción del Mariachi,
 `para_siempre.mp3` from `~/Downloads/Para Siempre.mp3`, `persona_ideal.mp3`), `tools/src/voice/reference.mp3`,
 `tools/src/crowd/` (stadium recordings).
@@ -151,6 +155,7 @@ her; grey thoughts from a pool (`message.papon.clarity.N`, counts in `THOUGHTS/N
 | QTEs | `client/{QteClient,QteScreen,GuitarDuel,DanceOff,QtePlayerPose}`, `network/PaponNetwork` |
 | Band/crowd client | `client/{MariachiModel,MariachiRenderer,BandPoses,ColiseumCrowdRenderer,CrowdSounds,SongPlayer,FlagFireworks,VoiceDuck,SoundMix}` |
 | Pillow | `item/BodyPillowItem`, `entity/BodyPillowEntity` (synced `DATA_POSE` SLOUCH/EDGE, `Act` HUMP (plank)/FLOOR/LIFT/BEHIND/SIDE_BACK/SIDE_KNEES (side from `approach`, synced `DATA_SIDE/HALF`), eased `down`/`lift` (renderer blends place/turn/shape), rider eye heights via `EntityEvent.Size` in `CommonEvents`, jump = `PaponNetwork.PillowSwap`), `client/{PillowMesh (fold + knee),PillowItemRenderer,PillowLayer,PillowClient (rider pose = `RIDE` arm pose set in RenderPlayerEvent.Pre),BodyPillowRenderer}`; `-Pautoshot=pillow`. Clicks on her or her bed handled at HIGHEST in `CommonEvents.onPillow*` (Carry On ate empty-hand sneak clicks; blacklisted too), punching the bed takes her back |
+| Makima (2026-10-07) | the user's FBX (`tools/src/makima/`, gitignored) → `tools/makima_fbx.py` (Blender dump) → `tools/gen_makima_mesh.py` (rig by body part, 2 weights/vertex, one atlas, 1.96 blocks: `PX`) → `meshes/makima.json`, `makima_mesh` geo/png; `tools/gen_makima_anims.py` (two-bone IK arms, loops between two arm poses; preview `tools/makima_preview.py`); `entity/MakimaEntity` (spawn egg; right-click: you ride her, `Position` STAND/MISSIONARY/DOGGY/BENT/COWGIRL synced as ordinal, jump = `PillowSwap` next position, rider placed by `*_AT`; Post Nut Clarity; punch: back in the egg); `client/MakimaRenderer` (CPU skinning, per-thrust body motion `Model.moving`, drool off the `mouth` locator: tracked bone matrices are taken at the pivot); rider poses in `PillowClient.withMakima` (`Act.UNDER` for cowgirl). Every pillow thrust (hand or bed) has 1/5000 (`AWAKEN_ODDS`, `-Dpapon.makima.odds`) to become her (`MakimaEntity.awaken`). `-Pautoshot=makima` |
 | Ending | `TacoVendorEntity.reform/welcomeBack/order`, `client/{TacoMenuScreen,ScreenFade,VendorRenderer}` |
 | Mesh celebrities (EDP445, Chugs) | `client/mesh/*`, `tools/{mh_human,gen_edp_mesh,gen_chugs_mesh,gen_celeb_anims,pose_solver}.py` |
 | Damage types (`papon:caravan` bypasses shields; ours not `is_fire`), effects (Stunned, Brittle, Splattered, Post Nut Clarity) | `registry/{ModDamage,ModEffects}`, `data/papon/damage_type/*` |

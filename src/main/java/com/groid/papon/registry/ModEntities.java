@@ -183,6 +183,14 @@ public final class ModEntities {
                     .updateInterval(5)
                     .build(PaponMod.id("body_pillow").toString()));
 
+    // Makima, the real thing (her spawn egg).
+    public static final RegistryObject<EntityType<com.groid.papon.entity.MakimaEntity>> MAKIMA = REGISTRY.register("makima",
+            () -> EntityType.Builder.<com.groid.papon.entity.MakimaEntity>of(com.groid.papon.entity.MakimaEntity::new, MobCategory.MISC)
+                    .sized(0.7F, 1.95F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .build(PaponMod.id("makima").toString()));
+
     private static RegistryObject<EntityType<TacoCustomerEntity>> customer(Customer kind, float width, float height) {
         return REGISTRY.register(kind.id, () -> EntityType.Builder.of(TacoCustomerEntity.factory(kind), MobCategory.MISC)
                 .sized(width, height)

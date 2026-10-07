@@ -91,6 +91,7 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.MARIACHI.get(), MariachiRenderer::new);
         event.registerEntityRenderer(ModEntities.COLISEUM_CROWD.get(), ColiseumCrowdRenderer::new);
         event.registerEntityRenderer(ModEntities.BODY_PILLOW.get(), BodyPillowRenderer::new);
+        event.registerEntityRenderer(ModEntities.MAKIMA.get(), MakimaRenderer::new);
         event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.ARENA_FLAG.get(), ArenaFlagRenderer::new);
         event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.STAGE_LAMP.get(), StageLampRenderer::new);
     }

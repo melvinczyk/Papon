@@ -28,8 +28,8 @@ def main():
     prop_mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.9, 0.55, 0.15, 1)
     uv = np.array(d['uvs'], float).reshape(-1, 2)
     faces = d['faces']
-    yaw = {'front': 0, '34': -35, 'side': -90}[d['view']]
-    spacing = 1.7
+    yaw = {'front': 0, '34': -35, 'side': -90, 'back': 180, 'top': 0}[d['view']]
+    spacing = d.get('spacing', 1.7)
     n = len(d['frames'])
     for k, X in enumerate(d['frames']):
         P = np.array(X) / 16.0

@@ -294,12 +294,13 @@ public final class PaponNetwork {
         }
     }
 
-    /** A press of jump at the body pillow's feet: lift them to your face, or lay them down again (BodyPillowEntity.swap). */
+    /** A press of jump with the body pillow (BodyPillowEntity.swap) or Makima (MakimaEntity.swap: her next position). */
     public record PillowSwap() {
         void handle(Supplier<NetworkEvent.Context> ctx) {
             ServerPlayer p = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
                 if (p != null && p.getVehicle() instanceof com.groid.papon.entity.BodyPillowEntity b) b.swap(p);
+                if (p != null && p.getVehicle() instanceof com.groid.papon.entity.MakimaEntity m) m.swap(p);
             });
             ctx.get().setPacketHandled(true);
         }

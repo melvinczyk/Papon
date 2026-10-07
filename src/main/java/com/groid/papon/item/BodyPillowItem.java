@@ -96,6 +96,14 @@ public class BodyPillowItem extends Item {
                 return;
             }
             // a stroke every 7 ticks (client/PillowClient.thrust)
+            if (player.tickCount % 7 == 2 && player instanceof net.minecraft.server.level.ServerPlayer sp
+                    && com.groid.papon.entity.MakimaEntity.rollAwaken(sp)) {
+                // the pillow wakes up: Makima, bent over in front of you as the pillow was
+                player.stopUsingItem();
+                stack.shrink(1);
+                com.groid.papon.entity.MakimaEntity.awaken(server, sp, com.groid.papon.entity.MakimaEntity.Position.BENT, sp.position());
+                return;
+            }
             if (player.tickCount % 7 == 2) {
                 server.playSound(null, x, y - 0.6, z, SoundEvents.WOOL_STEP, SoundSource.PLAYERS, 0.8F, 0.7F + level.random.nextFloat() * 0.2F);
                 if (level.random.nextInt(3) == 0) server.playSound(null, x, y - 0.6, z, SoundEvents.SLIME_SQUISH_SMALL, SoundSource.PLAYERS, 0.4F, 1.6F);
