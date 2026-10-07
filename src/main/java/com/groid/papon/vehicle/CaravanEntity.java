@@ -107,7 +107,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
      * (-x here), low buckets (their cushions 7.5 px up: a seated player's head clears the roof, his eyes behind the wheel at
      * the windshield), then the two little rear seats. x, z, and the seat's height.
      */
-    private static final double[][] SKY_SEATS = {{-0.5, -0.24, 0.12}, {0.5, -0.24, 0.12}, {-0.46, -1.19, 0.19}, {0.46, -1.19, 0.19}};
+    private static final double[][] SKY_SEATS = {{-0.5, -0.24, 0.16}, {0.5, -0.24, 0.16}, {-0.46, -1.19, 0.19}, {0.46, -1.19, 0.19}};
 
     private static final double PLAYER_TOP = 0.78;
     private static final double BOSS_TOP = 1.35;

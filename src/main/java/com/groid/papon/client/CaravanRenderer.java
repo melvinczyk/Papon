@@ -151,18 +151,20 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         VertexConsumer sleeve = buffers.getBuffer(RenderType.entityTranslucent(skin));
         int overlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
         for (int side : new int[]{-1, 1}) {                 // -1: your right hand (the car's right, the model's -x)
-            double a = Math.toRadians(16);
+            double a = Math.toRadians(32);
             float gx = WHEEL_X + side * WHEEL_R * (float) Math.cos(a), gy = WHEEL_Y + WHEEL_R * (float) Math.sin(a);
             wheel.transform(p4.set(-gx / 16F, gy / 16F, WHEEL_Z / 16F, 1F));
             Vector3f grip = new Vector3f(p4.x, p4.y, p4.z);
-            Vector3f shoulder = new Vector3f(up).mul(-0.34F).add(new Vector3f(left).mul(side * 0.3F)).add(new Vector3f(fwd).mul(-0.05F));
+            Vector3f shoulder = new Vector3f(up).mul(-0.46F).add(new Vector3f(left).mul(side * 0.38F)).add(new Vector3f(fwd).mul(-0.14F));
             Vector3f y = new Vector3f(grip).sub(shoulder).normalize();
             Vector3f x = new Vector3f(left).sub(new Vector3f(y).mul(left.dot(y))).normalize();
             Vector3f z = new Vector3f(x).cross(y);
             PoseStack ps = new PoseStack();
             ps.translate(grip.x, grip.y, grip.z);
             ps.mulPose(new Quaternionf().setFromNormalized(new Matrix3f(x, y, z)));
-            ps.translate(side < 0 ? 1 / 16F : -1 / 16F, -9.6F / 16F, 0);
+            // slimmer than a standing player's (a player's arm is as thick as the rim is wide: they hid the wheel)
+            ps.scale(0.58F, 1F, 0.58F);
+            ps.translate(side < 0 ? 1 / 16F : -1 / 16F, -9.4F / 16F, 0);
             net.minecraft.client.model.geom.ModelPart arm = side < 0 ? model.rightArm : model.leftArm;
             net.minecraft.client.model.geom.ModelPart cuff = side < 0 ? model.rightSleeve : model.leftSleeve;
             for (var part : new net.minecraft.client.model.geom.ModelPart[]{arm, cuff}) {
@@ -320,6 +322,7 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
                           boolean reRender, float partialTick, int light, int overlay, float r, float g, float b, float a) {
         float k = van.squash();
         this.scaleWidth = k;
+        this.shadowRadius = 1.6F * Math.min(1F, k);
         this.scaleHeight = k < 1 ? k * (0.8F + 0.2F * k) : 1F;
         super.preRender(pose, van, model, buffers, buffer, reRender, partialTick, light, overlay, r, g, b, a);
     }

@@ -1968,7 +1968,8 @@ public final class AutoShot {
         if (tick == 90) run("execute at @s run summon papon:caravan ~ ~ ~ {Skyline:1b,Rotation:[0f,0f]}");
         var car = nearest(mc, com.groid.papon.vehicle.CaravanEntity.class);
         if (tick % 20 == 0) PaponMod.LOG.info("[autoshot] skyline tick {} car {} fps {} me {}", tick, car == null ? "none" : v3(car.position()), mc.getFps(), v3(mc.player.position()));
-        if (car == null || tick < 110) return;
+        // (once it has been seen the tour goes on without it: the fob's part puts it away and summons another)
+        if (tick < 110 || (car == null && skyAt == null)) return;
         if (skyAt == null) skyAt = car.position();
         Vec3 c = skyAt;
         int k = tick - 110;
@@ -1992,9 +1993,23 @@ public final class AutoShot {
             return;
         }
         k -= close.length * 30;
+        // the driver's door opening (someone getting in: an armor stand), from both sides and from the front
+        if (k < 60) {
+            if (k == 0) tpLook(c.add(-4.2, 0.6, -3.6), c.add(-0.6, 0.9, 0));
+            if (k == 2) run("summon armor_stand " + c.x + " " + (c.y + 3) + " " + c.z + " {Tags:[\"rider\"],Invisible:1b}",
+                    "ride @e[tag=rider,limit=1] mount @e[type=papon:caravan,limit=1,sort=nearest]");
+            if (k == 14) shot(mc, "k16_door_open_a");
+            if (k == 15) tpLook(c.add(4.2, 0.6, -3.6), c.add(0.6, 0.9, 0));
+            if (k == 19) shot(mc, "k17_door_open_b");
+            if (k == 20) tpLook(c.add(0.3, 1.6, -5.5), c.add(0, 0.8, 0));
+            if (k == 24) shot(mc, "k18_door_open_front");
+            if (k == 30) run("kill @e[tag=rider]");
+            return;
+        }
+        k -= 60;
         if (k == 0) run("gamemode creative", "tp @s " + c.x + " " + c.y + " " + (c.z + 2), "ride @s mount @e[type=papon:caravan,limit=1,sort=nearest]");
         if (k == 10) mc.options.setCameraType(CameraType.FIRST_PERSON);
-        if (k > 10 && k < 120) {
+        if (k > 10 && k < 120 && car != null) {
             mc.player.setYRot(car.getYRot());
             mc.player.setXRot(k < 60 ? 8 : 25);
         }
@@ -2008,10 +2023,18 @@ public final class AutoShot {
         if (k == 190) mc.options.setCameraType(CameraType.FIRST_PERSON);
         if (k == 200) mc.options.keyUp.setDown(true);
         if (k == 300) mc.options.keyUp.setDown(false);
-        if (k >= 200 && k <= 380 && k % 5 == 0) PaponMod.LOG.info("[autoshot] drive k {} rpm {} speed {} braking {}", k,
+        if (k >= 200 && k <= 380 && k % 5 == 0 && car != null) PaponMod.LOG.info("[autoshot] drive k {} rpm {} speed {} braking {}", k,
                 (int) com.groid.papon.client.CaravanSounds.rpm(car), String.format("%.2f", car.getDeltaMovement().horizontalDistance()), car.braking);
         if (k == 260) shot(mc, "k24_driving");
-        if (k == 400) mc.stop();
+        // the fob: out of the car, the car put away, pressed in the air: it reforms beside you
+        if (k == 400) run("ride @s dismount", "kill @e[type=papon:caravan]", "clear @s", "item replace entity @s weapon.mainhand with papon:skyline_fob");
+        if (k == 410) { run("tp @s " + c.x + " " + c.y + " " + (c.z + 30) + " 90 25"); mc.options.setCameraType(CameraType.FIRST_PERSON); }
+        if (k == 420) mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+        if (k == 423) shot(mc, "k25_summon_a");
+        if (k == 428) shot(mc, "k26_summon_b");
+        if (k == 434) shot(mc, "k27_summon_c");
+        if (k == 470) shot(mc, "k28_summoned");
+        if (k == 500) mc.stop();
     }
 
     private static void tpLook(Vec3 at, Vec3 look) {

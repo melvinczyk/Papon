@@ -30,7 +30,9 @@ import java.util.function.Supplier;
  * bottom, the throttle from the driver's keys (yours) or from how it moves (his, anyone else's), the turbos' boost building
  * behind the throttle and dumped as you lift. Its layers are loops recorded at set rpm (tools/gen_skyline_sounds.py), all at
  * one loudness, pitched to the rpm between them and cross-faded by it: the six on the throttle, the overrun's burble off it,
- * the turbos only on boost, the road and the wind by speed. Every shift is heard (a clack, a dip in the engine as the
+ * the turbos only on boost, the road and the wind by speed. (Redone again the same day, the user: "the sounds it has
+ * currently sound bad": eight rpm points on and off the throttle from a physical model of the engine, the two nearest
+ * playing; see Rig.) Every shift is heard (a clack, a dip in the engine as the
  * throttle is cut, the blow-off if it was on boost), a downshift off the throttle blips, a lift from high revs now and then
  * pops. From the cockpit (you in it, in first person) the engine is a second set of those layers, insulated (no fizz, the
  * shell's boom under it) and not placed in the world, so it sits steady round you; outside it is out there in the world.
