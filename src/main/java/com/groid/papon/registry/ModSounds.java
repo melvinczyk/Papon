@@ -26,16 +26,13 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> CARAVAN_HIT = sound("caravan.hit");
     // the Skyline (tools/gen_skyline_sounds.py): an RB26, not the van's V6
     /** The Skyline's engine in layers (tools/gen_skyline_sounds.py; mixed by client/CaravanSounds), outside and from the cockpit. */
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_IDLE = sound("skyline.eng_idle");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_LOW = sound("skyline.eng_low");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_MID = sound("skyline.eng_mid");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_HIGH = sound("skyline.eng_high");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_DECEL = sound("skyline.eng_decel");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_IDLE_IN = sound("skyline.eng_idle_in");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_LOW_IN = sound("skyline.eng_low_in");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_MID_IN = sound("skyline.eng_mid_in");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_HIGH_IN = sound("skyline.eng_high_in");
-    public static final RegistryObject<SoundEvent> SKYLINE_ENG_DECEL_IN = sound("skyline.eng_decel_in");
+    /**
+     * The Skyline's engine (2026-10-06, tools/gen_skyline_sounds.py): loops of the six at {@link #SKYLINE_RPM}, on the
+     * throttle and off it (the overrun), heard outside and from the cockpit; client/CaravanSounds mixes the two nearest.
+     */
+    public static final int[] SKYLINE_RPM = {900, 1500, 2300, 3200, 4200, 5300, 6500, 7800};
+    public static final RegistryObject<SoundEvent>[] SKYLINE_ON = layers("skyline.on_", ""), SKYLINE_OFF = layers("skyline.off_", ""),
+            SKYLINE_ON_IN = layers("skyline.on_", "_in"), SKYLINE_OFF_IN = layers("skyline.off_", "_in");
     public static final RegistryObject<SoundEvent> SKYLINE_TURBO = sound("skyline.turbo");
     public static final RegistryObject<SoundEvent> SKYLINE_ROAD = sound("skyline.road");
     public static final RegistryObject<SoundEvent> SKYLINE_WIND = sound("skyline.wind");
@@ -50,6 +47,9 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> SKYLINE_BACKFIRE = sound("skyline.backfire");
     public static final RegistryObject<SoundEvent> SKYLINE_CHIRP = sound("skyline.chirp");
     public static final RegistryObject<SoundEvent> SKYLINE_GLOW = sound("skyline.glow");
+    public static final RegistryObject<SoundEvent> SKYLINE_SUMMON = sound("skyline.summon");
+    public static final RegistryObject<SoundEvent> SKYLINE_HORN = sound("skyline.horn");
+    public static final RegistryObject<SoundEvent> SKYLINE_SCREECH = sound("skyline.screech");
 
     // the fight
     public static final RegistryObject<SoundEvent> BOSS_MUSIC = sound("music.boss");
@@ -74,6 +74,13 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> GIANT_TELL_SWIPE = sound("boss.giant_tell_swipe");
     public static final RegistryObject<SoundEvent> GIANT_TELL_SLAM = sound("boss.giant_tell_slam");
     public static final RegistryObject<SoundEvent> GIANT_TELL_LUNGE = sound("boss.giant_tell_lunge");
+
+    @SuppressWarnings("unchecked")
+    private static RegistryObject<SoundEvent>[] layers(String prefix, String suffix) {
+        RegistryObject<SoundEvent>[] out = new RegistryObject[SKYLINE_RPM.length];
+        for (int i = 0; i < out.length; i++) out[i] = sound(prefix + i + suffix);
+        return out;
+    }
 
     private static RegistryObject<SoundEvent> sound(String name) {
         return REGISTRY.register(name, () -> SoundEvent.createVariableRangeEvent(PaponMod.id(name)));

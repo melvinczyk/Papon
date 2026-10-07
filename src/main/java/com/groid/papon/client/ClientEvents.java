@@ -60,6 +60,7 @@ public final class ClientEvents {
         if (Cinematic.isActive()) event.setRoll(event.getRoll() + Cinematic.roll());
         ScreenShake.apply(event);
         PillowClient.camera(event);
+        SkylineCockpit.camera(event);
     }
 
     /** The sky turns while he transforms: gold as the salt comes down, then blood-orange through the scream. */
@@ -131,6 +132,7 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onFov(ViewportEvent.ComputeFov event) {
         if (Cinematic.isActive()) event.setFOV(Cinematic.fov());
+        else SkylineCockpit.fov(event);
     }
 
     /** Phase three's spotlight, over the finished world (BossRenderer.drawSpotlights). */
@@ -143,7 +145,7 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onHand(RenderHandEvent event) {
-        if (Cinematic.isActive() || PillowClient.hidesHands()) event.setCanceled(true);
+        if (Cinematic.isActive() || PillowClient.hidesHands() || SkylineCockpit.hidesHands()) event.setCanceled(true);
     }
 
     /**

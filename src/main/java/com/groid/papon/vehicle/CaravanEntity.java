@@ -217,6 +217,41 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     /** The engine running with nobody in it (shown off, or started from the fob). */
     public boolean idling() { return idleTicks > 0; }
 
+    /**
+     * Called by its fob (2026-10-06): it reforms where it stands out of a ball of purple light, the way Ascended Papon made it
+     * out of his van (the squash up from nothing, overshooting a touch and settling), and the engine catches as it does.
+     */
+    public void materialize() {
+        formTicks = 1;
+        setSquash(0.04F);
+    }
+
+    private int formTicks;
+    private static final int FORM_T = 16;
+
+    private void form(ServerLevel level) {
+        float k = Math.min(1F, formTicks / (float) FORM_T);
+        // ease out with a little overshoot (1.07 at its peak), then 1
+        float c = 1.9F;
+        float e = k >= 1 ? 1F : 1 + (c + 1) * (float) Math.pow(k - 1, 3) + c * (float) Math.pow(k - 1, 2);
+        setSquash(Math.max(0.04F, e));
+        double w = HALF_WIDTH * 1.4 * Math.max(0.2F, e), l = HALF_LENGTH * Math.max(0.2F, e);
+        for (int i = 0; i < 10; i++) {
+            Vec3 p = local((random.nextDouble() * 2 - 1) * w, 0.2 + random.nextDouble() * 1.3 * e, (random.nextDouble() * 2 - 1) * l);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.REVERSE_PORTAL, p.x, p.y, p.z, 1, 0, 0, 0, 0.05);
+        }
+        if (formTicks == FORM_T - 4) {
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.WITCH, getX(), getY() + 0.8, getZ(), 40, w * 0.7, 0.5, l * 0.7, 0.02);
+            level.sendParticles(net.minecraft.core.particles.ParticleTypes.FLASH, getX(), getY() + 0.8, getZ(), 1, 0, 0, 0, 0);
+        }
+        if (k >= 1) {
+            formTicks = 0;
+            setSquash(1F);
+            return;
+        }
+        formTicks++;
+    }
+
     /** The fob's remote start: the engine catches and runs for {@code ticks} (0 shuts it down). */
     public void remoteStart(int ticks) {
         if (ticks > 0 && idleTicks <= 0 && !level().isClientSide) {
@@ -428,7 +463,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     public void honk() {
         if (hornCooldown > 0) return;
         hornCooldown = 12;
-        level().playSound(null, getX(), getY() + 1, getZ(), ModSounds.CARAVAN_HORN.get(), SoundSource.NEUTRAL, 3.0F, isSkyline() ? 1.25F : 1.0F);
+        level().playSound(null, getX(), getY() + 1, getZ(), (isSkyline() ? ModSounds.SKYLINE_HORN : ModSounds.CARAVAN_HORN).get(), SoundSource.NEUTRAL, isSkyline() ? 2.2F : 3.0F, 1.0F);
         // honking at the man whose van it is: he has something to say about that
         if (getControllingPassenger() instanceof Player p) {
             for (com.groid.papon.boss.PaponBossEntity b : level().getEntitiesOfClass(com.groid.papon.boss.PaponBossEntity.class, getBoundingBox().inflate(40))) {
@@ -610,6 +645,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         super.tick();
         yBodyRot = getYRot();
         yHeadRot = getYRot();
+        riderTurn = tickCount <= 1 ? 0 : Mth.wrapDegrees(getYRot() - riderYaw);
+        riderYaw = getYRot();
         if (level().isClientSide) {
             clientVisuals();
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> com.groid.papon.client.ClientHooks.caravanTick(this));
@@ -617,6 +654,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         }
         ServerLevel level = (ServerLevel) level();
         LivingEntity driver = getControllingPassenger();
+        if (formTicks > 0) form(level);
         if (idleTicks > 0) idleTicks--;
         entityData.set(DATA_ENGINE, driver != null || bricked || idleTicks > 0);
         if (doorTicks > 0 && --doorTicks == 0) entityData.set(DATA_DOOR, false);
@@ -648,7 +686,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         if (screechCooldown == 0 && Math.abs(measured) > 0.42 && Math.abs(yawDelta) > 3.0F) {
             screechCooldown = 30;
             // (2026-10-06) the squeal a cue, not a siren: quieter, and the Skyline's tyres a little higher
-            level.playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_SCREECH.get(), SoundSource.NEUTRAL, 1.3F, isSkyline() ? 1.12F : 1.0F);
+            level.playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_SCREECH : ModSounds.CARAVAN_SCREECH).get(), SoundSource.NEUTRAL, 1.3F, 0.95F + random.nextFloat() * 0.1F);
         }
         if (Math.abs(yawDelta) > 3.0F && Math.abs(measured) > 0.4 || burnout > 0) tyreSmoke(level);
         if (burnout > 0) burnout--;
@@ -818,12 +856,29 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         double[] seat = seats[Math.min(i, seats.length - 1)];
         Vec3 at = local(seat[0], (seat.length > 2 ? seat[2] : SEAT_HEIGHT) + passenger.getMyRidingOffset(), seat[1]);
         move.accept(passenger, at.x, at.y, at.z);
+        // (2026-10-06) your view turns with the car as it steers (it stayed pointing the old way: in first person you steered
+        // blind), and your head turns no further than over your shoulder
+        if (passenger instanceof Player p && p.isLocalPlayer()) {
+            p.setYRot(p.getYRot() + riderTurn);
+            p.setYHeadRot(p.getYHeadRot() + riderTurn);
+            float rel = Mth.wrapDegrees(p.getYRot() - getYRot());
+            float clamped = Mth.clamp(rel, -LOOK_BACK, LOOK_BACK);
+            if (clamped != rel) {
+                p.yRotO += clamped - rel;
+                p.setYRot(p.getYRot() + clamped - rel);
+                p.setYHeadRot(p.getYRot());
+            }
+        }
         if (passenger instanceof PaponBossEntity boss) {
             boss.setYRot(getYRot());
             boss.setYBodyRot(getYRot());
             boss.setYHeadRot(getYRot());
         }
     }
+
+    /** The car's turn this tick (degrees), its riders' views turned with it; how far round a rider can look. */
+    private float riderTurn, riderYaw;
+    private static final float LOOK_BACK = 150F;
 
     @Override
     public void onPassengerTurned(Entity passenger) { if (passenger instanceof PaponBossEntity) passenger.setYRot(getYRot()); }
@@ -919,6 +974,7 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         lastYaw = getYRot();
+        riderYaw = getYRot();
         setSkyline(tag.getBoolean("Skyline"));
         entityData.set(DATA_GLOW, !tag.contains("Underglow") || tag.getBoolean("Underglow") ? 0 : -1);
     }
