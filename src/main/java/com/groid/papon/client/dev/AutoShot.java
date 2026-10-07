@@ -79,6 +79,10 @@ public final class AutoShot {
      *  climax (finishing shortened) and after; sneak + right-click and she follows you (walking); then the body pillow waking
      *  up as her, in hand and on a bed. */
     private static final boolean MAKIMA = MODE.equals("makima");
+    /** -Pautoshot=makimaface: Makima's face up close (papon_mf*.png): opening her eyes as she appears, every mood forced in
+     *  turn (client/MakimaFace, -Dpapon.makima.face) from the front and three-quarters, a blink, then you staring at her
+     *  until she gives you her look on her own (moods logged). */
+    private static final boolean MAKIMA_FACE = MODE.equals("makimaface");
     /** -Pautoshot=state:STATE[:FORM]:t1,t2,...  a boss here (form 3 Ascended or 4 the Final Guardian), straight into STATE; the
      *  cutscene camera's view (or yours) shot at those ticks in it (papon_s_STATE_t.png). For checking one beat quickly. */
     private static final boolean STATE = MODE.startsWith("state:");
@@ -152,6 +156,10 @@ public final class AutoShot {
         }
         if (MAKIMA) {
             makima(mc);
+            return;
+        }
+        if (MAKIMA_FACE) {
+            makimaFace(mc);
             return;
         }
         if (SERPENTS) {
@@ -1437,6 +1445,70 @@ public final class AutoShot {
 
     private static boolean climaxShot;
     private static int climaxAt;
+    private static final String[] FACES = {"calm", "near", "look", "pleased", "pleasure", "climax", "dazed", "afterglow"};
+
+    /** -Pautoshot=makimaface: see {@link #MAKIMA_FACE}. */
+    private static void makimaFace(Minecraft mc) {
+        var makima = nearest(mc, com.groid.papon.entity.MakimaEntity.class);
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:makima]", "tp @s 4300 200 4300");
+            case 70 -> run("execute positioned 4300 0 4300 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 180 0");
+            case 90 -> {
+                var p = mc.player.blockPosition();
+                run("kill @e[type=papon:makima]",
+                        String.format("fill %d %d %d %d %d %d minecraft:smooth_stone", p.getX() - 5, p.getY() - 1, p.getZ() - 6, p.getX() + 5, p.getY() - 1, p.getZ() + 5),
+                        String.format("fill %d %d %d %d %d %d minecraft:air", p.getX() - 5, p.getY(), p.getZ() - 6, p.getX() + 5, p.getY() + 4, p.getZ() + 5),
+                        String.format("summon papon:makima %d.5 %d %d.5 {Rotation:[0f,0f]}", p.getX(), p.getY(), p.getZ() - 3));
+            }
+            default -> {}
+        }
+        if (makima == null || tick < 92) return;
+        Vec3 o = makima.position(), face = o.add(0, 1.76, 0);
+        Vec3 front = face.add(0, 0.02, 0.42), side = face.add(0.3, 0.03, 0.3);
+        if (tick == 92) camAt(mc, front, face);
+        if (tick == 96 || tick == 110 || tick == 126) {
+            shot(mc, "mf0" + (tick == 96 ? 1 : tick == 110 ? 2 : 3) + "_waking");
+            PaponMod.LOG.info("[autoshot] makima face {}", com.groid.papon.client.MakimaFace.debug(makima));
+        }
+        for (int i = 0; i < FACES.length; i++) {
+            int at = 150 + i * 44;
+            if (tick == at) {
+                System.setProperty("papon.makima.face", FACES[i]);
+                camAt(mc, front, face);
+            }
+            if (tick == at + 30) {
+                shot(mc, "mf" + (10 + i) + "_" + FACES[i]);
+                PaponMod.LOG.info("[autoshot] makima face {}", com.groid.papon.client.MakimaFace.debug(makima));
+                camAt(mc, side, face);
+            }
+            if (tick == at + 36) shot(mc, "mf" + (10 + i) + "_" + FACES[i] + "_34");
+        }
+        int b = 150 + FACES.length * 44;
+        if (tick == b) {
+            System.setProperty("papon.makima.face", "calm");
+            System.setProperty("papon.makima.blink", "true");
+            camAt(mc, front, face);
+        }
+        if (tick == b + 20) {
+            shot(mc, "mf30_blink");
+            System.clearProperty("papon.makima.blink");
+            System.clearProperty("papon.makima.face");
+        }
+        if (tick == b + 24) {
+            // you, two blocks off, staring at her face: her look, on her own
+            mc.setCameraEntity(mc.player);
+            mc.options.setCameraType(CameraType.FIRST_PERSON);
+            mc.options.hideGui = true;
+            tpLook(o.add(0.6, 0, 2.0), face);
+        }
+        if (tick == b + 60 || tick == b + 110) {
+            shot(mc, "mf3" + (tick == b + 60 ? 1 : 2) + "_stared");
+            PaponMod.LOG.info("[autoshot] makima face {}", com.groid.papon.client.MakimaFace.debug(makima));
+        }
+        if (tick == b + 116) mc.stop();
+    }
 
     private static void makimaControl(int action) {
         com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.MakimaControl(action));

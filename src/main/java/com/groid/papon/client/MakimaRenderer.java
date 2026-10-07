@@ -17,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import software.bernie.geckolib.cache.object.BakedGeoModel;
@@ -45,6 +46,10 @@ import java.util.WeakHashMap;
  *   her mouth waters              strands of drool off her lips that stretch, snap and fall, a little puddle where they
  *                                 land ({@link Drool}); hearts now and then, never in the rider's face
  * Standing, her head and neck follow you; walking (she follows you) the stride runs at her speed.
+ * (2026-10-07) Her face ({@link MakimaFace}: moods, blinks, her eyes on you, her look and the tilt of her head) is put on the
+ * rest positions before skinning, her irises on bones placed off the head's pose here ({@link #aim} finds where you are in
+ * her head's space), her blush drawn over her cheeks after the body; skinning is dual quaternion ({@link #skin}) so her
+ * elbows, knees and knuckles bend without pinching; her fingers squeeze with each stroke and grip in the climax.
  */
 public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
     /**
@@ -54,14 +59,18 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
      */
     private static final Vector4f MOUTH = new Vector4f(0F, 27.45F / 16, -1.229F / 16, 1F);
     private static final ResourceLocation WHITE = PaponMod.id("textures/misc/white.png");
+    /** How far her lower lip drops with her mouth wide open (blocks: tools/makima_face.py OPEN_H, scaled to her size). */
+    private static final float LIP_DROP = 0.0062F * 1.2F;
 
     private final Map<String, Matrix4f> poses = new HashMap<>();
     /** The pose stack's top as render() was handed it (her position relative to the camera, in view space). */
     private Matrix4f root;
-    private final Map<String, Matrix3f> normalPoses = new HashMap<>();
     private float[] px = new float[0];
     private float[] nx = new float[0];
-    private final Vector4f p = new Vector4f();
+    /** The rest positions with her face put on (MakimaFace.apply), and each bone's dual quaternion (real, dual: 8 floats). */
+    private float[] rest = new float[0];
+    private float[] dq = new float[0];
+    private final Quaternionf quat = new Quaternionf();
     private final Vector3f q = new Vector3f();
     private static final Map<MakimaEntity, Jiggle> JIGGLE = new WeakHashMap<>();
     private static final Map<MakimaEntity, Drool> DROOL = new WeakHashMap<>();
@@ -92,6 +101,11 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
         public void setCustomAnimations(MakimaEntity e, long instanceId, AnimationState<MakimaEntity> state) {
             float partial = state.getPartialTick();
             Jiggle j = JIGGLE.computeIfAbsent(e, k -> new Jiggle());
+            MakimaFace.State face = MakimaFace.state(e);
+            face.update(e, partial);
+            // her tilt and the dip of her chin (MakimaFace: her look), the neck taking part
+            add("neck", face.chin * 0.35F, 0, face.tilt * 0.3F);
+            add("head", face.chin * 0.65F, 0, face.tilt * 0.7F);
             if (e.getFirstPassenger() instanceof Player && e.act() != null) {
                 moving(e, partial, j);
                 return;
@@ -104,6 +118,24 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
             float yaw = Mth.clamp(data.netHeadYaw(), -70, 70), pitch = Mth.clamp(data.headPitch(), -40, 50);
             add("neck", pitch * 0.35F, yaw * 0.35F, 0);
             add("head", pitch * 0.55F, yaw * 0.55F, 0);
+        }
+
+        /**
+         * Her fingers closed further than the pose holds them (degrees of curl at the middle joint): squeezing with each
+         * stroke, gripping in the climax. About each finger's own curl axis (meshes/makima.json "hands"), a small addition.
+         */
+        private void clench(float deg) {
+            if (deg < 0.2F) return;
+            SkinnedMesh mesh = SkinnedMesh.get("makima");
+            MakimaFace.Rig rig = mesh == null ? null : MakimaFace.rig(mesh);
+            if (rig == null) return;
+            for (var c : rig.curl.entrySet()) {
+                String b = c.getKey();
+                float k = b.contains("1_") ? 0.75F : b.contains("3_") ? 0.7F : 1F;
+                if (b.startsWith("f_thumb")) k *= 0.6F;
+                float[] a = c.getValue();
+                add(b, a[0] * deg * k, a[1] * deg * k, a[2] * deg * k);
+            }
         }
 
         /**
@@ -158,6 +190,9 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
                 }
                 default -> {}
             }
+            // her hands squeeze with each stroke (pressed flat on the ground, less), grip in the climax
+            float squeeze = e.posture() == MakimaEntity.Position.DOGGY ? 0.4F : 1F;
+            clench(e.holding() ? 26 : e.climax() > 0 ? 16 + 8 * sq : 7 * sq * squeeze);
             sway(j);
         }
 
@@ -272,7 +307,6 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
     public void renderCubesOfBone(PoseStack pose, GeoBone bone, VertexConsumer buffer, int light, int overlay,
                                   float r, float g, float b, float a) {
         poses.put(bone.getName(), new Matrix4f(pose.last().pose()));
-        normalPoses.put(bone.getName(), new Matrix3f(pose.last().normal()));
         super.renderCubesOfBone(pose, bone, buffer, light, overlay, r, g, b, a);
     }
 
@@ -281,53 +315,154 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
                             float partial, int light, int overlay, float r, float g, float b, float a) {
         super.renderFinal(pose, e, model, buffers, buffer, partial, light, overlay, r, g, b, a);
         Matrix4f headPose = poses.get("head");
+        SkinnedMesh mesh = SkinnedMesh.get("makima");
+        MakimaFace.Rig rig = mesh == null ? null : MakimaFace.rig(mesh);
+        MakimaFace.State face = MakimaFace.state(e);
         if (headPose != null && root != null) {
             // the bone poses are in view space (the camera's turn is on the stack): back to the world through the stack's
-            // root as render() was handed it (her position, the camera's turn)
+            // root as render() was handed it (her position, the camera's turn); her lower lip as far down as her mouth is open
             Drool d = DROOL.computeIfAbsent(e, k -> new Drool());
-            Vector4f at = new Matrix4f(root).invert().mul(headPose).transform(new Vector4f(MOUTH));
+            Vector4f lip = new Vector4f(MOUTH);
+            if (rig != null) {
+                float k = face.openNow() * LIP_DROP;
+                lip.add(-rig.ey[0] * k, -rig.ey[1] * k, -rig.ey[2] * k, 0);
+            }
+            Vector4f at = new Matrix4f(root).invert().mul(headPose).transform(lip);
             Vec3 o = e.getPosition(partial);
             d.mouth = new Vector4f((float) (at.x + o.x), (float) (at.y + o.y), (float) (at.z + o.z), 1F);
             hearts(e, d.mouth);
         }
-        SkinnedMesh mesh = SkinnedMesh.get("makima");
         if (mesh == null || e.isInvisible()) return;
+        if (rig != null && headPose != null) {
+            // her irises: on the head's pose, slid where she looks; and where that is, for next frame
+            Matrix4f eyes = new Matrix4f(headPose).translate(face.offX(rig) * rig.ex[0] + face.offY(rig) * rig.ey[0],
+                    face.offX(rig) * rig.ex[1] + face.offY(rig) * rig.ey[1], face.offX(rig) * rig.ex[2] + face.offY(rig) * rig.ey[2]);
+            poses.put("eye_l", eyes);
+            poses.put("eye_r", eyes);
+            aim(e, partial, rig, face, headPose);
+        }
         Matrix4f[] m = new Matrix4f[mesh.bones.length];
-        Matrix3f[] n = new Matrix3f[mesh.bones.length];
         for (int i = 0; i < m.length; i++) {
             m[i] = poses.get(mesh.bones[i]);
-            n[i] = normalPoses.get(mesh.bones[i]);
             if (m[i] == null) return;
         }
         int count = mesh.vertexCount(), k = mesh.influences;
         if (px.length < count * 3) {
             px = new float[count * 3];
             nx = new float[count * 3];
+            rest = new float[count * 3];
         }
-        for (int v = 0; v < count; v++) {
-            float sx = 0, sy = 0, sz = 0, tx = 0, ty = 0, tz = 0;
-            for (int i = 0; i < k; i++) {
-                float w = mesh.weights[v * k + i];
-                if (w <= 0) continue;
-                int j = mesh.joints[v * k + i];
-                m[j].transform(p.set(mesh.positions[v * 3], mesh.positions[v * 3 + 1], mesh.positions[v * 3 + 2], 1F));
-                n[j].transform(q.set(mesh.normals[v * 3], mesh.normals[v * 3 + 1], mesh.normals[v * 3 + 2]));
-                sx += p.x * w; sy += p.y * w; sz += p.z * w;
-                tx += q.x * w; ty += q.y * w; tz += q.z * w;
-            }
-            float len = (float) Math.sqrt(tx * tx + ty * ty + tz * tz);
-            if (len > 1.0E-6F) { tx /= len; ty /= len; tz /= len; }
-            px[v * 3] = sx; px[v * 3 + 1] = sy; px[v * 3 + 2] = sz;
-            nx[v * 3] = tx; nx[v * 3 + 1] = ty; nx[v * 3 + 2] = tz;
+        float[] src = mesh.positions;
+        if (rig != null) {
+            MakimaFace.apply(rig, face, mesh.positions, rest);
+            src = rest;
         }
+        skin(mesh, m, src, count, k);
         VertexConsumer out = buffers.getBuffer(RenderType.entityCutoutNoCull(mesh.texture));
         int[] idx = mesh.indices;
-        for (int t = 0; t < idx.length; t += 3) {
+        int[] blush = mesh.groups.get("blush");
+        int end = blush == null ? idx.length : blush[0];
+        for (int t = 0; t < end; t += 3) {
             put(out, mesh, idx[t], light, overlay, r, g, b, a);
             put(out, mesh, idx[t + 1], light, overlay, r, g, b, a);
             put(out, mesh, idx[t + 2], light, overlay, r, g, b, a);
             put(out, mesh, idx[t + 2], light, overlay, r, g, b, a);
         }
+        if (blush != null && face.blush > 0.02F) {
+            // her blush over her cheeks, as strong as she is flushed
+            VertexConsumer over = buffers.getBuffer(RenderType.entityTranslucent(mesh.texture));
+            float alpha = Math.min(1, face.blush) * 0.9F * a;
+            for (int t = blush[0], stop = blush[0] + blush[1]; t < stop; t += 3) {
+                put(over, mesh, idx[t], light, overlay, r, g, b, alpha);
+                put(over, mesh, idx[t + 1], light, overlay, r, g, b, alpha);
+                put(over, mesh, idx[t + 2], light, overlay, r, g, b, alpha);
+                put(over, mesh, idx[t + 2], light, overlay, r, g, b, alpha);
+            }
+        }
+    }
+
+    /**
+     * Dual quaternion skinning (2026-10-07, the user: her arm bends "less plastic"): each vertex's bones' rigid motions blended
+     * as dual quaternions, so a bent elbow, knee or knuckle keeps its volume where the old linear blend pinched it thin (the
+     * rubber-hose look). The bone poses are rigid (view space: the camera's turn, her place, the bones' turns) with at most a
+     * uniform scale, taken out and put back.
+     */
+    private void skin(SkinnedMesh mesh, Matrix4f[] m, float[] src, int count, int k) {
+        if (dq.length < m.length * 8) dq = new float[m.length * 8];
+        float scale = 1;
+        for (int i = 0; i < m.length; i++) {
+            m[i].getNormalizedRotation(quat);
+            if (i == 0) scale = m[i].getScale(q).x;
+            float qw = quat.w, qx = quat.x, qy = quat.y, qz = quat.z;
+            float tx = m[i].m30(), ty = m[i].m31(), tz = m[i].m32();
+            int o = i * 8;
+            dq[o] = qw; dq[o + 1] = qx; dq[o + 2] = qy; dq[o + 3] = qz;
+            dq[o + 4] = -0.5F * (tx * qx + ty * qy + tz * qz);
+            dq[o + 5] = 0.5F * (qw * tx + ty * qz - tz * qy);
+            dq[o + 6] = 0.5F * (qw * ty + tz * qx - tx * qz);
+            dq[o + 7] = 0.5F * (qw * tz + tx * qy - ty * qx);
+        }
+        for (int v = 0; v < count; v++) {
+            int j0 = mesh.joints[v * k] * 8;
+            float rw = 0, rx = 0, ry = 0, rz = 0, dw = 0, dx = 0, dy = 0, dz = 0;
+            for (int i = 0; i < k; i++) {
+                float w = mesh.weights[v * k + i];
+                if (w <= 0) continue;
+                int o = mesh.joints[v * k + i] * 8;
+                // the shorter way round: every quaternion in the first one's hemisphere
+                if (dq[o] * dq[j0] + dq[o + 1] * dq[j0 + 1] + dq[o + 2] * dq[j0 + 2] + dq[o + 3] * dq[j0 + 3] < 0) w = -w;
+                rw += w * dq[o]; rx += w * dq[o + 1]; ry += w * dq[o + 2]; rz += w * dq[o + 3];
+                dw += w * dq[o + 4]; dx += w * dq[o + 5]; dy += w * dq[o + 6]; dz += w * dq[o + 7];
+            }
+            float len = (float) Math.sqrt(rw * rw + rx * rx + ry * ry + rz * rz);
+            if (len < 1.0E-6F) len = 1;
+            rw /= len; rx /= len; ry /= len; rz /= len;
+            dw /= len; dx /= len; dy /= len; dz /= len;
+            int p3 = v * 3;
+            // rotation: p + 2 r x (r x p + w p); translation: 2 (w d - dw r + r x d)
+            float sx = src[p3], sy = src[p3 + 1], sz = src[p3 + 2];
+            float cx = ry * sz - rz * sy + rw * sx, cy = rz * sx - rx * sz + rw * sy, cz = rx * sy - ry * sx + rw * sz;
+            float ox = sx + 2 * (ry * cz - rz * cy), oy = sy + 2 * (rz * cx - rx * cz), oz = sz + 2 * (rx * cy - ry * cx);
+            float tx = 2 * (rw * dx - dw * rx + ry * dz - rz * dy), ty = 2 * (rw * dy - dw * ry + rz * dx - rx * dz),
+                    tz = 2 * (rw * dz - dw * rz + rx * dy - ry * dx);
+            px[p3] = ox * scale + tx; px[p3 + 1] = oy * scale + ty; px[p3 + 2] = oz * scale + tz;
+            float nx0 = mesh.normals[p3], ny0 = mesh.normals[p3 + 1], nz0 = mesh.normals[p3 + 2];
+            cx = ry * nz0 - rz * ny0 + rw * nx0;
+            cy = rz * nx0 - rx * nz0 + rw * ny0;
+            cz = rx * ny0 - ry * nx0 + rw * nz0;
+            nx[p3] = nx0 + 2 * (ry * cz - rz * cy); nx[p3 + 1] = ny0 + 2 * (rz * cx - rx * cz); nx[p3 + 2] = nz0 + 2 * (rx * cy - ry * cx);
+        }
+    }
+
+    /**
+     * Where she looks (for MakimaFace's next frame): at your eyes (the camera, so she meets them in any view) when you are
+     * near or with her, else at the nearest other player; turned into her head's own space by this frame's head pose, as
+     * how far aside and up from her eyes' straight ahead.
+     */
+    private void aim(MakimaEntity e, float partial, MakimaFace.Rig rig, MakimaFace.State face, Matrix4f headPose) {
+        Minecraft mc = Minecraft.getInstance();
+        Vec3 target = null;
+        if (mc.player != null && (mc.player.getVehicle() == e || mc.player.distanceToSqr(e) < 12 * 12)) {
+            target = mc.gameRenderer.getMainCamera().getPosition();
+        } else {
+            Player near = e.level().getNearestPlayer(e, 12);
+            if (near != null) target = near.getEyePosition(partial);
+        }
+        face.aiming = false;
+        if (target == null || root == null) return;
+        Vec3 o = e.getPosition(partial);
+        Vector4f view = new Matrix4f(root).transform(new Vector4f((float) (target.x - o.x), (float) (target.y - o.y), (float) (target.z - o.z), 1F));
+        Vector4f local = new Matrix4f(headPose).invert().transform(view);
+        float dx = local.x - (rig.eyeL[0] + rig.eyeR[0]) / 2, dy = local.y - (rig.eyeL[1] + rig.eyeR[1]) / 2,
+                dz = local.z - (rig.eyeL[2] + rig.eyeR[2]) / 2;
+        float f = dx * rig.fwd[0] + dy * rig.fwd[1] + dz * rig.fwd[2];
+        float h = dx * rig.ex[0] + dy * rig.ex[1] + dz * rig.ex[2];
+        float u = dx * rig.ey[0] + dy * rig.ey[1] + dz * rig.ey[2];
+        float d = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (d < 1.0E-3F || f < 0.25F * d) return;
+        face.aiming = true;
+        face.aimX = Mth.clamp((float) Math.atan2(h, f) / (28 * Mth.DEG_TO_RAD), -1, 1);
+        face.aimY = Mth.clamp((float) Math.atan2(u, f) / (20 * Mth.DEG_TO_RAD), -1, 1);
     }
 
     private void put(VertexConsumer out, SkinnedMesh mesh, int v, int light, int overlay, float r, float g, float b, float a) {
@@ -361,7 +496,7 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
      */
     static final class Drool {
         Vector4f mouth;
-        private float strand, strandMax = 0.1F, swing, swingV;
+        private float strand, strandMax = 0.04F, swing, swingV;
         private Vec3 lastMouth;
         private float last = Float.NaN;
         private final List<float[]> drops = new ArrayList<>();      // x, y, z, vy, age
@@ -375,8 +510,8 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
             last = t;
             if (mc.isPaused()) dt = 0;
             Vec3 m = new Vec3(mouth.x, mouth.y, mouth.z);
-            boolean with = e.act() != null, near = mc.player != null && e.distanceToSqr(mc.player) < 16;
-            float grow = with ? 0.002F + 0.0008F * e.tempo() : near ? 0.0013F : 0;
+            boolean with = e.act() != null, near = mc.player != null && e.distanceToSqr(mc.player) < 9;
+            float grow = with ? 0.0018F + 0.0007F * e.tempo() : near ? 0.0005F : 0;
             // the strand fills; its tip swings as her head moves (a pendulum on the mouth's motion)
             if (lastMouth != null && dt > 0) {
                 Vec3 v = m.subtract(lastMouth).scale(1 / dt);
@@ -391,8 +526,8 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
                 // it snaps: a drop falls from the tip, a short thread stays on her lip
                 Vec3 tip = tip(m, strand);
                 drops.add(new float[]{(float) tip.x, (float) tip.y, (float) tip.z, -0.02F, 0});
-                strand = 0.012F;
-                strandMax = 0.06F + e.getRandom().nextFloat() * 0.12F;
+                strand = 0.008F;
+                strandMax = with ? 0.05F + e.getRandom().nextFloat() * 0.1F : 0.025F + e.getRandom().nextFloat() * 0.04F;
             } else if (grow == 0 && strand > 0) {
                 strand = Math.max(0, strand - 0.004F * dt);
             }
@@ -429,18 +564,18 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
                 // the strand: a ribbon facing the camera, thinning to a thread, a bead at its tip
                 Vec3 a = m, b = tip(m, strand);
                 Vec3 mid = a.lerp(b, 0.5).add(swing * strand * 0.15F, 0, 0);
-                ribbon(out, mat, nm, c, o, a, mid, 0.008F, 0.005F, lit);
-                ribbon(out, mat, nm, c, o, mid, b, 0.005F, 0.007F, lit);
-                bead(out, mat, nm, c, o, b, 0.012F + strand * 0.06F, 1.4F, lit);
+                ribbon(out, mat, nm, c, o, a, mid, 0.0034F, 0.0021F, lit);
+                ribbon(out, mat, nm, c, o, mid, b, 0.0021F, 0.003F, lit);
+                bead(out, mat, nm, c, o, b, 0.0045F + strand * 0.025F, 1.4F, lit);
             }
-            for (float[] d : drops) bead(out, mat, nm, c, o, new Vec3(d[0], d[1], d[2]), 0.008F, 2.2F, lit);
+            for (float[] d : drops) bead(out, mat, nm, c, o, new Vec3(d[0], d[1], d[2]), 0.004F, 2.2F, lit);
             for (float[] p : puddles) {
                 float k = 1 - p[4] / 140F, s = p[3] * (0.6F + 0.4F * Math.min(1, p[4] / 6F));
                 flat(out, mat, nm, o, new Vec3(p[0], p[1], p[2]), s, 0.45F * k, lit);
             }
         }
 
-        private static final float R = 0.82F, G = 0.9F, B = 1.0F, A = 0.78F;
+        private static final float R = 0.86F, G = 0.92F, B = 1.0F, A = 0.5F;
 
         private static void ribbon(VertexConsumer out, Matrix4f mat, Matrix3f nm, Vec3 cam, Vec3 o, Vec3 a, Vec3 b, float wa, float wb, int light) {
             Vec3 d = b.subtract(a), side = d.cross(a.subtract(cam));
@@ -490,6 +625,5 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
     public void doPostRenderCleanup() {
         super.doPostRenderCleanup();
         poses.clear();
-        normalPoses.clear();
     }
 }

@@ -14,6 +14,11 @@ pointed. Every loop swings between two such arm poses and sways her head and hip
 is code (client/MakimaRenderer, in step with the rider's stroke), so the motion never drifts out of step with whoever is with
 her. Every animation keys every bone (GeckoLib leaves unkeyed bones as they were).
 
+Arms (2026-10-07, the user: "less plastic and more natural"): the collarbone takes part of every arm's swing (SHRUG: more
+raising or reaching than lowering), and the fingers (three bones each, tools/makima_hands.py) hold a grip per pose (GRIPS:
+relaxed, a soft hold, gripping, flat on the ground, her own hand sign), the splay closed in by it, never the stiff spread
+of the model's pose; the renderer skins with dual quaternions, so a bent elbow keeps its volume.
+
 Rotations in degrees, GeckoLib's convention: rot X < 0 swings a hanging limb forward, so it tips an upright one (root,
 torso, chest, head) back. Targets in blocks of her frame: F(at, up, side): `at` along her facing as she stood (toward
 whoever came at her), `side` to her left.
@@ -36,6 +41,8 @@ PARENT = {b['name']: b.get('parent') for b in GEO['bones']}
 LOC = {k: np.array(v, float) for b in GEO['bones'] for k, v in b.get('locators', {}).items()}
 LOC_BONE = {k: b['name'] for b in GEO['bones'] for k in b.get('locators', {})}
 BONES = [b['name'] for b in GEO['bones']]
+HANDS = json.load(open(os.path.join(ASSETS, 'meshes/makima.json')))['hands']
+FINGERS = ['thumb', 'index', 'middle', 'ring', 'pinky']
 SIDES = (('l', 1), ('r', -1))
 DOWN = np.array([0, -1.0, 0])
 
@@ -175,10 +182,68 @@ def aim(pose, bone, rest_vec, want):
     return pose
 
 
+SHRUG = (0.12, 0.3, 20)      # of the upper arm's swing the collarbone takes: lowering, raising or reaching; at most (deg)
+
+
 def arms(pose, targets):
-    """Each side's wrist onto targets[side] = (wrist target, elbow pole), rig pixels of her frame."""
+    """Each side's wrist onto targets[side] = (wrist target, elbow pole), rig pixels of her frame; the collarbone lifted or
+    drawn forward with the arm (SHRUG), then the arm solved again from where the shoulder went."""
     for s, (T, pole) in targets.items():
+        solved = chain(pose, 'arm_' + s, 'forearm_' + s, 'wrist_' + s, T, pole)
+        rest = copy(pose)
+        rest['arm_' + s][0] = (0, 0, 0)
+        u0 = at(rest, 'forearm_' + s) - at(rest, 'arm_' + s)
+        u1 = at(solved, 'forearm_' + s) - at(solved, 'arm_' + s)
+        u0, u1 = u0 / np.linalg.norm(u0), u1 / np.linalg.norm(u1)
+        k = SHRUG[0] if u1[1] < u0[1] and np.linalg.norm((u1 - u0)[[0, 2]]) < 0.6 else SHRUG[1]
+        ang = math.degrees(math.acos(np.clip(u0 @ u1, -1, 1))) * k
+        if ang > 0.5:
+            axis = np.cross(u0, u1)
+            axis /= np.linalg.norm(axis)
+            t = math.radians(min(ang, SHRUG[2]))
+            K = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+            R = np.eye(3) + math.sin(t) * K + (1 - math.cos(t)) * K @ K
+            clav = at(pose, 'arm_' + s) - at(pose, 'shoulder_' + s)
+            pose = aim(pose, 'shoulder_' + s, PIV['arm_' + s] - PIV['shoulder_' + s], R @ clav)
         pose = chain(pose, 'arm_' + s, 'forearm_' + s, 'wrist_' + s, T, pole)
+    return pose
+
+
+def axis_rot(axis, deg):
+    a = np.asarray(axis, float)
+    a = a / np.linalg.norm(a)
+    t = math.radians(deg)
+    K = np.array([[0, -a[2], a[1]], [a[2], 0, -a[0]], [-a[1], a[0], 0]])
+    return np.eye(3) + math.sin(t) * K + (1 - math.cos(t)) * K @ K
+
+
+# degrees at each finger's three joints (the thumb's: base, middle, tip), and how much of the model's splay is closed
+GRIPS = {
+    'relaxed': ({'thumb': (6, 14, 12), 'index': (16, 24, 12), 'middle': (20, 30, 16), 'ring': (24, 34, 18),
+                 'pinky': (28, 38, 20)}, 0.65),
+    'soft': ({'thumb': (10, 18, 14), 'index': (24, 32, 18), 'middle': (28, 36, 20), 'ring': (32, 40, 22),
+              'pinky': (36, 44, 24)}, 0.8),
+    'grip': ({'thumb': (24, 30, 26), 'index': (48, 62, 38), 'middle': (54, 66, 40), 'ring': (58, 68, 42),
+              'pinky': (62, 70, 44)}, 0.95),
+    'flat': ({'thumb': (2, 4, 4), 'index': (4, 6, 4), 'middle': (4, 6, 4), 'ring': (5, 7, 5), 'pinky': (6, 8, 5)}, 0.35),
+    'sign': ({'thumb': (2, 4, 3), 'index': (3, 4, 3), 'middle': (5, 6, 4), 'ring': (7, 9, 5), 'pinky': (9, 12, 6)}, 0.15),
+    'point': ({'thumb': (-6, 0, 0), 'index': (0, 0, 0), 'middle': (0, 2, 0), 'ring': (70, 85, 50),
+               'pinky': (72, 88, 52)}, 0.9),
+}
+
+
+def hands(pose, grip, side=None):
+    """The fingers of one hand (or both) in a grip (GRIPS name, or (angles, splay) itself)."""
+    angles, splay = GRIPS[grip] if isinstance(grip, str) else grip
+    pose = copy(pose)
+    for s in ([side] if side else 'lr'):
+        for f in FINGERS:
+            ax = HANDS[s][f]
+            for k, deg in enumerate(angles[f]):
+                R = axis_rot(ax['curl'], deg)
+                if k == 0 and ax['angle'] > 0.5:
+                    R = axis_rot(ax['spread'], ax['angle'] * splay) @ R
+                pose['f_%s%d_%s' % (f, k + 1, s)][0] = euler(R)
     return pose
 
 
@@ -288,7 +353,7 @@ def missionary():
         return at(p, 'arm_' + s)
     a = arms(p, {s: (sh(s) + F(0.22, 0.24, -0.05 * sg), F(-0.3, 0.1, sg)) for s, sg in SIDES})
     b = arms(p, {s: (sh(s) + F(-0.25, -0.02, 0.12 * sg), F(0, 1, sg * 0.4)) for s, sg in SIDES})
-    return dress(a), dress(b), chest
+    return dress(hands(a, 'soft')), dress(hands(b, 'relaxed')), chest
 
 
 def doggy():
@@ -305,7 +370,7 @@ def doggy():
     b = arms(p, {s: (hand(s, 0.14, 0.05) + F(0, 0, 0.06 * sg), F(0.2, 0.6, sg * 1.2)) for s, sg in SIDES})
     for s in 'lr':
         a, b = plant(a, s, -1), plant(b, s, -1)
-    return dress(a, FALL), dress(b, FALL), at(p, 'chest')
+    return dress(hands(a, 'flat'), FALL), dress(hands(b, 'flat'), FALL), at(p, 'chest')
 
 
 def bent():
@@ -321,7 +386,7 @@ def bent():
         return (at(p, 'shin_' + s) + F(-0.05, 0.05, -0.04 * sg), F(0.2, 0, sg))
     a = arms(p, {s: knee(s, sg) for s, sg in SIDES})
     b = arms(p, {'l': knee('l', 1), 'r': (at(p, 'seat') + F(-0.05, 0.08, -0.18), F(0, 0.8, -1))})
-    return dress(a, FALL), dress(b, FALL), at(p, 'chest')
+    return dress(hands(a, 'grip'), FALL), dress(hands(hands(b, 'grip', 'l'), 'soft', 'r'), FALL), at(p, 'chest')
 
 
 def cowgirl(reverse=False):
@@ -342,7 +407,7 @@ def cowgirl(reverse=False):
     head = at(p, 'head')
     turnx = -1 if reverse else 1
     b = arms(p, {s: (head + F(-0.06 * dirf, 0.1, 0.08 * sg * turnx), F(0.2 * dirf, 0.6, sg * turnx)) for s, sg in SIDES})
-    return dress(a), dress(b), at(p, 'chest')
+    return dress(hands(a, 'grip' if reverse else 'soft')), dress(hands(b, 'grip')), at(p, 'chest')
 
 
 def carry():
@@ -356,12 +421,12 @@ def carry():
     neck = F(hip[0] + 0.04, hip[1] + 0.7, 0)
     a = arms(p, {s: (neck + F(0.06, 0.02, 0.07 * sg), F(-0.2, -0.6, sg)) for s, sg in SIDES})
     b = arms(p, {'l': (neck + F(0.06, 0.02, 0.07), F(-0.2, -0.6, 1)), 'r': (neck + F(0.0, 0.2, -0.04), F(-0.4, 0.4, -1))})
-    return dress(a), dress(b), at(p, 'chest')
+    return dress(hands(a, 'grip')), dress(hands(b, 'grip')), at(p, 'chest')
 
 
 def stand():
-    """Standing, her hands crossed in front of her chest (the model's own pose: her control sign)."""
-    return dress(body({}))
+    """Standing, her hands crossed in front of her chest (the model's own pose: her control sign), the fingers eased."""
+    return dress(hands(body({}), 'sign'))
 
 
 # ---------------------------------------------------------------- animations
@@ -435,8 +500,8 @@ def walk():
             toes[s] = F(1, -0.15 - up * 2, 0)
         p = legs(p, tg, toes)
         sw = {s: math.cos(ph + (math.pi if s == 'l' else 0)) for s in 'lr'}
-        p = arms(p, {s: (rest[s] + F(0.08 * sw[s], -0.34, 0.03 * sg), F(-1, 0, 0.3 * sg)) for s, sg in SIDES})
-        return dress(p)
+        p = arms(p, {s: (rest[s] + F(0.08 * sw[s], -0.33, 0.065 * sg), F(-1, 0, 0.3 * sg)) for s, sg in SIDES})
+        return dress(hands(p, 'relaxed'))
     return keyset(pose_at, 1.0, [i / 8 for i in range(9)])
 
 

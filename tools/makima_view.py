@@ -4,6 +4,10 @@ player (a box per limb, Steve's proportions) where the rider goes. For tuning to
 fit (MakimaEntity.Fit) without starting the game.
 
   python tools/makima_view.py out.png <animation> [t=0] [views=side,34,front,top] [size=560x420] [rider=1]
+                                        [face=look|calm|blink|...|smile:1,lid_up_l:0.5,...] [gaze=gx:gy] [lbs=1]
+
+Faces (makima_face.apply, the same as MakimaRenderer.Face) by preset name (FACES) or channel:weight pairs; gaze -1..1 each
+way (her irises slid toward her left / up). Skinning is dual quaternion, as in the game (lbs=1: linear, the old way).
 
 Views: name (side, side2, 34, 34b, front, back, top, face, low) or yaw:pitch:dist:tx:ty:tz (blocks, from her feet,
 her front toward -Z as she stands in the rig). The rider comes from the animation's fit (gen_makima_anims.FIT).
@@ -17,12 +21,90 @@ import numpy as np
 from PIL import Image
 
 import anim_preview as AP
+import makima_face
 import mesh_preview as MP
 
 ASSETS = AP.ASSETS
 VIEWS = {'side': (90, 8, 4.2, 0, 0.6, 0), 'side2': (-90, 8, 4.2, 0, 0.6, 0), '34': (-40, 22, 4.4, 0, 0.6, 0),
          '34b': (140, 22, 4.4, 0, 0.6, 0), 'front': (0, 8, 4.2, 0, 0.8, 0), 'back': (180, 8, 4.2, 0, 0.8, 0),
-         'top': (0, 88, 4.6, 0, 0, 0), 'face': (0, 4, 1.1, 0, 1.75, 0), 'low': (-25, 2, 3.4, 0, 0.4, 0)}
+         'top': (0, 88, 4.6, 0, 0, 0), 'face': (0, 4, 1.1, 0, 1.75, 0),
+         'close': (0, 0, 0.3, 0, 1.75, 0), 'close34': (30, 4, 0.32, 0, 1.75, 0), 'eyes': (0, 0, 0.17, -0.005, 1.78, 0),
+         'low': (-25, 2, 3.4, 0, 0.4, 0)}
+
+
+# expressions as MakimaRenderer.Face sets them (its presets: keep in step)
+FACES = {
+    'calm': {'lid_up': 0.18, 'lid_lo': 0.06, 'smile': 0.15},
+    'look': {'lid_up': 0.42, 'lid_lo': 0.2, 'smile': 0.55, 'brow_down': 0.2},
+    'blink': {'lid_up': 1.0, 'lid_lo': 0.0},
+    'eyesmile': {'lid_up': 0.62, 'lid_lo': 0.38, 'smile': 0.9, 'brow_raise': 0.3},
+    'pleasure': {'lid_up': 0.55, 'lid_lo': 0.12, 'open': 0.45, 'brow_worry': 0.8, 'blush': 0.8},
+    'climax': {'lid_up': 0.96, 'lid_lo': 0.3, 'open': 0.9, 'brow_worry': 1.0, 'blush': 1.0},
+    'open': {'open': 1.0},
+    'smile': {'smile': 1.0},
+}
+
+
+def expression(spec):
+    """A preset name or channel:weight pairs -> makima_face.apply's channels (lid_up -> both eyes)."""
+    out = {}
+    for part in spec.split(','):
+        if part in FACES:
+            out.update(FACES[part])
+        elif ':' in part:
+            k, v = part.split(':')
+            out[k] = float(v)
+    for k in ('lid_up', 'lid_lo'):
+        if k in out:
+            v = out.pop(k)
+            out.setdefault(k + '_l', v)
+            out.setdefault(k + '_r', v)
+    return out
+
+
+def quat(R):
+    """A rotation matrix's unit quaternion (w, x, y, z)."""
+    w = math.sqrt(max(0.0, 1 + R[0, 0] + R[1, 1] + R[2, 2])) / 2
+    x = math.sqrt(max(0.0, 1 + R[0, 0] - R[1, 1] - R[2, 2])) / 2
+    y = math.sqrt(max(0.0, 1 - R[0, 0] + R[1, 1] - R[2, 2])) / 2
+    z = math.sqrt(max(0.0, 1 - R[0, 0] - R[1, 1] + R[2, 2])) / 2
+    x = math.copysign(x, R[2, 1] - R[1, 2])
+    y = math.copysign(y, R[0, 2] - R[2, 0])
+    z = math.copysign(z, R[1, 0] - R[0, 1])
+    return np.array([w, x, y, z])
+
+
+def qmul(a, b):
+    w1, x1, y1, z1 = np.moveaxis(a, -1, 0)
+    w2, x2, y2, z2 = np.moveaxis(b, -1, 0)
+    return np.stack([w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2, w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                     w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2, w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2], -1)
+
+
+def dqs(mats, J, W, Ph, Nr=None):
+    """Dual quaternion skinning (MakimaRenderer's): each vertex's bones' rigid motions blended as dual quaternions (and
+    the stored normals Nr turned by the blend, if given: (positions, normals))."""
+    Q = np.array([quat(m[:3, :3]) for m in mats])
+    T = np.concatenate([np.zeros((len(mats), 1)), mats[:, :3, 3]], 1)
+    D = 0.5 * qmul(T, Q)
+    q0 = Q[J[:, 0]]
+    real = np.zeros((len(J), 4))
+    dual = np.zeros((len(J), 4))
+    for i in range(J.shape[1]):
+        q, d = Q[J[:, i]], D[J[:, i]]
+        sg = np.sign((q * q0).sum(1, keepdims=True))
+        sg[sg == 0] = 1
+        real += W[:, i:i + 1] * sg * q
+        dual += W[:, i:i + 1] * sg * d
+    n = np.linalg.norm(real, axis=1, keepdims=True)
+    real, dual = real / n, dual / n
+    w, v = real[:, :1], real[:, 1:]
+    p = Ph[:, :3]
+    rot = p + 2 * np.cross(v, np.cross(v, p) + w * p)
+    t = 2 * (w * dual[:, 1:] - dual[:, :1] * v + np.cross(v, dual[:, 1:]))
+    if Nr is not None:
+        return rot + t, Nr + 2 * np.cross(v, np.cross(v, Nr) + w * Nr)
+    return rot + t
 
 
 def load():
@@ -32,20 +114,37 @@ def load():
     return geo, mesh, anims
 
 
-def posed(geo, mesh, anim, t):
+def posed(geo, mesh, anim, t, expr=None, gaze=(0, 0), lbs=False):
     """Vertices in blocks, as the game draws them (x mirrored the way GeckoLib bakes), her feet at the origin."""
     P = np.array(mesh['positions'], float).reshape(-1, 3)
+    if expr:
+        P = makima_face.apply(mesh, P, expr)
     k = mesh.get('influences', 2)
     J = np.array(mesh['joints']).reshape(-1, k)
     W = np.array(mesh['weights'], float).reshape(-1, k)
     M, _ = AP.pose(geo, anim, t)
+    face = mesh.get('face')
+    for s in 'lr':
+        # her irises: the head's pose, slid across the eye
+        T = np.eye(4)
+        if face:
+            T[:3, 3] = gaze[0] * face['gaze'][0] * np.array(face['ex']) + gaze[1] * face['gaze'][1] * np.array(face['ey'])
+        M['eye_' + s] = M['head'] @ T
     mats = np.stack([M[b] for b in mesh['bones']])
     Ph = np.hstack([P, np.ones((len(P), 1))])
-    X = np.zeros_like(P)
-    for i in range(k):
-        X += W[:, i:i + 1] * np.einsum('nij,nj->ni', mats[J[:, i]], Ph)[:, :3]
+    Nr = np.array(mesh['normals'], float).reshape(-1, 3)
+    if lbs:
+        X = np.zeros_like(P)
+        Nn = np.zeros_like(P)
+        for i in range(k):
+            X += W[:, i:i + 1] * np.einsum('nij,nj->ni', mats[J[:, i]], Ph)[:, :3]
+            Nn += W[:, i:i + 1] * np.einsum('nij,nj->ni', mats[J[:, i]][:, :3, :3], Nr)
+    else:
+        X, Nn = dqs(mats, J, W, Ph, Nr)
     X = X / 16.0
     X[:, 0] *= -1
+    Nn[:, 0] *= -1
+    posed.normals = Nn / np.maximum(np.linalg.norm(Nn, axis=1, keepdims=True), 1e-9)
     return X
 
 
@@ -94,7 +193,7 @@ def rider(fit):
     return out
 
 
-def render(X, N, UV, tris, tex, extra, view, size):
+def render(X, N, UV, tris, tex, extra, view, size, over=None):
     yaw, pitch, dist, tx, ty, tz = view
     W, H = size
     eye, r, u, f = MP.camera(yaw, pitch, dist, (tx, ty, tz))
@@ -159,6 +258,35 @@ def render(X, N, UV, tris, tex, extra, view, size):
         Nn = normals(V, Fa)
         draw(V, Nn, F, color=col)
     draw(X, N, tris, uv=UV)
+    if over is not None:
+        # translucent runs (the blush): alpha-blended over what is drawn, depth-tested, not written
+        tris2, alpha = over
+        sx, sy, cz = project(X)
+        for a, b, c in tris2:
+            xs = np.array([sx[a], sx[b], sx[c]])
+            ys = np.array([sy[a], sy[b], sy[c]])
+            x0, x1 = max(int(xs.min()), 0), min(int(xs.max()) + 1, W)
+            y0, y1 = max(int(ys.min()), 0), min(int(ys.max()) + 1, H)
+            if x0 >= x1 or y0 >= y1:
+                continue
+            den = (ys[1] - ys[2]) * (xs[0] - xs[2]) + (xs[2] - xs[1]) * (ys[0] - ys[2])
+            if abs(den) < 1e-9:
+                continue
+            gx, gy = np.meshgrid(np.arange(x0, x1) + 0.5, np.arange(y0, y1) + 0.5)
+            w0 = ((ys[1] - ys[2]) * (gx - xs[2]) + (xs[2] - xs[1]) * (gy - ys[2])) / den
+            w1 = ((ys[2] - ys[0]) * (gx - xs[2]) + (xs[0] - xs[2]) * (gy - ys[2])) / den
+            w2 = 1 - w0 - w1
+            m = (w0 >= -1e-4) & (w1 >= -1e-4) & (w2 >= -1e-4)
+            z = 1 / (w0 / cz[a] + w1 / cz[b] + w2 / cz[c])
+            m &= z < zb[y0:y1, x0:x1] + 0.002
+            if not m.any():
+                continue
+            pu = (w0 * UV[a, 0] / cz[a] + w1 * UV[b, 0] / cz[b] + w2 * UV[c, 0] / cz[c]) * z
+            pv = (w0 * UV[a, 1] / cz[a] + w1 * UV[b, 1] / cz[b] + w2 * UV[c, 1] / cz[c]) * z
+            col = over_tex[np.clip((pv * th).astype(int), 0, th - 1), np.clip((pu * tw).astype(int), 0, tw - 1)]
+            al = col[..., 3:4] * alpha
+            region = img[y0:y1, x0:x1]
+            region[m] = (region * (1 - al) + col[..., :3] * al)[m]
     # block lines on the ground
     out = (np.clip(img, 0, 1) * 255).astype(np.uint8)
     return Image.fromarray(out)
@@ -183,10 +311,17 @@ def main():
     size = tuple(int(v) for v in opts.get('size', '560x420').split('x'))
     views = opts.get('views', 'side,34,front').split(',')
     geo, mesh, anims = load()
-    tex = np.asarray(Image.open(os.path.join(ASSETS, mesh['texture'].split(':')[1])).convert('RGB'), np.float32) / 255
+    global over_tex
+    over_tex = np.asarray(Image.open(os.path.join(ASSETS, mesh['texture'].split(':')[1])).convert('RGBA'), np.float32) / 255
+    tex = over_tex[..., :3]
     UV = np.array(mesh['uvs'], float).reshape(-1, 2)
     UV[:, 1] = 1 - UV[:, 1]
-    tris = np.array(mesh['indices']).reshape(-1, 3)
+    idx = np.array(mesh['indices'])
+    run = mesh.get('groups', {}).get('blush', [len(idx), 0])
+    tris = idx[:run[0]].reshape(-1, 3)
+    blush_tris = idx[run[0]:run[0] + run[1]].reshape(-1, 3)
+    expr = expression(opts['face']) if 'face' in opts else None
+    gaze = tuple(float(a) for a in opts.get('gaze', '0:0').split(':'))
     fits = {}
     if opts.get('rider', '1') == '1':
         try:
@@ -196,12 +331,13 @@ def main():
             print('no fit:', e)
     frames = []
     for n in names:
-        X = posed(geo, mesh, anims['animation.makima.' + n], float(opts.get('t', 0)))
-        N = normals(X, tris)
+        X = posed(geo, mesh, anims['animation.makima.' + n], float(opts.get('t', 0)), expr, gaze, opts.get('lbs') == '1')
+        N = posed.normals          # the stored normals, skinned: what the game lights
+        over = (blush_tris, (expr or {}).get('blush', 0)) if (expr or {}).get('blush') else None
         extra = rider(fits[n]) if n in fits else []
         for v in views:
             vv = VIEWS[v] if v in VIEWS else tuple(float(a) for a in v.split(':'))
-            frames.append(('%s %s' % (n, v), render(X, N, UV, tris, tex, extra, vv, size)))
+            frames.append(('%s %s' % (n, v), render(X, N, UV, tris, tex, extra, vv, size, over)))
     sheet(out, frames, size)
 
 
