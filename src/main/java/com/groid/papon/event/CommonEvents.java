@@ -35,6 +35,31 @@ public final class CommonEvents {
     private CommonEvents() {}
 
     /** Taco Coupon on a Papon: he becomes the Wandering Papon and sets off. */
+    /** Post Nut Clarity (effect/PostNutClarityEffect): mining at half speed. */
+    @SubscribeEvent
+    public static void onBreakSpeed(net.minecraftforge.event.entity.player.PlayerEvent.BreakSpeed event) {
+        event.setNewSpeed(com.groid.papon.effect.PostNutClarityEffect.mining(event.getEntity(), event.getNewSpeed()));
+    }
+
+    /** Post Nut Clarity: jumps a quarter lower. */
+    @SubscribeEvent
+    public static void onJump(net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent event) {
+        com.groid.papon.effect.PostNutClarityEffect.jump(event.getEntity());
+    }
+
+    /** Post Nut Clarity: you lie down and cannot sleep. */
+    @SubscribeEvent
+    public static void onSleep(net.minecraftforge.event.entity.player.PlayerSleepInBedEvent event) {
+        if (com.groid.papon.effect.PostNutClarityEffect.sleep(event.getEntity())) event.setResult(Player.BedSleepingProblem.OTHER_PROBLEM);
+    }
+
+    /** A player with the body pillow on a bed: the camera where the body is drawn (kneeling, flat on the floor at her feet). */
+    @SubscribeEvent
+    public static void onSize(net.minecraftforge.event.entity.EntityEvent.Size event) {
+        float eye = com.groid.papon.entity.BodyPillowEntity.eyeHeight(event.getEntity());
+        if (!Float.isNaN(eye)) event.setNewEyeHeight(eye);
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onInteract(PlayerInteractEvent.EntityInteract event) {
         ItemStack stack = event.getItemStack();

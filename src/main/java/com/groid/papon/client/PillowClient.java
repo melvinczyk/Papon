@@ -39,9 +39,18 @@ import java.util.Set;
  *             legs straight down to the ground, folded at the waist with the top half laid forward, the
  *             hands gripping her hips, yours thrusting; pressed flat at the hips on every thrust
  *   in bed    laid on a bed (entity/BodyPillowEntity) it slouches against the headboard; right-click it
- *             and you are on the bed with it (humping, the pillow squashed on every thrust, the bed
- *             creaking); with someone asleep in the bed it lies beside them instead, and they sleep
- *             rolled onto their side, facing her
+ *             and she lies down on her back, you planked over her on straight arms, the hips driving
+ *             down into her (the pillow squashed on every thrust, the bed creaking); jump and she rolls
+ *             over onto her knees, you kneeling behind her gripping her hips; jump to roll her back.
+ *             From beside the bed you stand at its side: her on her back across it, your arms round her
+ *             legs up on your shoulders; jump: her on her knees there, bent over it.
+ *             With someone asleep in the bed it lies beside them instead, and they sleep rolled onto
+ *             their side, facing her
+ *   her feet  sat on the edge of the bed (sneak + right-click her), her feet just off the floor; right-click
+ *             and you are flat on your belly on the floor at them, chin up, hands round her ankles, heels
+ *             kicking, licking ({@link #ridePose}); jump and you kneel up and lift her feet to your face,
+ *             jump again to get back down (BodyPillowEntity.swap). The camera goes where your eyes are
+ *             (BodyPillowEntity.eyeHeight) and nods into her on every lick ({@link #camera})
  * The pillow's shape for each is {@link #shape} (PillowMesh); the item draws through PillowItemRenderer.
  */
 @Mod.EventBusSubscriber(modid = PaponMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
@@ -57,6 +66,10 @@ public final class PillowClient {
             (model, entity, arm) -> pose(model, entity, Mode.LICK));
     public static final HumanoidModel.ArmPose HUMP = HumanoidModel.ArmPose.create("PAPON_PILLOW_HUMP", true,
             (model, entity, arm) -> pose(model, entity, Mode.HUMP));
+
+    /** On the bed with her, or at her feet: the whole pose from {@link #ridePose} (set on the model in onRenderPlayerPre). */
+    public static final HumanoidModel.ArmPose RIDE = HumanoidModel.ArmPose.create("PAPON_PILLOW_RIDE", true,
+            (model, entity, arm) -> ridePose(model, entity));
 
     private static BlockEntityWithoutLevelRenderer itemRenderer;
 
@@ -215,7 +228,137 @@ public final class PillowClient {
         model.head.zRot = 0.24F + 0.07F * sway;
     }
 
-    // ------------------------------------------------------------------ the whole body: thrusting, asleep beside her
+    /** What a player with a pillow on a bed is doing, or null. */
+    @org.jetbrains.annotations.Nullable
+    public static BodyPillowEntity.Act act(LivingEntity entity) {
+        return entity.getVehicle() instanceof BodyPillowEntity pillow ? pillow.act() : null;
+    }
+
+    /** At her feet: 0 flat on the floor .. 1 kneeling, her feet lifted (eased, so the body gets up and down). */
+    public static float kneel(LivingEntity entity, float partial) {
+        if (!(entity.getVehicle() instanceof BodyPillowEntity pillow)) return 0;
+        float k = pillow.lift(partial);
+        return k * k * (3 - 2 * k);
+    }
+
+    private static void ridePose(HumanoidModel<?> model, LivingEntity entity) {
+        BodyPillowEntity.Act act = act(entity);
+        if (act == null) return;
+        float partial = Minecraft.getInstance().getFrameTime();
+        if (act == BodyPillowEntity.Act.SIDE_BACK || act == BodyPillowEntity.Act.SIDE_KNEES) {
+            // standing at the side of the bed, hips driving at hers; on her back, your arms round her legs up on your shoulders
+            pose(model, entity, Mode.HUMP);
+            if (kneel(entity, partial) < 0.5F) {
+                float th = thrust(entity.tickCount + partial);
+                model.rightArm.xRot = -1.75F - 0.08F * th;
+                model.leftArm.xRot = -1.75F - 0.08F * th;
+                model.rightArm.yRot = -0.42F;
+                model.leftArm.yRot = 0.42F;
+                model.rightArm.zRot = 0;
+                model.leftArm.zRot = 0;
+            }
+            return;
+        }
+        if (act == BodyPillowEntity.Act.BEHIND || act == BodyPillowEntity.Act.HUMP && kneel(entity, partial) > 0.5F) {
+            pose(model, entity, Mode.HUMP);
+            return;
+        }
+        if (act == BodyPillowEntity.Act.HUMP) {
+            plankPose(model, entity, partial);
+            return;
+        }
+        float t = entity.tickCount + partial;
+        float k = kneel(entity, partial), lick = lick(t);
+        float pitch = Mth.clamp(entity.getViewXRot(partial), -40, 50) * Mth.DEG_TO_RAD;
+        // the head: on the floor tipped right back to look along it at her feet (the body lies flat), bobbing up the
+        // sole on every lick; kneeling, pushed forward into them
+        model.head.xRot = Mth.lerp(k, -Mth.HALF_PI + 0.55F * pitch - 0.3F * lick, 0.6F * pitch + 0.22F * lick);
+        model.head.zRot = 0.08F * Mth.sin(t * 0.17F) * (1 - k);
+        // the arms: flat out ahead round her ankles; kneeling, holding them up to the face, pulled in on each lick
+        float reach = -2.75F + 0.08F * lick;
+        model.rightArm.xRot = Mth.lerp(k, reach, -1.3F - 0.12F * lick);
+        model.leftArm.xRot = Mth.lerp(k, reach, -1.3F - 0.12F * lick);
+        model.rightArm.yRot = Mth.lerp(k, 0.1F, -0.32F);
+        model.leftArm.yRot = Mth.lerp(k, -0.1F, 0.32F);
+        model.rightArm.zRot = Mth.lerp(k, 0.38F, 0.05F);
+        model.leftArm.zRot = Mth.lerp(k, -0.38F, -0.05F);
+        // the legs: heels kicking happily in the air, one then the other; kneeling, folded back along the floor
+        float kick = Mth.sin(t * 0.33F);
+        model.rightLeg.xRot = Mth.lerp(k, 0.55F + 0.5F * kick, 1.48F);
+        model.leftLeg.xRot = Mth.lerp(k, 0.55F - 0.5F * kick, 1.48F);
+        model.rightLeg.yRot = 0;
+        model.leftLeg.yRot = 0;
+        model.rightLeg.zRot = Mth.lerp(k, 0.07F, 0.14F);
+        model.leftLeg.zRot = Mth.lerp(k, -0.07F, -0.14F);
+        model.body.xRot = 0;
+    }
+
+    /** The plank (onRenderPlayerPre tips the body over her at {@link #PLANK_TIP}): straight arms down to the mattress. */
+    private static void plankPose(HumanoidModel<?> model, LivingEntity entity, float partial) {
+        float t = entity.tickCount + partial, th = thrust(t);
+        // straight down from the shoulders (the body tipped PLANK_TIP: as far forward again is world down), braced with each
+        // thrust; the head looking down at her face
+        float arm = -PLANK_TIP + 0.06F * th;
+        model.rightArm.xRot = arm;
+        model.leftArm.xRot = arm;
+        model.rightArm.yRot = 0;
+        model.leftArm.yRot = 0;
+        model.rightArm.zRot = 0.16F;
+        model.leftArm.zRot = -0.16F;
+        float look = Mth.clamp(entity.getViewXRot(partial), 20, 90) - PLANK_TIP * Mth.RAD_TO_DEG;
+        model.head.xRot = Mth.clamp(look * Mth.DEG_TO_RAD * 0.8F, -0.9F, 0.4F) + 0.05F * th;
+        model.head.zRot = 0;
+        // the legs straight back to the toes on the mattress, a little apart
+        model.rightLeg.xRot = 0.04F * th;
+        model.leftLeg.xRot = 0.04F * th;
+        model.rightLeg.yRot = 0;
+        model.leftLeg.yRot = 0;
+        model.rightLeg.zRot = 0.06F;
+        model.leftLeg.zRot = -0.06F;
+        model.rightLeg.z = 0.1F;
+        model.leftLeg.z = 0.1F;
+        model.body.xRot = 0;
+    }
+
+    /** The plank's slope: the body tipped this far over (radians) from upright, about the toes. */
+    static final float PLANK_TIP = 1.2F;
+
+    private static boolean jumpWas;
+
+    /** Client tick: a press of jump at her feet lifts them to your face, or lays them down again. */
+    public static void tick() {
+        Minecraft mc = Minecraft.getInstance();
+        boolean jump = mc.options.keyJump.isDown();
+        if (jump && !jumpWas && mc.player != null && mc.screen == null && mc.player.getVehicle() instanceof BodyPillowEntity pillow
+                && pillow.act() != null) {
+            com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.PillowSwap());
+        }
+        jumpWas = jump;
+    }
+
+    /** First person with her: a nod into her feet on every lick, a jolt on every thrust. */
+    public static void camera(net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || !mc.options.getCameraType().isFirstPerson() || mc.getCameraEntity() != mc.player) return;
+        BodyPillowEntity.Act act = act(mc.player);
+        if (act == null) return;
+        float t = mc.player.tickCount + (float) event.getPartialTick();
+        if (BodyPillowEntity.humping(act)) {
+            event.setPitch(event.getPitch() + 1.6F * thrust(t));
+            return;
+        }
+        float lick = lick(t);
+        event.setPitch(event.getPitch() - 4.0F * lick);
+        event.setRoll(event.getRoll() + 1.5F * Mth.sin(t * 0.17F));
+    }
+
+    /** No hand or held item in front of the camera while with her on a bed (the hands are on her hips, round her ankles). */
+    public static boolean hidesHands() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player != null && act(mc.player) != null;
+    }
+
+    // ------------------------------------------------------------------ the whole body: thrusting, asleep beside her, at her feet
 
     private static final Set<Player> PUSHED = new HashSet<>();
 
@@ -224,13 +367,37 @@ public final class PillowClient {
         Player p = event.getEntity();
         PoseStack ps = event.getPoseStack();
         float t = p.tickCount + event.getPartialTick();
-        if (p.getVehicle() instanceof BodyPillowEntity pillow) {
-            // on the bed with her: down on the knees in the mattress, the hips driving at her
+        if (p.getVehicle() instanceof BodyPillowEntity pillow && pillow.act() != null) {
+            var model = event.getRenderer().getModel();
+            model.rightArmPose = RIDE;
+            model.leftArmPose = RIDE;
+            if (pillow.pose() == BodyPillowEntity.EDGE) {
+                atHerFeet(p, pillow, ps, event.getPartialTick());
+                PUSHED.add(p);
+                return;
+            }
+            Direction side = pillow.humpSide();
+            if (side != null) {
+                // standing at the side of the bed: the whole body rocking in with the hips, leaning back a touch on each
+                float th = thrust(t);
+                ps.pushPose();
+                ps.translate(-side.getStepX() * 0.07 * th, 0, -side.getStepZ() * 0.07 * th);
+                ps.mulPose(new Quaternionf().rotateAxis(0.06F * th, side.getStepZ(), 0, -side.getStepX()));
+                PUSHED.add(p);
+                return;
+            }
+            // on the bed with her: planked over her, tipped over about the toes (on the mattress behind) until the straight
+            // arms reach it, the hips dipping into her on every thrust; or behind her down on the knees in the mattress, the
+            // hips driving at her, leaning back with each. Eased between the two as she rolls over
             Direction f = pillow.facing();
-            float th = thrust(t);
+            float fx = f.getStepX(), fz = f.getStepZ();
+            float th = thrust(t), k = kneel(p, event.getPartialTick());
+            float tip = Mth.lerp(k, PLANK_TIP + 0.05F * th, -0.1F * th);
+            // (planked, the body is drawn up the bed from the eyes, which are over her face, so the hips meet hers: she is shorter than you)
+            float back = Mth.lerp(k, -1.05F + 0.07F * th, 0.09F * th), up = Mth.lerp(k, 0.1F, -0.42F);
             ps.pushPose();
-            ps.translate(f.getStepX() * 0.09 * th, -0.42, f.getStepZ() * 0.09 * th);
-            ps.mulPose(new Quaternionf().rotateAxis(0.1F * th, -f.getStepZ(), 0, f.getStepX()));
+            ps.translate(fx * back, up, fz * back);
+            ps.mulPose(new Quaternionf().rotateAxis(tip, fz, 0, -fx));
             PUSHED.add(p);
             return;
         }
@@ -254,6 +421,24 @@ public final class PillowClient {
         ps.translate(-side.getStepX() * 0.16, 0.3, -side.getStepZ() * 0.16);
         ps.mulPose(new Quaternionf().rotateAxis(-Mth.HALF_PI, f.getStepX(), 0, f.getStepZ()));
         PUSHED.add(p);
+    }
+
+    /**
+     * At her feet (the eyes are where the entity stands, BodyPillowEntity.eyeHeight): flat on the belly along the floor,
+     * head toward the bed, the chest just off the floor; kneeling, sunk to the knees with the shins along the floor
+     * (ridePose folds the legs back), leaning in from the hips. Eased from one to the other as you get up or down.
+     */
+    private static void atHerFeet(Player p, BodyPillowEntity pillow, PoseStack ps, float partial) {
+        Direction e = pillow.edge();
+        float ex = e.getStepX(), ez = e.getStepZ();
+        float k = kneel(p, partial), lick = lick(p.tickCount + partial);
+        // the body tips toward the bed (-e) about the horizontal axis across it
+        float tip = Mth.lerp(k, Mth.HALF_PI, 0.36F);
+        float back = Mth.lerp(k, 1.64F, 0.54F) - 0.04F * lick, up = Mth.lerp(k, 0.12F, -0.5F), pivot = 0.703F * k;
+        ps.pushPose();
+        ps.translate(ex * back, up + pivot, ez * back);
+        ps.mulPose(new Quaternionf().rotateAxis(tip, -ez, 0, ex));
+        ps.translate(0, -pivot, 0);
     }
 
     @SubscribeEvent

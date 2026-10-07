@@ -4,6 +4,8 @@
   textures/gui/potato_splat.png           384x128: three splats of mashed potato (client/PotatoSplat lays
                                            them over the screen when a fan's potato hits you)
   textures/mob_effect/splattered.png       18x18: the Splattered effect icon (a splat)
+  textures/mob_effect/post_nut_clarity.png 18x18: Post Nut Clarity (the body pillow, effect/PostNutClarityEffect): a pale,
+                                           blank face, thousand-yard stare, a bead of sweat
   textures/item/body_pillow.png            256x256: the dakimakura Gerbin gives the winner: Makima (Chainsaw Man),
                                            the user's picture (tools/src/makima_pillow.jpg, its two panels found by
                                            their outlines and straightened row by row): front 96x256 at (0,0), back
@@ -433,6 +435,26 @@ def white():
     out = os.path.join(ASSETS, 'textures/misc/white.png')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     Image.new('RGBA', (16, 16), (255, 255, 255, 255)).save(out)
+    return out
+
+
+def clarity_icon():
+    """Post Nut Clarity: a pale grey-blue face gone blank (flat eyes, a flat line of a mouth), a bead of sweat."""
+    S = 72
+    im = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse([6, 6, S - 6, S - 6], fill=(28, 34, 44, 255))
+    d.ellipse([10, 10, S - 10, S - 10], fill=(201, 214, 227, 255))
+    d.ellipse([14, 12, S - 22, S - 30], fill=(222, 232, 241, 255))
+    for x in (22, 42):
+        d.rectangle([x, 30, x + 9, 34], fill=(46, 54, 66, 255))      # eyes: half shut, staring at nothing
+        d.rectangle([x - 1, 25, x + 10, 27], fill=(140, 154, 170, 255))
+    d.rectangle([26, 48, 46, 51], fill=(70, 80, 94, 255))            # a flat line of a mouth
+    d.polygon([(55, 16), (51, 25), (59, 25)], fill=(140, 200, 245, 255))
+    d.ellipse([50, 21, 60, 31], fill=(140, 200, 245, 255))           # a bead of sweat
+    d.ellipse([53, 23, 56, 26], fill=(235, 248, 255, 255))
+    out = os.path.join(ASSETS, 'textures/mob_effect/post_nut_clarity.png')
+    im.resize((18, 18), Image.LANCZOS).save(out)
     return out
 
 

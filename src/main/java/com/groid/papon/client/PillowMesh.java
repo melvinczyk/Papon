@@ -16,7 +16,7 @@ import org.joml.Matrix4f;
  * flat at its seam, the ends rounded; Makima on the front (+z), from behind on the back (textures/item/body_pillow.png,
  * tools/gen_extras.py). It is drawn from a spine running up its length (y), and how it is being handled bends that spine
  * and squashes the cushion round it ({@link Shape}): arms round it pinch it and it bulges either side, a face or hips
- * pressed into it flatten it, it folds over, it slumps against a wall. Used by the hand (PillowItemRenderer), on players
+ * pressed into it flatten it, it folds over (twice, sat on the edge of a bed), it slumps against a wall. Used by the hand (PillowItemRenderer), on players
  * (PillowLayer) and on a bed (BodyPillowRenderer).
  */
 public final class PillowMesh {
@@ -34,6 +34,8 @@ public final class PillowMesh {
         public float squeeze, squeezeAt = 0.55F;
         /** Folded over at {@link #foldAt}, radians (+ folds the head end over the front, - over the back). */
         public float fold, foldAt = 0.5F;
+        /** A second fold at {@link #kneeAt}, radians (sat on the edge of a bed: the lap on the mattress, the legs over the side). */
+        public float knee, kneeAt = 0.3F;
         /** A curve along its whole length, radians from end to end (+ toward the front). */
         public float bend;
         /** Pressed flat (0..1) at {@link #pressAt}: a face, a thrust. */
@@ -52,6 +54,12 @@ public final class PillowMesh {
         public Shape fold(float rad, float at) {
             fold = rad;
             foldAt = at;
+            return this;
+        }
+
+        public Shape knee(float rad, float at) {
+            knee = rad;
+            kneeAt = at;
             return this;
         }
 
@@ -94,7 +102,7 @@ public final class PillowMesh {
         float dv = 1F / ROWS;
         for (int j = 0; j <= ROWS; j++) {
             float v = j * dv;
-            ang[j] = s.bend * (v - 0.5F) + s.fold * smooth((v - (s.foldAt - 0.07F)) / 0.14F);
+            ang[j] = s.bend * (v - 0.5F) + s.fold * smooth((v - (s.foldAt - 0.07F)) / 0.14F) + s.knee * smooth((v - (s.kneeAt - 0.07F)) / 0.14F);
             float end = Math.max(0, Math.abs(2 * v - 1) - 0.86F) / 0.14F;      // the rounded ends
             float round = (float) Math.sqrt(Math.max(0.02, 1 - end * end));
             float sq = s.squeeze * gauss(v - s.squeezeAt, 0.07F);
@@ -103,7 +111,7 @@ public final class PillowMesh {
             half[j] = WIDTH / 2 * round * (1 - 0.28F * sq + 0.08F * bulge + 0.14F * pr);
             thick[j] = THICK * (float) Math.sqrt(Math.max(0, 1 - end * end)) * Math.max(0.15F, 1 - 0.7F * sq + bulge - 0.55F * pr);
             // the fold squashes it where it bends
-            thick[j] *= 1 - 0.35F * Math.min(1, Math.abs(s.fold)) * gauss(v - s.foldAt, 0.06F);
+            thick[j] *= 1 - 0.35F * Math.min(1, Math.abs(s.fold)) * gauss(v - s.foldAt, 0.06F) - 0.3F * Math.min(1, Math.abs(s.knee)) * gauss(v - s.kneeAt, 0.06F);
         }
         for (int j = 1; j <= ROWS; j++) {
             float a = (ang[j] + ang[j - 1]) / 2;

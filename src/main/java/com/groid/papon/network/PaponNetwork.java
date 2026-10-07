@@ -68,6 +68,8 @@ public final class PaponNetwork {
         }, b -> new QteMeter(b.readVarInt(), b.readFloat()), QteMeter::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(10, Struggle.class, (m, b) -> {}, b -> new Struggle(), Struggle::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(11, PillowSwap.class, (m, b) -> {}, b -> new PillowSwap(), PillowSwap::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     /** From the client: how the squeeze (its meter) or the duel (its rock meter) is going right now, 0..1. */
@@ -287,6 +289,17 @@ public final class PaponNetwork {
             ServerPlayer p = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
                 if (p != null && p.getVehicle() instanceof com.groid.papon.boss.SpiritGiantEntity g) g.struggle(p);
+            });
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** A press of jump at the body pillow's feet: lift them to your face, or lay them down again (BodyPillowEntity.swap). */
+    public record PillowSwap() {
+        void handle(Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer p = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (p != null && p.getVehicle() instanceof com.groid.papon.entity.BodyPillowEntity b) b.swap(p);
             });
             ctx.get().setPacketHandled(true);
         }
