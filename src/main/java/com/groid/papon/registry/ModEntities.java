@@ -181,7 +181,7 @@ public final class ModEntities {
             () -> EntityType.Builder.<com.groid.papon.entity.BodyPillowEntity>of(com.groid.papon.entity.BodyPillowEntity::new, MobCategory.MISC)
                     .sized(0.6F, 1.0F)
                     .clientTrackingRange(8)
-                    .updateInterval(40)
+                    .updateInterval(5)
                     .build(PaponMod.id("body_pillow").toString()));
 
     private static RegistryObject<EntityType<TacoCustomerEntity>> customer(Customer kind, float width, float height) {
