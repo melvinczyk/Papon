@@ -151,6 +151,7 @@ her; grey thoughts from a pool (`message.papon.clarity.N`, counts in `THOUGHTS/N
 | QTEs | `client/{QteClient,QteScreen,GuitarDuel,DanceOff,QtePlayerPose}`, `network/PaponNetwork` |
 | Band/crowd client | `client/{MariachiModel,MariachiRenderer,BandPoses,ColiseumCrowdRenderer,CrowdSounds,SongPlayer,FlagFireworks,VoiceDuck,SoundMix}` |
 | Pillow | `item/BodyPillowItem`, `entity/BodyPillowEntity` (synced `DATA_POSE` SLOUCH/EDGE, `Act` HUMP (plank)/FLOOR/LIFT/BEHIND/SIDE_BACK/SIDE_KNEES (side from `approach`, synced `DATA_SIDE/HALF`), eased `down`/`lift` (renderer blends place/turn/shape), rider eye heights via `EntityEvent.Size` in `CommonEvents`, jump = `PaponNetwork.PillowSwap`), `client/{PillowMesh (fold + knee),PillowItemRenderer,PillowLayer,PillowClient (rider pose = `RIDE` arm pose set in RenderPlayerEvent.Pre),BodyPillowRenderer}`; `-Pautoshot=pillow`. Clicks on her or her bed handled at HIGHEST in `CommonEvents.onPillow*` (Carry On ate empty-hand sneak clicks; blacklisted too), punching the bed takes her back |
+| Die Glocke (2026-10-07, no use yet) | `tools/gen_glocke.py` (16-gon rings of 8 boxes, **per-face UV** with hidden faces left out; drums `drum_low/high`, `glocke` trembles, `cable_0..2`) → `geo/entity/die_glocke`, texture + glowmask; `entity/DieGlockeEntity` (spawn egg, right-click runs it: synced `Active`, hit takes it back), `client/DieGlockeRenderer` (drums spun from the eased spin, glow layer dimmed by it, beacon hum `Hum`); `-Pautoshot=glocke`. `geo_render.py` reads per-face UV |
 | Ending | `TacoVendorEntity.reform/welcomeBack/order`, `client/{TacoMenuScreen,ScreenFade,VendorRenderer}` |
 | Mesh celebrities (EDP445, Chugs) | `client/mesh/*`, `tools/{mh_human,gen_edp_mesh,gen_chugs_mesh,gen_celeb_anims,pose_solver}.py` |
 | Damage types (`papon:caravan` bypasses shields; ours not `is_fire`), effects (Stunned, Brittle, Splattered, Post Nut Clarity) | `registry/{ModDamage,ModEffects}`, `data/papon/damage_type/*` |
@@ -315,7 +316,7 @@ her; grey thoughts from a pool (`message.papon.clarity.N`, counts in `THOUGHTS/N
   `gen_caravan.py`, `gen_band.py`/`gen_band_anims.py`/`band_ik.py`, `gen_crowd.py`/`gen_crowd_samples.py`, `gen_flag.py`,
   `gen_sky.py`, `gen_blocks.py`, `gen_props.py`, `gen_extras.py` (pillow, sun stone, splats), `gen_ui.py`, `gen_particles.py`
   (vanilla jar `$PAPON_MC_JAR` + pack jars), `gen_sounds.py`, `gen_skyline_sounds.py`, `gen_p4_sounds.py`, `gen_muertos.py`,
-  `gen_muertos_papon.py`, `gen_serpents.py`, `gen_salsa.py`, `gen_ignis_head.py`, `geo_util.py`. Animation sound keys are cue
+  `gen_muertos_papon.py`, `gen_glocke.py`, `gen_serpents.py`, `gen_salsa.py`, `gen_ignis_head.py`, `geo_util.py`. Animation sound keys are cue
   names (`SoundCues`, `onSoundCue`). Hand edits in Blockbench must be ported back into the scripts.
 - Pack mods' **assets may be reused** (e.g. `tools/src/papon_base.png`, `chort_base.png`); their code is study-only
   (`tools/decompile_refs.sh`). Reference mods: Walking Crops (`wkcr`), L_Ender's Cataclysm, Block Factory's Bosses (cutscenes).

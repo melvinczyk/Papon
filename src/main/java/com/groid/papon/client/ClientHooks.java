@@ -17,6 +17,9 @@ public final class ClientHooks {
         CaravanSounds.tick(van);
     }
 
+    /** Die Glocke's hum while its drums turn. */
+    public static void glockeTick(com.groid.papon.entity.DieGlockeEntity glocke) { DieGlockeRenderer.tick(glocke); }
+
     /** The reformed chef's free menu. */
     public static void openTacoMenu(int vendorId) {
         net.minecraft.client.Minecraft.getInstance().setScreen(new TacoMenuScreen(vendorId));

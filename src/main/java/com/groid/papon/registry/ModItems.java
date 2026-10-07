@@ -91,10 +91,14 @@ public final class ModItems {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static final RegistryObject<Item> SPIRIT_GIANT_SPAWN_EGG = REGISTRY.register("spirit_giant_spawn_egg",
             () -> new ForgeSpawnEggItem((Supplier) ModEntities.SPIRIT_GIANT, 0xE8E2D2, 0x40E2FF, new Item.Properties().rarity(Rarity.EPIC)));
+    /** Die Glocke (not a Mob either). */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static final RegistryObject<Item> DIE_GLOCKE_SPAWN_EGG = REGISTRY.register("die_glocke_spawn_egg",
+            () -> new ForgeSpawnEggItem((Supplier) ModEntities.DIE_GLOCKE, 0x60503C, 0xA860FF, new Item.Properties().rarity(Rarity.EPIC)));
 
     public static final List<RegistryObject<Item>> SPAWN_EGGS = List.of(WANDERING_PAPON_SPAWN_EGG, TACO_VENDOR_SPAWN_EGG,
             CUSTOMER_PAPON_SPAWN_EGG, DON_POLLO_SPAWN_EGG, EDP445_SPAWN_EGG, BADLANDS_CHUGS_SPAWN_EGG, REVIEWBRAH_SPAWN_EGG,
-            GERBIN_SPAWN_EGG, PAPON_BOSS_SPAWN_EGG, SPIRIT_GIANT_SPAWN_EGG);
+            GERBIN_SPAWN_EGG, PAPON_BOSS_SPAWN_EGG, SPIRIT_GIANT_SPAWN_EGG, DIE_GLOCKE_SPAWN_EGG);
 
     private static RegistryObject<Item> egg(String name, Supplier<? extends EntityType<? extends Mob>> type, int base, int spots) {
         return REGISTRY.register(name + "_spawn_egg", () -> new ForgeSpawnEggItem(type, base, spots, new Item.Properties()));

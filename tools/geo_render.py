@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A software preview of a generated geo model (box UV), for checking geometry without Blockbench or the game.
+"""A software preview of a generated geo model (box or per-face UV), for checking geometry without Blockbench or the game.
 
   python tools/geo_render.py <geo name> <out.png> [views=front34,rear34,side,top,back] [texture name]
 
@@ -48,10 +48,14 @@ def quads(geo):
             inf = c.get('inflate', 0)
             lo, hi = o - inf, o + s + inf
             w, h, d = (max(1, int(round(v))) if v >= 1 else (1 if v > 0 else 0) for v in s)
-            u, v = c['uv']
-            r = {'up': (u + d, v, u + d + w, v + d), 'down': (u + d + w, v, u + d + 2 * w, v + d),
-                 'east': (u, v + d, u + d, v + d + h), 'north': (u + d, v + d, u + d + w, v + d + h),
-                 'west': (u + d + w, v + d, u + 2 * d + w, v + d + h), 'south': (u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h)}
+            if isinstance(c['uv'], dict):
+                # per-face UV: only the faces listed are drawn
+                r = {k: (f['uv'][0], f['uv'][1], f['uv'][0] + f['uv_size'][0], f['uv'][1] + f['uv_size'][1]) for k, f in c['uv'].items()}
+            else:
+                u, v = c['uv']
+                r = {'up': (u + d, v, u + d + w, v + d), 'down': (u + d + w, v, u + d + 2 * w, v + d),
+                     'east': (u, v + d, u + d, v + d + h), 'north': (u + d, v + d, u + d + w, v + d + h),
+                     'west': (u + d + w, v + d, u + 2 * d + w, v + d + h), 'south': (u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h)}
             x0, y0, z0 = lo
             x1, y1, z1 = hi
             # corners listed so (0)->(1) runs along the texture's u, (0)->(3) down its v (row 0 = the top)
@@ -64,6 +68,8 @@ def quads(geo):
                 'down': [(x1, y0, z0), (x0, y0, z0), (x0, y0, z1), (x1, y0, z1)],
             }
             for k, pts in fs.items():
+                if k not in r:
+                    continue
                 p = np.array(pts, float)
                 if 'rotation' in c:
                     pv = np.array(c['pivot'], float)
