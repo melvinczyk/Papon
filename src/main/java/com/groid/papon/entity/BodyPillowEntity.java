@@ -72,7 +72,7 @@ public class BodyPillowEntity extends Entity {
      * What whoever is with her is doing: planked over her on her back, on the floor at her feet, kneeling with her feet held
      * up, kneeling behind her on her knees.
      */
-    public enum Act { HUMP, FLOOR, LIFT, BEHIND, SIDE_BACK, SIDE_KNEES }
+    public enum Act { HUMP, FLOOR, LIFT, BEHIND, SIDE_BACK, SIDE_KNEES, /** on your back under her (MakimaEntity only) */ UNDER }
 
     /** Laid down: her hips along the bed from its head block's centre, on her back, and on her knees (raised {@link #HIPS_UP}). */
     public static final double LIE_HIPS = 0.75, KNEEL_HIPS = 0.45, HIPS_UP = 0.295;
@@ -166,7 +166,7 @@ public class BodyPillowEntity extends Entity {
 
     /** A humping act (on the bed or at its side): the ones that count toward finishing. */
     public static boolean humping(@Nullable Act act) {
-        return act == Act.HUMP || act == Act.BEHIND || act == Act.SIDE_BACK || act == Act.SIDE_KNEES;
+        return act == Act.HUMP || act == Act.BEHIND || act == Act.SIDE_BACK || act == Act.SIDE_KNEES || act == Act.UNDER;
     }
 
     /** The side of the bed her rider stands at, or null when they are on the bed with her (from the foot). */
@@ -301,6 +301,19 @@ public class BodyPillowEntity extends Entity {
                 ejectPassengers();
                 return;
             }
+            // once in a great while the thrust wakes her: Makima herself, in the position nearest this one
+            if (t % 7 == 2 && p instanceof net.minecraft.server.level.ServerPlayer sp && MakimaEntity.rollAwaken(sp)) {
+                MakimaEntity.Position at = switch (act()) {
+                    case BEHIND -> MakimaEntity.Position.DOGGY;
+                    case SIDE_KNEES -> MakimaEntity.Position.BENT;
+                    default -> MakimaEntity.Position.MISSIONARY;
+                };
+                Vec3 was = sp.position();
+                ejectPassengers();
+                discard();
+                MakimaEntity.awaken(server, sp, at, was);
+                return;
+            }
             // the bed creaking in time (client/PillowClient.thrust: a stroke every 7 ticks), hearts, a word now and then
             if (t % 7 == 2) {
                 server.playSound(null, getX(), getY(), getZ(), SoundEvents.WOOD_STEP, SoundSource.PLAYERS, 0.7F, 0.6F + random.nextFloat() * 0.15F);
@@ -430,7 +443,7 @@ public class BodyPillowEntity extends Entity {
             case BEHIND -> 1.2F;
             case FLOOR -> 0.45F;
             case LIFT -> 1.05F;
-            case SIDE_BACK, SIDE_KNEES -> Float.NaN;             // standing at the side of the bed
+            case SIDE_BACK, SIDE_KNEES, UNDER -> Float.NaN;      // standing at the side of the bed
         };
     }
 

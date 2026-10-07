@@ -74,6 +74,9 @@ public final class AutoShot {
      * sat on the edge of the bed, her feet licked from the floor, then lifted to the face (side, front, first person).
      */
     private static final boolean PILLOW = MODE.equals("pillow");
+    /** -Pautoshot=makima: Makima out of her egg (front, her face up close drooling), then every position from the side, the
+     *  front and first person (papon_mk*.png; the rider's place and eye height logged). */
+    private static final boolean MAKIMA = MODE.equals("makima");
     /** -Pautoshot=state:STATE[:FORM]:t1,t2,...  a boss here (form 3 Ascended or 4 the Final Guardian), straight into STATE; the
      *  cutscene camera's view (or yours) shot at those ticks in it (papon_s_STATE_t.png). For checking one beat quickly. */
     private static final boolean STATE = MODE.startsWith("state:");
@@ -133,6 +136,10 @@ public final class AutoShot {
         }
         if (PILLOW) {
             pillow(mc);
+            return;
+        }
+        if (MAKIMA) {
+            makima(mc);
             return;
         }
         if (SERPENTS) {
@@ -1200,6 +1207,154 @@ public final class AutoShot {
     }
 
     /** The client-only camera at {@code off} from the player (yaw 0: facing south), looking at their hips. */
+    private static void makima(Minecraft mc) {
+        var opts = mc.options;
+        var makima = nearest(mc, com.groid.papon.entity.MakimaEntity.class);
+        int pos = 0;
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
+                    "kill @e[type=papon:makima]", "tp @s 4300 200 4300", "effect clear @s papon:post_nut_clarity");
+            case 41 -> System.setProperty("papon.clarity", "1000000");      // never finished here (the count carries over runs)
+            case 70 -> run("execute positioned 4300 0 4300 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 180 0");
+            case 90 -> {
+                var p = mc.player.blockPosition();
+                run("kill @e[type=papon:makima]", "kill @e[type=papon:body_pillow]",
+                        String.format("fill %d %d %d %d %d %d minecraft:smooth_stone", p.getX() - 5, p.getY() - 1, p.getZ() - 6, p.getX() + 5, p.getY() - 1, p.getZ() + 5),
+                        String.format("fill %d %d %d %d %d %d minecraft:air", p.getX() - 5, p.getY(), p.getZ() - 6, p.getX() + 5, p.getY() + 4, p.getZ() + 5),
+                        String.format("summon papon:makima %d.5 %d %d.5 {Rotation:[0f,0f]}", p.getX(), p.getY(), p.getZ() - 3));
+            }
+            case 100 -> opts.setCameraType(CameraType.FIRST_PERSON);
+            case 130 -> shot(mc, "mk01_front");
+            case 132 -> run("tp @s ~ ~ ~-1.2");
+            case 160 -> shot(mc, "mk02_face_drool");
+            case 162 -> run("tp @s ~-0.6 ~ ~");
+            case 175 -> shot(mc, "mk03_face_drool_side");
+            case 180 -> {
+                if (makima != null) mc.gameMode.interact(mc.player, makima, net.minecraft.world.InteractionHand.MAIN_HAND);
+            }
+            default -> {}
+        }
+        // each position: settle, then the side, the far side, from her head end, first person; then on to the next
+        for (int k = 0; k < 4; k++) {
+            int at = 200 + k * 90;
+            if (tick < at || tick >= at + 90) continue;
+            pos = tick - at;
+            String name = "mk" + (10 + k * 10) + "_" + new String[]{"missionary", "doggy", "bent", "cowgirl"}[k];
+            if (makima == null) return;
+            Vec3 f = makima.facing(), r = new Vec3(-f.z, 0, f.x), o = makima.position();
+            switch (pos) {
+                case 25 -> camAt(mc, o.add(r.scale(2.8)).add(f.scale(-0.3)).add(0, 0.2, 0), o.add(f.scale(-0.3)).add(0, 0.55, 0));
+                case 30 -> shot(mc, name + "_side");
+                case 32 -> camAt(mc, o.add(r.scale(-2.2)).add(f.scale(1.6)).add(0, 0.7, 0), o.add(f.scale(-0.2)).add(0, 0.5, 0));
+                case 37 -> shot(mc, name + "_34");
+                case 39 -> camAt(mc, o.add(f.scale(-3.4)).add(r.scale(0.8)).add(0, 0.9, 0), o.add(0, 0.5, 0));
+                case 44 -> shot(mc, name + "_head");
+                case 46 -> {
+                    mc.setCameraEntity(mc.player);
+                    opts.hideGui = false;
+                    opts.setCameraType(CameraType.FIRST_PERSON);
+                    PaponMod.LOG.info("[autoshot] makima {} rider {} eye {} her {} facing {}", makima.posture(), mc.player.position(),
+                            mc.player.getEyeHeight(), o, f);
+                }
+                case 60 -> shot(mc, name + "_fp");
+                case 62 -> opts.setCameraType(CameraType.THIRD_PERSON_BACK);
+                case 72 -> shot(mc, name + "_tp");
+                case 74 -> opts.setCameraType(CameraType.FIRST_PERSON);
+                case 85 -> {
+                    if (k < 3) com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.PillowSwap());
+                }
+                default -> {}
+            }
+        }
+        // the body pillow waking up as her (odds forced to 1): humped in hand, then on a bed
+        switch (tick) {
+            case 562 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), true);
+            case 566 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
+            case 570 -> {
+                System.setProperty("papon.makima.odds", "1");
+                mc.setCameraEntity(mc.player);
+                opts.hideGui = false;
+                opts.setCameraType(CameraType.FIRST_PERSON);
+                run("kill @e[type=papon:makima]", "item replace entity @s weapon.mainhand with papon:body_pillow", "tp @s ~ ~ ~ 0 70");
+            }
+            case 578 -> net.minecraft.client.KeyMapping.set(opts.keyUse.getKey(), true);
+            case 584 -> shot(mc, "mk50_pillow_hump_fp");
+            case 600 -> {
+                net.minecraft.client.KeyMapping.set(opts.keyUse.getKey(), false);
+                shot(mc, "mk51_awakened_fp");
+            }
+            case 605 -> {
+                var mk = nearest(mc, com.groid.papon.entity.MakimaEntity.class);
+                PaponMod.LOG.info("[autoshot] makima awakened {} riding {}", mk == null ? "none" : mk.posture(), mc.player.getVehicle());
+                if (mk != null) {
+                    Vec3 f = mk.facing(), r = new Vec3(-f.z, 0, f.x), o = mk.position();
+                    camAt(mc, o.add(r.scale(2.6)).add(f.scale(0.4)).add(0, 0.8, 0), o.add(f.scale(0.2)).add(0, 0.7, 0));
+                }
+            }
+            case 612 -> shot(mc, "mk52_awakened_side");
+            case 614 -> {
+                mc.setCameraEntity(mc.player);
+                opts.hideGui = false;
+                net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), true);
+            }
+            case 618 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
+            case 622 -> {
+                var p = mc.player.blockPosition();
+                bedAt = p.east(3);
+                run("kill @e[type=papon:makima]",
+                        String.format("setblock %d %d %d minecraft:red_bed[facing=north,part=head]", bedAt.getX(), bedAt.getY(), bedAt.getZ() - 1),
+                        String.format("setblock %d %d %d minecraft:red_bed[facing=north,part=foot]", bedAt.getX(), bedAt.getY(), bedAt.getZ()));
+            }
+            case 630 -> {
+                var srv = mc.getSingleplayerServer();
+                var bed = bedAt;
+                if (srv != null && bed != null) srv.execute(() -> com.groid.papon.entity.BodyPillowEntity.place(srv.overworld(), bed));
+            }
+            case 636 -> {
+                var p = bedAt;
+                if (p != null) tpLook(Vec3.atBottomCenterOf(p).add(0, 0, 1.4), Vec3.atBottomCenterOf(p).add(0, 0.6, -0.5));
+            }
+            case 642 -> {
+                var pillow = nearest(mc, com.groid.papon.entity.BodyPillowEntity.class);
+                if (pillow != null) mc.gameMode.interact(mc.player, pillow, net.minecraft.world.InteractionHand.MAIN_HAND);
+            }
+            case 670 -> {
+                var mk = nearest(mc, com.groid.papon.entity.MakimaEntity.class);
+                PaponMod.LOG.info("[autoshot] makima from the bed {} riding {}", mk == null ? "none" : mk.posture(), mc.player.getVehicle());
+                if (mk != null) {
+                    Vec3 f = mk.facing(), r = new Vec3(-f.z, 0, f.x), o = mk.position();
+                    camAt(mc, o.add(r.scale(2.8)).add(f.scale(-0.5)).add(0, 1.0, 0), o.add(f.scale(-0.6)).add(0, 0.6, 0));
+                }
+            }
+            case 678 -> shot(mc, "mk53_awakened_bed");
+            case 690 -> mc.stop();
+            default -> {}
+        }
+    }
+
+    /** The client-only camera at {@code at} (eyes), looking at {@code look}. */
+    private static void camAt(Minecraft mc, Vec3 at, Vec3 look) {
+        if (bedCam == null) {
+            bedCam = new net.minecraft.world.entity.decoration.ArmorStand(mc.level, 0, 0, 0);
+            bedCam.setInvisible(true);
+        }
+        Vec3 feet = at.subtract(0, bedCam.getEyeHeight(), 0), d = look.subtract(at);
+        float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
+        bedCam.moveTo(feet.x, feet.y, feet.z, yaw, pitch);
+        bedCam.xo = feet.x;
+        bedCam.yo = feet.y;
+        bedCam.zo = feet.z;
+        bedCam.yRotO = yaw;
+        bedCam.xRotO = pitch;
+        bedCam.setYHeadRot(yaw);
+        bedCam.yHeadRotO = yaw;
+        mc.setCameraEntity(bedCam);
+        mc.options.setCameraType(CameraType.FIRST_PERSON);
+        mc.options.hideGui = true;
+    }
+
     private static void playerCamera(Minecraft mc, Vec3 off) {
         if (bedCam == null) {
             bedCam = new net.minecraft.world.entity.decoration.ArmorStand(mc.level, 0, 0, 0);

@@ -2,6 +2,7 @@ package com.groid.papon.client;
 
 import com.groid.papon.PaponMod;
 import com.groid.papon.entity.BodyPillowEntity;
+import com.groid.papon.entity.MakimaEntity;
 import com.groid.papon.item.BodyPillowItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -228,14 +229,19 @@ public final class PillowClient {
         model.head.zRot = 0.24F + 0.07F * sway;
     }
 
-    /** What a player with a pillow on a bed is doing, or null. */
+    /** What a player with a pillow on a bed (or with Makima) is doing, or null. */
     @org.jetbrains.annotations.Nullable
     public static BodyPillowEntity.Act act(LivingEntity entity) {
+        if (entity.getVehicle() instanceof MakimaEntity makima) return makima.act();
         return entity.getVehicle() instanceof BodyPillowEntity pillow ? pillow.act() : null;
     }
 
     /** At her feet: 0 flat on the floor .. 1 kneeling, her feet lifted (eased, so the body gets up and down). */
     public static float kneel(LivingEntity entity, float partial) {
+        if (entity.getVehicle() instanceof MakimaEntity makima) {
+            BodyPillowEntity.Act act = makima.act();
+            return act == BodyPillowEntity.Act.BEHIND || act == BodyPillowEntity.Act.SIDE_KNEES ? 1 : 0;
+        }
         if (!(entity.getVehicle() instanceof BodyPillowEntity pillow)) return 0;
         float k = pillow.lift(partial);
         return k * k * (3 - 2 * k);
@@ -245,6 +251,10 @@ public final class PillowClient {
         BodyPillowEntity.Act act = act(entity);
         if (act == null) return;
         float partial = Minecraft.getInstance().getFrameTime();
+        if (act == BodyPillowEntity.Act.UNDER) {
+            underPose(model, entity, partial);
+            return;
+        }
         if (act == BodyPillowEntity.Act.SIDE_BACK || act == BodyPillowEntity.Act.SIDE_KNEES) {
             // standing at the side of the bed, hips driving at hers; on her back, your arms round her legs up on your shoulders
             pose(model, entity, Mode.HUMP);
@@ -320,6 +330,30 @@ public final class PillowClient {
         model.body.xRot = 0;
     }
 
+    /**
+     * On your back under Makima (onRenderPlayerPre lays the body down): the hands up on her hips, the head raised to watch her,
+     * the legs out straight, a little apart.
+     */
+    private static void underPose(HumanoidModel<?> model, LivingEntity entity, float partial) {
+        float th = thrust(entity.tickCount + partial);
+        model.rightArm.xRot = -0.95F - 0.1F * th;
+        model.leftArm.xRot = -0.95F - 0.1F * th;
+        model.rightArm.yRot = -0.25F;
+        model.leftArm.yRot = 0.25F;
+        model.rightArm.zRot = 0.12F;
+        model.leftArm.zRot = -0.12F;
+        model.head.xRot = 0.55F + 0.05F * th;
+        model.head.yRot = 0;
+        model.head.zRot = 0;
+        model.rightLeg.xRot = 0;
+        model.leftLeg.xRot = 0;
+        model.rightLeg.yRot = 0;
+        model.leftLeg.yRot = 0;
+        model.rightLeg.zRot = 0.1F;
+        model.leftLeg.zRot = -0.1F;
+        model.body.xRot = 0;
+    }
+
     /** The plank's slope: the body tipped this far over (radians) from upright, about the toes. */
     static final float PLANK_TIP = 1.2F;
 
@@ -329,8 +363,7 @@ public final class PillowClient {
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
         boolean jump = mc.options.keyJump.isDown();
-        if (jump && !jumpWas && mc.player != null && mc.screen == null && mc.player.getVehicle() instanceof BodyPillowEntity pillow
-                && pillow.act() != null) {
+        if (jump && !jumpWas && mc.player != null && mc.screen == null && act(mc.player) != null) {
             com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.PillowSwap());
         }
         jumpWas = jump;
@@ -367,6 +400,14 @@ public final class PillowClient {
         Player p = event.getEntity();
         PoseStack ps = event.getPoseStack();
         float t = p.tickCount + event.getPartialTick();
+        if (p.getVehicle() instanceof MakimaEntity makima && makima.act() != null) {
+            var model = event.getRenderer().getModel();
+            model.rightArmPose = RIDE;
+            model.leftArmPose = RIDE;
+            withMakima(p, makima, ps, t);
+            PUSHED.add(p);
+            return;
+        }
         if (p.getVehicle() instanceof BodyPillowEntity pillow && pillow.act() != null) {
             var model = event.getRenderer().getModel();
             model.rightArmPose = RIDE;
@@ -421,6 +462,39 @@ public final class PillowClient {
         ps.translate(-side.getStepX() * 0.16, 0.3, -side.getStepZ() * 0.16);
         ps.mulPose(new Quaternionf().rotateAxis(-Mth.HALF_PI, f.getStepX(), 0, f.getStepZ()));
         PUSHED.add(p);
+    }
+
+    /** Makima's planked and kneeling depths: on the ground the rider's hips meet hers higher than on a mattress. */
+    static final float MAKIMA_PLANK_BACK = -1.05F, MAKIMA_PLANK_UP = 0.16F, MAKIMA_KNEEL_UP = -0.2F;
+
+    /**
+     * With Makima (MakimaEntity places the rider against her, facing back along her facing f): planked over her on her back
+     * (as on the bed), kneeling behind her, standing behind her bent over (rocking in with the hips), or laid on your back
+     * under her, the eyes where the entity is and the feet toward her, the hips bucking up on each thrust.
+     */
+    private static void withMakima(Player p, MakimaEntity makima, PoseStack ps, float t) {
+        net.minecraft.world.phys.Vec3 her = makima.facing();
+        float fx = (float) -her.x, fz = (float) -her.z;        // the rider's facing
+        float th = thrust(t);
+        ps.pushPose();
+        switch (makima.act()) {
+            case HUMP -> {
+                ps.translate(fx * (MAKIMA_PLANK_BACK + 0.07F * th), MAKIMA_PLANK_UP, fz * (MAKIMA_PLANK_BACK + 0.07F * th));
+                ps.mulPose(new Quaternionf().rotateAxis(PLANK_TIP + 0.05F * th, fz, 0, -fx));
+            }
+            case BEHIND -> {
+                ps.translate(fx * 0.09F * th, MAKIMA_KNEEL_UP, fz * 0.09F * th);
+                ps.mulPose(new Quaternionf().rotateAxis(-0.1F * th, fz, 0, -fx));
+            }
+            case UNDER -> {
+                ps.translate(fx * 1.62F, 0.13F + 0.03F * Math.max(0, th), fz * 1.62F);
+                ps.mulPose(new Quaternionf().rotateAxis(-Mth.HALF_PI, fz, 0, -fx));
+            }
+            default -> {
+                ps.translate(fx * 0.07F * th, 0, fz * 0.07F * th);
+                ps.mulPose(new Quaternionf().rotateAxis(-0.06F * th, fz, 0, -fx));
+            }
+        }
     }
 
     /**

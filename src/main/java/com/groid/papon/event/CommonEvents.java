@@ -57,6 +57,7 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void onSize(net.minecraftforge.event.entity.EntityEvent.Size event) {
         float eye = com.groid.papon.entity.BodyPillowEntity.eyeHeight(event.getEntity());
+        if (Float.isNaN(eye)) eye = com.groid.papon.entity.MakimaEntity.eyeHeight(event.getEntity());
         if (!Float.isNaN(eye)) event.setNewEyeHeight(eye);
     }
 
