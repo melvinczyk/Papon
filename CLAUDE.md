@@ -342,6 +342,7 @@ her; grey thoughts from a pool (`message.papon.clarity.N`, counts in `THOUGHTS/N
 Python `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`; run tools with `PYTHONPATH=tools`; `PAPON_MODS` must point at a pack
 instance's mods folder (e.g. `C:/Users/czadi/curseforge/minecraft/Instances/OG GROID PACK/mods`). Generators re-encode PNG/ogg
 byte-differently: compare contents and check out unchanged ones before committing. Autoshot save is `run/saves/papon_shots`.
+No `gh` on Windows: create the release and upload the jar with `curl` against the GitHub API (token from `git credential fill`).
 MCP client temp: `export BB_SID="$TEMP/bb_mcp.sid" BB_SHOTS="$TEMP/bb_shots"`.
 
 ## Blockbench MCP
