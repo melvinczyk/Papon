@@ -123,12 +123,11 @@ public final class ModEntities {
                     .updateInterval(1)
                     .build(PaponMod.id("beam").toString()));
 
-    // Phase four's El Gigante: the hologram skeleton under the arena (its skull and hands over the wall)
+    // Phase four's El Gigante: the skeleton that digs up out of the arena floor; summoned on its own (spawn egg, /summon) it hunts by itself
     public static final RegistryObject<EntityType<com.groid.papon.boss.SpiritGiantEntity>> SPIRIT_GIANT = REGISTRY.register("spirit_giant",
             () -> EntityType.Builder.<com.groid.papon.boss.SpiritGiantEntity>of(com.groid.papon.boss.SpiritGiantEntity::new, MobCategory.MISC)
                     .sized(2.0F, 2.0F)
                     .fireImmune()
-                    .noSummon()
                     .clientTrackingRange(16)
                     .updateInterval(2)
                     .build(PaponMod.id("spirit_giant").toString()));

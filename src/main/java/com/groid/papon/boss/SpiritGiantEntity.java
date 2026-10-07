@@ -140,6 +140,15 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     private double wading;
     private int ownerId = -1;
     private int life = 720;
+    /**
+     * Summoned on its own (its spawn egg, /summon): no boss, it hunts by itself (WildGiant) until its rift closes. NBT on summon:
+     * {@code Rift} (ticks its rift stays open, 0 forever; default {@link #WILD_RIFT}), {@code Fury} (1..3, default 2).
+     */
+    private boolean wild = true;
+    @javax.annotation.Nullable private WildGiant brain;
+    @javax.annotation.Nullable private net.minecraft.server.level.ServerBossEvent bar;
+    private int wildRift = WILD_RIFT, wildFury = 2;
+    public static final int WILD_RIFT = 3600;
     /** Client: the skull's turn toward what it looks at, eased (yaw, pitch; radians). */
     private float lookYaw, lookPitch, lookYawO, lookPitchO;
 
@@ -153,6 +162,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public static SpiritGiantEntity create(ServerLevel level, PaponBossEntity boss, Vec3 at, Vec3 lookAt, Vec3 middle) {
         SpiritGiantEntity g = new SpiritGiantEntity(com.groid.papon.registry.ModEntities.SPIRIT_GIANT.get(), level);
         g.ownerId = boss.getId();
+        g.wild = false;
         float yaw = (float) (Mth.atan2(lookAt.z - at.z, lookAt.x - at.x) * Mth.RAD_TO_DEG) - 90F;
         g.moveTo(middle.x, middle.y, middle.z, yaw, 0);
         g.entityData.set(DATA_BASE, at.toVector3f());
@@ -291,6 +301,63 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public void keep(int ticks) { life = Math.max(life, ticks); }
 
     public void fury(int stage) { if (entityData.get(DATA_FURY) != stage) entityData.set(DATA_FURY, stage); }
+
+    /** Summoned on its own (no boss behind it). */
+    public boolean wild() { return wild; }
+
+    /** Wild: where it stands now (it follows the ground as it wades). */
+    void place(Vec3 at) { entityData.set(DATA_BASE, at.toVector3f()); }
+
+    /** Dev and testing (/papon giant on a wild one): one of its acts now. */
+    public boolean devAct(String move) {
+        if (brain == null) return false;
+        switch (move) {
+            case "portal" -> portal(160);
+            case "sink" -> sink();
+            default -> { return brain.force(move); }
+        }
+        return true;
+    }
+
+    /** Its first tick on its own: where it was put is where it digs up out of the ground, facing the nearest player. */
+    private void wake(ServerLevel level) {
+        brain = new WildGiant(this);
+        Vec3 at = position();
+        net.minecraft.world.entity.player.Player p = level.getNearestPlayer(at.x, at.y, at.z, 96, true);
+        float yaw = p != null ? (float) (Mth.atan2(p.getZ() - at.z, p.getX() - at.x) * Mth.RAD_TO_DEG) - 90F : getYRot();
+        entityData.set(DATA_BASE, at.toVector3f());
+        entityData.set(DATA_FACING, yaw);
+        fury(Mth.clamp(wildFury, 1, 3));
+        act(RISE);
+        entityData.set(DATA_HAND_L, handRest(0).toVector3f());
+        entityData.set(DATA_HAND_R, handRest(1).toVector3f());
+        aim(p != null ? p.getEyePosition() : at.add(forward().scale(20)));
+        if (wildRift > 0) portal(wildRift + RISE_T);
+        bar = new net.minecraft.server.level.ServerBossEvent(getDisplayName(), net.minecraft.world.BossEvent.BossBarColor.PURPLE,
+                net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS);
+        PaponNetwork.shake(level, at, 120, 0.7F, 40);
+    }
+
+    /** Wild: the rift's clock as a bar, for everyone near it. */
+    private void tickBar(ServerLevel level) {
+        if (bar == null || tickCount % 5 != 0) return;
+        float left = portalLeft(0);
+        bar.setProgress(left < 0 ? 1 : left);
+        Vec3 b = base();
+        for (net.minecraft.server.level.ServerPlayer p : level.players()) {
+            boolean near = p.distanceToSqr(b) < 110 * 110;
+            if (near && !bar.getPlayers().contains(p)) bar.addPlayer(p);
+            else if (!near && bar.getPlayers().contains(p)) bar.removePlayer(p);
+        }
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (bar != null) bar.removeAllPlayers();
+        if (brain != null && level() instanceof ServerLevel level) brain.clearBeams(level);
+        letGo();
+        super.remove(reason);
+    }
 
     public int fury() { return entityData.get(DATA_FURY); }
 
@@ -879,10 +946,18 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             return;
         }
         ServerLevel level = (ServerLevel) level();
-        boolean owner = level.getEntity(ownerId) instanceof PaponBossEntity b && b.isAlive();
-        if (!owner || --life <= 0) {
-            discard();
-            return;
+        if (wild) {
+            if (brain == null) wake(level);
+            // kept where it stands: the server sends it to whoever is within its tracking range of here
+            Vec3 b = base();
+            if (position().distanceToSqr(b) > 0.01) setPos(b.x, b.y, b.z);
+            tickBar(level);
+        } else {
+            boolean owner = level.getEntity(ownerId) instanceof PaponBossEntity b && b.isAlive();
+            if (!owner || --life <= 0) {
+                discard();
+                return;
+            }
         }
         float t = actTime(0);
         if (act() == RISE && t < RISE_T) dig(level, (int) t);
@@ -973,7 +1048,8 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             level.playSound(null, b.x, b.y + 20, b.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.35F);
             act(IDLE);
         }
-        if (act() == SINK && t >= SINK_T) discard();
+        if (brain != null && !isRemoved()) brain.tick(level);
+        if (act() == SINK && actTime(0) >= SINK_T) discard();
     }
 
     /** Dragged under (see {@link #DRAG_SEIZE}): the floor, the sounds, its last grab at you; the rift snapping shut. */
@@ -1029,9 +1105,10 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             Vec3 h = head(0);
             level.playSound(null, h.x, h.y, h.z, SoundEvents.RAVAGER_ROAR, SoundSource.HOSTILE, 7.0F, 0.35F);
         }
-        if (t == DRAG_CLAW_HIT && claw() >= 0 && level.getEntity(ownerId) instanceof PaponBossEntity boss) {
+        if (t == DRAG_CLAW_HIT && claw() >= 0 && (brain != null || level.getEntity(ownerId) instanceof PaponBossEntity)) {
             Vec3 m = handMark(claw());
-            boss.giantGrasp(level, m);
+            if (brain != null) brain.grasp(level, m);
+            else if (level.getEntity(ownerId) instanceof PaponBossEntity boss) boss.giantGrasp(level, m);
             level.playSound(null, m.x, floor, m.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 5.0F, 0.45F);
             PaponNetwork.shake(level, m, 90, 0.9F, 14);
         }
@@ -1132,7 +1209,8 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
 
     /** Slabs of the floor itself, torn up and thrown out round {@code at}, tumbling, shattering where they land. */
     public void debris(ServerLevel level, Vec3 at, int n, double speed) {
-        if (!(level.getEntity(ownerId) instanceof PaponBossEntity boss)) return;
+        PaponBossEntity boss = level.getEntity(ownerId) instanceof PaponBossEntity b ? b : null;
+        if (boss == null && !wild) return;
         net.minecraft.core.BlockPos below = net.minecraft.core.BlockPos.containing(at.x, at.y - 0.5, at.z);
         net.minecraft.world.level.block.state.BlockState floor = level.getBlockState(below);
         if (floor.isAir()) floor = com.groid.papon.registry.ModBlocks.MUERTOS_STONE.get().defaultBlockState();
@@ -1155,7 +1233,12 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     @Override public boolean isPickable() { return false; }
     @Override public boolean isPushable() { return false; }
     @Override public boolean shouldBeSaved() { return false; }
-    @Override protected void readAdditionalSaveData(CompoundTag tag) {}
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        if (tag.contains("Rift")) wildRift = Math.max(0, tag.getInt("Rift"));
+        if (tag.contains("Fury")) wildFury = Mth.clamp(tag.getInt("Fury"), 1, 3);
+    }
+
     @Override protected void addAdditionalSaveData(CompoundTag tag) {}
 
     @Override

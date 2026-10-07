@@ -87,6 +87,9 @@ public final class AutoShot {
     /** -Pautoshot=tells: El Gigante's attack tells (2026-10-06): its laser, both slams, a swipe, La Mano and the lunge, each shot
      *  through its wind-up from where you stand (papon_t*.png; the banner on your screen, the pillars and eyes in the world). */
     private static final boolean TELLS = MODE.equals("tells");
+    /** -Pautoshot=wildgiant: El Gigante out of its spawn egg on open ground: the dig, its hunt and every act on its own, then
+     *  its rift closing and the drag under (papon_w*.png; every act logged). */
+    private static final boolean WILD_GIANT = MODE.equals("wildgiant");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -138,6 +141,10 @@ public final class AutoShot {
         }
         if (GIANT) {
             giantTest(mc);
+            return;
+        }
+        if (WILD_GIANT) {
+            wildGiant(mc);
             return;
         }
         if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4 || CLIMAX || PHASES) {
@@ -1697,6 +1704,82 @@ public final class AutoShot {
                 if (ga == s) once(mc, String.format("t%d_%s_%02d_%s", i, moves[i], s, actName(g.act())));
             }
         }
+    }
+
+    private static int wildArrived = -1;
+
+    private static void wildGiant(Minecraft mc) {
+        if (tick == 40) run("ride @s dismount", "gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                "effect give @s regeneration 100000 4 true", "time set 5000", "gamerule doDaylightCycle false", "weather clear 100000",
+                "gamerule doMobSpawning false", "kill @e[type=papon:spirit_giant]", "tp @s 6000 200 6000");
+        // the server lags the client at start: go by where you are, not by the clock
+        boolean there = Math.abs(mc.player.getX() - 6000) < 40 && Math.abs(mc.player.getZ() - 6000) < 40;
+        if (wildArrived < 0) {
+            if (there && tick % 20 == 0) run("execute positioned 6000 0 6000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 30",
+                    "item replace entity @s hotbar.0 with papon:spirit_giant_spawn_egg");
+            if (there && mc.player.onGround() && mc.player.getY() < 190) wildArrived = tick;
+            return;
+        }
+        int a = tick - wildArrived;
+        if (a == 40) {
+            mc.player.getInventory().selected = 0;
+            shot(mc, "w00_egg");
+        }
+        if (a >= 50 && a < 56) {
+            // the egg, used on the ground ahead like a player would
+            mc.player.setXRot(60);
+            mc.player.xRotO = 60;
+        }
+        if (a == 56) {
+            if (mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult bh && mc.gameMode != null) {
+                var r = mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, bh);
+                PaponMod.LOG.info("[autoshot] wild giant: egg used on {}: {}", bh.getBlockPos(), r);
+            } else PaponMod.LOG.info("[autoshot] wild giant: egg not aimed at a block ({})", mc.hitResult);
+        }
+        var g = nearest(mc, com.groid.papon.boss.SpiritGiantEntity.class);
+        if (tick >= 110 && tick % 100 == 0) run("effect give @s instant_health 1 3 true");
+        if (g == null) {
+            if (wildArrived > 0 && tick - wildArrived == 120) PaponMod.LOG.info("[autoshot] wild giant: none spawned");
+            if (tick > 3000) mc.stop();
+            return;
+        }
+        if (giantMark < 0) giantMark = tick;
+        int k = tick - giantMark;
+        if (g.act() != giantAct) {
+            giantAct = g.act();
+            PaponMod.LOG.info("[autoshot] wild giant: act {} at k {} (you {} from it, rift {})", actName(giantAct), k,
+                    String.format("%.1f", Math.sqrt(mc.player.distanceToSqr(g.base().x, mc.player.getY(), g.base().z))), g.portalTicksLeft());
+        }
+        Vec3 base = g.base(), f = g.forward(), r = g.right();
+        // the dig, from the side, back far enough to take it all in
+        if (k == 2) tpLook(base.add(f.scale(34)).add(r.scale(22)), base.add(0, 12, 0));
+        if (k > 2 && k < 160) lookAtPoint(mc, base.add(0, 10 + 12 * Math.min(1, k / 124.0), 0));
+        if (k == 40 || k == 64 || k == 90 || k == 120 || k == 150) shot(mc, "w0" + (k / 30 + 1) + "_dig_" + k);
+        // the hunt: you back off and it comes; every act shot as it lands
+        if (k == 170) tpLook(base.add(f.scale(40)), g.head(0));
+        if (k > 170 && k < 1300) lookAtPoint(mc, g.head(0).add(0, -8, 0));
+        if (k == 200) shot(mc, "w10_stalk");
+        if (k == 300) run("papon giant swipe");
+        if (k == 320) shot(mc, "w11_swipe");
+        if (k == 380) run("papon giant slam2");
+        if (k == 404) shot(mc, "w12_slam2");
+        if (k == 460) run("papon giant laser");
+        if (k == 480 || k == 500) shot(mc, "w13_laser_" + k);
+        if (k == 560) tpLook(base.add(f.scale(36)), g.head(0));
+        if (k == 570) run("papon giant lunge");
+        if (k == 590 || k == 600) shot(mc, "w14_lunge_" + k);
+        if (k == 680) tpLook(base.add(f.scale(50)), g.head(0));
+        if (k == 690) run("papon giant grab");
+        if (k == 690 + 60 || k == 690 + 100 || k == 690 + 130) shot(mc, "w15_grab_" + (k - 690));
+        if (k == 1000 || k == 1100 || k == 1200) shot(mc, "w2" + (k - 1000) / 100 + "_free_" + k);
+        // its rift closes: dragged under
+        if (k == 1300) {
+            tpLook(base.add(f.scale(38)).add(r.scale(14)), g.head(0));
+            run("papon giant portal");
+        }
+        if (k > 1300) lookAtPoint(mc, base.add(0, 14, 0));
+        if (k == 1480 || k == 1520 || k == 1560 || k == 1600) shot(mc, "w3" + (k - 1480) / 40 + "_drag_" + k);
+        if (k >= 1700) mc.stop();
     }
 
     private static void giantTest(Minecraft mc) {

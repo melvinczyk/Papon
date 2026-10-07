@@ -144,10 +144,11 @@ public class BossProp extends Entity {
         noPhysics = true;
     }
 
-    public static BossProp create(ServerLevel level, Kind kind, PaponBossEntity owner, Vec3 at) {
+    /** {@code owner} may be null only for DEBRIS (a wild El Gigante's: it needs nobody). */
+    public static BossProp create(ServerLevel level, Kind kind, @Nullable PaponBossEntity owner, Vec3 at) {
         BossProp p = new BossProp(ModEntities.BOSS_PROP.get(), level);
         p.entityData.set(DATA_KIND, kind.ordinal());
-        p.ownerId = owner.getUUID();
+        p.ownerId = owner == null ? null : owner.getUUID();
         p.setPos(at.x, at.y, at.z);
         return p;
     }
@@ -264,7 +265,7 @@ public class BossProp extends Entity {
         }
         ServerLevel level = (ServerLevel) level();
         PaponBossEntity boss = owner();
-        if (boss == null || --life <= 0) {
+        if (boss == null && (k != Kind.DEBRIS || ownerId != null) || --life <= 0) {
             if (k == Kind.METEOR && boss != null) boss.propLand(this, aim);
             if (k == Kind.CANDY && boss != null) boss.propLand(this, position());
             if (k == Kind.TOT || k == Kind.TOT_SMALL) burst(level, boss);
