@@ -465,13 +465,13 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
             if (wheel != null) wheel.setRotZ(-steer * 3F);
             CoreGeoBone body = getAnimationProcessor().getBone("body");
             if (body != null) {
-                body.setRotZ(van.bodyRoll * Mth.DEG_TO_RAD);
-                body.setRotX(van.bodyPitch * Mth.DEG_TO_RAD);
+                body.setRotZ(van.bodyRoll(partial) * Mth.DEG_TO_RAD);
+                body.setRotX(van.bodyPitch(partial) * Mth.DEG_TO_RAD);
             }
             CoreGeoBone dice = getAnimationProcessor().getBone("dice");
             if (dice != null) {
-                dice.setRotX(van.bodyPitch * 4F * Mth.DEG_TO_RAD);
-                dice.setRotZ(van.bodyRoll * 4F * Mth.DEG_TO_RAD);
+                dice.setRotX(van.bodyPitch(partial) * 4F * Mth.DEG_TO_RAD);
+                dice.setRotZ(van.bodyRoll(partial) * 4F * Mth.DEG_TO_RAD);
             }
         }
     }

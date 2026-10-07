@@ -9,8 +9,8 @@ import net.minecraftforge.client.event.ViewportEvent;
 /**
  * Your point of view from a car's seat (2026-10-06, the user: "further improve the player's point of view in the car").
  * The view turns with the car as it steers (CaravanEntity.positionRider); here, in first person: your head leans with the
- * body's roll in a corner and nods with its pitch as it pulls away and brakes, a fine shudder from the engine at high
- * revs, and the view widens a touch with speed. Behind the Skyline's wheel your hands are on it (CaravanRenderer.hands)
+ * body's roll in a corner and nods with its pitch as it pulls away and brakes (both eased between ticks: nothing shakes),
+ * and the view widens a touch with speed. Behind the Skyline's wheel your hands are on it (CaravanRenderer.hands)
  * instead of a held item floating over the dash.
  */
 public final class SkylineCockpit {
@@ -43,15 +43,8 @@ public final class SkylineCockpit {
         float pt = (float) event.getPartialTick();
         // the body's lean (CaravanEntity.clientVisuals: roll > 0 is its left side down, turning right) and its pitch (> 0
         // nose up, pulling away): your head goes with some of it
-        event.setRoll(event.getRoll() - car.bodyRoll * 0.55F);
-        event.setPitch(event.getPitch() - car.bodyPitch * 0.45F);
-        float rpm = CaravanSounds.rpm(car);
-        if (rpm > 3500) {
-            float t = car.tickCount + pt;
-            float a = (rpm - 3500) / 4500F * 0.06F;
-            event.setRoll(event.getRoll() + Mth.sin(t * 2.7F) * a);
-            event.setPitch(event.getPitch() + Mth.sin(t * 3.9F + 1.3F) * a);
-        }
+        event.setRoll(event.getRoll() - car.bodyRoll(pt) * 0.55F);
+        event.setPitch(event.getPitch() - car.bodyPitch(pt) * 0.45F);
     }
 
     static void fov(ViewportEvent.ComputeFov event) {

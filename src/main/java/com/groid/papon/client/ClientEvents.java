@@ -61,6 +61,14 @@ public final class ClientEvents {
         ScreenShake.apply(event);
         PillowClient.camera(event);
         SkylineCockpit.camera(event);
+        String phase = com.groid.papon.client.dev.AutoShot.shakePhase();
+        if (phase != null) {
+            var c = event.getCamera().getPosition();
+            Minecraft mc = Minecraft.getInstance();
+            com.groid.papon.PaponMod.LOG.info("[shake] {} t {} yaw {} pitch {} roll {} cam {} {} {} shake {}", phase,
+                    String.format(java.util.Locale.ROOT, "%.3f", (mc.level == null ? 0 : mc.level.getGameTime()) + event.getPartialTick()),
+                    event.getYaw(), event.getPitch(), event.getRoll(), c.x, c.y, c.z, ScreenShake.strength(c, (float) event.getPartialTick()));
+        }
     }
 
     /** The sky turns while he transforms: gold as the salt comes down, then blood-orange through the scream. */

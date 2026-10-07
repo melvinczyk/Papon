@@ -81,6 +81,14 @@ public final class AutoShot {
     private static final boolean SERPENTS = MODE.equals("serpents");
     /** -Pautoshot=skyline: the Skyline parked in daylight, all the way round and up close (papon_k*.png), then from its driver's seat. */
     private static final boolean SKYLINE = MODE.equals("skyline");
+    /** -Pautoshot=skyshake: how much the Skyline and your view move frame to frame (2026-10-07, the user: "maybe shaking too
+     *  much"): every rendered frame's camera angles, position, the body's lean and the screen shake logged ("[shake]"), parked
+     *  and idling, idling from the seat, flat out, coasting; papon_q*.png at consecutive ticks. */
+    private static final boolean SKYSHAKE = MODE.equals("skyshake");
+    private static String shakePhase = "";
+
+    /** The phase of the skyshake tour, or null (ClientEvents logs the camera each frame while it runs). */
+    public static String shakePhase() { return SKYSHAKE && !shakePhase.isEmpty() ? shakePhase : null; }
     /** -Pautoshot=giant: the coliseum up, straight to phase four's storm: El Gigante hunting you, its lunge, La Mano catching you
      *  (lifted, the blast, the slam), one struggled free, then left to its own scheduler (papon_g*.png; every act logged). */
     private static final boolean GIANT = MODE.equals("giant") || MODE.equals("tells");
@@ -133,6 +141,10 @@ public final class AutoShot {
         }
         if (SKYLINE) {
             skyline(mc);
+            return;
+        }
+        if (SKYSHAKE) {
+            skyshake(mc);
             return;
         }
         if (STATE) {
@@ -2035,6 +2047,45 @@ public final class AutoShot {
         if (k == 434) shot(mc, "k27_summon_c");
         if (k == 470) shot(mc, "k28_summoned");
         if (k == 500) mc.stop();
+    }
+
+    private static void skyshake(Minecraft mc) {
+        if (tick == 40) run("gamemode creative", "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000",
+                "gamerule doMobSpawning false", "kill @e[type=papon:caravan]", "tp @s 6000 200 6000");
+        if (tick == 70) run("execute positioned 6000 0 6000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+        if (tick == 80) run("execute at @s run fill ~-16 ~ ~-16 ~16 ~14 ~16 air", "execute at @s run fill ~-16 ~-1 ~-16 ~16 ~-1 ~16 minecraft:smooth_stone",
+                "execute at @s run fill ~-10 ~ ~16 ~10 ~6 ~150 air", "execute at @s run fill ~-10 ~-1 ~16 ~10 ~-1 ~150 minecraft:smooth_stone",
+                "item replace entity @s weapon.mainhand with papon:skyline_fob");
+        // the fob: it reforms ahead of you, side on, the engine running
+        if (tick == 95) mc.gameMode.useItem(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+        var car = nearest(mc, com.groid.papon.vehicle.CaravanEntity.class);
+        if (tick == 140 && car != null) tpLook(car.position().add(4.5, 0.2, 3.0), car.position().add(0, 0.8, 0));
+        if (tick == 150) shakePhase = "parked_idle";
+        for (int i = 0; i < 4; i++) if (tick == 170 + i) shot(mc, "q0" + i + "_parked_idle");
+        if (tick == 210) {
+            shakePhase = "";
+            // a fresh one facing down the road for the drive (the summoned one stands side on)
+            run("kill @e[type=papon:caravan]", "execute positioned 6000.5 ~ 6004.5 run summon papon:caravan ~ ~ ~ {Skyline:1b,Rotation:[0f,0f]}");
+        }
+        if (tick == 212) run("ride @s mount @e[type=papon:caravan,limit=1,sort=nearest]");
+        if (tick == 215) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (tick > 215 && tick < 240 && car != null) { mc.player.setYRot(car.getYRot()); mc.player.setXRot(8); }
+        if (tick == 245) shakePhase = "seat_idle";
+        for (int i = 0; i < 4; i++) if (tick == 265 + i) shot(mc, "q1" + i + "_seat_idle");
+        // up at the rear-view mirror: its pad on the glass, the stem, the housing
+        if (tick == 275 && car != null) { mc.player.setYRot(car.getYRot() - 28); mc.player.setXRot(-32); }
+        if (tick == 280) shot(mc, "q15_mirror");
+        if (tick == 285 && car != null) { mc.player.setYRot(car.getYRot()); mc.player.setXRot(8); }
+        if (tick == 300) { shakePhase = "accelerating"; mc.options.keyUp.setDown(true); }
+        for (int i = 0; i < 4; i++) if (tick == 330 + i) shot(mc, "q2" + i + "_accel");
+        if (tick == 380) shakePhase = "flat_out";
+        for (int i = 0; i < 4; i++) if (tick == 395 + i) shot(mc, "q3" + i + "_flat_out");
+        if (tick == 420) { shakePhase = "coasting"; mc.options.keyUp.setDown(false); }
+        for (int i = 0; i < 4; i++) if (tick == 440 + i) shot(mc, "q4" + i + "_coast");
+        if (tick == 480) shakePhase = "";
+        if (tick % 10 == 0 && car != null) PaponMod.LOG.info("[autoshot] skyshake {} car {} roll {} pitch {} rpm {}", tick, v3(car.position()),
+                car.bodyRoll, car.bodyPitch, (int) com.groid.papon.client.CaravanSounds.rpm(car));
+        if (tick == 500) mc.stop();
     }
 
     private static void tpLook(Vec3 at, Vec3 look) {

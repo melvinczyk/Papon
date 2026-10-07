@@ -277,33 +277,35 @@ def bov(seconds=1.0):
     ph = np.cumsum(rate) / SR
     flutter = (0.5 + 0.5 * np.cos(2 * np.pi * ph)) ** 3 * np.exp(-t / 0.22) * np.clip((t - 0.05) / 0.03, 0, 1)
     chop = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 250, 2200) * peak(f, 700, 2, 1.5)) * flutter
-    whine = np.sin(2 * np.pi * np.cumsum(5200 - 3000 * np.clip(t / 0.4, 0, 1)) / SR) * np.exp(-t / 0.1) * 0.12
-    return fade(air * env + chop * 0.6 + whine, 0.001, 0.1)
+    return fade(air * env + chop * 0.6, 0.001, 0.1)
 
 
 def bang(seconds=0.5, size=1.0, seed=0):
-    """An exhaust pop: a crack in the pipe, its thump, ringing through the exhaust's own resonances."""
+    """An exhaust pop: a crack and the thump of the gas, both noise (2026-10-07, the user: "a horrible bell hitting
+    sound": the thump was a damped sine through the pipe's resonances, a struck tube), muffled a little by the pipe."""
     r = np.random.default_rng(seed)
     n = int(seconds * SR)
     t = t_of(n)
-    crack = padded_filter(r.normal(0, 1, n), lambda f: band(f, 300, 7000)) * np.exp(-t / (0.006 * size))
-    thump = np.sin(2 * np.pi * (60 + 90 * np.exp(-t / 0.015)) * t) * np.exp(-t / (0.05 * size)) * 1.6
-    x = crack + thump
-    x = padded_filter(x, exhaust(0.8))
+    crack = padded_filter(r.normal(0, 1, n), lambda f: band(f, 400, 7000)) * np.exp(-t / (0.005 * size))
+    thump = padded_filter(r.normal(0, 1, n), lambda f: lowpass(f, 180, 2) * highpass(f, 35, 2))
+    thump = thump / (np.std(thump[:int(0.05 * SR)]) or 1) * np.exp(-t / (0.022 * size)) * 0.9
+    x = padded_filter(crack + thump, lambda f: lowpass(f, 2600 + 1500 * size, 2))
     x = x / (np.max(np.abs(x)) or 1)
-    return np.tanh(x * 2.2)
+    return np.tanh(x * 1.8)
 
 
 def thud(seconds, f0, tau, seed=0):
-    """A heavy door's panel: a damped low body and the panel ringing a little over it."""
+    """A heavy, damped impact (a door shutting, the car settling): a burst of low noise under f0's octave, decaying in
+    `tau`, and a short knock over it. No tones: it was a sine body with panel partials at x2.7, x4.1, x6.3, which is how
+    a bell is made (2026-10-07, the user: "a horrible bell hitting sound")."""
     r = np.random.default_rng(seed)
     n = int(seconds * SR)
     t = t_of(n)
-    body = np.sin(2 * np.pi * (f0 + 35 * np.exp(-t / 0.012)) * t) * np.exp(-t / tau)
-    panel = sum(np.sin(2 * np.pi * f * t + r.random() * 6) * np.exp(-t / (tau * d)) * a
-                for f, d, a in ((f0 * 2.7, 0.5, 0.25), (f0 * 4.1, 0.35, 0.15), (f0 * 6.3, 0.25, 0.08)))
-    knock = padded_filter(r.normal(0, 1, n), lambda f: band(f, 90, 1100)) * np.exp(-t / 0.008)
-    return body * 1.3 + panel + knock * 0.7
+    body = padded_filter(r.normal(0, 1, n), lambda f: lowpass(f, f0 * 2.2, 3) * highpass(f, f0 * 0.5, 2))
+    body = body / (np.std(body[:int(0.04 * SR)]) or 1) * np.exp(-t / tau) * np.clip(t / 0.002, 0, 1)
+    knock = padded_filter(r.normal(0, 1, n), lambda f: band(f, 120, 1400)) * np.exp(-t / 0.006)
+    knock = knock / (np.std(knock[:int(0.01 * SR)]) or 1)
+    return body * 1.0 + knock * 0.35
 
 
 def click(seconds, at, bright=1.0, seed=0, tau=0.0025):
@@ -312,8 +314,7 @@ def click(seconds, at, bright=1.0, seed=0, tau=0.0025):
     n = int(seconds * SR)
     t = t_of(n)
     tt = np.clip(t - at, 0, None)
-    x = padded_filter(r.normal(0, 1, n), lambda f: band(f, 1800, 9000) * peak(f, 4200, 3, 1.2 * bright)) * np.exp(-tt / tau) * (t >= at)
-    x += np.sin(2 * np.pi * 2600 * tt) * np.exp(-tt / 0.004) * (t >= at) * 0.3
+    x = padded_filter(r.normal(0, 1, n), lambda f: band(f, 1500, 8000) * peak(f, 3600, 1.5, 0.6 * bright)) * np.exp(-tt / tau) * (t >= at)
     return x
 
 
@@ -323,6 +324,38 @@ def at(x, sec, total):
     m = min(len(x), len(out) - k)
     out[k:k + m] += x[:m]
     return out
+
+
+def crash(seconds=1.4, seed=80):
+    """Hitting something hard: the body's deep thump, the panels crumpling (a dense spray of short metal grains, each a
+    little burst of band-limited noise), the glass and the lamps going in shards. All noise (2026-10-07, the user: "a
+    horrible bell hitting sound": the van's crash is six ringing sine partials, a struck bell, and it played on every
+    false crash)."""
+    r = np.random.default_rng(seed)
+    n = int(seconds * SR)
+    t = t_of(n)
+    out = thud(seconds, 60, 0.09, seed=seed) * 1.2
+    # crumpling: grains, densest at the hit, thinning out
+    for _ in range(260):
+        at_ = r.exponential(0.12)
+        if at_ > seconds - 0.1:
+            continue
+        m = int(r.uniform(0.004, 0.02) * SR)
+        lo = r.uniform(250, 1800)
+        g = padded_filter(r.normal(0, 1, m), lambda f, lo=lo: band(f, lo, lo * 2.5), pad=0.01) * np.exp(-np.arange(m) / (m / 3))
+        k = int(at_ * SR)
+        out[k:k + m] += g[:n - k] * r.uniform(0.15, 0.6) * np.exp(-at_ / 0.3)
+    # glass: brittle high grains scattered over the first half second, a few bigger shards falling after
+    for _ in range(90):
+        at_ = 0.01 + r.exponential(0.12)
+        if at_ > seconds - 0.05:
+            continue
+        m = int(r.uniform(0.002, 0.008) * SR)
+        g = padded_filter(r.normal(0, 1, m), lambda f: band(f, 3500, 12000), pad=0.01) * np.exp(-np.arange(m) / (m / 4))
+        k = int(at_ * SR)
+        out[k:k + m] += g[:n - k] * r.uniform(0.05, 0.25)
+    out = padded_filter(out, lambda f: lowpass(f, 9000, 2))
+    return np.tanh(out / (np.max(np.abs(out)) or 1) * 1.6)
 
 
 def horn(seconds=0.5):
@@ -370,15 +403,13 @@ def loops():
     sec = 3.0
     n = int(sec * SR)
     t = t_of(n)
-    whine = np.zeros(n)
-    for f0, ph in ((2900, 0.0), (2975, 1.7)):                     # two turbos, never quite in step
-        f = round(f0 * sec) / sec
-        wob = 0.16 * np.sin(2 * np.pi * 2 / sec * t + ph)             # a slow waver (phase, whole cycles: it loops)
-        p = 2 * np.pi * f * t
-        whine += np.sin(p + wob) + 0.3 * np.sin(2 * p + 2 * wob)
+    # (2026-10-07) the compressors' whine a narrow band of noise round 2.9 kHz, under the air: it was two pure sines
+    # 75 Hz apart, a beating whistle
+    whine = loop_noise(sec, lambda f: peak(f, 2900, 18, 6) * band(f, 2300, 3600), seed=4)
+    whine = whine / np.std(whine)
     hiss = loop_noise(sec, lambda f: band(f, 900, 9000) * peak(f, 3200, 1.2, 1.2), seed=5)
     air = loop_noise(sec, lambda f: band(f, 200, 2500), seed=6)
-    save_level('skyline/turbo.ogg', whine * 0.22 + hiss / np.std(hiss) * 0.5 + air / np.std(air) * 0.35, -24.0)
+    save_level('skyline/turbo.ogg', whine * 0.3 + hiss / np.std(hiss) * 0.5 + air / np.std(air) * 0.4, -24.0)
     # the road: the tyres' roar, the tread's thrum
     road = loop_noise(3.0, lambda f: lowpass(f, 380, 2) * highpass(f, 30) * peak(f, 90, 1.5, 1.0) + 0.15 * band(f, 600, 1800),
                       lambda tt: 1 + 0.15 * np.sin(2 * np.pi * 30 / 3.0 * tt), seed=7)
@@ -488,8 +519,9 @@ def one_shots():
         seg = padded_filter(noise[s0:s0 + blk * 2], lambda f: peak(f, c, 1.5, 6) * band(f, 100, 12000), pad=0.05)[:blk]
         rush[s0:s0 + blk] = seg[:min(blk, n - s0)]
     rush = rush / np.std(rush) * rise
-    shimmer = sum(np.sin(2 * np.pi * f * t * (1 + 0.003 * np.sin(2 * np.pi * 5.5 * t + f))) for f in (523.3, 659.3, 784.0, 1046.5, 1568.0))
-    shimmer *= np.clip(t / 0.9, 0, 1) ** 2 * np.exp(-np.clip(t - 1.0, 0, None) / 0.35) * 0.12
+    # a shimmer: airy, bright noise swelling with the rush (it was a bowed chord of sines: a chime)
+    shimmer = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 3000, 12000))
+    shimmer = shimmer / np.std(shimmer) * np.clip(t / 0.9, 0, 1) ** 2 * np.exp(-np.clip(t - 1.0, 0, None) / 0.2) * 0.12
     crunch = np.zeros(n)
     for k in range(14):
         crunch += click(tot, 0.95 + rng.random() * 0.12, 0.3 + rng.random() * 0.5, seed=60 + k, tau=0.006) * (0.3 + rng.random() * 0.4)
@@ -497,6 +529,7 @@ def one_shots():
     out = rush * 0.35 + shimmer + crunch * 0.6 + settle
     save('skyline/summon.ogg', fade(out, 0.01, 0.2))
 
+    save('skyline/crash.ogg', fade(crash(), 0.001, 0.3))
     save('skyline/horn.ogg', fade(horn(0.5), 0.002, 0.04))
     save('skyline/screech.ogg', fade(screech(1.2), 0.01, 0.2))
 
@@ -525,8 +558,7 @@ def one_shots():
     n = len(rev)
     t = t_of(n)
     boost = np.clip((t - 1.7) / 0.8, 0, 1) ** 1.4 * (t < 2.72)
-    spool = np.sin(2 * np.pi * np.cumsum(1800 + 3200 * boost) / SR) * boost ** 1.5 * 0.08
-    spool += padded_filter(rng.normal(0, 1, n), lambda f: band(f, 1500, 8000) * peak(f, 3200, 2, 2)) * boost * 0.03
+    spool = padded_filter(rng.normal(0, 1, n), lambda f: band(f, 1500, 8000) * peak(f, 3200, 2, 2)) * boost * 0.05
     rev += spool
     rev += at(bov(1.0) * 0.55, 2.72, total)
     for t0, s in ((0.42, 0.7), (1.02, 0.6), (2.9, 0.9), (3.05, 0.5), (3.18, 0.8), (3.4, 0.4), (3.7, 0.35)):
@@ -551,7 +583,8 @@ def events():
             for suf in ('', '_in'):
                 e['%s_%d%s' % (kind, i, suf)] = 'engine' if (kind, i) == ('on', 0) else None
     e.update({'turbo': 'turbo', 'road': None, 'wind': None, 'shift': 'shift', 'blip': 'blip', 'pop': 'pop',
-              'door_open': 'door_open', 'door_close': 'door_close', 'summon': 'summon', 'horn': 'horn', 'screech': 'screech'})
+              'door_open': 'door_open', 'door_close': 'door_close', 'summon': 'summon', 'horn': 'horn', 'screech': 'screech',
+              'crash': 'crash'})
     return e
 
 

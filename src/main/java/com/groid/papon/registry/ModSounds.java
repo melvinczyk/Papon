@@ -50,6 +50,7 @@ public final class ModSounds {
     public static final RegistryObject<SoundEvent> SKYLINE_SUMMON = sound("skyline.summon");
     public static final RegistryObject<SoundEvent> SKYLINE_HORN = sound("skyline.horn");
     public static final RegistryObject<SoundEvent> SKYLINE_SCREECH = sound("skyline.screech");
+    public static final RegistryObject<SoundEvent> SKYLINE_CRASH = sound("skyline.crash");
 
     // the fight
     public static final RegistryObject<SoundEvent> BOSS_MUSIC = sound("music.boss");

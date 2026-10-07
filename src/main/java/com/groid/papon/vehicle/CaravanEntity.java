@@ -170,6 +170,12 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
     public float steerAngle;
     public float bodyRoll;
     public float bodyPitch;
+    /** Last tick's lean (drawn between the two: it stepped a tick at a time, a stutter seen from the seat). */
+    public float bodyRollO, bodyPitchO;
+
+    public float bodyRoll(float partial) { return Mth.lerp(partial, bodyRollO, bodyRoll); }
+
+    public float bodyPitch(float partial) { return Mth.lerp(partial, bodyPitchO, bodyPitch); }
     private double clientAlongPrev;
     private boolean doorWasOpened;
     private boolean wasJumping;
@@ -412,6 +418,12 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         Vec3 f = forward();
         Vec3 l = left();
         return position().add(f.x * z + l.x * x, y, f.z * z + l.z * x);
+    }
+
+    /** Something solid right ahead of it (dir 1) or behind it (-1), a block or a solid entity: what a crash hits. */
+    private boolean blockedToward(double dir) {
+        Vec3 d = forward().scale(dir * 0.45);
+        return !level().noCollision(this, getBoundingBox().move(d.x, 0.2, d.z).deflate(0.05, 0.1, 0.05));
     }
 
     /** Where to stand to get in behind the wheel: outside the driver's door. */
@@ -672,12 +684,15 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         lastYaw = getYRot();
 
         // hard stop against something: a crash (the driving player's client cannot tell us, so
-        // a sudden loss of speed counts too)
-        boolean crash = wallHit || (driver instanceof Player && Math.abs(measuredPrev) > 0.45 && Math.abs(measured) < 0.08);
+        // a sudden loss of speed counts too, but only with something there to have hit: 2026-10-07, a lag stall (no position
+        // from the client for a tick or two) read as a dead stop on an open road, crashing it at full speed out of nowhere)
+        boolean crash = wallHit || (driver instanceof Player && Math.abs(measuredPrev) > 0.45 && Math.abs(measured) < 0.08
+                && blockedToward(Math.signum(measuredPrev)));
         wallHit = false;
         if (crash) {
             crashed = true;
-            level.playSound(null, getX(), getY(), getZ(), ModSounds.CARAVAN_CRASH.get(), SoundSource.NEUTRAL, 2.0F, 0.9F + random.nextFloat() * 0.2F);
+            level.playSound(null, getX(), getY(), getZ(), (isSkyline() ? ModSounds.SKYLINE_CRASH : ModSounds.CARAVAN_CRASH).get(), SoundSource.NEUTRAL,
+                    isSkyline() ? 1.6F : 2.0F, 0.9F + random.nextFloat() * 0.2F);
             Vec3 nose = local(0, 0.8, HALF_LENGTH * Math.signum(measuredPrev == 0 ? 1 : measuredPrev));
             com.groid.papon.fx.Fx.hit(level, nose, 1.4F, 0xFFFFFF);
             com.groid.papon.fx.Fx.smoke(level, nose, 3, 0.4, 1.0F, 0x5A5450);
@@ -822,6 +837,8 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         float wantSteer = Math.abs(along) < 0.01 ? steerAngle * 0.9F
                 : Mth.clamp(yawDelta / (float) Math.max(0.15, Math.abs(along)) * 3.0F * (float) -Math.signum(along), -30F, 30F);
         steerAngle += (wantSteer - steerAngle) * 0.35F;
+        bodyRollO = bodyRoll;
+        bodyPitchO = bodyPitch;
         bodyRoll += (Mth.clamp(yawDelta * (float) Math.abs(along) * 2.2F, -6F, 6F) - bodyRoll) * 0.25F;
         double accel = along - clientAlongPrev;
         clientAlongPrev = along;
@@ -987,7 +1004,11 @@ public class CaravanEntity extends LivingEntity implements GeoEntity {
         controllers.add(new AnimationController<>(this, "door", 0, this::animateDoor).setSoundKeyframeHandler(this::onSoundCue));
     }
 
-    private PlayState animateEngine(AnimationState<CaravanEntity> event) { return event.setAndContinue(isEngineOn() ? IDLE : PARKED); }
+    /**
+     * The van shudders at idle; the Skyline does not (2026-10-07, the user: "maybe shaking too much"): its body bob, 7 mm
+     * and unseen from outside, shook the whole cockpit 5 px at 5 Hz from the driver's seat, half a block from the dash.
+     */
+    private PlayState animateEngine(AnimationState<CaravanEntity> event) { return event.setAndContinue(isEngineOn() && !isSkyline() ? IDLE : PARKED); }
 
     private PlayState animateDoor(AnimationState<CaravanEntity> event) {
         if (isDoorOpen()) return event.setAndContinue(DOOR_OPEN);

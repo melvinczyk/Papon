@@ -480,5 +480,6 @@
   "skyline.off_7_in": {"sounds": [{"name": "papon:skyline/off_7_in"}]},
   "skyline.summon": {"sounds": [{"name": "papon:skyline/summon"}], "subtitle": "subtitles.papon.skyline.summon"},
   "skyline.horn": {"sounds": [{"name": "papon:skyline/horn"}], "subtitle": "subtitles.papon.skyline.horn"},
-  "skyline.screech": {"sounds": [{"name": "papon:skyline/screech"}], "subtitle": "subtitles.papon.skyline.screech"}
+  "skyline.screech": {"sounds": [{"name": "papon:skyline/screech"}], "subtitle": "subtitles.papon.skyline.screech"},
+  "skyline.crash": {"sounds": [{"name": "papon:skyline/crash"}], "subtitle": "subtitles.papon.skyline.crash"}
 }

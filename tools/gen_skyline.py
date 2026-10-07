@@ -164,6 +164,7 @@ R_SIDE = {1: (0, 576, 512, 96), -1: (0, 672, 512, 96)}   # the body's sides (u a
 R_DASH = (512, 640, 128, 128)
 R_CARBON = (640, 640, 128, 128)
 R_DOORCARD = (768, 640, 128, 128)
+R_MIRROR = (896, 640, 64, 32)                               # what a mirror's glass shows: sky over the road behind
 SIDE_Y0, SIDE_Y1 = 21.5, 2.0                                 # the side regions' top and bottom (px)
 
 
@@ -413,6 +414,26 @@ def paint_interior():
         d.ellipse([c[0] - rr, c[1] - rr, c[0] + rr, c[1] + rr], outline=(30, 30, 33, 255))
     d.rounded_rectangle([w * 0.62, h * 0.24, w * 0.76, h * 0.3], radius=2, fill=(150, 152, 158, 255))   # the inside handle
     A.img.paste(im, (x0, y0))
+
+
+def paint_mirror():
+    """A mirror's glass: the sky behind (pale at the horizon), the road under it, a soft sheen across (a flat grey box read
+    as a grey box)."""
+    x0, y0, w, h = R_MIRROR
+    yy, xx = np.mgrid[0:h, 0:w] / np.array([h, w])[:, None, None]
+    sky = np.array([150, 176, 205]) * (0.8 + 0.2 * yy[..., None] / 0.55)
+    road = np.array([70, 72, 76]) * (1.0 - 0.3 * (yy[..., None] - 0.55) / 0.45)
+    rgb = np.where(yy[..., None] < 0.55, sky, road)
+    rgb = rgb * (0.9 + 0.2 * np.exp(-((xx[..., None] - yy[..., None] * 0.6 - 0.25) / 0.12) ** 2))
+    A.img.paste(Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).convert('RGBA'), (x0, y0))
+
+
+def mirror_face(pts):
+    """The glass of a mirror (a box face): the region stretched over it, upright."""
+    P = np.array(pts, float)
+    span = P.max(0) - P.min(0)
+    a = 0 if span[0] >= span[2] else 2
+    return [region_uv(R_MIRROR, (p[a] - P[:, a].min()) / max(span[a], 1e-6), (P[:, 1].max() - p[1]) / max(span[1], 1e-6)) for p in pts]
 
 
 def planar(region, dens=6.0):
@@ -1151,10 +1172,24 @@ def build_interior():
         x = sx * 7.4
         box((x - 4.6, 4.2, 16.0), (x + 4.6, 8.6, 22.6), 'seat', bevel=0.9)
         box((x - 4.6, 8.0, 22.4), (x + 4.6, 18.4, 25.0), 'seat', bevel=0.9, rot=(18, 0, 0), pivot=(x, 8.0, 22.4))
-    # the rear-view mirror off the top of the windshield
-    box((-2.4, 24.6, -2.4), (2.4, 25.8, -1.7), 'trim', bevel=0.2)
-    box((-2.2, 24.8, -2.45), (2.2, 25.6, -2.4), 'mirror')
-    box((-0.3, 25.8, -2.3), (0.3, 26.9, -1.8), 'trim')
+    # the rear-view mirror (2026-10-07, the user: "it is not attached to the roof"): its stem went up through the clear
+    # windshield to nothing, its glass faced the windshield. Now a black ceramic pad bonded under the glass at its top (as
+    # on a real windshield: what it hangs from reads), the stem down from it, the housing tilted to the driver (on -X), the
+    # glass on its back, toward you
+    # the pad: a black band under the glass from the mount back under the roof's front edge, following the glass's curve
+    # in short tilted pieces (it stopped short of the roof: with the clear glass between, it still read as floating)
+    zs = np.arange(-2.6, 3.01, 0.4)
+    for z0, z1 in zip(zs[:-1], zs[1:]):
+        y0, y1 = float(roof_y(z0)) - 0.62, float(roof_y(z1)) - 0.62
+        tilt = -math.degrees(math.atan2(y1 - y0, z1 - z0))
+        zc, yc = 0.5 * (z0 + z1), 0.5 * (y0 + y1)
+        half = 0.5 * math.hypot(z1 - z0, y1 - y0) + 0.03
+        box((-3.0, yc - 0.1, zc - half), (3.0, yc + 0.1, zc + half), 'trim', rot=(tilt, 0, 0), pivot=(0, yc, zc))
+    py = float(roof_y(-0.7)) - 0.62
+    box((-0.32, 25.5, -0.95), (0.32, py + 0.05, -0.4), 'trim', bevel=0.12)
+    mc = (0.0, 25.15, -1.2)
+    box((-2.6, 24.45, -1.55), (2.6, 25.85, -0.85), 'trim', bevel=0.3, rot=(8, -14, 0), pivot=mc)
+    box((-2.35, 24.65, -0.86), (2.35, 25.65, -0.8), 'mirror', rot=(8, -14, 0), pivot=mc, uvface=mirror_face)
 
 
 def build_steering_wheel():
@@ -1224,7 +1259,7 @@ def build_details():
         xa, xb = X(17.7, 20.5)
         box((xa, 17.85, -11.95), (xb, 20.35, -9.95), 'paint', b, bevel=0.65, extra=('gloss',), rot=(0, sx * -7, 0))
         xa, xb = X(17.95, 20.25)
-        box((xa, 18.1, -10.0), (xb, 20.1, -9.86), 'mirror', b, rot=(0, sx * -7, 0), pivot=(sx * 19.1, 19.1, -10.95))
+        box((xa, 18.1, -10.0), (xb, 20.1, -9.86), 'mirror', b, rot=(0, sx * -7, 0), pivot=(sx * 19.1, 19.1, -10.95), uvface=mirror_face)
         # side marker on the front fender, amber
         fx = sx * (float(HALF(-36)) + 0.05)
         box((fx - 0.12, 11.6, -37.4), (fx + 0.12, 12.4, -35.6), 'lamp_amber', 'body', extra=('lamps',))
@@ -1255,6 +1290,7 @@ def build():
     paint_details()
     paint_sides()
     paint_interior()
+    paint_mirror()
     build_body()
     build_cabin()
     build_wells()
