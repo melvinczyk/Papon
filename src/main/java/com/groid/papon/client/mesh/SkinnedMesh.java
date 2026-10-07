@@ -43,6 +43,8 @@ public final class SkinnedMesh {
      * gauges, paint); empty for a mesh drawn whole. A run may repeat polygons another one has.
      */
     public final Map<String, int[]> groups = new HashMap<>();
+    /** Sections a renderer reads for itself (Makima's "face" and "hands": client/MakimaFace), as the file has them. */
+    public final Map<String, JsonObject> extras = new HashMap<>();
 
     private SkinnedMesh(JsonObject json) {
         texture = new ResourceLocation(json.get("texture").getAsString());
@@ -63,6 +65,7 @@ public final class SkinnedMesh {
                 groups.put(e.getKey(), new int[]{r.get(0).getAsInt(), r.get(1).getAsInt()});
             }
         }
+        for (String k : new String[]{"face", "hands"}) if (json.has(k)) extras.put(k, json.getAsJsonObject(k));
         for (int i = 0; i < positions.length; i += 3) {
             positions[i] = -positions[i] / 16F;
             positions[i + 1] /= 16F;
