@@ -1,0 +1,1 @@
+{"variants":{"facing=north":{"model":"papon:block/trash_can","y":0},"facing=east":{"model":"papon:block/trash_can","y":90},"facing=south":{"model":"papon:block/trash_can","y":180},"facing=west":{"model":"papon:block/trash_can","y":270}}}

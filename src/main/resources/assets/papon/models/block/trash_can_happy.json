@@ -1,0 +1,1 @@
+{"parent":"minecraft:block/block","render_type":"minecraft:cutout","textures":{"particle":"papon:block/trash_can_side","face":"papon:block/trash_can_happy"},"elements":[{"from":[3,0,1.98],"to":[13,12,1.98],"faces":{"north":{"texture":"#face"}}}]}

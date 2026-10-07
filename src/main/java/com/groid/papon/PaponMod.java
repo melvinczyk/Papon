@@ -33,6 +33,7 @@ public class PaponMod {
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         ModBlocks.REGISTRY.register(bus);
         ModBlockEntities.REGISTRY.register(bus);
+        com.groid.papon.registry.ModMenus.REGISTRY.register(bus);
         ModEntities.REGISTRY.register(bus);
         ModItems.REGISTRY.register(bus);
         ModParticles.REGISTRY.register(bus);
@@ -80,6 +81,8 @@ public class PaponMod {
             event.accept(ModItems.CARAVAN_KEYS);
             event.accept(ModItems.SKYLINE_FOB);
             event.accept(ModItems.BODY_PILLOW);
+        } else if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
+            event.accept(ModItems.TRASH_CAN);
         } else if (event.getTabKey() == CreativeModeTabs.SPAWN_EGGS) { ModItems.SPAWN_EGGS.forEach(event::accept); }
     }
 }
