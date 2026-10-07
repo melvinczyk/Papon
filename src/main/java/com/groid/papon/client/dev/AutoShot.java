@@ -105,6 +105,9 @@ public final class AutoShot {
     /** -Pautoshot=wildgiant: El Gigante out of its spawn egg on open ground: the dig, its hunt and every act on its own, then
      *  its rift closing and the drag under (papon_w*.png; every act logged). */
     private static final boolean WILD_GIANT = MODE.equals("wildgiant");
+    /** -Pautoshot=glocke: Die Glocke on a slab at 6600 6600: four sides standing still, then running (the drums, the glow),
+     *  a close-up of its window and one at night (papon_g*.png). */
+    private static final boolean GLOCKE = MODE.equals("glocke");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -172,6 +175,10 @@ public final class AutoShot {
         }
         if (WILD_GIANT) {
             wildGiant(mc);
+            return;
+        }
+        if (GLOCKE) {
+            glocke(mc);
             return;
         }
         if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4 || CLIMAX || PHASES) {
@@ -1880,6 +1887,46 @@ public final class AutoShot {
     }
 
     private static int wildArrived = -1;
+
+    private static int glockeAt = -1;
+    private static Vec3 glockePos;
+
+    private static void glocke(Minecraft mc) {
+        if (tick == 40) run("ride @s dismount", "gamemode creative", "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000",
+                "gamerule doMobSpawning false", "kill @e[type=papon:die_glocke]", "tp @s 6600 200 6600");
+        boolean there = Math.abs(mc.player.getX() - 6600) < 40 && Math.abs(mc.player.getZ() - 6600) < 40;
+        if (glockeAt < 0) {
+            if (there && tick % 20 == 0) run("execute positioned 6600 0 6600 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            if (there && tick > 80 && mc.player.getY() < 190 && mc.player.getAbilities().flying == false) glockeAt = tick;
+            return;
+        }
+        int a = tick - glockeAt;
+        if (a == 10) {
+            run("execute at @s run fill ~-10 ~-1 ~-16 ~10 ~-1 ~4 polished_deepslate", "execute at @s run fill ~-10 ~ ~-16 ~10 ~12 ~4 air",
+                    "execute at @s run summon papon:die_glocke ~ ~ ~-6 {Rotation:[0f,0f]}");
+            glockePos = mc.player.position().add(0, 0, -6);
+        }
+        if (glockePos == null) return;
+        mc.options.hideGui = a > 30;
+        Vec3 c = glockePos.add(0, 1.4, 0);
+        // four sides, still; then running
+        int[] yaws = {0, 90, 180, 270};
+        for (int i = 0; i < 4; i++) {
+            double r = Math.toRadians(yaws[i] + 25);
+            if (a == 40 + i * 20) tpLook(glockePos.add(Math.sin(r) * 5.5, 0.4, -Math.cos(r) * 5.5), c);
+            if (a == 52 + i * 20) shot(mc, "g0" + i + "_still_" + yaws[i]);
+        }
+        if (a == 125) run("data merge entity @e[type=papon:die_glocke,limit=1,sort=nearest] {Active:1b}");
+        if (a == 300) tpLook(glockePos.add(3.5, 0.6, -4.5), c);
+        if (a == 310 || a == 316 || a == 322) shot(mc, "g1" + (a - 310) / 6 + "_running");
+        if (a == 330) tpLook(glockePos.add(0.6, 0.1, -2.6), glockePos.add(0, 1.25, 0));
+        if (a == 342) shot(mc, "g20_window");
+        if (a == 350) { run("time set 18000"); tpLook(glockePos.add(-3.5, 0.6, -4.8), c); }
+        if (a == 380) shot(mc, "g30_night");
+        if (a == 390) run("data merge entity @e[type=papon:die_glocke,limit=1,sort=nearest] {Active:0b}");
+        if (a == 560) shot(mc, "g31_night_off");
+        if (a == 580) mc.stop();
+    }
 
     private static void wildGiant(Minecraft mc) {
         if (tick == 40) run("ride @s dismount", "gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",

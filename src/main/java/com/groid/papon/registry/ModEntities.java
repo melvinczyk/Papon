@@ -132,6 +132,15 @@ public final class ModEntities {
                     .updateInterval(2)
                     .build(PaponMod.id("spirit_giant").toString()));
 
+    // Die Glocke: no use yet, the model to stand somewhere (spawn egg; entity/DieGlockeEntity).
+    public static final RegistryObject<EntityType<com.groid.papon.entity.DieGlockeEntity>> DIE_GLOCKE = REGISTRY.register("die_glocke",
+            () -> EntityType.Builder.<com.groid.papon.entity.DieGlockeEntity>of(com.groid.papon.entity.DieGlockeEntity::new, MobCategory.MISC)
+                    .sized(1.75F, 3.0F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(10)
+                    .build(PaponMod.id("die_glocke").toString()));
+
     // Phase four: the muchachas, skeleton salsa dancers by the stage
     public static final RegistryObject<EntityType<com.groid.papon.boss.SalsaDancerEntity>> SALSA_DANCER = REGISTRY.register("salsa_dancer",
             () -> EntityType.Builder.<com.groid.papon.boss.SalsaDancerEntity>of(com.groid.papon.boss.SalsaDancerEntity::new, MobCategory.MISC)
