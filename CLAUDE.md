@@ -110,7 +110,8 @@ jump: kneel and lift them to your face; punch takes her back. Bed hump: she lies
 jump rolls her onto her knees, face down, you kneeling **behind** her; off the bed she sits back up. **Every side**: right-click
 from beside the bed and you stand at its side (she lies across it on her back, legs on your shoulders; jump: on her knees, bent
 over it). **Post Nut Clarity** (`effect/PostNutClarityEffect`): 30 s of humping (in hand or on a bed; a 10 s pause resets) gives
-15 s of -35% speed + hidden nausea, a title, and you can only hug her till it wears off.
+3 min: -35% speed, lower jumps, attacks -30%/slower, mining halved, can't sleep, nausea at first then in waves, only hugging
+her; grey thoughts from a pool (`message.papon.clarity.N`, counts in `THOUGHTS/NOT_NOW/SLEEPLESS`: lore, you killed him for this).
 
 **User's song/voice files (gitignored, never download, e.g. from YouTube)**: `tools/src/song/` (Canción del Mariachi,
 `para_siempre.mp3` from `~/Downloads/Para Siempre.mp3`, `persona_ideal.mp3`), `tools/src/voice/reference.mp3`,

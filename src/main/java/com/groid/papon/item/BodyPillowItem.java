@@ -49,6 +49,8 @@ public class BodyPillowItem extends Item {
         if (!(level.getBlockState(ctx.getClickedPos()).getBlock() instanceof BedBlock) || ctx.getPlayer() == null || ctx.getPlayer().isCrouching()) {
             return InteractionResult.PASS;
         }
+        // not in the clarity after (effect/PostNutClarityEffect): you cannot face laying her on a bed
+        if (com.groid.papon.effect.PostNutClarityEffect.refractory(ctx.getPlayer())) return InteractionResult.FAIL;
         if (level.isClientSide) return InteractionResult.SUCCESS;
         BodyPillowEntity pillow = BodyPillowEntity.place(level, ctx.getClickedPos());
         if (pillow == null) {

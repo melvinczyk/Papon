@@ -675,6 +675,23 @@ public final class AutoShot {
                         mc.player.getVehicle());
             }
             case 694 -> shot(mc, "pl15n_not_now");
+            case 696 -> {
+                // the clarity's other hindrances: no sleep, weaker attacks, slower
+                IntegratedServer srv = mc.getSingleplayerServer();
+                var id = mc.player.getUUID();
+                var pillow = nearest(mc, com.groid.papon.entity.BodyPillowEntity.class);
+                var bed = pillow == null ? null : pillow.bed();
+                if (srv != null && bed != null) srv.execute(() -> {
+                    ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+                    if (sp == null) return;
+                    var slept = sp.startSleepInBed(bed);
+                    PaponMod.LOG.info("[autoshot] clarity sleep {} speed {} damage {} effect left {}", slept.left().map(Object::toString).orElse("slept"),
+                            sp.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED),
+                            sp.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE),
+                            sp.getEffect(com.groid.papon.registry.ModEffects.POST_NUT_CLARITY.get()).getDuration());
+                });
+            }
+            case 698 -> shot(mc, "pl15o_sleepless");
             case 700 -> {
                 System.clearProperty("papon.clarity");
                 run("effect clear @s");
