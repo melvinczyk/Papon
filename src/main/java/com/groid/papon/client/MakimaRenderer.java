@@ -47,11 +47,17 @@ import java.util.WeakHashMap;
  * Standing, her head and neck follow you; walking (she follows you) the stride runs at her speed.
  */
 public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
-    /** Her lips and her eyes from the head bone's pivot (blocks, front -Z; tracked bone matrices are taken at the pivot). */
-    private static final Vector4f MOUTH = new Vector4f(0F, 0.018F, -0.077F, 1F);
+    /**
+     * Her lips in the mesh's own space (blocks, as SkinnedMesh loads it: the geo's "mouth" locator / 16, x mirrored), put through
+     * the head's pose exactly as the mesh is. (GeckoLib's tracked world matrix put it behind her head: the old drool fell from
+     * the back of her hair.)
+     */
+    private static final Vector4f MOUTH = new Vector4f(0F, 27.45F / 16, -1.229F / 16, 1F);
     private static final ResourceLocation WHITE = PaponMod.id("textures/misc/white.png");
 
     private final Map<String, Matrix4f> poses = new HashMap<>();
+    /** The pose stack's top as render() was handed it (her position relative to the camera, in view space). */
+    private Matrix4f root;
     private final Map<String, Matrix3f> normalPoses = new HashMap<>();
     private float[] px = new float[0];
     private float[] nx = new float[0];
@@ -256,16 +262,10 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
     @Override
     public void render(MakimaEntity e, float yaw, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
         shadowRadius = e.posture() == MakimaEntity.Position.STAND ? 0.4F : 0.85F;
+        root = new Matrix4f(pose.last().pose());
         super.render(e, yaw, partial, pose, buffers, light);
         Drool d = DROOL.computeIfAbsent(e, k -> new Drool());
         d.render(e, partial, pose, buffers, light);
-    }
-
-    @Override
-    public void preRender(PoseStack pose, MakimaEntity e, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,
-                          boolean reRender, float partial, int light, int overlay, float r, float g, float b, float a) {
-        model.getBone("head").ifPresent(bone -> bone.setTrackingMatrices(true));
-        super.preRender(pose, e, model, buffers, buffer, reRender, partial, light, overlay, r, g, b, a);
     }
 
     @Override
@@ -280,11 +280,16 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
     public void renderFinal(PoseStack pose, MakimaEntity e, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,
                             float partial, int light, int overlay, float r, float g, float b, float a) {
         super.renderFinal(pose, e, model, buffers, buffer, partial, light, overlay, r, g, b, a);
-        model.getBone("head").ifPresent(head -> {
+        Matrix4f headPose = poses.get("head");
+        if (headPose != null && root != null) {
+            // the bone poses are in view space (the camera's turn is on the stack): back to the world through the stack's
+            // root as render() was handed it (her position, the camera's turn)
             Drool d = DROOL.computeIfAbsent(e, k -> new Drool());
-            d.mouth = head.getWorldSpaceMatrix().transform(new Vector4f(MOUTH));
+            Vector4f at = new Matrix4f(root).invert().mul(headPose).transform(new Vector4f(MOUTH));
+            Vec3 o = e.getPosition(partial);
+            d.mouth = new Vector4f((float) (at.x + o.x), (float) (at.y + o.y), (float) (at.z + o.z), 1F);
             hearts(e, d.mouth);
-        });
+        }
         SkinnedMesh mesh = SkinnedMesh.get("makima");
         if (mesh == null || e.isInvisible()) return;
         Matrix4f[] m = new Matrix4f[mesh.bones.length];
@@ -465,6 +470,13 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
                         .overlayCoords(0, 10).uv2(light).normal(nm, 0, 1, 0).endVertex();
             }
         }
+    }
+
+    /** Where her lips were last drawn (world), or null. */
+    @org.jetbrains.annotations.Nullable
+    public static Vec3 mouth(MakimaEntity e) {
+        Drool d = DROOL.get(e);
+        return d == null || d.mouth == null ? null : new Vec3(d.mouth.x, d.mouth.y, d.mouth.z);
     }
 
     /** For the dev tour (client/dev/AutoShot): where her mouth is drawn and how long the strand is. */

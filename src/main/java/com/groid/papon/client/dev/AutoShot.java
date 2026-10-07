@@ -1287,7 +1287,18 @@ public final class AutoShot {
                 case 60 -> shot(mc, name + "_fp");
                 case 62 -> opts.setCameraType(CameraType.THIRD_PERSON_BACK);
                 case 72 -> shot(mc, name + "_tp");
-                case 74 -> opts.setCameraType(CameraType.FIRST_PERSON);
+                case 74 -> {
+                    Vec3 mo = com.groid.papon.client.MakimaRenderer.mouth(makima);
+                    if (mo != null) camAt(mc, mo.add(r.scale(0.45)).add(f.scale(0.25)).add(0, 0.12, 0), mo);
+                }
+                case 79 -> {
+                    shot(mc, name + "_face");
+                    PaponMod.LOG.info("[autoshot] makima {} drool {}", makima.posture(), com.groid.papon.client.MakimaRenderer.debugDrool(makima));
+                }
+                case 81 -> {
+                    mc.setCameraEntity(mc.player);
+                    opts.setCameraType(CameraType.FIRST_PERSON);
+                }
                 case 85 -> {
                     if (k < 5) com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.PillowSwap());
                 }

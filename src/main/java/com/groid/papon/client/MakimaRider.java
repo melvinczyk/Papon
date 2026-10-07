@@ -297,7 +297,7 @@ public final class MakimaRider {
         // her position and the pace beside the hotbar
         String pos = m.posture().name().toLowerCase();
         Component label = Component.translatable("hud.papon.makima.label", Component.translatable("hud.papon.makima.pos." + pos),
-                Component.translatable("hud.papon.makima.tempo." + TEMPO[m.tempo()]));
+                Component.translatable("hud.papon.makima.tempo." + (m.climax() > 0 ? "climax" : TEMPO[m.tempo()])));
         g.drawString(mc.font, label, w / 2 + 98, h - 15, m.climax() > 0 ? 0xFFFFB0D0 : 0xFFF2C6D6, true);
         // the keys, for the first ten seconds with her (above the game's own line over the hotbar)
         if (mc.player.tickCount - mountedAt < 200) {
