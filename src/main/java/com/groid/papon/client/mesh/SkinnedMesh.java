@@ -36,6 +36,8 @@ public final class SkinnedMesh {
     public final float[] weights;
     /** Corners per polygon in {@link #indices}: 4 (quads; a triangle repeats its last corner) or 3. */
     public final int corners;
+    /** Bones per vertex in {@link #joints} and {@link #weights} (2 unless the mesh says: Makima's has 4). */
+    public final int influences;
     /**
      * Named runs of {@link #indices} (start, count) a renderer draws in passes of their own (the Skyline's glass, lamps,
      * gauges, paint); empty for a mesh drawn whole. A run may repeat polygons another one has.
@@ -54,6 +56,7 @@ public final class SkinnedMesh {
         joints = ints(json.getAsJsonArray("joints"));
         weights = floats(json.getAsJsonArray("weights"));
         corners = json.has("corners") ? json.get("corners").getAsInt() : 3;
+        influences = json.has("influences") ? json.get("influences").getAsInt() : 2;
         if (json.has("groups")) {
             for (var e : json.getAsJsonObject("groups").entrySet()) {
                 JsonArray r = e.getValue().getAsJsonArray();

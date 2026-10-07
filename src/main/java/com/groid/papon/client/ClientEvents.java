@@ -27,6 +27,7 @@ public final class ClientEvents {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.START) {
             freeze();
+            MakimaRider.keys();
             return;
         }
         if (event.phase != TickEvent.Phase.END) return;
@@ -66,6 +67,7 @@ public final class ClientEvents {
         if (Cinematic.isActive()) event.setRoll(event.getRoll() + Cinematic.roll());
         ScreenShake.apply(event);
         PillowClient.camera(event);
+        MakimaRider.camera(event);
         SkylineCockpit.camera(event);
         String phase = com.groid.papon.client.dev.AutoShot.shakePhase();
         if (phase != null) {
@@ -148,7 +150,10 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onFov(ViewportEvent.ComputeFov event) {
         if (Cinematic.isActive()) event.setFOV(Cinematic.fov());
-        else SkylineCockpit.fov(event);
+        else {
+            SkylineCockpit.fov(event);
+            MakimaRider.fov(event);
+        }
     }
 
     /** Phase three's spotlight, over the finished world (BossRenderer.drawSpotlights). */

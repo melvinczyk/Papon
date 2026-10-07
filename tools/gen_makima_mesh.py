@@ -2,22 +2,25 @@
 """Makima (entity/MakimaEntity) as a skinned mesh, from the user's model (tools/src/makima/, gitignored:
 makima_pose.fbx and its five BaseColor textures).
 
-  python3.11 tools/gen_makima_mesh.py
+  python tools/gen_makima_mesh.py
 
-The model is one unrigged mesh in her pose (both hands in front of her chest, fingers crossed), a
-clothed shell: no body under the shirt and trousers. Blender (tools/makima_fbx.py) dumps it; here it
-is rigged onto the bones below (her pose is the bind pose) and skinned by body part:
+The model is one unrigged mesh in her pose (upper arms out level, forearms crossed in front of her chest), a clothed shell:
+no body under the shirt and trousers. Blender (tools/makima_fbx.py) dumps it; without the FBX (it lives on the Mac) the rest
+geometry is read back out of the built mesh itself (meshes/makima.json: positions, UVs and triangles never change here, only
+the rig), so the rig can be rebuilt anywhere. Her pose is the bind pose; the skeleton (2026-10-07, the user: "drastically
+improve its model"):
 
-  head    face, neck, ears, eyes and hair, the neck blended into the chest
-  braid   the braid down her back, from the back of her head
-  chest   shirt (above the waist) and tie; arms and forearms out of the sleeves; hands on the forearms
-  torso   the pelvis: the trousers' seat and the shirt's tucked hem; legs and shins below it, each
-          side kept to its own leg; shoes and feet on the shins
+  torso (pelvis) > spine > chest > neck > head > braid > braid2 > braid3      the braid a chain, swung by the renderer
+  chest > breast_l/r (bounce), tie (hangs, MakimaRenderer turns it to the ground), shoulder_l/r (clavicle) > arm > forearm > hand
+  torso > leg > shin > foot
 
-Every vertex follows the two bones it is nearest (distance to each bone's segment less its radius,
-blended over TAU). Her five textures go into one 2048 atlas (QUADS). Writes, under
-src/main/resources/assets/papon/: meshes/makima.json, textures/entity/makima_mesh.png and
-geo/entity/makima_mesh.geo.json (rig only: every bone of the animations in gen_makima_anims.py).
+Weights: every piece gets hard labels first (the nearest bone segment among the ones it may follow: a hand only its hand, a
+trouser leg only its side's leg, the shirt the body and both arms), then the shirt, trousers, face and back hair are diffused
+over their own surface (heat flow, implicit, SIGMA wide: a smooth bend at every joint, never across a gap), the bust laid on
+the chest as two soft ellipsoids, and each vertex keeps its INFLUENCES strongest bones. Her five textures go into one 2048
+atlas (QUADS). Writes, under src/main/resources/assets/papon/: meshes/makima.json, textures/entity/makima_mesh.png (only from
+the FBX's textures) and geo/entity/makima_mesh.geo.json (rig only: every bone of the animations in gen_makima_anims.py, and
+the locators they and the renderer use).
 """
 import json
 import os
@@ -30,6 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
 SRC = os.path.join(ROOT, 'tools/src/makima')
 RAW = os.path.join(ROOT, 'tools/.cache/makima/raw.npz')
+BUILT = os.path.join(ASSETS, 'meshes/makima.json')
 BLENDER = os.environ.get('BLENDER', '/Applications/Blender.app/Contents/MacOS/Blender')
 
 MATS = ['skin', 'trouser', 'shirt', 'hair', 'eyes']          # tools/makima_fbx.py MATS, in order
@@ -39,22 +43,37 @@ ATLAS = 2048
 QUADS = {'skin': (0, 0, 1024), 'shirt': (1024, 0, 1024), 'hair': (0, 1024, 1024), 'trouser': (1024, 1024, 768),
          'eyes': (1792, 1024, 256)}
 PX = 16 * 1.2           # rig pixels per metre: 1.63 m tall -> 1.96 blocks (the user: bigger)
-TAU = 0.012             # metres over which a vertex blends between two bones
+INFLUENCES = 4          # bones per vertex (SkinnedMesh "influences")
+SIGMA = 0.034           # metres: how wide a joint's bend is spread over the surface
+TAU = 0.012             # metres over which a hard label prefers the nearer of two segments
 
-# Bones in the model's metres (Z up, her front toward -Y, her left at +X): pivot, parent, and the segment
-# (start, end, radius) a vertex measures its distance to. Measured off the mesh (slices of the trousers
-# and sleeves); wrists come from the hands (wrist()).
+# Joints in the model's metres (Z up, her front toward -Y, her left at +X). Measured off the mesh (slices of the trousers,
+# sleeves, shirt and hair); wrists come from the hands (wrist()).
 HIP = (0.0, 0.0, 0.90)
-WAIST = (0.0, 0.0, 1.06)
-NECK = (0.0, 0.0, 1.38)
+WAIST = (0.0, 0.0, 1.04)
+CHEST = (0.0, 0.0, 1.17)
+NECK = (0.0, 0.0, 1.33)
+HEAD = (0.0, 0.0, 1.41)
+CLAVICLE = {'l': (0.025, 0.0, 1.32), 'r': (-0.025, 0.0, 1.32)}
 SHOULDER = {'l': (0.15, 0.01, 1.30), 'r': (-0.15, 0.01, 1.30)}
 ELBOW = {'l': (0.255, 0.025, 1.28), 'r': (-0.235, 0.015, 1.27)}
 HIPJ = {'l': (0.07, 0.0, 0.86), 'r': (-0.065, 0.0, 0.86)}
 KNEE = {'l': (0.062, 0.0, 0.47), 'r': (-0.04, 0.01, 0.47)}
 ANKLE = {'l': (0.08, 0.03, 0.08), 'r': (-0.035, 0.035, 0.08)}
-BRAID = (0.0, 0.12, 1.44)
-MOUTH = (0.0, -0.064, 1.425)     # her lips (client/MakimaRenderer.MOUTH drools from here)
-BRAID_FROM = (1.38, 1.46)        # the back hair is the head's above this band, the braid's below it
+TOE = {'l': (0.09, -0.09, 0.02), 'r': (-0.03, -0.085, 0.02)}
+BRAID = [(0.0, 0.11, 1.42), (0.01, 0.137, 1.32), (0.02, 0.135, 1.22), (0.03, 0.135, 1.11)]     # pivots, then the tip
+BREAST = {'l': (0.055, -0.07, 1.21), 'r': (-0.055, -0.07, 1.21)}
+BREAST_R = (0.068, 0.07, 0.075)          # the soft ellipsoid each breast's weight falls off over (x, y, z radii)
+TIE = ((0.0, -0.03, 1.33), (-0.032, -0.115, 1.07))     # knot, tip
+MOUTH = (0.0, -0.064, 1.425)     # her lips (MakimaRenderer drools from here)
+EYES = (0.0, -0.045, 1.478)      # between her eyes (the rider's camera looks here: client/MakimaRider)
+CROTCH = (0.0, 0.0, 0.81)        # where her legs part (the rider's hips meet her here: gen_makima_anims fit)
+SEAT = (0.0, 0.095, 0.91)        # the back of her hips
+LAP = (0.0, -0.08, 0.86)         # the front of her hips
+
+BONES = ['torso', 'spine', 'chest', 'neck', 'head', 'braid', 'braid2', 'braid3', 'breast_l', 'breast_r', 'tie',
+         'shoulder_l', 'shoulder_r', 'arm_l', 'arm_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r',
+         'leg_l', 'leg_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r']
 
 
 def smoothstep(e0, e1, x):
@@ -63,12 +82,42 @@ def smoothstep(e0, e1, x):
 
 
 def load():
+    """Rest geometry: vertices (model metres), triangles, corner UVs (0..1 of each texture) and material per triangle."""
     fbx = os.path.join(SRC, 'makima_pose.fbx')
-    if not os.path.exists(RAW) or os.path.getmtime(RAW) < os.path.getmtime(fbx):
-        subprocess.run([BLENDER, '-b', '--factory-startup', '--python', os.path.join(ROOT, 'tools/makima_fbx.py')],
-                       check=True, capture_output=True)
-    d = np.load(RAW)
-    return d['P'], d['tris'], d['uvs'], d['mats']
+    if os.path.exists(fbx):
+        if not os.path.exists(RAW) or os.path.getmtime(RAW) < os.path.getmtime(fbx):
+            subprocess.run([BLENDER, '-b', '--factory-startup', '--python', os.path.join(ROOT, 'tools/makima_fbx.py')],
+                           check=True, capture_output=True)
+        d = np.load(RAW)
+        return d['P'], d['tris'], d['uvs'], d['mats'], True
+    return recover() + (False,)
+
+
+def recover():
+    """The rest geometry back out of the built mesh: vertices welded again where the export split them for their UVs (same
+    position and normal), rig pixels back to metres, each corner's material from its atlas quad."""
+    m = json.load(open(BUILT))
+    geo = json.load(open(os.path.join(ASSETS, 'geo/entity/makima_mesh.geo.json')))['minecraft:geometry'][0]
+    torso = next(b for b in geo['bones'] if b['name'] == 'torso')
+    floor = HIP[2] - torso['pivot'][1] / PX
+    R = np.array(m['positions'], float).reshape(-1, 3)
+    N = np.array(m['normals'], float).reshape(-1, 3)
+    UV = np.array(m['uvs'], float).reshape(-1, 2)
+    _, first, inv = np.unique(np.round(np.hstack([R, N]), 3), axis=0, return_index=True, return_inverse=True)
+    inv = inv.ravel()
+    P = np.stack([R[:, 0], R[:, 2], R[:, 1]], 1)[first] / PX + [0, 0, floor]
+    idx = np.array(m['indices']).reshape(-1, 3)
+    tris = inv[idx]
+    ax, ay = UV[:, 0] * ATLAS, (1 - UV[:, 1]) * ATLAS
+    mat = np.zeros(len(UV), int)
+    uv = np.zeros_like(UV)
+    for i, name in enumerate(MATS):
+        x, y, s = QUADS[name]
+        hit = (ax >= x - 0.5) & (ax <= x + s + 0.5) & (ay >= y - 0.5) & (ay <= y + s + 0.5)
+        mat[hit] = i
+        uv[hit, 0] = (ax[hit] - x) / s
+        uv[hit, 1] = 1 - (ay[hit] - y) / s
+    return P, tris, uv[idx], mat[idx[:, 0]]
 
 
 def components(n, tris):
@@ -99,6 +148,43 @@ def wrist(P, hand, side):
     return P[hand[np.argsort(d)[:30]]].mean(0)
 
 
+def diffuse(P, tris, W, free):
+    """Heat flow of the weights over the surface for SIGMA metres (implicit: (I - tL) W' = W), only among `free` vertices
+    (the rest hold theirs and are left out of the system: a hand never blurs into its cuff)."""
+    import scipy.sparse as sp
+    import scipy.sparse.linalg as sl
+    n = len(P)
+    e = np.concatenate([tris[:, [0, 1]], tris[:, [1, 2]], tris[:, [2, 0]]])
+    e = np.unique(np.sort(e, 1), axis=0)
+    e = e[free[e[:, 0]] & free[e[:, 1]]]
+    ln = np.maximum(np.linalg.norm(P[e[:, 0]] - P[e[:, 1]], axis=1), 1e-5)
+    w = 1 / ln
+    A = sp.coo_matrix((np.concatenate([w, w]), (np.concatenate([e[:, 0], e[:, 1]]), np.concatenate([e[:, 1], e[:, 0]]))),
+                      shape=(n, n)).tocsr()
+    deg = np.asarray(A.sum(1)).ravel()
+    h2 = np.zeros(n)
+    np.add.at(h2, e[:, 0], ln ** 2)
+    np.add.at(h2, e[:, 1], ln ** 2)
+    cnt = np.zeros(n)
+    np.add.at(cnt, e[:, 0], 1)
+    np.add.at(cnt, e[:, 1], 1)
+    ok = deg > 0
+    h2[ok] /= cnt[ok]
+    # Laplacian ~ 4 / h^2 (mean of the neighbours - itself); heat after t spreads a point over sigma = sqrt(2t)
+    k = np.zeros(n)
+    k[ok] = 4 / h2[ok]
+    L = sp.diags(np.where(ok, k / np.where(ok, deg, 1), 0)) @ A - sp.diags(k)
+    t = SIGMA ** 2 / 2
+    M = (sp.identity(n) - t * L).tocsc()
+    out = W.copy()
+    cols = np.where(W[free].sum(0) > 0)[0]
+    sol = sl.splu(M).solve(W[:, cols])
+    out[np.ix_(free, cols)] = np.asarray(sol)[free]
+    out[free] = np.maximum(out[free], 0)
+    out[free] /= out[free].sum(1, keepdims=True)
+    return out
+
+
 def rig(P, tris, mats):
     n = len(P)
     comp = components(n, tris)
@@ -121,68 +207,166 @@ def rig(P, tris, mats):
     assert hand['l'] is not hand['r']
     WRIST = {s: wrist(P, hand[s], s) for s in 'lr'}
 
-    bones = ['torso', 'chest', 'head', 'braid', 'arm_l', 'arm_r', 'forearm_l', 'forearm_r', 'leg_l', 'leg_r',
-             'shin_l', 'shin_r']
     seg = {
-        'torso': (HIP, WAIST, 0.12), 'chest': (WAIST, NECK, 0.10), 'head': ((0, 0.01, 1.42), (0, 0.0, 1.58), 0.06),
-        'arm_l': (SHOULDER['l'], ELBOW['l'], 0.045), 'arm_r': (SHOULDER['r'], ELBOW['r'], 0.045),
-        'forearm_l': (ELBOW['l'], WRIST['l'], 0.04), 'forearm_r': (ELBOW['r'], WRIST['r'], 0.04),
-        'leg_l': (HIPJ['l'], KNEE['l'], 0.065), 'leg_r': (HIPJ['r'], KNEE['r'], 0.065),
-        'shin_l': (KNEE['l'], ANKLE['l'], 0.045), 'shin_r': (KNEE['r'], ANKLE['r'], 0.045),
+        'torso': ((0, 0, 0.84), (0, 0, 0.98), 0.12), 'spine': ((0, 0, 0.98), (0, 0, 1.12), 0.10),
+        'chest': ((0, 0, 1.12), (0, 0, 1.31), 0.10), 'neck': ((0, 0, 1.33), (0, 0, 1.42), 0.04),
+        'head': ((0, 0.01, 1.44), (0, 0, 1.58), 0.07),
+        'braid': (BRAID[0], BRAID[1], 0.02), 'braid2': (BRAID[1], BRAID[2], 0.02), 'braid3': (BRAID[2], BRAID[3], 0.02),
     }
-    W = np.zeros((n, len(bones)))
-    B = {b: i for i, b in enumerate(bones)}
+    for s in 'lr':
+        seg['shoulder_' + s] = (CLAVICLE[s], SHOULDER[s], 0.05)
+        seg['arm_' + s] = (SHOULDER[s], ELBOW[s], 0.045)
+        seg['forearm_' + s] = (ELBOW[s], WRIST[s], 0.04)
+        seg['leg_' + s] = (HIPJ[s], KNEE[s], 0.065)
+        seg['shin_' + s] = (KNEE[s], ANKLE[s], 0.045)
+    B = {b: i for i, b in enumerate(BONES)}
+    W = np.zeros((n, len(BONES)))
+    free = np.zeros(n, bool)
 
     def nearest(vs, cands):
-        """Soft-nearest of `cands` (bone names) for vertices vs."""
+        """Hard labels: each vertex to the nearest of `cands` (distance to the bone's segment less its radius)."""
         d = np.stack([np.maximum(seg_dist(P[vs], *seg[c][:2]) - seg[c][2], 0) for c in cands], 1)
-        w = np.exp(-(d - d.min(1, keepdims=True)) / TAU)
-        W[np.ix_(vs, [B[c] for c in cands])] = w / w.sum(1, keepdims=True)
+        W[vs] = 0
+        W[vs, [B[cands[i]] for i in d.argmin(1)]] = 1
 
     def rigid(vs, bone):
         W[vs] = 0
         W[vs, B[bone]] = 1
 
-    # where the legs part: halfway between the two legs' centre lines at each height
+    def sleeves(g, WRIST, nearest, W, B):
+        """The shirt: her forearms are crossed right in front of her chest, so the nearest bone in space would give the chest
+        to the forearms. Along the surface instead: each sleeve is what lies within the arm's length of its cuff (geodesic
+        distance from the cuff's opening), forearm, upper arm, then the shoulder; the rest the body's (and the clavicles')."""
+        import scipy.sparse as sp
+        from scipy.sparse.csgraph import dijkstra
+        t = tris[np.isin(tris[:, 0], g)]
+        e = np.unique(np.sort(np.concatenate([t[:, [0, 1]], t[:, [1, 2]], t[:, [2, 0]]]), 1), axis=0)
+        ln = np.linalg.norm(P[e[:, 0]] - P[e[:, 1]], axis=1)
+        G = sp.coo_matrix((ln, (e[:, 0], e[:, 1])), shape=(n, n)).tocsr()
+        cnt = {}
+        for a, b in np.sort(np.concatenate([t[:, [0, 1]], t[:, [1, 2]], t[:, [2, 0]]]), 1):
+            cnt[(a, b)] = cnt.get((a, b), 0) + 1
+        rim = np.array(sorted({v for k, c in cnt.items() if c == 1 for v in k}))
+        d = {}
+        for s in 'lr':
+            cuff = rim[np.linalg.norm(P[rim] - WRIST[s], axis=1) < 0.06]
+            assert len(cuff) > 8, 'no cuff on the %s sleeve' % s
+            d[s] = dijkstra(G, directed=False, indices=cuff, min_only=True)[g]
+        body = np.ones(len(g), bool)
+        for s, o in (('l', 'r'), ('r', 'l')):
+            fore = np.linalg.norm(np.array(ELBOW[s]) - WRIST[s])
+            upper = fore + np.linalg.norm(np.array(SHOULDER[s]) - ELBOW[s])
+            mine = d[s] < d[o]
+            for bone, lo, hi in (('forearm_' + s, -1, fore), ('arm_' + s, fore, upper), ('shoulder_' + s, upper, upper + 0.045)):
+                k = mine & (d[s] >= lo) & (d[s] < hi)
+                W[g[k]] = 0
+                W[g[k], B[bone]] = 1
+                body &= ~k
+        nearest(g[body], ['torso', 'spine', 'chest', 'shoulder_l', 'shoulder_r'])
+
+    def legs_apart(g):
+        """Which of the trousers' vertices are the left leg's: below the crotch the legs are two tubes joined by nothing (her
+        right leg crosses toward her left, so no line in space parts them); above it, by side."""
+        low = g[P[g, 2] < CROTCH[2] - 0.02]
+        t = tris[np.isin(tris, low).all(1)]
+        sub = components(n, t)[low]
+        roots, counts = np.unique(sub, return_counts=True)
+        big = roots[np.argsort(-counts)[:2]]
+        lx = {r: P[low[sub == r], 0].mean() for r in big}
+        lroot = max(big, key=lambda r: lx[r])
+        left = P[g, 0] > 0
+        pos = {v: i for i, v in enumerate(g)}
+        for v, r in zip(low, sub):
+            if r in lx:
+                left[pos[v]] = r == lroot
+        return left
+
     def divider(z):
+        """Where the legs part: halfway between the two legs' centre lines at that height."""
         def cx(side):
             return np.interp(z, [ANKLE[side][2], KNEE[side][2], HIPJ[side][2]], [ANKLE[side][0], KNEE[side][0], HIPJ[side][0]])
         return (cx('l') + cx('r')) / 2
 
+    copy = []          # small pieces that take the weights of the nearest vertex of a big one (buttons, collar, belt loops)
+    shirt = trousers = None
     for g in groups:
         m, c = mat_of(g), P[g].mean(0)
         if any(g is h for h in hands):
-            rigid(g, 'forearm_l' if g is hand['l'] else 'forearm_r')
+            rigid(g, 'hand_l' if g is hand['l'] else 'hand_r')
         elif m in (SKIN, EYE, HAIR) and c[2] > 1.3:
             if m == HAIR and c[1] > 0.0 and P[g, 2].min() < 1.3:
-                # the back hair and braid: the head's at the top, the braid's below
-                k = smoothstep(BRAID_FROM[0], BRAID_FROM[1], P[g, 2])
+                # the back hair and the braid: the head's above the nape, then the braid's three links down to its tie
+                z = P[g, 2]
+                lab = np.where(z > 1.43, 'head', np.where(z > 1.33, 'braid', np.where(z > 1.23, 'braid2', 'braid3')))
                 W[g] = 0
-                W[g, B['head']] = k
-                W[g, B['braid']] = 1 - k
+                W[g, [B[x] for x in lab]] = 1
+                free[g] = True
             elif m == SKIN and len(g) > 1000:
-                nearest(g, ['head', 'chest'])           # the face and neck
+                nearest(g, ['head', 'neck', 'chest'])          # the face and neck
+                W[g[P[g, 2] > 1.45]] = 0
+                W[g[P[g, 2] > 1.45], B['head']] = 1
+                free[g] = True
             else:
-                rigid(g, 'head')
+                rigid(g, 'head')                               # eyes, ears, teeth, tongue, lashes, bangs
         elif m == HAIR:
-            rigid(g, 'braid')                           # the braid's tie
+            rigid(g, 'braid3')                                 # the braid's tie
         elif m == SHIRT and len(g) > 1000:
-            nearest(g, ['torso', 'chest', 'arm_l', 'arm_r', 'forearm_l', 'forearm_r'])
+            shirt = g
+            sleeves(g, WRIST, nearest, W, B)
+            free[g] = True
         elif m == SHIRT and len(g) > 100:
-            rigid(g, 'chest')                           # the tie
+            # the tie: its own bone (it hangs), the knot the chest's
+            rigid(g, 'tie')
+            k = P[g, 2] > TIE[0][2] - 0.035
+            W[g[k]] = 0
+            W[g[k], B['chest']] = 1
+            free[g] = True
         elif m == SHIRT:
-            nearest(g, ['chest', 'arm_l', 'arm_r', 'forearm_l', 'forearm_r'])     # buttons: collar, placket, cuffs
+            copy.append(('shirt', g))
         elif m == TROUSER and len(g) > 1000:
-            left = P[g, 0] > divider(P[g, 2])
-            nearest(g[left], ['torso', 'chest', 'leg_l', 'shin_l'])
-            nearest(g[~left], ['torso', 'chest', 'leg_r', 'shin_r'])
+            trousers = g
+            left = legs_apart(g)
+            for s, vs in (('l', g[left]), ('r', g[~left])):
+                # the body or the thigh by nearness; then the thigh's below the knee's plane (the bisector of thigh and
+                # shin) the shin's: by radius alone the wider thigh took the top of the calf
+                nearest(vs, ['torso', 'spine', 'leg_' + s])
+                th = np.subtract(KNEE[s], HIPJ[s])
+                sh = np.subtract(ANKLE[s], KNEE[s])
+                nrm = th / np.linalg.norm(th) + sh / np.linalg.norm(sh)
+                below = vs[(W[vs, B['leg_' + s]] > 0) & ((P[vs] - KNEE[s]) @ nrm > 0)]
+                rigid(below, 'shin_' + s)
+            free[g] = True
         elif c[2] > KNEE['l'][2]:
-            nearest(g, ['torso', 'chest'])              # belt loops
+            copy.append(('trousers', g))
         else:
-            rigid(g, 'shin_l' if c[0] > divider(c[2]) else 'shin_r')     # shoes, feet
+            rigid(g, 'foot_l' if c[0] > divider(c[2]) else 'foot_r')     # shoes, feet
+    W = diffuse(P, tris, W, free)
+    # knees and elbows bend far further than the rest (kneeling: 150 degrees): a narrower blend there keeps the front of
+    # the joint round instead of folding it flat
+    for s in 'lr':
+        for a, b in (('leg_' + s, 'shin_' + s), ('arm_' + s, 'forearm_' + s)):
+            tot = W[:, B[a]] + W[:, B[b]]
+            k = tot > 1e-6
+            f = smoothstep(0.25, 0.75, W[k, B[b]] / tot[k])
+            W[k, B[b]] = f * tot[k]
+            W[k, B[a]] = (1 - f) * tot[k]
+    # the bust: two soft ellipsoids on the front of the shirt's body (not its sleeves)
+    body = shirt[W[shirt][:, [B['torso'], B['spine'], B['chest']]].sum(1) > 0.5]
+    for s in 'lr':
+        q = (P[body] - BREAST[s]) / BREAST_R
+        k = smoothstep(1.0, 0.3, np.linalg.norm(q, axis=1)) * smoothstep(-0.035, -0.06, P[body, 1])
+        W[body] *= (1 - k)[:, None]
+        W[body, B['breast_' + s]] += k
+    for big, g in copy:
+        src = shirt if big == 'shirt' else trousers
+        near = src[np.argmin(np.linalg.norm(P[src][None, :, :] - P[g][:, None, :], axis=2), axis=1)]
+        W[g] = W[near]
     assert np.allclose(W.sum(1), 1), 'unweighted vertices'
-    joints = {'hip': HIP, 'waist': WAIST, 'neck': NECK, 'braid': BRAID, 'wrist_l': WRIST['l'], 'wrist_r': WRIST['r']}
-    return bones, W, joints
+    joints = {'wrist_l': WRIST['l'], 'wrist_r': WRIST['r']}
+    for s in 'lr':     # the middle of the hand's far end: the finger tips' mean (the farthest 40 from the wrist)
+        far = hand[s][np.argsort(-np.linalg.norm(P[hand[s]] - WRIST[s], axis=1))[:40]]
+        joints['finger_' + s] = P[far].mean(0)
+    return W, joints
 
 
 def to_rig(p, floor):
@@ -198,7 +382,7 @@ def atlas():
     img.save(os.path.join(ASSETS, 'textures/entity/makima_mesh.png'), optimize=True)
 
 
-def export(P, tris, uvs, mats, bones, W, floor):
+def export(P, tris, uvs, mats, W, floor):
     # smooth normals, area-weighted
     N = np.zeros_like(P)
     fn = np.cross(P[tris[:, 1]] - P[tris[:, 0]], P[tris[:, 2]] - P[tris[:, 0]])
@@ -223,16 +407,17 @@ def export(P, tris, uvs, mats, bones, W, floor):
     nrm = N[vi][:, [0, 2, 1]]
     joints, wts = [], []
     for v in vi:
-        order = np.argsort(-W[v])[:2]
-        w = W[v][order]
-        w = w / w.sum()
-        joints += [int(o) for o in order]
-        wts += [round(float(a), 3) for a in w]
+        order = np.argsort(-W[v])[:INFLUENCES]
+        w = np.where(W[v][order] < 0.01, 0, W[v][order])
+        w = np.round(w / w.sum(), 3)
+        w[0] = round(1 - w[1:].sum(), 3)
+        joints += [int(o) if w[i] > 0 else int(order[0]) for i, o in enumerate(order)]
+        wts += [float(a) for a in w]
     mesh = {'credit': 'Makima: the user\'s model (makima_pose.fbx), rigged and atlased by tools/gen_makima_mesh.py',
-            'texture': 'papon:textures/entity/makima_mesh.png', 'bones': bones, 'corners': 3,
+            'texture': 'papon:textures/entity/makima_mesh.png', 'bones': BONES, 'corners': 3, 'influences': INFLUENCES,
             'positions': pos.round(3).flatten().tolist(), 'normals': nrm.round(3).flatten().tolist(), 'uvs': out_uv,
             'indices': indices, 'joints': joints, 'weights': wts}
-    with open(os.path.join(ASSETS, 'meshes/makima.json'), 'w') as f:
+    with open(BUILT, 'w') as f:
         json.dump(mesh, f, separators=(',', ':'))
     return len(vi), len(indices) // 3
 
@@ -243,39 +428,53 @@ def geo(joints, floor):
     bones = [
         {'name': 'root', 'pivot': [0, 0, 0]},
         {'name': 'torso', 'parent': 'root', 'pivot': r(HIP)},
-        {'name': 'leg_l', 'parent': 'torso', 'pivot': r(HIPJ['l'])},
-        {'name': 'leg_r', 'parent': 'torso', 'pivot': r(HIPJ['r'])},
-        {'name': 'shin_l', 'parent': 'leg_l', 'pivot': r(KNEE['l'])},
-        {'name': 'shin_r', 'parent': 'leg_r', 'pivot': r(KNEE['r'])},
-        {'name': 'chest', 'parent': 'torso', 'pivot': r(WAIST)},
-        {'name': 'head', 'parent': 'chest', 'pivot': r(NECK)},
-        {'name': 'braid', 'parent': 'head', 'pivot': r(BRAID)},
-        {'name': 'arm_l', 'parent': 'chest', 'pivot': r(SHOULDER['l'])},
-        {'name': 'arm_r', 'parent': 'chest', 'pivot': r(SHOULDER['r'])},
-        {'name': 'forearm_l', 'parent': 'arm_l', 'pivot': r(ELBOW['l'])},
-        {'name': 'forearm_r', 'parent': 'arm_r', 'pivot': r(ELBOW['r'])},
+        {'name': 'spine', 'parent': 'torso', 'pivot': r(WAIST)},
+        {'name': 'chest', 'parent': 'spine', 'pivot': r(CHEST)},
+        {'name': 'neck', 'parent': 'chest', 'pivot': r(NECK)},
+        {'name': 'head', 'parent': 'neck', 'pivot': r(HEAD)},
+        {'name': 'braid', 'parent': 'head', 'pivot': r(BRAID[0])},
+        {'name': 'braid2', 'parent': 'braid', 'pivot': r(BRAID[1])},
+        {'name': 'braid3', 'parent': 'braid2', 'pivot': r(BRAID[2])},
+        {'name': 'breast_l', 'parent': 'chest', 'pivot': r(np.array(BREAST['l']) + [0, 0.05, 0])},
+        {'name': 'breast_r', 'parent': 'chest', 'pivot': r(np.array(BREAST['r']) + [0, 0.05, 0])},
+        {'name': 'tie', 'parent': 'chest', 'pivot': r(TIE[0])},
     ]
+    for s in 'lr':
+        bones += [
+            {'name': 'shoulder_' + s, 'parent': 'chest', 'pivot': r(CLAVICLE[s])},
+            {'name': 'arm_' + s, 'parent': 'shoulder_' + s, 'pivot': r(SHOULDER[s])},
+            {'name': 'forearm_' + s, 'parent': 'arm_' + s, 'pivot': r(ELBOW[s])},
+            {'name': 'hand_' + s, 'parent': 'forearm_' + s, 'pivot': r(joints['wrist_' + s])},
+            {'name': 'leg_' + s, 'parent': 'torso', 'pivot': r(HIPJ[s])},
+            {'name': 'shin_' + s, 'parent': 'leg_' + s, 'pivot': r(KNEE[s])},
+            {'name': 'foot_' + s, 'parent': 'shin_' + s, 'pivot': r(ANKLE[s])},
+        ]
     named = {b['name']: b for b in bones}
-    named['forearm_l']['locators'] = {'wrist_l': r(joints['wrist_l'])}
-    named['forearm_r']['locators'] = {'wrist_r': r(joints['wrist_r'])}
-    named['shin_l']['locators'] = {'ankle_l': r(ANKLE['l'])}
-    named['shin_r']['locators'] = {'ankle_r': r(ANKLE['r'])}
-    named['head']['locators'] = {'mouth': r(MOUTH)}
+    for s in 'lr':
+        named['forearm_' + s]['locators'] = {'wrist_' + s: r(joints['wrist_' + s])}
+        named['hand_' + s]['locators'] = {'finger_' + s: r(joints['finger_' + s])}
+        named['shin_' + s]['locators'] = {'ankle_' + s: r(ANKLE[s])}
+        named['foot_' + s]['locators'] = {'toe_' + s: r(TOE[s])}
+    named['head']['locators'] = {'mouth': r(MOUTH), 'eyes': r(EYES)}
+    named['torso']['locators'] = {'crotch': r(CROTCH), 'seat': r(SEAT), 'lap': r(LAP)}
+    named['braid3']['locators'] = {'braid_tip': r(BRAID[3])}
+    named['tie']['locators'] = {'tie_tip': r(TIE[1])}
     g = {'format_version': '1.12.0', 'minecraft:geometry': [{
         'description': {'identifier': 'geometry.makima_mesh', 'texture_width': ATLAS, 'texture_height': ATLAS,
-                        'visible_bounds_width': 4, 'visible_bounds_height': 3, 'visible_bounds_offset': [0, 1.0, 0]},
+                        'visible_bounds_width': 5, 'visible_bounds_height': 3, 'visible_bounds_offset': [0, 1.0, 0]},
         'bones': bones}]}
     with open(os.path.join(ASSETS, 'geo/entity/makima_mesh.geo.json'), 'w') as f:
         json.dump(g, f, separators=(',', ':'))
 
 
 def main():
-    P, tris, uvs, mats = load()
+    P, tris, uvs, mats, from_fbx = load()
     floor = P[:, 2].min()
-    bones, W, joints = rig(P, tris, mats)
+    W, joints = rig(P, tris, mats)
     geo(joints, floor)
-    atlas()
-    nv, nt = export(P, tris, uvs, mats, bones, W, floor)
+    if from_fbx:
+        atlas()
+    nv, nt = export(P, tris, uvs, mats, W, floor)
     print('makima mesh', nv, 'vertices,', nt, 'triangles; %.2f blocks tall' % ((P[:, 2].max() - floor) * PX / 16))
 
 

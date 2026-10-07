@@ -74,8 +74,10 @@ public final class AutoShot {
      * sat on the edge of the bed, her feet licked from the floor, then lifted to the face (side, front, first person).
      */
     private static final boolean PILLOW = MODE.equals("pillow");
-    /** -Pautoshot=makima: Makima out of her egg (front, her face up close drooling), then every position from the side, the
-     *  front and first person (papon_mk*.png; the rider's place and eye height logged). */
+    /** -Pautoshot=makima: Makima out of her egg (front, her face up close drooling), then all six positions from the side, the
+     *  front, her head end, first and third person (papon_mk*.png; the rider's place and eye height logged); flat out to the
+     *  climax (finishing shortened) and after; sneak + right-click and she follows you (walking); then the body pillow waking
+     *  up as her, in hand and on a bed. */
     private static final boolean MAKIMA = MODE.equals("makima");
     /** -Pautoshot=state:STATE[:FORM]:t1,t2,...  a boss here (form 3 Ascended or 4 the Final Guardian), straight into STATE; the
      *  cutscene camera's view (or yours) shot at those ticks in it (papon_s_STATE_t.png). For checking one beat quickly. */
@@ -1249,7 +1251,10 @@ public final class AutoShot {
             case 100 -> opts.setCameraType(CameraType.FIRST_PERSON);
             case 130 -> shot(mc, "mk01_front");
             case 132 -> run("tp @s ~ ~ ~-1.2");
-            case 160 -> shot(mc, "mk02_face_drool");
+            case 160 -> {
+                shot(mc, "mk02_face_drool");
+                if (makima != null) PaponMod.LOG.info("[autoshot] makima drool {}", com.groid.papon.client.MakimaRenderer.debugDrool(makima));
+            }
             case 162 -> run("tp @s ~-0.6 ~ ~");
             case 175 -> shot(mc, "mk03_face_drool_side");
             case 180 -> {
@@ -1258,11 +1263,11 @@ public final class AutoShot {
             default -> {}
         }
         // each position: settle, then the side, the far side, from her head end, first person; then on to the next
-        for (int k = 0; k < 4; k++) {
+        for (int k = 0; k < 6; k++) {
             int at = 200 + k * 90;
             if (tick < at || tick >= at + 90) continue;
             pos = tick - at;
-            String name = "mk" + (10 + k * 10) + "_" + new String[]{"missionary", "doggy", "bent", "cowgirl"}[k];
+            String name = "mk" + (10 + k * 10) + "_" + new String[]{"missionary", "doggy", "bent", "cowgirl", "reverse", "carry"}[k];
             if (makima == null) return;
             Vec3 f = makima.facing(), r = new Vec3(-f.z, 0, f.x), o = makima.position();
             switch (pos) {
@@ -1282,15 +1287,90 @@ public final class AutoShot {
                 case 60 -> shot(mc, name + "_fp");
                 case 62 -> opts.setCameraType(CameraType.THIRD_PERSON_BACK);
                 case 72 -> shot(mc, name + "_tp");
-                case 74 -> opts.setCameraType(CameraType.FIRST_PERSON);
+                case 74 -> {
+                    Vec3 mo = com.groid.papon.client.MakimaRenderer.mouth(makima);
+                    if (mo != null) camAt(mc, mo.add(r.scale(0.45)).add(f.scale(0.25)).add(0, 0.12, 0), mo);
+                }
+                case 79 -> {
+                    shot(mc, name + "_face");
+                    PaponMod.LOG.info("[autoshot] makima {} drool {}", makima.posture(), com.groid.papon.client.MakimaRenderer.debugDrool(makima));
+                }
+                case 81 -> {
+                    mc.setCameraEntity(mc.player);
+                    opts.setCameraType(CameraType.FIRST_PERSON);
+                }
                 case 85 -> {
-                    if (k < 3) com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.PillowSwap());
+                    if (k < 5) com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.PillowSwap());
                 }
                 default -> {}
             }
         }
-        // the body pillow waking up as her (odds forced to 1): humped in hand, then on a bed
+        // carry, flat out to the climax (finishing shortened), from behind and in first person; then she follows you
         switch (tick) {
+            case 740 -> {
+                System.setProperty("papon.clarity", "150");
+                var srv = mc.getSingleplayerServer();
+                var id = mc.player.getUUID();
+                if (srv != null) srv.execute(() -> {
+                    var sp = srv.getPlayerList().getPlayer(id);
+                    if (sp != null) sp.getPersistentData().putFloat("PaponHumpTicks", 0);
+                });
+                makimaControl(com.groid.papon.entity.MakimaEntity.FASTER);
+                makimaControl(com.groid.papon.entity.MakimaEntity.FASTER);
+                opts.setCameraType(CameraType.THIRD_PERSON_BACK);
+                opts.hideGui = false;
+            }
+            case 760 -> shot(mc, "mk70_frantic_tp");
+            case 790 -> {
+                if (makima != null) PaponMod.LOG.info("[autoshot] makima heat {} tempo {} climax {}", makima.heat(), makima.tempo(), makima.climax());
+                shot(mc, "mk71_heat_tp");
+            }
+            case 800 -> opts.setCameraType(CameraType.FIRST_PERSON);
+            default -> {}
+        }
+        if (makima != null && tick > 741 && tick < 900 && makima.climax() > 0 && !climaxShot) {
+            climaxShot = true;
+            climaxAt = tick;
+        }
+        if (climaxShot && tick == climaxAt + 20) shot(mc, "mk72_climax_fp");
+        if (climaxShot && tick == climaxAt + 50) shot(mc, "mk73_climax_hold_fp");
+        switch (tick) {
+            case 905 -> {
+                PaponMod.LOG.info("[autoshot] makima after: riding {} clarity {}", mc.player.getVehicle(),
+                        mc.player.hasEffect(com.groid.papon.registry.ModEffects.POST_NUT_CLARITY.get()));
+                shot(mc, "mk74_after");
+                System.setProperty("papon.clarity", "1000000");
+                run("effect clear @s papon:post_nut_clarity", "effect clear @s minecraft:nausea");
+            }
+            case 910 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), true);
+            case 914 -> {
+                if (makima != null) mc.gameMode.interact(mc.player, makima, net.minecraft.world.InteractionHand.MAIN_HAND);
+            }
+            case 918 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
+            case 922 -> run("tp @s ~9 ~ ~");
+            case 934 -> {
+                if (makima != null) {
+                    Vec3 o = makima.position();
+                    camAt(mc, o.add(0, 1.2, 3.2), o.add(0, 1.0, 0));
+                    PaponMod.LOG.info("[autoshot] makima following {} moving {}", makima.following(), makima.getDeltaMovement());
+                }
+            }
+            case 940 -> shot(mc, "mk80_follow_walk");
+            case 948 -> {
+                if (makima != null) {
+                    Vec3 o = makima.position();
+                    camAt(mc, o.add(2.6, 1.0, 0.4), o.add(0, 0.9, 0));
+                }
+            }
+            case 952 -> shot(mc, "mk81_follow_side");
+            case 960 -> {
+                mc.setCameraEntity(mc.player);
+                opts.setCameraType(CameraType.FIRST_PERSON);
+            }
+            default -> {}
+        }
+        // the body pillow waking up as her (odds forced to 1): humped in hand, then on a bed
+        switch (tick - 438) {
             case 562 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), true);
             case 566 -> net.minecraft.client.KeyMapping.set(opts.keyShift.getKey(), false);
             case 570 -> {
@@ -1353,6 +1433,13 @@ public final class AutoShot {
             case 690 -> mc.stop();
             default -> {}
         }
+    }
+
+    private static boolean climaxShot;
+    private static int climaxAt;
+
+    private static void makimaControl(int action) {
+        com.groid.papon.network.PaponNetwork.CHANNEL.sendToServer(new com.groid.papon.network.PaponNetwork.MakimaControl(action));
     }
 
     /** The client-only camera at {@code at} (eyes), looking at {@code look}. */

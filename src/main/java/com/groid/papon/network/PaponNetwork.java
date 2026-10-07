@@ -70,6 +70,8 @@ public final class PaponNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(11, PillowSwap.class, (m, b) -> {}, b -> new PillowSwap(), PillowSwap::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(12, MakimaControl.class, (m, b) -> b.writeVarInt(m.action()), b -> new MakimaControl(b.readVarInt()),
+                MakimaControl::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     /** From the client: how the squeeze (its meter) or the duel (its rock meter) is going right now, 0..1. */
@@ -301,6 +303,17 @@ public final class PaponNetwork {
             ctx.get().enqueueWork(() -> {
                 if (p != null && p.getVehicle() instanceof com.groid.papon.entity.BodyPillowEntity b) b.swap(p);
                 if (p != null && p.getVehicle() instanceof com.groid.papon.entity.MakimaEntity m) m.swap(p);
+            });
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** From Makima's rider (client/MakimaRider): a position picked, or the pace up or down (MakimaEntity.control). */
+    public record MakimaControl(int action) {
+        void handle(Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer p = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (p != null && p.getVehicle() instanceof com.groid.papon.entity.MakimaEntity m) m.control(p, action);
             });
             ctx.get().setPacketHandled(true);
         }

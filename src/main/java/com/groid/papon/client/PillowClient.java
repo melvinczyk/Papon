@@ -238,23 +238,19 @@ public final class PillowClient {
 
     /** At her feet: 0 flat on the floor .. 1 kneeling, her feet lifted (eased, so the body gets up and down). */
     public static float kneel(LivingEntity entity, float partial) {
-        if (entity.getVehicle() instanceof MakimaEntity makima) {
-            BodyPillowEntity.Act act = makima.act();
-            return act == BodyPillowEntity.Act.BEHIND || act == BodyPillowEntity.Act.SIDE_KNEES ? 1 : 0;
-        }
         if (!(entity.getVehicle() instanceof BodyPillowEntity pillow)) return 0;
         float k = pillow.lift(partial);
         return k * k * (3 - 2 * k);
     }
 
     private static void ridePose(HumanoidModel<?> model, LivingEntity entity) {
+        if (entity.getVehicle() instanceof MakimaEntity) {
+            MakimaRider.pose(model, entity);
+            return;
+        }
         BodyPillowEntity.Act act = act(entity);
         if (act == null) return;
         float partial = Minecraft.getInstance().getFrameTime();
-        if (act == BodyPillowEntity.Act.UNDER) {
-            underPose(model, entity, partial);
-            return;
-        }
         if (act == BodyPillowEntity.Act.SIDE_BACK || act == BodyPillowEntity.Act.SIDE_KNEES) {
             // standing at the side of the bed, hips driving at hers; on her back, your arms round her legs up on your shoulders
             pose(model, entity, Mode.HUMP);
@@ -330,30 +326,6 @@ public final class PillowClient {
         model.body.xRot = 0;
     }
 
-    /**
-     * On your back under Makima (onRenderPlayerPre lays the body down): the hands up on her hips, the head raised to watch her,
-     * the legs out straight, a little apart.
-     */
-    private static void underPose(HumanoidModel<?> model, LivingEntity entity, float partial) {
-        float th = thrust(entity.tickCount + partial);
-        model.rightArm.xRot = -0.95F - 0.1F * th;
-        model.leftArm.xRot = -0.95F - 0.1F * th;
-        model.rightArm.yRot = -0.25F;
-        model.leftArm.yRot = 0.25F;
-        model.rightArm.zRot = 0.12F;
-        model.leftArm.zRot = -0.12F;
-        model.head.xRot = 0.55F + 0.05F * th;
-        model.head.yRot = 0;
-        model.head.zRot = 0;
-        model.rightLeg.xRot = 0;
-        model.leftLeg.xRot = 0;
-        model.rightLeg.yRot = 0;
-        model.leftLeg.yRot = 0;
-        model.rightLeg.zRot = 0.1F;
-        model.leftLeg.zRot = -0.1F;
-        model.body.xRot = 0;
-    }
-
     /** The plank's slope: the body tipped this far over (radians) from upright, about the toes. */
     static final float PLANK_TIP = 1.2F;
 
@@ -374,7 +346,7 @@ public final class PillowClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || !mc.options.getCameraType().isFirstPerson() || mc.getCameraEntity() != mc.player) return;
         BodyPillowEntity.Act act = act(mc.player);
-        if (act == null) return;
+        if (act == null || mc.player.getVehicle() instanceof MakimaEntity) return;      // MakimaRider.camera
         float t = mc.player.tickCount + (float) event.getPartialTick();
         if (BodyPillowEntity.humping(act)) {
             event.setPitch(event.getPitch() + 1.6F * thrust(t));
@@ -404,7 +376,8 @@ public final class PillowClient {
             var model = event.getRenderer().getModel();
             model.rightArmPose = RIDE;
             model.leftArmPose = RIDE;
-            withMakima(p, makima, ps, t);
+            ps.pushPose();
+            MakimaRider.body(p, makima, ps, event.getPartialTick());
             PUSHED.add(p);
             return;
         }
@@ -462,39 +435,6 @@ public final class PillowClient {
         ps.translate(-side.getStepX() * 0.16, 0.3, -side.getStepZ() * 0.16);
         ps.mulPose(new Quaternionf().rotateAxis(-Mth.HALF_PI, f.getStepX(), 0, f.getStepZ()));
         PUSHED.add(p);
-    }
-
-    /** Makima's planked and kneeling depths: on the ground the rider's hips meet hers higher than on a mattress. */
-    static final float MAKIMA_PLANK_BACK = -1.05F, MAKIMA_PLANK_UP = 0.16F, MAKIMA_KNEEL_UP = -0.2F;
-
-    /**
-     * With Makima (MakimaEntity places the rider against her, facing back along her facing f): planked over her on her back
-     * (as on the bed), kneeling behind her, standing behind her bent over (rocking in with the hips), or laid on your back
-     * under her, the eyes where the entity is and the feet toward her, the hips bucking up on each thrust.
-     */
-    private static void withMakima(Player p, MakimaEntity makima, PoseStack ps, float t) {
-        net.minecraft.world.phys.Vec3 her = makima.facing();
-        float fx = (float) -her.x, fz = (float) -her.z;        // the rider's facing
-        float th = thrust(t);
-        ps.pushPose();
-        switch (makima.act()) {
-            case HUMP -> {
-                ps.translate(fx * (MAKIMA_PLANK_BACK + 0.07F * th), MAKIMA_PLANK_UP, fz * (MAKIMA_PLANK_BACK + 0.07F * th));
-                ps.mulPose(new Quaternionf().rotateAxis(PLANK_TIP + 0.05F * th, fz, 0, -fx));
-            }
-            case BEHIND -> {
-                ps.translate(fx * 0.09F * th, MAKIMA_KNEEL_UP, fz * 0.09F * th);
-                ps.mulPose(new Quaternionf().rotateAxis(-0.1F * th, fz, 0, -fx));
-            }
-            case UNDER -> {
-                ps.translate(fx * 1.62F, 0.13F + 0.03F * Math.max(0, th), fz * 1.62F);
-                ps.mulPose(new Quaternionf().rotateAxis(-Mth.HALF_PI, fz, 0, -fx));
-            }
-            default -> {
-                ps.translate(fx * 0.07F * th, 0, fz * 0.07F * th);
-                ps.mulPose(new Quaternionf().rotateAxis(-0.06F * th, fz, 0, -fx));
-            }
-        }
     }
 
     /**

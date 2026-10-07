@@ -47,20 +47,30 @@ public class PostNutClarityEffect extends MobEffect {
 
     /** A tick of humping; true when that was the last one (the effect is on them now, and they should stop). */
     public static boolean humped(ServerPlayer p) {
-        var data = p.getPersistentData();
-        long now = p.level().getGameTime();
-        int ticks = now - data.getLong(LAST) > GRACE ? 0 : data.getInt(TICKS);
-        data.putLong(LAST, now);
-        if (++ticks < Integer.getInteger("papon.clarity", FINISH)) {
-            data.putInt(TICKS, ticks);
-            return false;
-        }
-        data.putInt(TICKS, 0);
+        if (hump(p, 1F) < 1F) return false;
         finish(p);
         return true;
     }
 
-    private static void finish(ServerPlayer p) {
+    /**
+     * {@code amount} ticks' worth of humping (Makima counts a faster pace for more: MakimaEntity.TEMPO); returns how far along
+     * they are, 0..1 (at 1 they are done, but nothing happens until {@link #finish}). A pause of more than {@link #GRACE}
+     * starts them over.
+     */
+    public static float hump(ServerPlayer p, float amount) {
+        var data = p.getPersistentData();
+        long now = p.level().getGameTime();
+        float ticks = now - data.getLong(LAST) > GRACE ? 0 : data.getFloat(TICKS);
+        data.putLong(LAST, now);
+        ticks += amount;
+        float need = Integer.getInteger("papon.clarity", FINISH);
+        data.putFloat(TICKS, Math.min(ticks, need));
+        return Math.min(ticks / need, 1F);
+    }
+
+    /** Done: the count starts over, and the clarity sets in. */
+    public static void finish(ServerPlayer p) {
+        p.getPersistentData().putFloat(TICKS, 0);
         p.addEffect(new MobEffectInstance(ModEffects.POST_NUT_CLARITY.get(), DURATION, 0, false, false, true));
         p.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 300, 0, false, false, false));
         p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.9F, 0.7F);
