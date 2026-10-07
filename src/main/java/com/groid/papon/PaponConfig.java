@@ -26,6 +26,8 @@ public final class PaponConfig {
     public static final ForgeConfigSpec.DoubleValue ARMOR_PIERCE;
     public static final ForgeConfigSpec.BooleanValue CINEMATICS;
     public static final ForgeConfigSpec.BooleanValue BOSS_MUSIC;
+    public static final ForgeConfigSpec.IntValue MIRROR_PASSES;
+    public static final ForgeConfigSpec.DoubleValue MIRROR_RESOLUTION;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -88,6 +90,13 @@ public final class PaponConfig {
                 .define("cinematics", true);
         BOSS_MUSIC = b.comment("Play the mariachi boss music during the fight.")
                 .define("bossMusic", true);
+        b.pop();
+        b.push("skyline");
+        MIRROR_PASSES = b.comment("The Skyline's mirrors show the world live: how many of them are drawn again each frame (the rear-view one",
+                        "every frame, the side ones in turn). Each is the world drawn once more: 0 paints them instead (cheapest).")
+                .defineInRange("mirrorPasses", 2, 0, 3);
+        MIRROR_RESOLUTION = b.comment("Sharpness of the mirrors' pictures (1 = 448 pixels across the rear-view one).")
+                .defineInRange("mirrorResolution", 1.0, 0.25, 4.0);
         b.pop();
         SPEC = b.build();
     }

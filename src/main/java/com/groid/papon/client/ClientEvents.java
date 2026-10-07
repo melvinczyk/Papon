@@ -47,6 +47,12 @@ public final class ClientEvents {
         PotatoSky.tick();
     }
 
+    /** After the frame: the Skyline's mirrors drawn for the next one. */
+    @SubscribeEvent
+    public static void onRenderTick(TickEvent.RenderTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) SkylineMirrors.render(event.renderTickTime);
+    }
+
     /** The crowd renderer culls its fans against the level's own frustum. */
     @SubscribeEvent
     public static void onRenderSpotlights(net.minecraftforge.client.event.RenderLevelStageEvent event) {
@@ -119,11 +125,13 @@ public final class ClientEvents {
     @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
     public static void onRenderFog(ViewportEvent.RenderFog event) {
         var b = foggy();
-        if (b == null || event.getMode() != net.minecraft.client.renderer.FogRenderer.FogMode.FOG_TERRAIN) return;
-        float k = b.fog();
-        event.setNearPlaneDistance(Mth.lerp(k, event.getNearPlaneDistance(), 0F));
-        event.setFarPlaneDistance(Mth.lerp(k * k * (3 - 2 * k), event.getFarPlaneDistance(), 32F));
-        event.setCanceled(true);
+        if (b != null && event.getMode() == net.minecraft.client.renderer.FogRenderer.FogMode.FOG_TERRAIN) {
+            float k = b.fog();
+            event.setNearPlaneDistance(Mth.lerp(k, event.getNearPlaneDistance(), 0F));
+            event.setFarPlaneDistance(Mth.lerp(k * k * (3 - 2 * k), event.getFarPlaneDistance(), 32F));
+            event.setCanceled(true);
+        }
+        SkylineMirrors.fog(event);
     }
 
     @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)

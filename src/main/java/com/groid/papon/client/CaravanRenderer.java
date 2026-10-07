@@ -107,6 +107,9 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         boolean ghost = van.isGhost();
         ResourceLocation tex = Model.SKY_TEX;
         group(buffers.getBuffer(ghost ? RenderType.entityTranslucent(tex) : RenderType.entityCutoutNoCull(tex)), mesh, "opaque", light, overlay, r, g, b, a);
+        Matrix4f body = poses.get("body");
+        // before the windows: seen through one, a mirror drawn after it would fail its depth
+        mirrors(van, mesh, buffers, body, ghost, light, overlay, r, g, b, a);
         group(buffers.getBuffer(RenderType.entityTranslucent(tex)), mesh, "glass", light, overlay, r, g, b, a);
         VertexConsumer lit = null;
         boolean engine = van.isEngineOn() && van.squash() > 0.95F;
@@ -120,13 +123,43 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
             if (lit == null) lit = buffers.getBuffer(RenderType.eyes(SKY_LAMPS));
             group(lit, mesh, "underglow", FULL, overlay, 1, 1, 1, 1);
         }
-        VertexConsumer glow = buffers.getBuffer(PaponRenderTypes.glow());
-        clearCoat(glow, mesh, light, partial, ghost ? 0.4F : 1F);
-        Matrix4f body = poses.get("body");
+        if (!SkylineMirrors.rendering()) clearCoat(buffers.getBuffer(PaponRenderTypes.glow()), mesh, light, partial, ghost ? 0.4F : 1F);
         if (body != null) {
-            needles(glow, body, van, engine);
-            if (engine) flares(glow, body, van);
-            if (SkylineCockpit.driving(van)) hands(body, poses.get("steering_wheel"), buffers, light);
+            needles(buffers.getBuffer(PaponRenderTypes.glow()), body, van, engine);
+            if (engine) flares(buffers.getBuffer(PaponRenderTypes.glow()), body, van);
+            if (SkylineCockpit.driving(van) && !SkylineMirrors.rendering()) hands(body, poses.get("steering_wheel"), buffers, light);
+        }
+    }
+
+    /**
+     * The mirrors' glass (2026-10-07): each shows the world live as it reflects it to your eyes (SkylineMirrors draws the
+     * pictures, here they go on the glass), a touch darker than the world as a real mirror's silvering is; painted when
+     * there is no picture (too far, off, inside a mirror's own pass).
+     */
+    private void mirrors(CaravanEntity van, SkinnedMesh mesh, MultiBufferSource buffers, Matrix4f body, boolean ghost, int light, int overlay,
+                         float r, float g, float b, float a) {
+        Vector3f carUp = body == null ? new Vector3f(0, 1, 0) : at(body, 0, 17, 0).sub(at(body, 0, 16, 0)).normalize();
+        int[] idx = mesh.indices;
+        for (SkylineMirrors.Glass glass : SkylineMirrors.Glass.values()) {
+            int[] run = mesh.groups.get(glass.group());
+            if (run == null || run[1] == 0) continue;
+            float[] uv = null;
+            Vector3f[] p = new Vector3f[4];
+            if (run[1] == 4 && !ghost) {
+                for (int k = 0; k < 4; k++) {
+                    int v = idx[run[0] + k];
+                    p[k] = new Vector3f(px[v * 3], px[v * 3 + 1], px[v * 3 + 2]);
+                }
+                int v0 = idx[run[0]];
+                uv = SkylineMirrors.plan(van, glass, p, new Vector3f(nx[v0 * 3], nx[v0 * 3 + 1], nx[v0 * 3 + 2]), carUp);
+            }
+            if (uv == null) {
+                ResourceLocation tex = Model.SKY_TEX;
+                group(buffers.getBuffer(ghost ? RenderType.entityTranslucent(tex) : RenderType.entityCutoutNoCull(tex)), mesh, glass.group(), light, overlay, r, g, b, a);
+                continue;
+            }
+            VertexConsumer out = buffers.getBuffer(PaponRenderTypes.mirror(SkylineMirrors.texture(glass)));
+            for (int k = 0; k < 4; k++) out.vertex(p[k].x, p[k].y, p[k].z).color(0.9F, 0.91F, 0.93F, 1F).uv(uv[k * 2], uv[k * 2 + 1]).uv2(FULL).endVertex();
         }
     }
 
@@ -182,10 +215,12 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         int[] run = mesh.groups.get(name);
         if (run == null) return;
         int[] idx = mesh.indices;
+        // the whole vertex in one call: BufferBuilder writes it straight (element by element it went through the format's
+        // element list for each, most of a mirror's pass)
         for (int i = run[0], end = run[0] + run[1]; i < end; i++) {
             int v = idx[i];
-            out.vertex(px[v * 3], px[v * 3 + 1], px[v * 3 + 2]).color(r, g, b, a).uv(mesh.uvs[v * 2], mesh.uvs[v * 2 + 1])
-                    .overlayCoords(overlay).uv2(light).normal(nx[v * 3], nx[v * 3 + 1], nx[v * 3 + 2]).endVertex();
+            out.vertex(px[v * 3], px[v * 3 + 1], px[v * 3 + 2], r, g, b, a, mesh.uvs[v * 2], mesh.uvs[v * 2 + 1], overlay, light,
+                    nx[v * 3], nx[v * 3 + 1], nx[v * 3 + 2]);
         }
     }
 
