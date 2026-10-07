@@ -122,6 +122,14 @@ public class BodyPillowEntity extends Entity {
                 e -> e.bed().equals(head)).stream().findFirst().orElse(null);
     }
 
+    /** The pillow on the bed at {@code pos} (either half), if there is a bed there with one. */
+    @Nullable
+    public static BodyPillowEntity at(Level level, BlockPos pos) {
+        BlockState s = level.getBlockState(pos);
+        if (!(s.getBlock() instanceof BedBlock)) return null;
+        return onBed(level, s.getValue(BedBlock.PART) == BedPart.HEAD ? pos : pos.relative(s.getValue(BedBlock.FACING)));
+    }
+
     public BlockPos bed() { return entityData.get(DATA_BED); }
 
     /** The way the bed points, foot to head. */
@@ -518,7 +526,7 @@ public class BodyPillowEntity extends Entity {
     }
 
     /** Back into their arms (their inventory, or at their feet if it is full). */
-    private void takeBack(Player player) {
+    public void takeBack(Player player) {
         ejectPassengers();
         ItemStack pillow = new ItemStack(ModItems.BODY_PILLOW.get());
         if (!player.getInventory().add(pillow)) player.drop(pillow, false);
