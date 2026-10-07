@@ -37,7 +37,7 @@ import java.util.function.Consumer;
  *   use on a bed       lay it on the bed (entity/BodyPillowEntity): it slouches against the headboard; right-click
  *                      it to climb on with it; sneak + right-click to sit her on the edge of the bed, her feet down,
  *                      and right-click her then to get down on the floor and lick them (jump: lift them to your
- *                      face); punch her to take her back; sleep there and she lies beside you, you on your side facing her
+ *                      face); punch her (or the bed) to take her back, whatever is in your hand (event/CommonEvents); sleep there and she lies beside you, you on your side facing her
  */
 public class BodyPillowItem extends Item {
     public BodyPillowItem(Properties properties) { super(properties); }

@@ -60,6 +60,47 @@ public final class CommonEvents {
         if (!Float.isNaN(eye)) event.setNewEyeHeight(eye);
     }
 
+    /**
+     * The body pillow on a bed, before any other mod (Carry On picks up whatever you sneak + right-click with an empty hand):
+     * right-clicks reach her whatever is in your hand.
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPillowInteract(PlayerInteractEvent.EntityInteract event) {
+        if (!(event.getTarget() instanceof com.groid.papon.entity.BodyPillowEntity pillow)) return;
+        InteractionResult result = pillow.interact(event.getEntity(), event.getHand());
+        if (!result.consumesAction()) return;
+        event.setCanceled(true);
+        event.setCancellationResult(result);
+    }
+
+    /** Sneak + right-click the bed she is on (her hitbox is only her middle): move her, as if you had clicked her. */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPillowBedUse(PlayerInteractEvent.RightClickBlock event) {
+        Player player = event.getEntity();
+        if (event.getHand() != net.minecraft.world.InteractionHand.MAIN_HAND || !player.isSecondaryUseActive()) return;
+        var pillow = com.groid.papon.entity.BodyPillowEntity.at(event.getLevel(), event.getPos());
+        if (pillow == null || pillow.isVehicle()) return;
+        event.setCanceled(true);
+        event.setCancellationResult(pillow.interact(player, event.getHand()));
+    }
+
+    /** Punching the bed she is on takes her back instead of breaking it (break it once she is off). */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPillowBedHit(PlayerInteractEvent.LeftClickBlock event) {
+        var pillow = com.groid.papon.entity.BodyPillowEntity.at(event.getLevel(), event.getPos());
+        if (pillow == null) return;
+        event.setCanceled(true);
+        if (!event.getLevel().isClientSide && event.getAction() == PlayerInteractEvent.LeftClickBlock.Action.START) pillow.takeBack(event.getEntity());
+    }
+
+    /** Punching her: back into your arms, whatever you hit her with (no other mod's attack in the way). */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPillowHit(AttackEntityEvent event) {
+        if (!(event.getTarget() instanceof com.groid.papon.entity.BodyPillowEntity pillow)) return;
+        event.setCanceled(true);
+        if (!pillow.level().isClientSide && pillow.isAlive()) pillow.takeBack(event.getEntity());
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onInteract(PlayerInteractEvent.EntityInteract event) {
         ItemStack stack = event.getItemStack();

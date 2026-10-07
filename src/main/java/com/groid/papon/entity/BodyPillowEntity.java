@@ -122,6 +122,14 @@ public class BodyPillowEntity extends Entity {
                 e -> e.bed().equals(head)).stream().findFirst().orElse(null);
     }
 
+    /** The pillow on the bed at {@code pos} (either half), if there is a bed there with one. */
+    @Nullable
+    public static BodyPillowEntity at(Level level, BlockPos pos) {
+        BlockState s = level.getBlockState(pos);
+        if (!(s.getBlock() instanceof BedBlock)) return null;
+        return onBed(level, s.getValue(BedBlock.PART) == BedPart.HEAD ? pos : pos.relative(s.getValue(BedBlock.FACING)));
+    }
+
     public BlockPos bed() { return entityData.get(DATA_BED); }
 
     /** The way the bed points, foot to head. */
@@ -357,8 +365,10 @@ public class BodyPillowEntity extends Entity {
         return score;
     }
 
+    /** Room to be on the floor at {@code pos}: nothing in the way but a floor covering (carpet, a snow layer). */
     private boolean clear(BlockPos pos) {
-        return level().getBlockState(pos).getCollisionShape(level(), pos).isEmpty()
+        var floor = level().getBlockState(pos).getCollisionShape(level(), pos);
+        return (floor.isEmpty() || floor.max(Direction.Axis.Y) <= 0.2)
                 && level().getBlockState(pos.above()).getCollisionShape(level(), pos.above()).isEmpty();
     }
 
@@ -370,7 +380,7 @@ public class BodyPillowEntity extends Entity {
         } else {
             Direction e = pickEdge();
             if (e == null) {
-                if (!level().isClientSide) com.groid.papon.PaponMod.LOG.info("[pillow] No room for edge on {} (checking sides: {} score={}, {} score={})",
+                if (!level().isClientSide) com.groid.papon.PaponMod.LOG.debug("[pillow] No room for edge on {} (checking sides: {} score={}, {} score={})",
                     bed(), side(), room(side()), side().getOpposite(), room(side().getOpposite()));
                 say(player, "no_room");
                 return;
@@ -518,7 +528,7 @@ public class BodyPillowEntity extends Entity {
     }
 
     /** Back into their arms (their inventory, or at their feet if it is full). */
-    private void takeBack(Player player) {
+    public void takeBack(Player player) {
         ejectPassengers();
         ItemStack pillow = new ItemStack(ModItems.BODY_PILLOW.get());
         if (!player.getInventory().add(pillow)) player.drop(pillow, false);
@@ -556,12 +566,19 @@ public class BodyPillowEntity extends Entity {
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (isInvulnerableTo(source)) return false;
-        if (!level().isClientSide && isAlive() && source.getEntity() instanceof Player p) takeBack(p);
+        // a punch, not an arrow from across the room
+        if (!level().isClientSide && isAlive() && source.getDirectEntity() instanceof Player p) takeBack(p);
         return true;
     }
 
     @Override
     public boolean isPickable() { return true; }
+
+    /** Drawn over the whole bed and off its sides (laid down, her feet on the floor or lifted), not just her hitbox. */
+    @Override
+    public net.minecraft.world.phys.AABB getBoundingBoxForCulling() {
+        return new net.minecraft.world.phys.AABB(bed()).minmax(new net.minecraft.world.phys.AABB(bed().relative(facing().getOpposite()))).inflate(1.5, 0, 1.5).expandTowards(0, 1.5, 0);
+    }
 
     @Override
     public boolean isPushable() { return false; }
