@@ -23,4 +23,16 @@ public final class PaponRenderTypes extends RenderType {
 
     /** Additive light: adds to what is behind it, hides nothing. */
     public static RenderType glow() { return GLOW; }
+
+    private static final java.util.Map<net.minecraft.resources.ResourceLocation, RenderType> MIRRORS = new java.util.HashMap<>();
+
+    /**
+     * A mirror's live picture (SkylineMirrors): unlit (the picture is already lit like the world it shows), smooth, opaque,
+     * both sides; text's shader for its colour times the lightmap, and fog.
+     */
+    public static RenderType mirror(net.minecraft.resources.ResourceLocation picture) {
+        return MIRRORS.computeIfAbsent(picture, id -> create("papon_mirror", DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP, VertexFormat.Mode.QUADS, 256,
+                false, false, CompositeState.builder().setShaderState(RENDERTYPE_TEXT_SHADER).setTextureState(new TextureStateShard(id, true, false))
+                        .setLightmapState(LIGHTMAP).setCullState(NO_CULL).createCompositeState(false)));
+    }
 }

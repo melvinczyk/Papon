@@ -89,6 +89,10 @@ public final class AutoShot {
      *  and idling, idling from the seat, flat out, coasting; papon_q*.png at consecutive ticks. */
     private static final boolean SKYSHAKE = MODE.equals("skyshake");
     private static String shakePhase = "";
+    /** -Pautoshot=mirrors: the Skyline's live mirrors (2026-10-07): on a lot with a red pillar behind its left, a blue one behind its
+     *  right, a yellow one straight behind and an armor stand; from the driver's seat at each mirror (papon_m*.png), from behind,
+     *  then pulling away. Logs each pass's time. */
+    private static final boolean MIRRORS = MODE.equals("mirrors");
 
     /** The phase of the skyshake tour, or null (ClientEvents logs the camera each frame while it runs). */
     public static String shakePhase() { return SKYSHAKE && !shakePhase.isEmpty() ? shakePhase : null; }
@@ -152,6 +156,10 @@ public final class AutoShot {
         }
         if (SKYSHAKE) {
             skyshake(mc);
+            return;
+        }
+        if (MIRRORS) {
+            mirrors(mc);
             return;
         }
         if (STATE) {
@@ -1867,9 +1875,7 @@ public final class AutoShot {
         if (at > 12 && at < 140 && g.act() != com.groid.papon.boss.SpiritGiantEntity.IDLE && !mc.player.isPassenger()) {
             lookAtPoint(mc, g.head(0).add(0, -9, 0));
             int ga = (int) g.actTime(0);
-            for (int s : shots[i]) {
-                if (ga == s) once(mc, String.format("t%d_%s_%02d_%s", i, moves[i], s, actName(g.act())));
-            }
+            for (int s : shots[i]) { if (ga == s) once(mc, String.format("t%d_%s_%02d_%s", i, moves[i], s, actName(g.act()))); }
         }
     }
 
@@ -2241,6 +2247,61 @@ public final class AutoShot {
         if (tick % 10 == 0 && car != null) PaponMod.LOG.info("[autoshot] skyshake {} car {} roll {} pitch {} rpm {}", tick, v3(car.position()),
                 car.bodyRoll, car.bodyPitch, (int) com.groid.papon.client.CaravanSounds.rpm(car));
         if (tick == 500) mc.stop();
+    }
+
+    private static float mirrorYaw = Float.NaN, mirrorPitch;
+
+    private static void mirrors(Minecraft mc) {
+        if (tick == 40) run("gamemode creative", "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000",
+                "gamerule doMobSpawning false", "kill @e[type=papon:caravan]", "tp @s 6300 200 6300");
+        if (tick == 70) run("execute positioned 6300 0 6300 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+        if (tick == 80) run("execute at @s run fill ~-16 ~ ~-30 ~16 ~14 ~5 air", "execute at @s run fill ~-16 ~ ~6 ~16 ~14 ~40 air",
+                "execute at @s run fill ~-16 ~-1 ~-30 ~16 ~-1 ~40 minecraft:smooth_stone",
+                "execute at @s run fill ~4 ~ ~-12 ~5 ~5 ~-11 minecraft:red_concrete", "execute at @s run fill ~-5 ~ ~-12 ~-4 ~5 ~-11 minecraft:blue_concrete",
+                "execute at @s run fill ~-1 ~ ~-17 ~1 ~3 ~-16 minecraft:yellow_concrete", "kill @e[type=armor_stand]",
+                "execute at @s run summon armor_stand ~1.5 ~ ~-6 {Rotation:[0f,0f],ShowArms:1b}");
+        if (tick == 95) run("execute at @s run summon papon:caravan ~ ~ ~ {Skyline:1b,Rotation:[0f,0f]}");
+        if (tick == 100) run("ride @s mount @e[type=papon:caravan,limit=1,sort=nearest]");
+        if (tick == 102) mc.options.setCameraType(CameraType.FIRST_PERSON);
+        var car = nearest(mc, com.groid.papon.vehicle.CaravanEntity.class);
+        // where to look (from the car's heading) and the shot's name, every 12 ticks
+        String[][] looks = {{"0", "8", "m01_ahead"}, {"-28", "-30", "m02_rearview"}, {"-20", "-22", "m03_rearview_b"}, {"-63", "7", "m04_left"},
+                {"-55", "4", "m05_left_b"}, {"38", "14", "m06_right"}, {"52", "18", "m07_right_b"}};
+        for (int i = 0; i < looks.length; i++) {
+            int at = 130 + i * 12;
+            if (tick == at) { mirrorYaw = Float.parseFloat(looks[i][0]); mirrorPitch = Float.parseFloat(looks[i][1]); }
+            if (tick == at + 10) shot(mc, looks[i][2]);
+        }
+        if (car != null && !Float.isNaN(mirrorYaw) && mc.player.getVehicle() == car) { mc.player.setYRot(car.getYRot() + mirrorYaw); mc.player.setXRot(mirrorPitch); }
+        if (tick == 220) { mirrorYaw = Float.NaN; mc.options.setCameraType(CameraType.THIRD_PERSON_BACK); }
+        if (tick == 222 && car != null) { mc.player.setYRot(car.getYRot()); mc.player.setXRot(12); }
+        if (tick == 235) shot(mc, "m08_behind");
+        if (tick == 240) { mc.options.setCameraType(CameraType.FIRST_PERSON); mirrorYaw = -28; mirrorPitch = -30; }
+        if (tick == 250) mc.options.keyUp.setDown(true);
+        if (tick == 268) shot(mc, "m09_pulling_away");
+        if (tick == 280) mc.options.keyUp.setDown(false);
+        if (tick == 282) shot(mc, "m10_further");
+        // the frame rate with 0, 1, 2 and 3 passes, back in the seat looking at the rear-view mirror (the setting put back after)
+        if (tick == 340) { run("ride @s mount @e[type=papon:caravan,limit=1,sort=nearest]"); mirrorYaw = -20; mirrorPitch = -22; }
+        for (int i = 0; i < 4; i++) if (tick == 350 + i * 40) com.groid.papon.PaponConfig.MIRROR_PASSES.set(i);
+        if (tick == 509) com.groid.papon.PaponConfig.MIRROR_PASSES.set(2);
+        if (tick > 350 && tick % 40 == 39) PaponMod.LOG.info("[autoshot] mirrors fps {} with {} passes", mc.getFps(), com.groid.papon.PaponConfig.MIRROR_PASSES.get());
+        if (tick % 10 == 0) PaponMod.LOG.info("[autoshot] mirrors {} passes {} {} ms a pass, {} fps, setting {}", tick, com.groid.papon.client.SkylineMirrors.passCount,
+                com.groid.papon.client.SkylineMirrors.passMillis, mc.getFps(), com.groid.papon.PaponConfig.MIRROR_PASSES.get());
+        // out of it: by its left mirror, behind and beside, looking into the glass (you should see yourself)
+        if (tick == 295) run("ride @s dismount");
+        if (tick == 300 && car != null) {
+            Vec3 f = Vec3.directionFromRotation(0, car.getYRot()), l = new Vec3(f.z, 0, -f.x);
+            mc.options.setCameraType(CameraType.FIRST_PERSON);
+            tpLook(car.position().add(l.scale(1.9)).add(f.scale(-0.4)).add(0, -0.2, 0), car.position().add(l.scale(1.2)).add(f.scale(0.65)).add(0, 1.2, 0));
+        }
+        if (tick == 315) shot(mc, "m11_outside_left");
+        if (tick == 318 && car != null) {
+            Vec3 f = Vec3.directionFromRotation(0, car.getYRot()), l = new Vec3(f.z, 0, -f.x);
+            tpLook(car.position().add(l.scale(2.6)).add(f.scale(-3.5)).add(0, -0.4, 0), car.position().add(l.scale(1.2)).add(f.scale(0.65)).add(0, 1.2, 0));
+        }
+        if (tick == 333) shot(mc, "m12_outside_left_far");
+        if (tick == 510) mc.stop();
     }
 
     private static void tpLook(Vec3 at, Vec3 look) {

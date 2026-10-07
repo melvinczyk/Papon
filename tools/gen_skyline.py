@@ -896,9 +896,10 @@ def build_cabin():
 
 
 # ---------------------------------------------------------------- primitives
-def box(c0, c1, mat, bone='body', group='opaque', extra=(), bevel=0.0, uvmap=None, rot=None, pivot=None, uvface=None):
+def box(c0, c1, mat, bone='body', group='opaque', extra=(), bevel=0.0, uvmap=None, rot=None, pivot=None, uvface=None, face_groups=None):
     """An axis-aligned box from c0 to c1, its edges chamfered by `bevel`; rotated by rot (degrees about X, Y, Z in that
-    order, right-handed: a positive X turn tips the top back toward +Z, the car's rear) round pivot. uvmap(face, p) -> uv for detail textures."""
+    order, right-handed: a positive X turn tips the top back toward +Z, the car's rear) round pivot. uvmap(face, p) -> uv for detail textures.
+    face_groups {'+Z': group, ...}: those sides go in that group alone (a mirror's glass, drawn live by the renderer)."""
     x0, y0, z0 = c0
     x1, y1, z1 = c1
     b = min(bevel, (x1 - x0) / 2.01, (y1 - y0) / 2.01, (z1 - z0) / 2.01)
@@ -914,18 +915,19 @@ def box(c0, c1, mat, bone='body', group='opaque', extra=(), bevel=0.0, uvmap=Non
     def T(p):
         return tuple(R @ (np.array(p, float) - pv) + pv)
 
-    def face(pts, mat_):
+    def face(pts, mat_, side=None):
         q = [T(p) for p in pts]
         uvs = uvface(pts) if uvface else [uvmap(p) for p in pts] if uvmap else sw(mat_)
-        M.flat(q, uvs, bone, group, extra)
+        own = (face_groups or {}).get(side)
+        M.flat(q, uvs, bone, own or group, () if own else extra)
     X0, X1, Y0, Y1, Z0, Z1 = x0 + b, x1 - b, y0 + b, y1 - b, z0 + b, z1 - b
     # six faces
-    face([(X0, Y0, z0), (X0, Y1, z0), (X1, Y1, z0), (X1, Y0, z0)], mat)          # -Z
-    face([(X1, Y0, z1), (X1, Y1, z1), (X0, Y1, z1), (X0, Y0, z1)], mat)          # +Z
-    face([(x0, Y0, Z1), (x0, Y1, Z1), (x0, Y1, Z0), (x0, Y0, Z0)], mat)          # -X
-    face([(x1, Y0, Z0), (x1, Y1, Z0), (x1, Y1, Z1), (x1, Y0, Z1)], mat)          # +X
-    face([(X0, y1, Z0), (X0, y1, Z1), (X1, y1, Z1), (X1, y1, Z0)], mat)          # +Y
-    face([(X0, y0, Z1), (X0, y0, Z0), (X1, y0, Z0), (X1, y0, Z1)], mat)          # -Y
+    face([(X0, Y0, z0), (X0, Y1, z0), (X1, Y1, z0), (X1, Y0, z0)], mat, '-Z')          # -Z
+    face([(X1, Y0, z1), (X1, Y1, z1), (X0, Y1, z1), (X0, Y0, z1)], mat, '+Z')          # +Z
+    face([(x0, Y0, Z1), (x0, Y1, Z1), (x0, Y1, Z0), (x0, Y0, Z0)], mat, '-X')          # -X
+    face([(x1, Y0, Z0), (x1, Y1, Z0), (x1, Y1, Z1), (x1, Y0, Z1)], mat, '+X')          # +X
+    face([(X0, y1, Z0), (X0, y1, Z1), (X1, y1, Z1), (X1, y1, Z0)], mat, '+Y')          # +Y
+    face([(X0, y0, Z1), (X0, y0, Z0), (X1, y0, Z0), (X1, y0, Z1)], mat, '-Y')          # -Y
     if b <= 0:
         return
     # edge chamfers
@@ -1187,9 +1189,12 @@ def build_interior():
         box((-3.0, yc - 0.1, zc - half), (3.0, yc + 0.1, zc + half), 'trim', rot=(tilt, 0, 0), pivot=(0, yc, zc))
     py = float(roof_y(-0.7)) - 0.62
     box((-0.32, 25.5, -0.95), (0.32, py + 0.05, -0.4), 'trim', bevel=0.12)
+    # (2026-10-07, live mirrors) aimed as a driver sets one: from the driver's eyes (a hand's width right of it and
+    # below, close) its middle shows straight back through the rear window, level (it was 30 degrees to the left)
     mc = (0.0, 25.15, -1.2)
-    box((-2.6, 24.45, -1.55), (2.6, 25.85, -0.85), 'trim', bevel=0.3, rot=(8, -14, 0), pivot=mc)
-    box((-2.35, 24.65, -0.86), (2.35, 25.65, -0.8), 'mirror', rot=(8, -14, 0), pivot=mc, uvface=mirror_face)
+    box((-2.6, 24.45, -1.55), (2.6, 25.85, -0.85), 'trim', bevel=0.3, rot=REAR_AIM, pivot=mc)
+    box((-2.35, 24.65, -0.86), (2.35, 25.65, -0.8), 'mirror', rot=REAR_AIM, pivot=mc, uvface=mirror_face,
+        face_groups={'+Z': 'mirror_rear'})
 
 
 def build_steering_wheel():
@@ -1218,6 +1223,11 @@ def build_steering_wheel():
             M.flat([tuple(v) for v in (q if zz > 0 else q[::-1])], sw(mat), 'steering_wheel')
     box((cx - 1.2, cy - 1.2, cz - 0.6), (cx + 1.2, cy + 1.2, cz + 0.45), 'trim', 'steering_wheel', bevel=0.4)
     disc((cx, cy, cz + 0.47), 0.55, 'z', 1, 'steering_wheel', mat='red_badge', seg=10)
+
+
+# the mirrors' aim (rot about X, Y, Z): X > 0 tips the glass's face down, Y < 0 turns it toward -x (the driver's side)
+REAR_AIM = (10, -29.5, 0)
+SIDE_AIM = {1: (-1.2, -25.5, 0), -1: (-2.15, 13.35, 0)}
 
 
 def build_details():
@@ -1252,14 +1262,19 @@ def build_details():
 
         def X(a, c):
             return (min(sx * a, sx * c), max(sx * a, sx * c))
+        # (2026-10-07) 2 px higher on a taller sail: from the driver's seat the left one hid under the dash's top
         xa, xb = X(15.0, 17.05)
-        box((xa, 17.0, -12.4), (xb, 19.3, -9.7), 'trim', b, bevel=0.45)                         # the sail
+        box((xa, 17.0, -12.4), (xb, 21.3, -9.7), 'trim', b, bevel=0.45)                         # the sail
         xa, xb = X(16.6, 18.4)
-        box((xa, 18.35, -11.4), (xb, 19.15, -10.4), 'paint', b, bevel=0.3, extra=('gloss',))   # the arm
+        box((xa, 20.35, -11.4), (xb, 21.15, -10.4), 'paint', b, bevel=0.3, extra=('gloss',))   # the arm
+        # (2026-10-07, live mirrors) each aimed from the driver's eyes back along the car's flank, a little outward and
+        # level (the left one looked 49 degrees out, the right one at the road beside it)
+        aim = SIDE_AIM[sx]
         xa, xb = X(17.7, 20.5)
-        box((xa, 17.85, -11.95), (xb, 20.35, -9.95), 'paint', b, bevel=0.65, extra=('gloss',), rot=(0, sx * -7, 0))
+        box((xa, 19.85, -11.95), (xb, 22.35, -9.95), 'paint', b, bevel=0.65, extra=('gloss',), rot=aim, pivot=(sx * 19.1, 21.1, -10.95))
         xa, xb = X(17.95, 20.25)
-        box((xa, 18.1, -10.0), (xb, 20.1, -9.86), 'mirror', b, rot=(0, sx * -7, 0), pivot=(sx * 19.1, 19.1, -10.95), uvface=mirror_face)
+        box((xa, 20.1, -10.0), (xb, 22.1, -9.86), 'mirror', b, rot=aim, pivot=(sx * 19.1, 21.1, -10.95), uvface=mirror_face,
+            face_groups={'+Z': 'mirror_left' if sx > 0 else 'mirror_right'})
         # side marker on the front fender, amber
         fx = sx * (float(HALF(-36)) + 0.05)
         box((fx - 0.12, 11.6, -37.4), (fx + 0.12, 12.4, -35.6), 'lamp_amber', 'body', extra=('lamps',))
@@ -1326,7 +1341,8 @@ def rig():
 
 def write():
     order = ['opaque', 'glass']
-    flagged = ['lamps', 'brake', 'reverse', 'gauges', 'gloss', 'underglow']
+    # the mirrors' glass (CaravanRenderer: what the world behind looks like from your eyes, live; painted when not)
+    flagged = ['lamps', 'brake', 'reverse', 'gauges', 'gloss', 'underglow', 'mirror_rear', 'mirror_left', 'mirror_right']
     idx = []
     groups = {}
     for g in order:
