@@ -370,6 +370,8 @@ public class BodyPillowEntity extends Entity {
         } else {
             Direction e = pickEdge();
             if (e == null) {
+                if (!level().isClientSide) com.groid.papon.PaponMod.LOG.info("[pillow] No room for edge on {} (checking sides: {} score={}, {} score={})",
+                    bed(), side(), room(side()), side().getOpposite(), room(side().getOpposite()));
                 say(player, "no_room");
                 return;
             }
