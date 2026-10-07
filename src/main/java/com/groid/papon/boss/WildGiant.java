@@ -115,7 +115,8 @@ final class WildGiant {
         if (--next > 0) return;
         next = st >= 3 ? 50 + random.nextInt(30) : st == 2 ? 85 + random.nextInt(40) : 105 + random.nextInt(45);
         List<Integer> moves = new ArrayList<>();
-        if (d < 15) moves.addAll(List.of(2, 2, 0));
+        if (d < 13) moves.addAll(List.of(6, 6, 2, 0));
+        else if (d < 15) moves.addAll(List.of(2, 2, 0));
         else if (d < 32) moves.addAll(List.of(5, 5, 0, 1));
         else moves.addAll(List.of(4, 4, 1));
         if (st >= 3) moves.add(d < 32 ? 3 : 4);
@@ -128,6 +129,7 @@ final class WildGiant {
             case 2 -> slam(level, target, false);
             case 4 -> grab(level, target);
             case 5 -> lunge(level, target);
+            case 6 -> stompAt(level, target);
             default -> slam(level, target, true);
         }
     }
@@ -143,6 +145,7 @@ final class WildGiant {
             case "slam" -> slam(level, target, false);
             case "slam2" -> slam(level, target, true);
             case "laser" -> laser(26, 46, TRACK);
+            case "stomp" -> stompAt(level, target);
             default -> { return false; }
         }
         next = 200;
@@ -306,7 +309,8 @@ final class WildGiant {
     }
 
     private void swipe(LivingEntity t, int act) {
-        g.swipe(act, Mth.clamp(flatTo(t), 12, 38));
+        // on its legs it reaches the ground only so far out
+        g.swipe(act, Mth.clamp(flatTo(t), 12, 28));
         swipeHit.clear();
     }
 
@@ -337,6 +341,35 @@ final class WildGiant {
         g.grab(to, you, random.nextBoolean() ? 0 : 1);
         grabMark = you;
         level.playSound(null, you.x, you.y, you.z, SoundEvents.WARDEN_HEARTBEAT, SoundSource.HOSTILE, 4.0F, 0.5F);
+    }
+
+    /**
+     * La Pisada (2026-10-06, on its legs): under it is no place to stand. The foot on your side comes up, the knee high, hangs over
+     * where you will be, and comes down on it; the ground rings out from it.
+     */
+    private void stompAt(ServerLevel level, LivingEntity t) {
+        Vec3 base = g.base();
+        Vec3 p = predict(t, SpiritGiantEntity.STOMP_HIT);
+        Vec3 d = new Vec3(p.x - base.x, 0, p.z - base.z);
+        if (d.length() > 13) d = d.normalize().scale(13);
+        Vec3 at = onGround(base.add(d));
+        int i = d.dot(g.right()) > 0 ? 0 : 1;
+        g.stomp(i, at);
+        Fx.warnClosing(level, at, 5F, BLUE, SpiritGiantEntity.STOMP_HIT);
+    }
+
+    /** A foot coming down on {@code at}: whoever is under it on the ground takes {@code share}, and is thrown out from under it. */
+    void stomp(ServerLevel level, Vec3 at, float share, double r) {
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(at, at).inflate(r + 1, 3, r + 1), this::hittable)) {
+            if (e.distanceToSqr(at.x, e.getY(), at.z) > Mth.square(r + e.getBbWidth() / 2) || e.getY() > at.y + 3 || e.getY() < at.y - 2) continue;
+            if (hit(e, share)) {
+                Vec3 away = e.position().subtract(at).multiply(1, 0, 1);
+                away = away.lengthSqr() < 1e-4 ? new Vec3(1, 0, 0) : away.normalize();
+                e.setDeltaMovement(away.scale(1.1).add(0, 0.6, 0));
+                e.hurtMarked = true;
+                Fx.hit(level, e.position().add(0, 1, 0), 2.0F, BLUE);
+            }
+        }
     }
 
     /** Its last grab at you as the dead drag it under (SpiritGiantEntity.drag). */
@@ -392,8 +425,10 @@ final class WildGiant {
             if (beams[0] != null || beams[1] != null) clearBeams(level);
             return;
         }
+        // on its legs: its shins and thighs are solid, whoever walks into one is knocked back off it (6%)
+        if (g.walker() && act != SpiritGiantEntity.RISE) legs(level);
         // its body is solid: whoever gets in among its ribs is thrown back out (6%)
-        if (g.risen(0) > 0.55F && act != SpiritGiantEntity.RISE) {
+        if (!g.walker() && g.risen(0) > 0.55F && act != SpiritGiantEntity.RISE) {
             Vec3 core = g.base().add(g.forward().scale(1.2));
             long now = level.getGameTime();
             for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(core, core).inflate(BODY + 2, 24, BODY + 2), this::hittable)) {
@@ -556,6 +591,18 @@ final class WildGiant {
             Fx.shock(level, mid, 22F, BLUE);
         }
         if (act == SpiritGiantEntity.GRAB) tickGrab(level, (int) at);
+        if (act == SpiritGiantEntity.STOMP && (int) at == SpiritGiantEntity.STOMP_HIT) {
+            Vec3 mark = g.goingTo();
+            impact(level, mark, 4.6, 0.24F);
+            ring(mark, level.getGameTime());
+            g.debris(level, mark, 10, 0.7);
+            Fx.flash(level, mark.add(0, 1, 0), 3F);
+            Fx.chunks(level, mark.add(0, 0.5, 0), 26, 0.7F, 0x2C2438, 1.1);
+            Fx.shock(level, mark, 16F, BLUE);
+            level.playSound(null, mark.x, mark.y, mark.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 5.0F, 0.45F);
+            level.playSound(null, mark.x, mark.y, mark.z, SoundEvents.WARDEN_STEP, SoundSource.HOSTILE, 8.0F, 0.3F);
+            PaponNetwork.shake(level, mark, 100, 1.0F, 18);
+        }
         // La Embestida: its chest ploughing through the ground and its raking hands sweep up whoever is in its way
         if (act == SpiritGiantEntity.LUNGE && at >= SpiritGiantEntity.LUNGE_GO - 1 && at <= SpiritGiantEntity.LUNGE_STOP + 2) {
             Vec3 f = g.forward();
@@ -579,13 +626,41 @@ final class WildGiant {
         }
     }
 
+    /** Its legs, solid: anyone walking into a shin or a thigh is knocked back off it (the foot in the air too). */
+    private void legs(ServerLevel level) {
+        long now = level.getGameTime();
+        Vec3 b = g.base();
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, new AABB(b, b).inflate(SpiritGiantEntity.FOOT_OUT + 16, 30, SpiritGiantEntity.FOOT_OUT + 16), this::hittable)) {
+            if (e.isPassenger()) continue;
+            Vec3 mid = e.position().add(0, e.getBbHeight() * 0.5, 0);
+            for (int i = 0; i < 2; i++) {
+                Vec3 an = g.ankle(i, 0), kn = g.knee(i, 0), hp = g.hipJoint(i, 0);
+                double dist = Math.min(segDist(mid, an, kn), segDist(mid, kn, hp));
+                if (dist > 1.6 + e.getBbWidth() / 2) continue;
+                Vec3 out = mid.subtract(an.lerp(kn, 0.5)).multiply(1, 0, 1);
+                out = out.lengthSqr() < 1e-4 ? g.forward() : out.normalize();
+                e.setDeltaMovement(out.scale(1.1).add(0, 0.4, 0));
+                e.hurtMarked = true;
+                Long last = bodyHit.get(e.getId());
+                if (last == null || now - last > 12) {
+                    bodyHit.put(e.getId(), now);
+                    if (hit(e, 0.06F)) {
+                        Fx.hit(level, mid, 2.0F, BLUE);
+                        level.playSound(null, e.getX(), e.getY(), e.getZ(), SoundEvents.SKELETON_HURT, SoundSource.HOSTILE, 3.0F, 0.4F);
+                    }
+                }
+                break;
+            }
+        }
+    }
+
     private void tell(ServerLevel level, int act) {
         Vec3 h = g.head(0);
         net.minecraft.sounds.SoundEvent s = switch (act) {
             case SpiritGiantEntity.CHARGE -> ModSounds.GIANT_LASER_CHARGE.get();
             case SpiritGiantEntity.GRAB -> ModSounds.GIANT_TELL_GRAB.get();
             case SpiritGiantEntity.SWIPE_L, SpiritGiantEntity.SWIPE_R -> ModSounds.GIANT_TELL_SWIPE.get();
-            case SpiritGiantEntity.SLAM_L, SpiritGiantEntity.SLAM_R, SpiritGiantEntity.SLAM_BOTH -> ModSounds.GIANT_TELL_SLAM.get();
+            case SpiritGiantEntity.SLAM_L, SpiritGiantEntity.SLAM_R, SpiritGiantEntity.SLAM_BOTH, SpiritGiantEntity.STOMP -> ModSounds.GIANT_TELL_SLAM.get();
             case SpiritGiantEntity.LUNGE -> ModSounds.GIANT_TELL_LUNGE.get();
             default -> null;
         };

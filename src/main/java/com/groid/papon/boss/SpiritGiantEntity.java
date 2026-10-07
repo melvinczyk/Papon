@@ -39,7 +39,7 @@ import org.joml.Vector3f;
  */
 public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public static final int RISE = 0, IDLE = 1, CHARGE = 2, LASER = 3, SLAM_L = 4, SLAM_R = 5, SINK = 6, SWIPE_L = 7, SWIPE_R = 8,
-            SLAM_BOTH = 9, ROAR = 10, GRAB = 11, LUNGE = 12, HEED = 13;
+            SLAM_BOTH = 9, ROAR = 10, GRAB = 11, LUNGE = 12, HEED = 13, STOMP = 14;
     /**
      * Ticks a rise and a sink take; a slam: the hand up, then down onto its mark at {@link #SLAM_HIT}, held, back.
      * The rise (2026-10-05, the user: "he should dig his way out of the ground instead of simply appearing... the arena ground
@@ -100,6 +100,20 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public static final double SHOULDER_Y = 18.5, SHOULDER_OUT = 10.5;
     /** Its arms: upper arm and forearm (blocks). */
     public static final double UPPER = 13.5, FORE = 13.5;
+    /**
+     * On its own legs (the spawn egg's giant, 2026-10-06, the user: "the summonable spawn egg version of him able to walk with a full
+     * skeleton, legs rendered etc, rather than be in the form he is in the boss fight, when his body is half in the underworld"):
+     * the boss's giant stays waist deep in the floor; the walker ({@link #walker}) stands on a pelvis and two legs, thigh FEMUR and
+     * shin TIBIA, its waist STAND over the ground (CROUCH lower on its haunches), its hip joints HIP_DOWN under the waist and HIP_OUT
+     * to each side, its feet FOOT_OUT apart with the ankle ANKLE over the sole. It bends at the hips and crouches to reach the ground
+     * ({@link #bend}, {@link #crouch}); its feet stay planted where they stand and step when it has gone on without them
+     * (STEP_AT), each landing a stomp. Out of the ground it digs as before and then stands up on its legs (STAND_T longer).
+     */
+    public static final double FEMUR = 12.6, TIBIA = 12.4, HIP_OUT = 4.4, HIP_DOWN = 2.2, ANKLE = 1.4, FOOT_OUT = 5.0, STAND = 27, CROUCH = 12.5,
+            STEP_AT = 6.5;
+    public static final int STAND_T = 46;
+    /** La Pisada (STOMP, the walker's): the knee comes up and the foot hangs over your spot to STOMP_UP, down on it at STOMP_HIT, back by STOMP_T. */
+    public static final int STOMP_UP = 20, STOMP_HIT = 28, STOMP_T = 50;
     /** The skull's units (blocks): the renderer's scale too (it was 1.0: a bobble head on a body of sticks). */
     public static final float V = 0.74F;
     /** The eyes in the skull (skull units): out to each side, down, forward. */
@@ -130,6 +144,16 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     private static final EntityDataAccessor<Integer> DATA_PORTAL_LEN = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
     /** Dragged under: the hand it makes its last grab at you with (-1 none). */
     private static final EntityDataAccessor<Integer> DATA_CLAW = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.INT);
+    /** On its legs ({@link #FEMUR}): the spawn egg's giant. */
+    private static final EntityDataAccessor<Boolean> DATA_WALKER = SynchedEntityData.defineId(SpiritGiantEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final Vec3 UP = new Vec3(0, 1, 0);
+    /** The walker's feet, both sides: where each sole is (now, last tick), a step's start and end, its yaw, how far through a step (-1 planted). */
+    private final Vec3[] feet = new Vec3[2], feetO = new Vec3[2], stepFrom = new Vec3[2], stepTo = new Vec3[2];
+    private final float[] footYaw = new float[2], footYawO = new float[2], yawFrom = new float[2], yawTo = new float[2];
+    private final float[] stepK = {-1, -1}, stepKO = {-1, -1};
+    private final int[] stepLen = {16, 16};
+    @javax.annotation.Nullable private Vec3 lastBase;
+    private int stillTicks;
     private boolean releasing;
     /** Presses of jump it takes to get out of its fist. */
     private int struggleNeed = 12;
@@ -194,6 +218,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         entityData.define(DATA_PORTAL_END, 0);
         entityData.define(DATA_PORTAL_LEN, 0);
         entityData.define(DATA_CLAW, -1);
+        entityData.define(DATA_WALKER, false);
     }
 
     // ------------------------------------------------------------------ the rift's clock (2026-10-06)
@@ -322,6 +347,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     /** Its first tick on its own: where it was put is where it digs up out of the ground, facing the nearest player. */
     private void wake(ServerLevel level) {
         brain = new WildGiant(this);
+        entityData.set(DATA_WALKER, true);
         Vec3 at = position();
         net.minecraft.world.entity.player.Player p = level.getNearestPlayer(at.x, at.y, at.z, 96, true);
         float yaw = p != null ? (float) (Mth.atan2(p.getZ() - at.z, p.getX() - at.x) * Mth.RAD_TO_DEG) - 90F : getYRot();
@@ -332,7 +358,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         entityData.set(DATA_HAND_L, handRest(0).toVector3f());
         entityData.set(DATA_HAND_R, handRest(1).toVector3f());
         aim(p != null ? p.getEyePosition() : at.add(forward().scale(20)));
-        if (wildRift > 0) portal(wildRift + RISE_T);
+        if (wildRift > 0) portal(wildRift + riseT());
         bar = new net.minecraft.server.level.ServerBossEvent(getDisplayName(), net.minecraft.world.BossEvent.BossBarColor.PURPLE,
                 net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS);
         PaponNetwork.shake(level, at, 120, 0.7F, 40);
@@ -416,6 +442,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     /** How far below its risen place it is (blocks); ploughing through the floor it rides a little lower. */
     public double sunk(float partial) {
         double s = (1 - risen(partial)) * 46;
+        if (walker()) return s;
         if (act() == GRAB) {
             float t = actTime(partial);
             s += 3.0 * Math.sin(Math.PI * Mth.clamp((t - GRAB_LOCK) / (GRAB_WADE - GRAB_LOCK), 0, 1));
@@ -427,6 +454,302 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     private static float smooth(float k) {
         k = Mth.clamp(k, 0, 1);
         return k * k * (3 - 2 * k);
+    }
+
+    // ------------------------------------------------------------------ on its legs (the walker, 2026-10-06)
+
+    /** On its legs (the spawn egg's giant), not waist deep in the floor (the boss's). */
+    public boolean walker() { return entityData.get(DATA_WALKER); }
+
+    /** How long its rise takes: the walker stands up on its legs after it has dug itself out. */
+    public int riseT() { return walker() ? RISE_T + STAND_T : RISE_T; }
+
+    /** A curve through keys {@code t0, v0, t1, v1, ...} (eased between them, held past the ends). */
+    private static float keys(float t, float... kv) {
+        if (t <= kv[0]) return kv[1];
+        for (int i = 2; i < kv.length; i += 2) {
+            if (t < kv[i]) return Mth.lerp(smooth((t - kv[i - 2]) / (kv[i] - kv[i - 2])), kv[i - 1], kv[i + 1]);
+        }
+        return kv[kv.length - 1];
+    }
+
+    /** The walker: how far down on its haunches (0 standing .. 1), as its hands go for the ground. */
+    public float crouch(float partial) {
+        float t = actTime(partial);
+        return switch (act()) {
+            case CHARGE -> keys(t, 0, 0.06F, 20, 0.2F);
+            case LASER -> 0.2F;
+            case SLAM_L, SLAM_R -> keys(t, 0, 0.06F, 9, 0.16F, SLAM_HIT, 0.9F, 30, 0.9F, SLAM_T, 0.06F);
+            case SLAM_BOTH -> keys(t, SLAM2_UP, 0.06F, SLAM2_HIT - 6, 0.2F, SLAM2_HIT, 1F, SLAM2_HIT + 12, 1F, SLAM2_T, 0.06F);
+            case SWIPE_L, SWIPE_R -> keys(t, 0, 0.06F, SWIPE_FROM - 6, 0.5F, SWIPE_FROM, 0.85F, SWIPE_TO + 4, 0.85F, SWIPE_T, 0.06F);
+            case ROAR -> keys(t, 0, 0.06F, 14, 0.3F, 36, 0.3F, ROAR_T, 0.06F);
+            case LUNGE -> keys(t, 0, 0.06F, LUNGE_GO, 0.45F, LUNGE_GO + 6, 0.7F, LUNGE_STOP + 8, 0.7F, LUNGE_T, 0.06F);
+            case STOMP -> keys(t, 0, 0.06F, STOMP_UP, 0.2F, STOMP_HIT, 0.45F, STOMP_HIT + 8, 0.45F, STOMP_T, 0.06F);
+            case GRAB -> !caught() || t < GRAB_CLOSE
+                    ? keys(t, GRAB_LOCK, 0.06F, GRAB_WADE, 0.35F, GRAB_CLOSE, 0.9F, GRAB_CLOSE + 12, 0.9F, GRAB_T_MISS, 0.06F)
+                    : keys(t, GRAB_CLOSE, 0.9F, GRAB_LIFT, 0.05F, GRAB_SLAM_UP, 0.05F, GRAB_SLAM, 0.9F, GRAB_T_HELD - 22, 0.9F, GRAB_T_HELD, 0.06F);
+            default -> 0.06F;
+        };
+    }
+
+    /** The walker: how far it bends forward at the hips (radians; back, below 0): hunched a little standing, right over to the ground. */
+    public float bend(float partial) {
+        float t = actTime(partial);
+        return switch (act()) {
+            case CHARGE -> keys(t, 0, 0.14F, 20, 0.32F);
+            case LASER -> 0.32F;
+            case SLAM_L, SLAM_R -> keys(t, 0, 0.14F, 9, -0.1F, SLAM_HIT, 1F, 30, 1F, SLAM_T, 0.14F);
+            case SLAM_BOTH -> keys(t, 0, 0.14F, SLAM2_UP, -0.26F, SLAM2_HIT - 6, -0.26F, SLAM2_HIT, 1.05F, SLAM2_HIT + 12, 1.05F, SLAM2_T, 0.14F);
+            case SWIPE_L, SWIPE_R -> keys(t, 0, 0.14F, SWIPE_FROM - 6, 0.5F, SWIPE_FROM, 0.9F, SWIPE_TO + 4, 0.9F, SWIPE_T, 0.14F);
+            case ROAR -> keys(t, 0, 0.14F, 14, -0.36F, 24, 0.5F, 36, 0.5F, ROAR_T, 0.14F);
+            case LUNGE -> keys(t, 0, 0.14F, LUNGE_GO, -0.3F, LUNGE_GO + 6, 1F, LUNGE_STOP + 8, 1F, LUNGE_T, 0.14F);
+            case STOMP -> keys(t, 0, 0.14F, STOMP_UP, -0.06F, STOMP_HIT, 0.45F, STOMP_HIT + 8, 0.45F, STOMP_T, 0.14F);
+            case HEED -> 0.14F + 0.2F * Mth.sin(Mth.PI * Mth.clamp(t / HEED_T, 0, 1));
+            // hunched over its hands as it hauls itself out, then up on its legs
+            case RISE -> keys(t, RISE_T - 14, 0.7F, riseT(), 0.14F);
+            // held down clinging to the ground, then thrown back screaming at the sky
+            case SINK -> keys(t, 0, 0.14F, DRAG_SEIZE, -0.26F, DRAG_CLING, 1F, DRAG_TEAR_L, 1F, DRAG_TEAR_L + 24, -0.2F);
+            case GRAB -> !caught() || t < GRAB_CLOSE
+                    ? keys(t, 0, 0.14F, GRAB_LOCK, -0.2F, GRAB_WADE, 0.5F, GRAB_CLOSE, 1.05F, GRAB_CLOSE + 12, 1.05F, GRAB_T_MISS, 0.14F)
+                    : keys(t, GRAB_CLOSE, 1.05F, GRAB_LIFT, -0.15F, GRAB_BRING, 0.2F, GRAB_BLAST, 0.2F, GRAB_SLAM_UP, -0.2F, GRAB_SLAM, 1.05F,
+                    GRAB_T_HELD - 22, 1.05F, GRAB_T_HELD, 0.14F);
+            default -> 0.14F;
+        };
+    }
+
+    /** Its trunk's up: bent forward at the hips on its legs; straight up out of the floor waist deep. */
+    public Vec3 torsoUp(float partial) {
+        if (!walker()) return UP;
+        double b = bend(partial);
+        return UP.scale(Math.cos(b)).add(forward(partial).scale(Math.sin(b)));
+    }
+
+    /** Its trunk's forward (square to {@link #torsoUp}). */
+    public Vec3 torsoForward(float partial) {
+        if (!walker()) return forward(partial);
+        double b = bend(partial);
+        return forward(partial).scale(Math.cos(b)).subtract(UP.scale(Math.sin(b)));
+    }
+
+    /** The walker: its waist over the ground, before its feet have a say: standing or down on its haunches; up out of the ground; pulled under. */
+    private double lift(float partial) {
+        float t = actTime(partial);
+        return switch (act()) {
+            case RISE -> STAND * smooth((t - RISE_T + 14) / (STAND_T + 14F));
+            case SINK -> STAND * (1 - smooth(t / DRAG_CLING));
+            default -> STAND - CROUCH * crouch(partial);
+        };
+    }
+
+    /**
+     * The middle of its waist, where the spine meets the pelvis. The boss's giant: in the floor where it stands. The walker: up on
+     * its legs, the hips back as it squats, over toward the foot it stands on while the other steps, and never higher than its legs
+     * reach from its feet (so it dips as it strides).
+     */
+    public Vec3 pelvis(float partial) {
+        Vec3 b = base(partial);
+        double y = b.y - sunk(partial);
+        if (!walker()) return new Vec3(b.x, y, b.z);
+        Vec3 f = forward(partial), r = right(partial);
+        int a = act();
+        Vec3 p = new Vec3(b.x, y + lift(partial), b.z);
+        if (a == RISE || a == SINK || feet[0] == null) return p;
+        p = p.subtract(f.scale(2.5 * crouch(partial)));
+        for (int i = 0; i < 2; i++) {
+            float k = step(i, partial);
+            if (k >= 0) p = p.add(r.scale((i == 0 ? -1 : 1) * 0.9 * Math.sin(Math.PI * k)));
+        }
+        Vec3 u = torsoUp(partial);
+        double reach = (FEMUR + TIBIA) * 0.985;
+        for (int i = 0; i < 2; i++) {
+            if (step(i, partial) >= 0) continue;
+            Vec3 hip = p.add(u.scale(-HIP_DOWN)).add(r.scale((i == 0 ? 1 : -1) * HIP_OUT));
+            Vec3 an = ankle(i, partial);
+            double h2 = Mth.square(hip.x - an.x) + Mth.square(hip.z - an.z);
+            double top = an.y + Math.sqrt(Math.max(1, reach * reach - h2)) + (p.y - hip.y);
+            if (p.y > top) p = new Vec3(p.x, top, p.z);
+        }
+        return p;
+    }
+
+    /** The walker's hip joint {@code i} (0 its left, 1 its right: the hands' sides). */
+    public Vec3 hipJoint(int i, float partial) {
+        return pelvis(partial).add(torsoUp(partial).scale(-HIP_DOWN)).add(right(partial).scale((i == 0 ? 1 : -1) * HIP_OUT));
+    }
+
+    /** Where foot {@code i}'s sole is (on the ground, or in the air mid-step). */
+    public Vec3 foot(int i, float partial) {
+        if (feet[i] == null) return base(partial).add(right(partial).scale((i == 0 ? 1 : -1) * FOOT_OUT));
+        return level().isClientSide ? feetO[i].lerp(feet[i], partial) : feet[i];
+    }
+
+    public Vec3 ankle(int i, float partial) { return foot(i, partial).add(0, ANKLE, 0); }
+
+    /** The way foot {@code i} points (a yaw, degrees). */
+    public float footYaw(int i, float partial) {
+        if (feet[i] == null) return facing(partial);
+        return level().isClientSide ? Mth.rotLerp(partial, footYawO[i], footYaw[i]) : footYaw[i];
+    }
+
+    /** How far through a step foot {@code i} is (0..1), or -1 planted. */
+    public float step(int i, float partial) {
+        if (!level().isClientSide || stepKO[i] < 0 || stepK[i] < 0) return stepK[i];
+        return Mth.lerp(partial, stepKO[i], stepK[i]);
+    }
+
+    /** The knee of leg {@code i}: two bones from the hip to the ankle, bent forward and a little out. */
+    public Vec3 knee(int i, float partial) {
+        Vec3 h = hipJoint(i, partial), a = ankle(i, partial);
+        Vec3 pole = forward(partial).add(right(partial).scale((i == 0 ? 1 : -1) * 0.22));
+        return joint(h, a, FEMUR, TIBIA, pole);
+    }
+
+    /** The joint between two bones {@code l1}, {@code l2} long from {@code a} to {@code b}, bent toward {@code pole}. */
+    public static Vec3 joint(Vec3 a, Vec3 b, double l1, double l2, Vec3 pole) {
+        Vec3 d = b.subtract(a);
+        double len = Mth.clamp(d.length(), 1e-3, l1 + l2 - 0.01);
+        Vec3 dir = d.lengthSqr() < 1e-8 ? new Vec3(0, -1, 0) : d.normalize();
+        double x = (l1 * l1 - l2 * l2 + len * len) / (2 * len);
+        double h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+        Vec3 perp = pole.subtract(dir.scale(pole.dot(dir)));
+        perp = perp.lengthSqr() < 1e-6 ? new Vec3(0, 0, 1) : perp.normalize();
+        return a.add(dir.scale(x)).add(perp.scale(h));
+    }
+
+    /** La Pisada: which foot comes down. */
+    public int stompFoot() { return entityData.get(DATA_GRAB_HAND); }
+
+    /** La Pisada: foot {@code i} comes down on {@code at}. */
+    public void stomp(int i, Vec3 at) {
+        entityData.set(DATA_GRAB_TO, at.toVector3f());
+        entityData.set(DATA_GRAB_HAND, i);
+        act(STOMP);
+    }
+
+    /** Where foot {@code i} stands at rest under it. */
+    private Vec3 stance(int i, Vec3 b, Vec3 r) { return b.add(r.scale((i == 0 ? 1 : -1) * FOOT_OUT)); }
+
+    /** The ground at x, z: the top of the first solid block (leaves and water not) down from a little over {@code near}. */
+    private double groundAt(double x, double z, double near) {
+        net.minecraft.core.BlockPos.MutableBlockPos m = new net.minecraft.core.BlockPos.MutableBlockPos();
+        int x0 = Mth.floor(x), z0 = Mth.floor(z), top = Mth.floor(near) + 10;
+        for (int y = top; y >= top - 34; y--) {
+            m.set(x0, y, z0);
+            net.minecraft.world.level.block.state.BlockState s = level().getBlockState(m);
+            if (!s.isAir() && s.blocksMotion() && !s.is(net.minecraft.tags.BlockTags.LEAVES)) return y + 1;
+        }
+        return near;
+    }
+
+    /**
+     * Its feet, one tick (both sides alike, from where it stands): each stays planted where it is until the giant has gone on
+     * {@link #STEP_AT} without it or turned from it, then steps (one at a time unless it is running) to its place under it, a
+     * little past it the way it is going, lifted in an arc, quicker the faster it goes; the server stomps where each lands. Rising,
+     * the legs come up out of the ground under it, the left knee first; dragged under, they go down into it.
+     */
+    /** The act (its start tick) the stomping foot last took off for. */
+    private int stompSeen = -1;
+
+    private void tickFeet() {
+        float sp = level().isClientSide ? 1F : 0F;
+        Vec3 b = base(sp), r = right(sp);
+        float yaw = facing(sp);
+        boolean init = feet[0] == null;
+        for (int i = 0; i < 2; i++) {
+            feetO[i] = feet[i];
+            footYawO[i] = footYaw[i];
+            stepKO[i] = stepK[i];
+        }
+        Vec3 vel = lastBase == null ? Vec3.ZERO : b.subtract(lastBase).multiply(1, 0, 1);
+        lastBase = b;
+        double speed = vel.length();
+        int a = act();
+        if (init || a == RISE || a == SINK) {
+            Vec3 p = pelvis(sp);
+            for (int i = 0; i < 2; i++) {
+                Vec3 at = init || a == RISE ? stance(i, b, r).add(forward(sp).scale(a == RISE && i == 0 ? 3 : 0)) : feet[i];
+                double down = a == SINK ? STAND - HIP_DOWN - ANKLE : i == 0 ? 15.5 : 22.0;
+                double y = init && a != RISE ? groundAt(at.x, at.z, b.y)
+                        : Math.min(a == SINK ? feet[i].y : groundAt(at.x, at.z, b.y), p.y - HIP_DOWN - ANKLE - down);
+                feet[i] = new Vec3(at.x, y, at.z);
+                if (a != SINK) footYaw[i] = yaw;
+                stepK[i] = -1;
+                if (init) {
+                    feetO[i] = feet[i];
+                    footYawO[i] = yaw;
+                }
+            }
+            return;
+        }
+        int stomper = a == STOMP ? stompFoot() : -1;
+        for (int i = 0; i < 2; i++) {
+            if (i == stomper) {
+                // La Pisada: the knee up, the foot hung over your spot, then down on it
+                float t = actTime(sp);
+                Vec3 mark = goingTo();
+                int began = entityData.get(DATA_ACT_AT);
+                if (stepFrom[i] == null || stompSeen != began) {
+                    stompSeen = began;
+                    stepFrom[i] = feetO[i] != null ? feetO[i] : feet[i];
+                    yawFrom[i] = footYaw[i];
+                }
+                Vec3 hang = stepFrom[i].lerp(mark, 0.6).add(0, 14, 0);
+                if (t < STOMP_UP) feet[i] = stepFrom[i].lerp(hang, smooth(t / STOMP_UP));
+                else if (t < STOMP_HIT) {
+                    float k = (t - STOMP_UP) / (STOMP_HIT - STOMP_UP);
+                    feet[i] = hang.lerp(mark, k * k);
+                } else feet[i] = mark;
+                footYaw[i] = yaw;
+                stepK[i] = t < STOMP_HIT ? Math.min(0.49F, 0.49F * t / STOMP_UP) : -1;
+                continue;
+            }
+            if (stepK[i] < 0) continue;
+            stepK[i] = Math.min(1, stepK[i] + 1F / stepLen[i]);
+            float k = stepK[i], e = smooth(k);
+            double lift = Mth.clamp(stepFrom[i].distanceTo(stepTo[i]) * 0.4, 1.4, 5.5);
+            Vec3 h = stepFrom[i].lerp(stepTo[i], e);
+            feet[i] = h.add(0, lift * Math.sin(Math.PI * k), 0);
+            footYaw[i] = yawFrom[i] + Mth.wrapDegrees(yawTo[i] - yawFrom[i]) * e;
+            if (k >= 1) {
+                feet[i] = stepTo[i];
+                stepK[i] = -1;
+                if (level() instanceof ServerLevel level) landed(level, i);
+            }
+        }
+        stillTicks = speed < 0.01 ? stillTicks + 1 : 0;
+        if (a == STOMP) return;
+        double[] err = new double[2];
+        for (int i = 0; i < 2; i++) {
+            Vec3 at = stance(i, b, r);
+            err[i] = Math.sqrt(Mth.square(feet[i].x - at.x) + Mth.square(feet[i].z - at.z));
+        }
+        Vec3 dir = speed > 0.02 ? vel.scale(1 / speed) : Vec3.ZERO;
+        int first = err[0] >= err[1] ? 0 : 1;
+        for (int n = 0; n < 2; n++) {
+            int i = n == 0 ? first : 1 - first;
+            if (stepK[i] >= 0) continue;
+            float yawErr = Math.abs(Mth.wrapDegrees(footYaw[i] - yaw));
+            boolean need = err[i] > STEP_AT || yawErr > 40 || stillTicks > 16 && (err[i] > 1.4 || yawErr > 12);
+            boolean otherUp = stepK[1 - i] >= 0 && stepK[1 - i] < 0.6F;
+            if (!need || otherUp && err[i] < STEP_AT * 2.2) continue;
+            Vec3 to = stance(i, b, r).add(dir.scale(Math.min(STEP_AT * 0.85, speed * 16)));
+            stepFrom[i] = feet[i];
+            stepTo[i] = new Vec3(to.x, groundAt(to.x, to.z, b.y), to.z);
+            yawFrom[i] = footYaw[i];
+            yawTo[i] = yaw;
+            stepLen[i] = Mth.clamp((int) Math.round(18 - speed * 14), 6, 18);
+            stepK[i] = 0;
+        }
+    }
+
+    /** A foot down: the ground shakes and thuds, dust, and whoever it came down on (WildGiant.stomp). */
+    private void landed(ServerLevel level, int i) {
+        Vec3 at = feet[i];
+        level.playSound(null, at.x, at.y, at.z, SoundEvents.WARDEN_STEP, SoundSource.HOSTILE, 6.0F, 0.4F);
+        level.playSound(null, at.x, at.y, at.z, SoundEvents.RAVAGER_STEP, SoundSource.HOSTILE, 5.0F, 0.35F);
+        PaponNetwork.shake(level, at, 56, 0.35F, 8);
+        Fx.dust(level, at, 3.2, 10);
+        if (brain != null) brain.stomp(level, at, 0.08F, 3.4);
     }
 
     /** Where it stands: on the floor, at the end it rose at; wading toward you through the floor in La Mano. */
@@ -635,6 +958,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     public Vec3 head(float partial) {
         double breath = fury() >= 3 ? 0.11 : fury() == 2 ? 0.08 : 0.05;
         double bob = Math.sin((tickCount + partial) * breath) * 0.5;
+        if (walker()) return pelvis(partial).add(torsoForward(partial).scale(HEAD_FWD)).add(torsoUp(partial).scale(HEAD_Y)).add(0, bob, 0);
         return base(partial).add(forward(partial).scale(HEAD_FWD + lean(partial))).add(0, HEAD_Y - sunk(partial) + bob - Math.abs(lean(partial)) * 0.25, 0);
     }
 
@@ -705,12 +1029,12 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     }
 
     private float[] lookWant() {
-        Vec3 h = base().add(forward().scale(HEAD_FWD)).add(0, HEAD_Y, 0);
+        Vec3 h = walker() ? head(0) : base().add(forward().scale(HEAD_FWD)).add(0, HEAD_Y, 0);
         Vec3 d = aim().subtract(h);
         Vec3 f = forward(), r = right();
         double fc = d.dot(f), rc = d.dot(r);
         float yaw = (float) Mth.clamp(Math.atan2(rc, Math.max(1, fc)), -0.9, 0.9);
-        float pitch = (float) Mth.clamp(Math.atan2(d.y, Math.sqrt(fc * fc + rc * rc)), -0.75, 0.3);
+        float pitch = (float) Mth.clamp(Math.atan2(d.y, Math.sqrt(fc * fc + rc * rc)), walker() ? -1.25 : -0.75, 0.3);
         return new float[]{yaw, pitch};
     }
 
@@ -730,6 +1054,10 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
 
     /** Shoulder {@code i} (0 its left, 1 its right). */
     public Vec3 shoulder(int i, float partial) {
+        if (walker()) {
+            return pelvis(partial).add(right(partial).scale((i == 0 ? 1 : -1) * SHOULDER_OUT)).add(torsoForward(partial).scale(0.6))
+                    .add(torsoUp(partial).scale(SHOULDER_Y));
+        }
         double l = lean(partial) * 0.55;
         // bent right over (La Mano) the shoulders come down with the chest
         double down = act() == GRAB ? Math.max(0, lean(partial)) * 0.55 : 0;
@@ -737,10 +1065,19 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                 .add(0, SHOULDER_Y - sunk(partial) - Math.abs(l) * 0.2 - down, 0);
     }
 
-    /** A hand's place at rest: down on the floor in front of it, a little out. */
+    /** A hand's place at rest: down on the floor in front of it, a little out; on its legs, hanging at its side, swinging as it walks. */
     public Vec3 handRest(int i) { return handRest(i, 0); }
 
     public Vec3 handRest(int i, float partial) {
+        if (!walker()) return groundRest(i, partial);
+        Vec3 f = forward(partial), b = base(partial);
+        // the arm swings against its own side's leg
+        double swing = Mth.clamp(-0.3 * (foot(i, partial).subtract(b).dot(f) - foot(1 - i, partial).subtract(b).dot(f)), -3.5, 3.5);
+        return shoulder(i, partial).add(0, -23.5, 0).add(f.scale(1.6 + swing)).add(right(partial).scale((i == 0 ? 1 : -1) * 1.6));
+    }
+
+    /** A hand flat on the ground in front of it, a little out (the boss's giant's rest; the walker's as it digs itself out). */
+    public Vec3 groundRest(int i, float partial) {
         return base(partial).add(forward(partial).scale(12)).add(right(partial).scale((i == 0 ? 1 : -1) * 12)).add(0, 1.2, 0);
     }
 
@@ -768,13 +1105,13 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
 
     /** Where hand {@code i} is now: at rest; in a slam up, over and down onto its mark; in a swipe drawn back, swept, back. */
     public Vec3 hand(int i, float partial) {
-        Vec3 rest = handRest(i, partial).add(0, -sunk(partial), 0);
+        Vec3 rest = walker() ? handRest(i, partial) : handRest(i, partial).add(0, -sunk(partial), 0);
         int a = act();
         float t = actTime(partial);
         if (a == RISE) {
             // its hands first: each bursts up through the floor, high, claws open, and slams down flat on it; then it hauls the
             // rest of itself up on them
-            Vec3 flat = handRest(i, partial);
+            Vec3 flat = groundRest(i, partial);
             float at = DIG_HANDS + i * DIG_HAND_T;
             if (t < at) return flat.add(0, -16, 0);
             Vec3 burst = flat.add(forward(partial).scale(-2)).add(0, 11 + i, 0);
@@ -784,6 +1121,8 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                 float k = (t - at - 13) / 5F;
                 return burst.lerp(flat, k * k);
             }
+            // up on its legs: off the ground to its sides
+            if (walker() && t > RISE_T - 14) return flat.lerp(rest, smooth((t - RISE_T + 14) / (STAND_T + 6F)));
             // pressing down as it heaves: a little give in the arms at each pull
             return flat.add(0, -0.4 * Math.abs(Math.sin(Math.PI * Mth.clamp((t - DIG_HEAVE) / 30F, 0, 2))), 0);
         }
@@ -917,6 +1256,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
             facingO = facingN;
             baseN = b;
             facingN = fc;
+            if (walker()) tickFeet();
             lookYawO = lookYaw;
             lookPitchO = lookPitch;
             float[] want = lookWant();
@@ -976,7 +1316,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         if (act() == HEED && t > HEED_T + 20) act(IDLE);          // nobody gave it its order
         if (act() == SINK) drag(level, (int) t);
         if (act() == LUNGE) {
-            if (t >= LUNGE_GO - 2 && t < LUNGE_STOP + 2) plough(level);
+            if (t >= LUNGE_GO - 2 && t < LUNGE_STOP + 2 && !walker()) plough(level);
             if ((int) t == LUNGE_GO) {
                 Vec3 h = head(0);
                 level.playSound(null, h.x, h.y, h.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.3F);
@@ -988,7 +1328,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
                 act(IDLE);
             }
         }
-        if (wading > 0 && act() == IDLE) {
+        if (wading > 0 && act() == IDLE && !walker()) {
             // wading after you: the floor heaving round its waist
             if (tickCount % 3 == 0) {
                 Vec3 w = base();
@@ -1003,7 +1343,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         }
         wading = 0;
         if (act() == GRAB) {
-            if (t >= GRAB_LOCK && t < GRAB_WADE && tickCount % 2 == 0) plough(level);
+            if (t >= GRAB_LOCK && t < GRAB_WADE && tickCount % 2 == 0 && !walker()) plough(level);
             if ((int) t == GRAB_CLOSE) {
                 Vec3 at = handMark(grabHand());
                 Fx.chunks(level, at.add(0, 0.5, 0), 22, 0.7F, 0x2C2438, 1.0);
@@ -1039,16 +1379,18 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         if (act() == SLAM_L || act() == SLAM_R) { if (t >= SLAM_T) act(IDLE); }
         if (act() == SLAM_BOTH && t >= SLAM2_T) act(IDLE);
         if (act() == ROAR && t >= ROAR_T) act(IDLE);
+        if (act() == STOMP && t >= STOMP_T) act(IDLE);
         if (act() == SWIPE_L || act() == SWIPE_R) {
             if ((int) t == SWIPE_FROM) level.playSound(null, base().x, base().y + 4, base().z, SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.HOSTILE, 6.0F, 0.3F);
             if (t >= SWIPE_T) act(IDLE);
         }
-        if (act() == RISE && t >= RISE_T) {
+        if (act() == RISE && t >= riseT()) {
             Vec3 b = base();
             level.playSound(null, b.x, b.y + 20, b.z, SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 8.0F, 0.35F);
             act(IDLE);
         }
         if (brain != null && !isRemoved()) brain.tick(level);
+        if (walker() && !isRemoved()) tickFeet();
         if (act() == SINK && actTime(0) >= SINK_T) discard();
     }
 
@@ -1160,7 +1502,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         for (int i = 0; i < 2; i++) {
             if (t != DIG_HANDS + i * DIG_HAND_T) continue;
             // a hand bursts up through the floor
-            Vec3 at = handRest(i);
+            Vec3 at = groundRest(i, 0);
             debris(level, new Vec3(at.x, floor, at.z), 7, 0.55);
             Fx.chunks(level, new Vec3(at.x, floor + 0.5, at.z), 26, 0.7F, 0x3A3046, 1.2);
             Fx.dust(level, new Vec3(at.x, floor, at.z), 3.5, 18);
@@ -1171,7 +1513,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
         for (int i = 0; i < 2; i++) {
             if (t != DIG_HANDS + i * DIG_HAND_T + 17) continue;
             // and slams down flat on it
-            Vec3 at = handRest(i);
+            Vec3 at = groundRest(i, 0);
             Fx.shock(level, new Vec3(at.x, floor, at.z), 6F, 0x7CF0FF);
             PaponNetwork.shake(level, at, 90, 0.7F, 10);
             level.playSound(null, at.x, floor, at.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 4.0F, 0.3F);
@@ -1224,7 +1566,7 @@ public class SpiritGiantEntity extends net.minecraft.world.entity.Entity {
     }
 
     @Override
-    public AABB getBoundingBoxForCulling() { return new AABB(base(), base()).inflate(60, 10, 60).expandTowards(0, 50, 0); }
+    public AABB getBoundingBoxForCulling() { return new AABB(base(), base()).inflate(60, 10, 60).expandTowards(0, 80, 0); }
 
     @Override
     public boolean shouldRenderAtSqrDistance(double d) { return d < 256 * 256; }
