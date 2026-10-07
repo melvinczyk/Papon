@@ -36,7 +36,9 @@ public class PillowLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<A
         var act = PillowClient.act(player);
         if (act != null) {
             // with her on a bed: nothing carried; at her feet, the tongue out
-            if (act != com.groid.papon.entity.BodyPillowEntity.Act.HUMP) tongue(ps, buffers, light, parent, PillowClient.lick(age));
+            if (act == com.groid.papon.entity.BodyPillowEntity.Act.FLOOR || act == com.groid.papon.entity.BodyPillowEntity.Act.LIFT) {
+                tongue(ps, buffers, light, parent, PillowClient.lick(age));
+            }
             return;
         }
         ItemStack stack = player.getMainHandItem();

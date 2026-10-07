@@ -106,7 +106,8 @@ La Danza's ghosts replaced (**El Tzompantli**); **Castillo obvious** (solid towe
 **Pillow**: hug "sensually", lick, put on a bed and sleep beside it on your side, hump (hand and bed); natural plump look,
 slouches against the wall on a bed, squeezed/folded by use; the user's picture `tools/src/makima_pillow.jpg`. (2026-10-06) **Feet**:
 sneak + right-click her on a bed sits her on its edge, feet just off the floor; right-click: you lie on the floor licking them,
-jump: kneel and lift them to your face; punch takes her back. Bed hump kneeling (camera at kneel height).
+jump: kneel and lift them to your face; punch takes her back. Bed hump: she lies on her back and you **plank** over her;
+jump rolls her onto her knees, face down, you kneeling **behind** her; off the bed she sits back up.
 
 **User's song/voice files (gitignored, never download, e.g. from YouTube)**: `tools/src/song/` (Canción del Mariachi,
 `para_siempre.mp3` from `~/Downloads/Para Siempre.mp3`, `persona_ideal.mp3`), `tools/src/voice/reference.mp3`,
@@ -142,7 +143,7 @@ jump: kneel and lift them to your face; punch takes her back. Bed hump kneeling 
 | Elbows (2026-10-06) | ascended/muertos arms: `fore_r/l` bones (forearm, cuff, fist) hinged at `gen_ascended.FORE_PIVOT`, children of `arm_*` (not the mesh: no shear); `BossModel.forearm` slides/stretches them with `arm_*_mesh` every frame (animations unchanged), `bend` blends two-segment poses (`gen_boss_anims.guitar_bent` → `STRUM_*`, `BENT_*`): the serenade, the duel, P4_GIGANTE, and any animation resting a hand on the guitar (`restingOnGuitar`, by closeness to the straight pose). `phase-one papon_boss` has no forearm (falls back to `set`) |
 | QTEs | `client/{QteClient,QteScreen,GuitarDuel,DanceOff,QtePlayerPose}`, `network/PaponNetwork` |
 | Band/crowd client | `client/{MariachiModel,MariachiRenderer,BandPoses,ColiseumCrowdRenderer,CrowdSounds,SongPlayer,FlagFireworks,VoiceDuck,SoundMix}` |
-| Pillow | `item/BodyPillowItem`, `entity/BodyPillowEntity` (synced `DATA_POSE` SLOUCH/EDGE, `Act` HUMP/FLOOR/LIFT, rider eye heights via `EntityEvent.Size` in `CommonEvents`, jump = `PaponNetwork.PillowSwap`), `client/{PillowMesh (fold + knee),PillowItemRenderer,PillowLayer,PillowClient (rider pose = `RIDE` arm pose set in RenderPlayerEvent.Pre),BodyPillowRenderer}`; `-Pautoshot=pillow` |
+| Pillow | `item/BodyPillowItem`, `entity/BodyPillowEntity` (synced `DATA_POSE` SLOUCH/EDGE, `Act` HUMP (plank)/FLOOR/LIFT/BEHIND, eased `down`/`lift`, rider eye heights via `EntityEvent.Size` in `CommonEvents`, jump = `PaponNetwork.PillowSwap`), `client/{PillowMesh (fold + knee),PillowItemRenderer,PillowLayer,PillowClient (rider pose = `RIDE` arm pose set in RenderPlayerEvent.Pre),BodyPillowRenderer}`; `-Pautoshot=pillow` |
 | Ending | `TacoVendorEntity.reform/welcomeBack/order`, `client/{TacoMenuScreen,ScreenFade,VendorRenderer}` |
 | Mesh celebrities (EDP445, Chugs) | `client/mesh/*`, `tools/{mh_human,gen_edp_mesh,gen_chugs_mesh,gen_celeb_anims,pose_solver}.py` |
 | Damage types (`papon:caravan` bypasses shields; ours not `is_fire`), effects (Stunned, Brittle, Splattered) | `registry/{ModDamage,ModEffects}`, `data/papon/damage_type/*` |

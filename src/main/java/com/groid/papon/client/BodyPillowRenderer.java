@@ -18,7 +18,11 @@ import org.joml.Quaternionf;
  * A body pillow on a bed (entity/BodyPillowEntity), the soft mesh (PillowMesh):
  *   slouched   sat on the mattress at the head of the bed, its bottom third lying toward the foot, folded up at the
  *              headboard and leaning back on the wall, sagging a little to one side; Makima facing the room
- *   humped     (someone on the bed with it) squashed where they thrust, rocking with it
+ *   on her back (someone on the bed with it, planked over her) laid down flat along the bed, Makima face up, pressed flat
+ *              at the hips on every thrust
+ *   on her knees (jump, from behind) rolled over: face down, her shins along the mattress, her thighs up to her hips
+ *              raised at the kneeling rider's, her top half sloping down to the head of the bed; squashed and rocking
+ *              with every thrust. Eased between all three (she lies down as you climb on, rolls over, sits back up)
  *   beside you (someone asleep in the bed) lying on its side along the bed, Makima turned in to them
  *   on the edge  sat on the side of the bed facing the room: her lap on the mattress, folded down over its edge at the
  *              knees, her feet just off the floor, her top half sat up and leaning back a little; pressed in at the feet
@@ -51,22 +55,31 @@ public class BodyPillowRenderer extends EntityRenderer<BodyPillowEntity> {
             ps.popPose();
             return;
         }
-        // slouched against the headboard: mesh x across the bed, its length (y) toward the head, its front up
+        // mesh x across the bed, its length (y) toward the head, its front up
         Direction across = f.getClockWise();
-        Vec3 at = pillow.slouchPlace().subtract(base);
-        ps.translate(at.x, at.y + PillowMesh.THICK * 0.9, at.z);
-        ps.mulPose(new Quaternionf().setFromNormalized(new Matrix3f(across.getStepX(), 0, across.getStepZ(), fx, 0, fz, 0, 1, 0)));
+        float d = ease(pillow.down(partial)), r = ease(pillow.lift(partial));
         float squash = 0, rock = 0;
         if (pillow.getFirstPassenger() instanceof Player p) {
             float t = p.tickCount + partial;
             squash = PillowClient.squash(t);
             rock = PillowClient.thrust(t);
         }
-        // a slump to one side, and a little give with each thrust
-        ps.mulPose(new Quaternionf().rotateY(0.2F + 0.04F * rock));
-        // folded up at the headboard and leaning back until its top rests on the wall, sagging: a slouch, not a stand
-        PillowMesh.Shape shape = new PillowMesh.Shape().anchor(0.3F).fold(1.2F + 0.12F * squash, 0.3F).bend(-0.25F).bow(0.09F)
-                .press(0.15F + 0.75F * squash, 0.42F).squeeze(0.2F * squash, 0.6F);
+        // slouched: the bottom of the fold at the headboard; laid down: her hips, on her back or raised on her knees
+        Vec3 slouch = pillow.slouchPlace().add(0, PillowMesh.THICK * 0.9, 0);
+        Vec3 lying = pillow.alongBed(BodyPillowEntity.LIE_HIPS, PillowMesh.THICK);
+        Vec3 kneeling = pillow.alongBed(BodyPillowEntity.KNEEL_HIPS, PillowMesh.THICK + BodyPillowEntity.HIPS_UP + 0.02 * rock * r);
+        Vec3 at = slouch.lerp(lying.lerp(kneeling, r), d).subtract(base);
+        ps.translate(at.x, at.y, at.z);
+        ps.mulPose(new Quaternionf().setFromNormalized(new Matrix3f(across.getStepX(), 0, across.getStepZ(), fx, 0, fz, 0, 1, 0)));
+        // a slump to one side slouched, a little give with each thrust, and rolled over onto her front (about her length)
+        ps.mulPose(new Quaternionf().rotateY(0.2F * (1 - d) + 0.04F * rock + Mth.PI * r));
+        // slouched: folded up at the headboard and leaning back until its top rests on the wall, sagging. On her knees (the
+        // roll turned her front down): the shins flat, the thighs up from the knees to the hips, the top half down from them
+        float slouched = 1 - d;
+        PillowMesh.Shape shape = new PillowMesh.Shape().anchor(Mth.lerp(d, 0.3F, 0.5F))
+                .knee((1.2F + 0.12F * squash) * slouched - (1.4F + 0.06F * rock) * r, 0.3F).fold((1.82F + 0.08F * rock) * r, 0.5F)
+                .bend(-0.25F * slouched).bow(0.09F * slouched)
+                .press(0.15F + 0.75F * squash, Mth.lerp(d, 0.42F, 0.47F)).squeeze(0.2F * squash, 0.6F);
         PillowMesh.render(ps, buffers, light, shape);
         ps.popPose();
         super.render(pillow, yaw, partial, ps, buffers, light);
@@ -100,6 +113,8 @@ public class BodyPillowRenderer extends EntityRenderer<BodyPillowEntity> {
                 .bow(squirm).press(0.15F + 0.55F * lick, 0.05F);
         PillowMesh.render(ps, buffers, light, shape);
     }
+
+    private static float ease(float k) { return k * k * (3 - 2 * k); }
 
     /** Someone asleep in this pillow's bed. */
     private static boolean sleeperIn(BodyPillowEntity pillow) {
