@@ -60,6 +60,15 @@ public final class ClientEvents {
         if (Cinematic.isActive()) event.setRoll(event.getRoll() + Cinematic.roll());
         ScreenShake.apply(event);
         PillowClient.camera(event);
+        SkylineCockpit.camera(event);
+        String phase = com.groid.papon.client.dev.AutoShot.shakePhase();
+        if (phase != null) {
+            var c = event.getCamera().getPosition();
+            Minecraft mc = Minecraft.getInstance();
+            com.groid.papon.PaponMod.LOG.info("[shake] {} t {} yaw {} pitch {} roll {} cam {} {} {} shake {}", phase,
+                    String.format(java.util.Locale.ROOT, "%.3f", (mc.level == null ? 0 : mc.level.getGameTime()) + event.getPartialTick()),
+                    event.getYaw(), event.getPitch(), event.getRoll(), c.x, c.y, c.z, ScreenShake.strength(c, (float) event.getPartialTick()));
+        }
     }
 
     /** The sky turns while he transforms: gold as the salt comes down, then blood-orange through the scream. */
@@ -131,6 +140,7 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onFov(ViewportEvent.ComputeFov event) {
         if (Cinematic.isActive()) event.setFOV(Cinematic.fov());
+        else SkylineCockpit.fov(event);
     }
 
     /** Phase three's spotlight, over the finished world (BossRenderer.drawSpotlights). */
@@ -143,7 +153,7 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onHand(RenderHandEvent event) {
-        if (Cinematic.isActive() || PillowClient.hidesHands()) event.setCanceled(true);
+        if (Cinematic.isActive() || PillowClient.hidesHands() || SkylineCockpit.hidesHands()) event.setCanceled(true);
     }
 
     /**

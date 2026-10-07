@@ -160,7 +160,12 @@ R_MFD = (768, 512, 128, 64)
 R_FABRIC = (896, 512, 128, 128)
 R_TAILLAMP = (768, 576, 64, 64)
 R_TAILLAMP_IN = (832, 576, 64, 64)
-R_RIM = (512, 640, 128, 128)
+R_SIDE = {1: (0, 576, 512, 96), -1: (0, 672, 512, 96)}   # the body's sides (u along z, v down y), +X and -X
+R_DASH = (512, 640, 128, 128)
+R_CARBON = (640, 640, 128, 128)
+R_DOORCARD = (768, 640, 128, 128)
+R_MIRROR = (896, 640, 64, 32)                               # what a mirror's glass shows: sky over the road behind
+SIDE_Y0, SIDE_Y1 = 21.5, 2.0                                 # the side regions' top and bottom (px)
 
 
 def region_uv(r, u, v):
@@ -247,6 +252,12 @@ def paint_hood():
     poly([(-5, 104), (5, 104), (0, 84)], cream)
     for side in (-1, 1):
         d.ellipse([P(side * 8 - 3, 120), P(side * 8 + 3, 127)], fill=key)
+    # the hood's shut lines: down each side where it meets the fenders, across behind the nose and at the cowl
+    shut = (8, 8, 10, 255)
+    for side in (-1, 1):
+        d.line([P(side * 232, 30), P(side * 236, 500)], fill=shut, width=S * 2)
+    d.line([P(-232, 30), P(232, 30)], fill=shut, width=S * 2)
+    d.line([P(-236, 500), P(236, 500)], fill=shut, width=S * 2)
     im = im.resize((512, 512), Image.LANCZOS)
     A.img.paste(im, (R_HOOD[0], R_HOOD[1]))
 
@@ -312,6 +323,137 @@ def paint_front():
     A.glow.paste(gl, (x0, y0))
 
 
+def paint_sides():
+    """The body's sides (2026-10-06, the user: "improve the textures further"): the black pearl shaded the way light lies
+    on it (brighter on the shoulder, a shadow under the crease, darkening down to the rocker and round the arches' lips),
+    the pearl's flake, the flush door handles, the GT-R's vent behind the front wheels, the fuel door on the left."""
+    for sx in (1, -1):
+        x0, y0, w, h = R_SIDE[sx]
+        S = 2
+        W, H = w * S, h * S
+        zs = Z_NOSE + (np.arange(W) + 0.5) / W * (Z_TAIL - Z_NOSE)
+        ys = SIDE_Y0 - (np.arange(H) + 0.5) / H * (SIDE_Y0 - SIDE_Y1)
+        Z, Y = np.meshgrid(zs, ys)
+        cr = CREASE(Z)
+        k = np.where(Y > cr, 1.12 + 0.06 * np.clip((Y - cr) / 2.0, 0, 1),
+                     0.62 + 0.38 * np.clip((Y - 3.0) / np.maximum(cr - 3.0, 1e-3), 0, 1) ** 0.7)
+        k = np.where((Y <= cr) & (Y > cr - 0.7), k * 0.78, k)                 # the shadow under the crease
+        for za in (Z_FAXLE, Z_RAXLE):                                           # the arches' lips
+            d = np.sqrt((Z - za) ** 2 + (Y - WHEEL_R) ** 2) - ARCH_R
+            k = np.where((d > 0) & (d < 0.9), k * (0.72 + 0.28 * d / 0.9), k)
+        r = np.random.default_rng(7 + sx)
+        flake = r.normal(0, 0.035, k.shape)
+        spark = r.random(k.shape) < 0.012
+        rgb = np.stack([np.clip(PAINT[c] * (k + flake), 0, 255) for c in range(3)], -1)
+        rgb[spark] += np.array([30, 26, 44])
+        im = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).convert('RGBA')
+        d = ImageDraw.Draw(im)
+
+        def P(z, y):
+            return ((z - Z_NOSE) / (Z_TAIL - Z_NOSE) * W, (SIDE_Y0 - y) / (SIDE_Y0 - SIDE_Y1) * H)
+        # the door handle: a flush recess under the crease near the door's back edge, its pull in it
+        hz0, hz1, hy0, hy1 = (8.0, 10.8, 14.1, 14.85)
+        d.rounded_rectangle([P(hz0, hy1), P(hz1, hy0)], radius=3, fill=(9, 9, 11, 255))
+        d.rounded_rectangle([P(hz0 + 0.3, hy1 - 0.18), P(hz1 - 0.3, hy1 - 0.42)], radius=2, fill=(96, 98, 106, 255))
+        d.line([P(hz0, hy1 + 0.05), P(hz1, hy1 + 0.05)], fill=(48, 52, 64, 255), width=1)
+        # the vent behind the front wheel: a dark mouth, three fins across it
+        vz = Z_FAXLE + ARCH_R + 0.9
+        poly = [P(vz, 13.4), P(vz + 3.0, 13.4), P(vz + 3.4, 10.4), P(vz + 0.4, 10.4)]
+        d.polygon(poly, fill=(7, 7, 8, 255))
+        for fy in (12.6, 11.8, 11.0):
+            sl = (13.4 - fy) / 3.0 * 0.4
+            d.line([P(vz + sl + 0.1, fy), P(vz + 3.0 + sl - 0.1, fy)], fill=(30, 32, 40, 255), width=3)
+        d.line(poly + [poly[0]], fill=(40, 44, 56, 255), width=1)
+        # the fuel door, on the left rear quarter
+        if sx > 0:
+            d.rounded_rectangle([P(30.6, 17.0), P(33.4, 14.5)], radius=5, outline=(8, 8, 10, 255), width=2)
+            d.ellipse([P(31.3, 15.2), P(31.8, 14.8)], fill=(10, 10, 12, 255))
+        im = im.resize((w, h), Image.LANCZOS)
+        A.img.paste(im, (x0, y0))
+
+
+def side_uv(p):
+    x, y, z = p
+    return region_uv(R_SIDE[1 if x >= 0 else -1], (z - Z_NOSE) / (Z_TAIL - Z_NOSE), (SIDE_Y0 - y) / (SIDE_Y0 - SIDE_Y1))
+
+
+def paint_interior():
+    """The cabin's surfaces (what fills your view from the driver's seat): the dash's grained leather, a twill carbon
+    weave for the centre stack and the console, the door cards (vinyl, a stitched alcantara insert, the speaker)."""
+    r = np.random.default_rng(11)
+    x0, y0, w, h = R_DASH
+    g = r.normal(0, 1, (h, w))
+    g = np.array(Image.fromarray(((g - g.min()) / np.ptp(g) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8))) / 255.0
+    base = np.array([30, 30, 32])
+    rgb = base[None, None, :] * (0.86 + 0.28 * g[..., None])
+    A.img.paste(Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).convert('RGBA'), (x0, y0))
+    # twill carbon: two over two, each tow catching the light along its own direction
+    x0, y0, w, h = R_CARBON
+    yy, xx = np.mgrid[0:h, 0:w]
+    cell = 8
+    a, b = (xx // cell), (yy // cell)
+    warp = ((a + b) // 2) % 2 == 0
+    fx, fy = (xx % cell) / cell, (yy % cell) / cell
+    sheen = np.where(warp, 0.55 + 0.45 * np.sin(np.pi * fy), 0.55 + 0.45 * np.sin(np.pi * fx))
+    v = 18 + 26 * sheen * np.where(warp, 1.0, 0.8)
+    rgb = np.stack([v, v * 1.02, v * 1.08], -1)
+    A.img.paste(Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).convert('RGBA'), (x0, y0))
+    # the door card (u along the door from front to back, v down from the belt): vinyl, an insert, the speaker
+    x0, y0, w, h = R_DOORCARD
+    gr = r.normal(0, 3, (h, w))
+    im = Image.fromarray(np.clip(np.full((h, w, 3), 36.0) + gr[..., None], 0, 255).astype(np.uint8)).convert('RGBA')
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 0, w, h * 0.12], fill=(24, 24, 26, 255))                                  # the top roll
+    d.rounded_rectangle([w * 0.12, h * 0.2, w * 0.86, h * 0.5], radius=6, fill=(44, 44, 47, 255))   # the insert
+    for k in range(int(w * 0.14), int(w * 0.84), 4):
+        d.point([(k, int(h * 0.215)), (k, int(h * 0.485))], fill=(150, 26, 30, 255))          # red stitching
+    d.ellipse([w * 0.08, h * 0.62, w * 0.36, h * 0.9], fill=(18, 18, 20, 255))                  # the speaker
+    for k in range(5):
+        rr = 3 + k * 3.5
+        c = (w * 0.22, h * 0.76)
+        d.ellipse([c[0] - rr, c[1] - rr, c[0] + rr, c[1] + rr], outline=(30, 30, 33, 255))
+    d.rounded_rectangle([w * 0.62, h * 0.24, w * 0.76, h * 0.3], radius=2, fill=(150, 152, 158, 255))   # the inside handle
+    A.img.paste(im, (x0, y0))
+
+
+def paint_mirror():
+    """A mirror's glass: the sky behind (pale at the horizon), the road under it, a soft sheen across (a flat grey box read
+    as a grey box)."""
+    x0, y0, w, h = R_MIRROR
+    yy, xx = np.mgrid[0:h, 0:w] / np.array([h, w])[:, None, None]
+    sky = np.array([150, 176, 205]) * (0.8 + 0.2 * yy[..., None] / 0.55)
+    road = np.array([70, 72, 76]) * (1.0 - 0.3 * (yy[..., None] - 0.55) / 0.45)
+    rgb = np.where(yy[..., None] < 0.55, sky, road)
+    rgb = rgb * (0.9 + 0.2 * np.exp(-((xx[..., None] - yy[..., None] * 0.6 - 0.25) / 0.12) ** 2))
+    A.img.paste(Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).convert('RGBA'), (x0, y0))
+
+
+def mirror_face(pts):
+    """The glass of a mirror (a box face): the region stretched over it, upright."""
+    P = np.array(pts, float)
+    span = P.max(0) - P.min(0)
+    a = 0 if span[0] >= span[2] else 2
+    return [region_uv(R_MIRROR, (p[a] - P[:, a].min()) / max(span[a], 1e-6), (P[:, 1].max() - p[1]) / max(span[1], 1e-6)) for p in pts]
+
+
+def planar(region, dens=6.0):
+    """Box faces mapped flat onto a region at `dens` texels a pixel (a face too big for it is squeezed to fit)."""
+    x0, y0, w, h = region
+
+    def f(pts):
+        P = np.array(pts, float)
+        span = P.max(0) - P.min(0)
+        ax = [i for i in range(3) if i != int(np.argmin(span))]
+        if 1 in ax:
+            a, b = [i for i in ax if i != 1][0], 1
+        else:
+            a, b = ax
+        ua = max(span[a], w / dens)
+        vb = max(span[b], h / dens)
+        return [region_uv(region, (p[a] - P[:, a].min()) / ua * 0.98 + 0.01, (P[:, b].max() - p[b]) / vb * 0.98 + 0.01) for p in pts]
+    return f
+
+
 def tail_xy(x):
     return x
 
@@ -364,8 +506,17 @@ def paint_details():
     im = Image.new('RGBA', (w, h), (26, 26, 27, 255))
     d = ImageDraw.Draw(im)
     d.rectangle([0, 0, w, 3], fill=(18, 18, 19, 255))
-    d.rectangle([0, h * 0.62, w, h * 0.66], fill=(16, 16, 17, 255))
-    A.img.paste(im, (x0, y0))
+    d.rectangle([0, h * 0.86, w, h * 0.9], fill=(16, 16, 17, 255))
+    # the lettering, raised and grey, twice round (v 0 is the tread's edge: the letters stand with their tops outward)
+    S = 4
+    big = im.resize((w * S, h * S))
+    d = ImageDraw.Draw(big)
+    f = font(int(h * S * 0.36))
+    for k in range(2):
+        cx = (k + 0.25) * w * S / 2
+        d.text((cx, h * S * 0.5), 'PAPON R-SPEC', fill=(120, 120, 124, 255), font=f, anchor='mm')
+        d.text((cx + w * S / 4, h * S * 0.5), '265/35 R18 93Y', fill=(92, 92, 96, 255), font=font(int(h * S * 0.24)), anchor='mm')
+    A.img.paste(big.resize((w, h), Image.LANCZOS), (x0, y0))
     # the gauges: tach in the middle, speedo on the right, three small ones on the left (needles drawn live)
     x0, y0, w, h = R_GAUGES
     S = 4
@@ -530,8 +681,9 @@ def loft(rings, mats, bone_of, crease_r=(), crease_s=(), skip=None, inner=None):
             if inner is not None:
                 im = inner(s, r)
                 if im:
+                    im, iuv = im if isinstance(im, tuple) else (im, None)
                     off = [p - n / max(np.linalg.norm(n), 1e-9) * 0.45 for p, n in zip(pts, nrms)]
-                    M.quad(off[::-1], [-n for n in nrms[::-1]], sw(im), bone_of(s, r))
+                    M.quad(off[::-1], [-n for n in nrms[::-1]], [iuv(q) for q in off[::-1]] if iuv else sw(im), bone_of(s, r))
 
 
 def z_samples():
@@ -615,6 +767,12 @@ def mirror_ring(half, flip):
     return [((-x if flip else x), y, z) for (x, y, z) in half]
 
 
+def door_card_uv(p):
+    x, y, z = p
+    return region_uv(R_DOORCARD, (z - DOOR_Z0) / (DOOR_Z1 - DOOR_Z0) if x >= 0 else (DOOR_Z1 - z) / (DOOR_Z1 - DOOR_Z0),
+                     float(np.clip((18.4 - y) / (18.4 - 6.0), 0, 1)))
+
+
 def hood_uv(p):
     x, y, z = p
     return region_uv(R_HOOD, (x + 16) / 32, (z - (Z_NOSE - 0.4)) / ((Z_COWL + 0.4) - (Z_NOSE - 0.4)))
@@ -648,6 +806,8 @@ def build_body():
                 return None
             if j >= 8 and z < Z_COWL + 0.2:
                 return ('paint', hood_uv, ('gloss',))
+            if 4 <= j <= 8:
+                return ('paint', side_uv, ('gloss',))
             return ('paint', None, ('gloss',))
 
         def bone_of(s, r):
@@ -660,6 +820,8 @@ def build_body():
         def inner(s, r):
             z = 0.5 * (zs[s] + zs[s + 1])
             j = ri(r)
+            if DOOR_Z0 < z < DOOR_Z1 and 4 <= j <= 8:
+                return ('interior', door_card_uv)
             if Z_COWL < z < Z_DECK - 1 and 4 <= j <= 8:
                 return 'interior'
             return None
@@ -734,7 +896,7 @@ def build_cabin():
 
 
 # ---------------------------------------------------------------- primitives
-def box(c0, c1, mat, bone='body', group='opaque', extra=(), bevel=0.0, uvmap=None, rot=None, pivot=None):
+def box(c0, c1, mat, bone='body', group='opaque', extra=(), bevel=0.0, uvmap=None, rot=None, pivot=None, uvface=None):
     """An axis-aligned box from c0 to c1, its edges chamfered by `bevel`; rotated by rot (degrees about X, Y, Z in that
     order, right-handed: a positive X turn tips the top back toward +Z, the car's rear) round pivot. uvmap(face, p) -> uv for detail textures."""
     x0, y0, z0 = c0
@@ -754,7 +916,7 @@ def box(c0, c1, mat, bone='body', group='opaque', extra=(), bevel=0.0, uvmap=Non
 
     def face(pts, mat_):
         q = [T(p) for p in pts]
-        uvs = [uvmap(q) for _ in q] if False else ([uvmap(p) for p in pts] if uvmap else sw(mat_))
+        uvs = uvface(pts) if uvface else [uvmap(p) for p in pts] if uvmap else sw(mat_)
         M.flat(q, uvs, bone, group, extra)
     X0, X1, Y0, Y1, Z0, Z1 = x0 + b, x1 - b, y0 + b, y1 - b, z0 + b, z1 - b
     # six faces
@@ -879,10 +1041,11 @@ def build_wheels():
         def tmat(i):
             return 'rubber'
 
-        def tuv(i, a, k):
+        def tuv(i, a, k, prof=prof, sx=sx):
             if i == 4:
                 return region_uv(R_TREAD, a, k)
-            return region_uv(R_SIDEWALL, a, 0.2 + 0.6 * k)
+            r = prof[i][1] + (prof[i + 1][1] - prof[i][1]) * k
+            return region_uv(R_SIDEWALL, a if sx > 0 else 1 - a, float(np.clip((WHEEL_R - r) / (WHEEL_R - rim_r), 0, 1)))
         revolve(prof, c, 28, bone, tmat, tuv, side=sx)
         # the rim: the barrel inside, the lip, the face's dish
         revolve([(hw - 0.15, rim_r), (hw - 0.15, rim_r - 0.4), (hw - 0.6, rim_r - 0.45), (-hw + 0.4, rim_r - 0.45)], c, 28, bone,
@@ -914,6 +1077,9 @@ def build_wheels():
         # the hub and its centre cap
         disc((face_x + sx * 0.3, c[1], c[2]), 1.25, 'x', sx, bone, mat='gun_hi', seg=14)
         disc((face_x + sx * 0.36, c[1], c[2]), 0.55, 'x', sx, bone, mat='red_badge', seg=10)
+        for k in range(5):
+            la = 2 * math.pi * k / 5 + math.pi / 2 + math.pi / 5
+            disc((face_x + sx * 0.33, c[1] + math.cos(la) * 0.88, c[2] + math.sin(la) * 0.88), 0.17, 'x', sx, bone, mat='chrome', seg=6)
         # behind the spokes: the disc (on the wheel, it turns) and the caliper (on the knuckle, it does not)
         disc((sx * (WHEEL_X + 0.3), c[1], c[2]), 3.5, 'x', sx, bone, mat='disc', seg=22)
         cal_bone = 'steer_' + name if name in ('fl', 'fr') else 'body'
@@ -948,25 +1114,33 @@ def build_interior():
     # floor, tunnel, firewall, the shelf behind the rear seats
     box((-16.3, 3.6, Z_COWL), (16.3, 4.2, 30.5), 'carpet')
     box((-2.6, 4.2, Z_COWL), (2.6, 7.4, 14.0), 'carpet', bevel=0.6)
-    box((-16.3, 4.0, Z_COWL - 0.6), (16.3, 17.8, Z_COWL), 'dash')
+    box((-16.3, 4.0, Z_COWL - 0.6), (16.3, 17.8, Z_COWL), 'dash', uvface=planar(R_DASH))
     box((-15.8, 4.0, 28.5), (15.8, 18.6, 30.5), 'interior')
     box((-15.6, 18.4, 24.0), (15.6, 18.9, Z_DECK - 0.6), 'carpet')
     # the dash: its top from the windshield back, its face, the binnacle over the gauges
-    box((-16.2, 15.0, Z_COWL - 0.2), (16.2, 19.4, -7.4), 'dash', bevel=0.8)
-    box((-16.0, 11.5, -9.0), (16.0, 15.6, -6.6), 'dash', bevel=0.7)
-    box((-12.8, 18.6, -10.6), (-3.2, 20.5, -6.6), 'dash', bevel=0.7)               # the binnacle (driver on -X)
+    box((-16.2, 15.0, Z_COWL - 0.2), (16.2, 19.4, -7.4), 'dash', bevel=0.8, uvface=planar(R_DASH, 3.5))
+    box((-16.0, 11.5, -9.0), (16.0, 15.6, -6.6), 'dash', bevel=0.7, uvface=planar(R_DASH, 3.5))
+    box((-12.8, 18.6, -10.6), (-3.2, 20.5, -6.6), 'dash', bevel=0.7, uvface=planar(R_DASH))   # the binnacle (driver on -X)
+    # a carbon strip across the dash's face, the vents in it (the outer pair and the centre's)
+    box((-15.6, 13.0, -6.7), (15.6, 14.6, -6.45), 'carbon', uvface=planar(R_CARBON, 4))
+    for vx in (-14.2, -2.0, 2.0, 14.2):
+        box((vx - 1.3, 13.15, -6.5), (vx + 1.3, 14.45, -6.35), 'trim')
+        for k in range(3):
+            box((vx - 1.2, 13.4 + k * 0.4, -6.37), (vx + 1.2, 13.52 + k * 0.4, -6.3), 'gun')
     # the gauge face, lit (the renderer draws the needles over it)
     gx0, gx1, gy0, gy1, gz = -12.2, -3.8, 15.9, 19.3, -6.75
     pts = [(gx1, gy0, gz), (gx1, gy1, gz), (gx0, gy1, gz), (gx0, gy0, gz)]
     uvs = [region_uv(R_GAUGES, (gx1 - p[0]) / (gx1 - gx0), (gy1 - p[1]) / (gy1 - gy0)) for p in pts]
     M.flat(pts, uvs, 'body', 'opaque', ('gauges',))
     # the centre stack: the multi-function display on top, the climate panel under it; the console and the shifter
-    box((-3.0, 8.0, -7.4), (3.0, 16.6, -5.4), 'dash', bevel=0.5)
+    box((-3.0, 8.0, -7.4), (3.0, 16.6, -5.4), 'carbon', bevel=0.5, uvface=planar(R_CARBON, 5))
     pts = [(2.4, 14.6, -5.38), (2.4, 16.2, -5.38), (-2.4, 16.2, -5.38), (-2.4, 14.6, -5.38)]
     uvs = [region_uv(R_MFD, (2.4 - p[0]) / 4.8, (16.2 - p[1]) / 1.6) for p in pts]
     M.flat(pts, uvs, 'body', 'opaque', ('gauges',))
     box((-2.0, 11.0, -5.5), (2.0, 13.4, -5.3), 'alu')
-    box((-2.4, 7.4, -5.6), (2.4, 9.0, 8.0), 'interior', bevel=0.5)
+    box((-2.4, 7.4, -5.6), (2.4, 9.0, 8.0), 'carbon', bevel=0.5, uvface=planar(R_CARBON, 5))
+    for k in range(3):                                                              # the climate knobs
+        disc((-1.3 + k * 1.3, 10.2, -5.36), 0.42, 'z', 1, 'body', mat='alu', seg=10)
     box((-0.25, 9.0, -0.6), (0.25, 11.4, -0.1), 'alu')                              # shifter
     box((-0.7, 11.4, -0.9), (0.7, 12.6, 0.4), 'trim', bevel=0.35)
     box((-0.9, 9.0, -1.4), (0.9, 9.3, 0.9), 'trim')                                  # its boot
@@ -982,12 +1156,13 @@ def build_interior():
     for sx in (1, -1):
         x = sx * SEAT_X
         fab = lambda p: region_uv(R_FABRIC, 0.5, 0.5)
-        box((x - 4.4, 4.2, SEAT_Z - 5.5), (x + 4.4, SEAT_Y - 0.6, SEAT_Z + 3.0), 'seat', bevel=0.9, rot=(6, 0, 0))
+        box((x - 4.4, 4.2, SEAT_Z - 5.5), (x + 4.4, SEAT_Y - 0.6, SEAT_Z + 3.0), 'seat', bevel=0.9, rot=(6, 0, 0), uvface=planar(R_FABRIC, 12))
         box((x - 2.6, SEAT_Y - 0.7, SEAT_Z - 5.0), (x + 2.6, SEAT_Y, SEAT_Z + 2.6), 'seat_red', bevel=0.3, rot=(6, 0, 0))
         for s2 in (-1, 1):
             box((x + s2 * 3.7 - 0.8, SEAT_Y - 0.6, SEAT_Z - 5.2), (x + s2 * 3.7 + 0.8, SEAT_Y + 1.2, SEAT_Z + 2.8), 'seat', bevel=0.5, rot=(6, 0, 0))
         back = (x, SEAT_Y, SEAT_Z + 3.0)
-        box((x - 4.4, SEAT_Y - 1.0, SEAT_Z + 2.6), (x + 4.4, SEAT_Y + 12.4, SEAT_Z + 5.0), 'seat', bevel=0.9, rot=(14, 0, 0), pivot=back)
+        box((x - 4.4, SEAT_Y - 1.0, SEAT_Z + 2.6), (x + 4.4, SEAT_Y + 12.4, SEAT_Z + 5.0), 'seat', bevel=0.9, rot=(14, 0, 0), pivot=back,
+            uvface=planar(R_FABRIC, 9))
         box((x - 2.6, SEAT_Y + 0.4, SEAT_Z + 2.35), (x + 2.6, SEAT_Y + 11.0, SEAT_Z + 2.7), 'seat_red', bevel=0.2, rot=(14, 0, 0), pivot=back)
         for s2 in (-1, 1):
             box((x + s2 * 3.9 - 0.8, SEAT_Y, SEAT_Z + 1.8), (x + s2 * 3.9 + 0.8, SEAT_Y + 10.0, SEAT_Z + 4.6), 'seat', bevel=0.5, rot=(14, 0, 0), pivot=back)
@@ -997,10 +1172,24 @@ def build_interior():
         x = sx * 7.4
         box((x - 4.6, 4.2, 16.0), (x + 4.6, 8.6, 22.6), 'seat', bevel=0.9)
         box((x - 4.6, 8.0, 22.4), (x + 4.6, 18.4, 25.0), 'seat', bevel=0.9, rot=(18, 0, 0), pivot=(x, 8.0, 22.4))
-    # the rear-view mirror off the top of the windshield
-    box((-2.4, 24.6, -2.4), (2.4, 25.8, -1.7), 'trim', bevel=0.2)
-    box((-2.2, 24.8, -2.45), (2.2, 25.6, -2.4), 'mirror')
-    box((-0.3, 25.8, -2.3), (0.3, 26.9, -1.8), 'trim')
+    # the rear-view mirror (2026-10-07, the user: "it is not attached to the roof"): its stem went up through the clear
+    # windshield to nothing, its glass faced the windshield. Now a black ceramic pad bonded under the glass at its top (as
+    # on a real windshield: what it hangs from reads), the stem down from it, the housing tilted to the driver (on -X), the
+    # glass on its back, toward you
+    # the pad: a black band under the glass from the mount back under the roof's front edge, following the glass's curve
+    # in short tilted pieces (it stopped short of the roof: with the clear glass between, it still read as floating)
+    zs = np.arange(-2.6, 3.01, 0.4)
+    for z0, z1 in zip(zs[:-1], zs[1:]):
+        y0, y1 = float(roof_y(z0)) - 0.62, float(roof_y(z1)) - 0.62
+        tilt = -math.degrees(math.atan2(y1 - y0, z1 - z0))
+        zc, yc = 0.5 * (z0 + z1), 0.5 * (y0 + y1)
+        half = 0.5 * math.hypot(z1 - z0, y1 - y0) + 0.03
+        box((-3.0, yc - 0.1, zc - half), (3.0, yc + 0.1, zc + half), 'trim', rot=(tilt, 0, 0), pivot=(0, yc, zc))
+    py = float(roof_y(-0.7)) - 0.62
+    box((-0.32, 25.5, -0.95), (0.32, py + 0.05, -0.4), 'trim', bevel=0.12)
+    mc = (0.0, 25.15, -1.2)
+    box((-2.6, 24.45, -1.55), (2.6, 25.85, -0.85), 'trim', bevel=0.3, rot=(8, -14, 0), pivot=mc)
+    box((-2.35, 24.65, -0.86), (2.35, 25.65, -0.8), 'mirror', rot=(8, -14, 0), pivot=mc, uvface=mirror_face)
 
 
 def build_steering_wheel():
@@ -1055,14 +1244,22 @@ def build_details():
     box((-12.0, 23.15, 44.05), (12.0, 23.55, 44.7), 'stop', rot=(-6, 0, 0), pivot=(0, 23, 41), extra=('lamps', 'brake'))
     for x in (-16.6, 16.6):
         box((x - 0.3, 21.6, 37.2), (x + 0.3, 24.6, 45.0), 'carbon', bevel=0.15)
-    # mirrors on the doors' front corners (the right one swings with its door)
+    # mirrors on the doors' front corners (the right one swings with its door). (2026-10-06, the user: "the mirror isn't
+    # attached to the car": it hung 2 px off the glass) Each grows out of a sail on the door's top at the side glass's front
+    # corner: the sail, an arm out from it, the housing on the arm's end, the glass in its back
     for sx in (1, -1):
         b = 'door_r' if sx < 0 else 'body'
-        x = sx * (float(HALF(-10.5)) + 0.4)
-        box((min(x, x + sx * 1.6) - 0.3, 18.6, -11.4), (max(x, x + sx * 1.6) + 0.3, 19.4, -10.4), 'paint', b, extra=('gloss',))
-        mx = sx * (float(HALF(-10.5)) + 2.2)
-        box((mx - 1.4, 18.4, -11.8), (mx + 1.4, 20.6, -10.0), 'paint', b, bevel=0.55, extra=('gloss',))
-        box((mx - 1.15, 18.65, -10.02), (mx + 1.15, 20.35, -9.92), 'mirror', b)
+
+        def X(a, c):
+            return (min(sx * a, sx * c), max(sx * a, sx * c))
+        xa, xb = X(15.0, 17.05)
+        box((xa, 17.0, -12.4), (xb, 19.3, -9.7), 'trim', b, bevel=0.45)                         # the sail
+        xa, xb = X(16.6, 18.4)
+        box((xa, 18.35, -11.4), (xb, 19.15, -10.4), 'paint', b, bevel=0.3, extra=('gloss',))   # the arm
+        xa, xb = X(17.7, 20.5)
+        box((xa, 17.85, -11.95), (xb, 20.35, -9.95), 'paint', b, bevel=0.65, extra=('gloss',), rot=(0, sx * -7, 0))
+        xa, xb = X(17.95, 20.25)
+        box((xa, 18.1, -10.0), (xb, 20.1, -9.86), 'mirror', b, rot=(0, sx * -7, 0), pivot=(sx * 19.1, 19.1, -10.95), uvface=mirror_face)
         # side marker on the front fender, amber
         fx = sx * (float(HALF(-36)) + 0.05)
         box((fx - 0.12, 11.6, -37.4), (fx + 0.12, 12.4, -35.6), 'lamp_amber', 'body', extra=('lamps',))
@@ -1091,6 +1288,9 @@ def build():
     paint_front()
     paint_tail()
     paint_details()
+    paint_sides()
+    paint_interior()
+    paint_mirror()
     build_body()
     build_cabin()
     build_wells()

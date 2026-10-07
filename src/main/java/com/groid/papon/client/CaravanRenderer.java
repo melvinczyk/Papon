@@ -126,6 +126,55 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
         if (body != null) {
             needles(glow, body, van, engine);
             if (engine) flares(glow, body, van);
+            if (SkylineCockpit.driving(van)) hands(body, poses.get("steering_wheel"), buffers, light);
+        }
+    }
+
+    /** gen_skyline's steering wheel: its centre and the rim's radius (px). */
+    private static final float WHEEL_X = -8F, WHEEL_Y = 14.1F, WHEEL_Z = -4.4F, WHEEL_R = 3.05F;
+
+    /**
+     * Your hands on the wheel (2026-10-06): from your own eyes behind the Skyline's wheel, your arms (your skin, sleeves and
+     * all) reach from your shoulders to the rim at ten to two, turning with it as you steer, instead of a held item hanging
+     * over the dash (ClientEvents.onHand hides that). Built in the camera's space: each arm's long axis from the shoulder
+     * (below and beside your eyes, which are the origin here) to its grip, its back turned down.
+     */
+    private void hands(Matrix4f body, Matrix4f wheel, MultiBufferSource buffers, int light) {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (wheel == null || mc.player == null) return;
+        if (!(mc.getEntityRenderDispatcher().getRenderer(mc.player) instanceof net.minecraft.client.renderer.entity.player.PlayerRenderer pr)) return;
+        var model = pr.getModel();
+        ResourceLocation skin = mc.player.getSkinTextureLocation();
+        Vector3f o = at(body, 0, 16, 0);
+        Vector3f left = at(body, 1, 16, 0).sub(o).normalize(), up = at(body, 0, 17, 0).sub(o).normalize(), fwd = at(body, 0, 16, -1).sub(o).normalize();
+        VertexConsumer solid = buffers.getBuffer(RenderType.entitySolid(skin));
+        VertexConsumer sleeve = buffers.getBuffer(RenderType.entityTranslucent(skin));
+        int overlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
+        for (int side : new int[]{-1, 1}) {                 // -1: your right hand (the car's right, the model's -x)
+            double a = Math.toRadians(32);
+            float gx = WHEEL_X + side * WHEEL_R * (float) Math.cos(a), gy = WHEEL_Y + WHEEL_R * (float) Math.sin(a);
+            wheel.transform(p4.set(-gx / 16F, gy / 16F, WHEEL_Z / 16F, 1F));
+            Vector3f grip = new Vector3f(p4.x, p4.y, p4.z);
+            Vector3f shoulder = new Vector3f(up).mul(-0.46F).add(new Vector3f(left).mul(side * 0.38F)).add(new Vector3f(fwd).mul(-0.14F));
+            Vector3f y = new Vector3f(grip).sub(shoulder).normalize();
+            Vector3f x = new Vector3f(left).sub(new Vector3f(y).mul(left.dot(y))).normalize();
+            Vector3f z = new Vector3f(x).cross(y);
+            PoseStack ps = new PoseStack();
+            ps.translate(grip.x, grip.y, grip.z);
+            ps.mulPose(new Quaternionf().setFromNormalized(new Matrix3f(x, y, z)));
+            // slimmer than a standing player's (a player's arm is as thick as the rim is wide: they hid the wheel)
+            ps.scale(0.58F, 1F, 0.58F);
+            ps.translate(side < 0 ? 1 / 16F : -1 / 16F, -9.4F / 16F, 0);
+            net.minecraft.client.model.geom.ModelPart arm = side < 0 ? model.rightArm : model.leftArm;
+            net.minecraft.client.model.geom.ModelPart cuff = side < 0 ? model.rightSleeve : model.leftSleeve;
+            for (var part : new net.minecraft.client.model.geom.ModelPart[]{arm, cuff}) {
+                if (!part.visible) continue;
+                var saved = part.storePose();
+                part.setPos(0, 0, 0);
+                part.setRotation(0, 0, 0);
+                part.render(ps, part == arm ? solid : sleeve, light, overlay);
+                part.loadPose(saved);
+            }
         }
     }
 
@@ -273,6 +322,7 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
                           boolean reRender, float partialTick, int light, int overlay, float r, float g, float b, float a) {
         float k = van.squash();
         this.scaleWidth = k;
+        this.shadowRadius = 1.6F * Math.min(1F, k);
         this.scaleHeight = k < 1 ? k * (0.8F + 0.2F * k) : 1F;
         super.preRender(pose, van, model, buffers, buffer, reRender, partialTick, light, overlay, r, g, b, a);
     }
@@ -415,13 +465,13 @@ public class CaravanRenderer extends GeoEntityRenderer<CaravanEntity> {
             if (wheel != null) wheel.setRotZ(-steer * 3F);
             CoreGeoBone body = getAnimationProcessor().getBone("body");
             if (body != null) {
-                body.setRotZ(van.bodyRoll * Mth.DEG_TO_RAD);
-                body.setRotX(van.bodyPitch * Mth.DEG_TO_RAD);
+                body.setRotZ(van.bodyRoll(partial) * Mth.DEG_TO_RAD);
+                body.setRotX(van.bodyPitch(partial) * Mth.DEG_TO_RAD);
             }
             CoreGeoBone dice = getAnimationProcessor().getBone("dice");
             if (dice != null) {
-                dice.setRotX(van.bodyPitch * 4F * Mth.DEG_TO_RAD);
-                dice.setRotZ(van.bodyRoll * 4F * Mth.DEG_TO_RAD);
+                dice.setRotX(van.bodyPitch(partial) * 4F * Mth.DEG_TO_RAD);
+                dice.setRotZ(van.bodyRoll(partial) * 4F * Mth.DEG_TO_RAD);
             }
         }
     }

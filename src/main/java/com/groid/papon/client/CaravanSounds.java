@@ -30,7 +30,9 @@ import java.util.function.Supplier;
  * bottom, the throttle from the driver's keys (yours) or from how it moves (his, anyone else's), the turbos' boost building
  * behind the throttle and dumped as you lift. Its layers are loops recorded at set rpm (tools/gen_skyline_sounds.py), all at
  * one loudness, pitched to the rpm between them and cross-faded by it: the six on the throttle, the overrun's burble off it,
- * the turbos only on boost, the road and the wind by speed. Every shift is heard (a clack, a dip in the engine as the
+ * the turbos only on boost, the road and the wind by speed. (Redone again the same day, the user: "the sounds it has
+ * currently sound bad": eight rpm points on and off the throttle from a physical model of the engine, the two nearest
+ * playing; see Rig.) Every shift is heard (a clack, a dip in the engine as the
  * throttle is cut, the blow-off if it was on boost), a downshift off the throttle blips, a lift from high revs now and then
  * pops. From the cockpit (you in it, in first person) the engine is a second set of those layers, insulated (no fizz, the
  * shell's boom under it) and not placed in the world, so it sits steady round you; outside it is out there in the world.
@@ -181,13 +183,18 @@ public final class CaravanSounds {
 
     // ------------------------------------------------------------------ what you hear
 
-    /** Layer kinds. */
-    private static final int IDLE = 0, LOW = 1, MID = 2, HIGH = 3, DECEL = 4, TURBO = 5, ROAD = 6, WIND = 7;
-    /** The rpm each engine layer was recorded at, and how wide its share of the rpm is. */
-    private static final float[] SKY_BASE = {950, 2200, 4300, 7000, 4300}, SKY_WIDTH = {650, 1150, 1500, 1800, 1};
+    /** Layer kinds: the van's two loops, the Skyline's engine (on the throttle, off it), its turbos, the road, the wind. */
+    private static final int IDLE = 0, LOW = 1, ON = 2, OFF = 3, TURBO = 5, ROAD = 6, WIND = 7;
     private static final float[] VAN_BASE = {720, 2400}, VAN_WIDTH = {700, 1700};
 
-    /** A running car's layers, outside and in the cockpit, and its engine. */
+    /**
+     * A running car's layers, outside and in the cockpit, and its engine. The Skyline's engine (2026-10-06) is eight loops
+     * on the throttle and eight off it, recorded every 600 to 1300 rpm (ModSounds.SKYLINE_RPM): only the two either side of
+     * the rpm play, cross-faded at equal power and pitched at most a fifth off what they were recorded at (they were four, a
+     * layer pitched up to 1.6x: its exhaust's resonances slid up with it, a chipmunk of an engine); the throttle cross-fades
+     * the on-load pair into the overrun's pair. A layer starts when it is first heard and stops once it has been silent a
+     * while, so a car is never more than a handful of sounds.
+     */
     static final class Rig {
         final CaravanEntity van;
         final boolean skyline;
@@ -198,7 +205,9 @@ public final class CaravanSounds {
         int outQuiet, inQuiet, age;
         /** The engine's own fade in and out (the start one-shot covers its first moment). */
         float fade;
-        final float[] weights = new float[5];
+        final float[] weights = new float[2];
+        /** Each Skyline engine layer's share of the engine right now (index: rpm point, + n off the throttle). */
+        final float[] engine = new float[ModSounds.SKYLINE_RPM.length * 2];
 
         Rig(CaravanEntity van) {
             this.van = van;
@@ -218,96 +227,116 @@ public final class CaravanSounds {
             in += ((cockpit() ? 1 : 0) - in) * 0.25F;
             fade = van.isEngineOn() ? Math.min(1, fade + 1 / 20F) : Math.max(0, fade - 1 / 14F);
             float r = sim.rpm;
-            float[] base = skyline ? SKY_BASE : VAN_BASE, width = skyline ? SKY_WIDTH : VAN_WIDTH;
-            int n = skyline ? 4 : 2;
-            float sum = 0;
-            for (int i = 0; i < n; i++) {
-                float z = (r - base[i]) / width[i];
-                weights[i] = (float) Math.exp(-z * z);
-                if (i == 0 && r < base[0]) weights[i] = 1;
-                if (i == n - 1 && r > base[n - 1]) weights[i] = 1;
-                sum += weights[i] * weights[i];
+            if (skyline) mixEngine(r);
+            else {
+                for (int i = 0; i < 2; i++) {
+                    float z = (r - VAN_BASE[i]) / VAN_WIDTH[i];
+                    weights[i] = (float) Math.exp(-z * z);
+                }
+                if (r < VAN_BASE[0]) weights[0] = 1;
+                if (r > VAN_BASE[1]) weights[1] = 1;
+                float sum = Mth.sqrt(Math.max(weights[0] * weights[0] + weights[1] * weights[1], 1e-6F));
+                weights[0] /= sum;
+                weights[1] /= sum;
             }
-            sum = Mth.sqrt(Math.max(sum, 1e-6F));
-            for (int i = 0; i < n; i++) weights[i] /= sum;
-            // each set runs only while it is heard
             manage(outside, false, 1 - in);
             manage(inside, true, in);
         }
 
+        /** The two rpm points either side of the rpm, equal power, split between the throttle's pair and the overrun's. */
+        private void mixEngine(float r) {
+            int[] rpm = ModSounds.SKYLINE_RPM;
+            int n = rpm.length;
+            java.util.Arrays.fill(engine, 0);
+            int i = 0;
+            while (i < n - 2 && r > rpm[i + 1]) i++;
+            float t = Mth.clamp((r - rpm[i]) / (float) (rpm[i + 1] - rpm[i]), 0, 1);
+            float a = Mth.cos(t * Mth.HALF_PI), b = Mth.sin(t * Mth.HALF_PI);
+            // off the throttle above a fast idle: the overrun
+            float off = (1 - sim.load) * Mth.clamp((r - 1400) / 900F, 0, 1);
+            float on = Mth.sqrt(1 - off), ov = Mth.sqrt(off);
+            engine[i] = a * on;
+            engine[i + 1] = b * on;
+            engine[n + i] = a * ov;
+            engine[n + i + 1] = b * ov;
+        }
+
         private void manage(List<Layer> set, boolean cabin, float share) {
             boolean heard = share > 0.01F && fade > 0;
-            if (heard && set.isEmpty()) start(set, cabin);
+            if (heard) {
+                if (set.isEmpty()) start(set, cabin);
+                // the engine's layers: start the ones heard now that are not playing
+                if (skyline) {
+                    for (int k = 0; k < engine.length; k++) {
+                        if (engine[k] * share < 0.03F) continue;
+                        boolean playing = false;
+                        for (Layer l : set) playing |= (l.kind == ON || l.kind == OFF) && l.index == k && !l.isStopped();
+                        if (!playing) add(set, engineSound(k, cabin), k < engine.length / 2 ? ON : OFF, k, cabin);
+                    }
+                }
+            }
             if (cabin) inQuiet = heard ? 0 : inQuiet + 1;
             else outQuiet = heard ? 0 : outQuiet + 1;
             if (!set.isEmpty() && (cabin ? inQuiet : outQuiet) > 40) {
                 for (Layer l : set) l.end();
                 set.clear();
             }
+            set.removeIf(Layer::isStopped);
+        }
+
+        private SoundEvent engineSound(int k, boolean cabin) {
+            int n = ModSounds.SKYLINE_RPM.length;
+            boolean on = k < n;
+            return (on ? cabin ? ModSounds.SKYLINE_ON_IN : ModSounds.SKYLINE_ON : cabin ? ModSounds.SKYLINE_OFF_IN : ModSounds.SKYLINE_OFF)[k % n].get();
         }
 
         private void start(List<Layer> set, boolean cabin) {
             if (skyline) {
-                if (cabin) {
-                    add(set, ModSounds.SKYLINE_ENG_IDLE_IN::get, IDLE, true);
-                    add(set, ModSounds.SKYLINE_ENG_LOW_IN::get, LOW, true);
-                    add(set, ModSounds.SKYLINE_ENG_MID_IN::get, MID, true);
-                    add(set, ModSounds.SKYLINE_ENG_HIGH_IN::get, HIGH, true);
-                    add(set, ModSounds.SKYLINE_ENG_DECEL_IN::get, DECEL, true);
-                    add(set, ModSounds.SKYLINE_WIND::get, WIND, true);
-                } else {
-                    add(set, ModSounds.SKYLINE_ENG_IDLE::get, IDLE, false);
-                    add(set, ModSounds.SKYLINE_ENG_LOW::get, LOW, false);
-                    add(set, ModSounds.SKYLINE_ENG_MID::get, MID, false);
-                    add(set, ModSounds.SKYLINE_ENG_HIGH::get, HIGH, false);
-                    add(set, ModSounds.SKYLINE_ENG_DECEL::get, DECEL, false);
-                }
-                add(set, ModSounds.SKYLINE_TURBO::get, TURBO, cabin);
-                add(set, ModSounds.SKYLINE_ROAD::get, ROAD, cabin);
+                add(set, ModSounds.SKYLINE_TURBO.get(), TURBO, 0, cabin);
+                add(set, ModSounds.SKYLINE_ROAD.get(), ROAD, 0, cabin);
+                if (cabin) add(set, ModSounds.SKYLINE_WIND.get(), WIND, 0, true);
             } else {
-                add(set, ModSounds.CARAVAN_IDLE::get, IDLE, cabin);
-                add(set, ModSounds.CARAVAN_DRIVE::get, LOW, cabin);
+                add(set, ModSounds.CARAVAN_IDLE.get(), IDLE, 0, cabin);
+                add(set, ModSounds.CARAVAN_DRIVE.get(), LOW, 0, cabin);
             }
         }
 
-        private void add(List<Layer> set, Supplier<SoundEvent> sound, int kind, boolean cabin) {
-            Layer l = new Layer(this, sound.get(), kind, cabin);
+        private void add(List<Layer> set, SoundEvent sound, int kind, int index, boolean cabin) {
+            Layer l = new Layer(this, sound, kind, index, cabin);
             set.add(l);
             Minecraft.getInstance().getSoundManager().play(l);
         }
 
         /** How loud a layer is right now (before the set's share and the fade). */
-        float volume(int kind, boolean cabin) {
+        float volume(int kind, int index, boolean cabin) {
             float s = Math.min(1.4F, Math.abs(sim.along));
             float duck = 0.6F + 0.4F * VoiceDuck.get();
-            float dip = sim.cut > 0 ? 0.55F : 1F;
+            float dip = sim.cut > 0 ? 0.6F : 1F;
             if (!skyline) {
                 float lvl = (cabin ? 0.5F : 0.7F) * duck * dip;
                 return kind == IDLE ? lvl * weights[0] : lvl * weights[1] * (0.55F + 0.45F * sim.load);
             }
-            float eng = (cabin ? 0.62F : 0.85F) * duck * dip;
-            float decel = (1 - sim.load) * Mth.clamp((sim.rpm - 1800) / 1200F, 0, 1);
-            float onLoad = 0.35F + 0.65F * sim.load;
+            float eng = (cabin ? 0.7F : 0.9F) * duck * dip;
             return switch (kind) {
-                case IDLE -> eng * weights[0];
-                case LOW, MID, HIGH -> eng * weights[kind] * onLoad * (1 - 0.6F * decel);
-                case DECEL -> eng * 0.85F * decel;
-                case TURBO -> (cabin ? 0.22F : 0.32F) * duck * (float) Math.pow(sim.boost, 1.6);
-                case ROAD -> (cabin ? 0.3F : 0.28F) * duck * Mth.clamp(s / 0.6F, 0, 1);
-                case WIND -> 0.28F * duck * Mth.clamp(s, 0, 1) * Mth.clamp(s, 0, 1);
+                case ON -> eng * engine[index] * (0.7F + 0.3F * sim.load);
+                case OFF -> eng * engine[index] * 0.85F;
+                case TURBO -> (cabin ? 0.3F : 0.36F) * duck * (float) Math.pow(sim.boost, 1.5);
+                case ROAD -> (cabin ? 0.32F : 0.26F) * duck * Mth.clamp(s / 0.6F, 0, 1);
+                case WIND -> 0.3F * duck * Mth.clamp(s, 0, 1) * Mth.clamp(s, 0, 1);
                 default -> 0;
             };
         }
 
-        float pitch(int kind) {
+        float pitch(int kind, int index) {
             float r = Math.max(sim.rpm, 1);
             float s = Math.min(1.4F, Math.abs(sim.along));
-            float[] base = skyline ? SKY_BASE : VAN_BASE;
+            int[] rpm = ModSounds.SKYLINE_RPM;
             return switch (kind) {
-                case IDLE, LOW, MID, HIGH, DECEL -> Mth.clamp(r / base[Math.min(kind, base.length - 1)], 0.5F, 2F);
-                case TURBO -> 0.75F + 0.75F * sim.boost;
-                case ROAD -> 0.85F + 0.3F * s;
-                case WIND -> 0.9F + 0.2F * s;
+                case IDLE, LOW -> Mth.clamp(r / VAN_BASE[kind], 0.5F, 2F);
+                case ON, OFF -> Mth.clamp(r / rpm[index % rpm.length], 0.5F, 2F);
+                case TURBO -> 0.7F + 0.8F * sim.boost;
+                case ROAD -> 0.8F + 0.35F * s;
+                case WIND -> 0.85F + 0.25F * s;
                 default -> 1;
             };
         }
@@ -331,21 +360,23 @@ public final class CaravanSounds {
         }
     }
 
-    /** One loop of a car's sound, following it (or, from the cockpit, not placed: round you). */
+    /** One loop of a car's sound, following it (or, from the cockpit, not placed: round you); an engine layer ends once unheard. */
     private static final class Layer extends AbstractTickableSoundInstance {
         private final Rig rig;
-        private final int kind;
+        private final int kind, index;
         private final boolean cabin;
+        private int quiet;
 
-        Layer(Rig rig, SoundEvent sound, int kind, boolean cabin) {
+        Layer(Rig rig, SoundEvent sound, int kind, int index, boolean cabin) {
             super(sound, SoundSource.NEUTRAL, SoundInstance.createUnseededRandom());
             this.rig = rig;
             this.kind = kind;
+            this.index = index;
             this.cabin = cabin;
             this.looping = true;
             this.delay = 0;
             this.volume = 0.0001F;
-            this.pitch = 1F;
+            this.pitch = rig.pitch(kind, index);
             if (cabin) {
                 this.relative = true;
                 this.attenuation = Attenuation.NONE;
@@ -374,8 +405,13 @@ public final class CaravanSounds {
                 z = rig.van.getZ();
             }
             float share = cabin ? rig.in : 1 - rig.in;
-            volume = Math.max(0.0001F, rig.volume(kind, cabin) * share * rig.fade);
-            pitch = rig.pitch(kind);
+            float v = rig.volume(kind, index, cabin) * share * rig.fade;
+            volume = Math.max(0.0001F, v);
+            pitch = rig.pitch(kind, index);
+            if (kind == ON || kind == OFF) {
+                quiet = v < 0.004F ? quiet + 1 : 0;
+                if (quiet > 15) stop();
+            }
         }
     }
 }

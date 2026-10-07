@@ -465,8 +465,10 @@ def animations():
     def kf(pairs):
         return {('%.4g' % t if t else '0.0'): {'vector': v} for t, v in pairs}
     door_out = [0, -62, 0]
-    # the Skyline's driver's door is on the other side (right-hand drive, gen_skyline.py: door_r): it swings the other way
-    door_out_r = [0, 62, 0]
+    # the Skyline's driver's door (right-hand drive, gen_skyline.py: door_r, on the model's -X). GeckoLib negates an
+    # animation's Y rotation and the cubes' x: +62 here turned its back edge into the cabin (2026-10-06, the user: "the
+    # door opens in towards the car"); -62 swings it out
+    door_out_r = [0, -62, 0]
     anims = {
         'animation.caravan.door_open': {
             'loop': 'hold_on_last_frame', 'animation_length': 0.5,
@@ -476,7 +478,7 @@ def animations():
                 '0.5': {'vector': door_out, 'easing': 'easeOutBack'}}},
                 'door_r': {'rotation': {
                     '0.0': {'vector': [0, 0, 0]},
-                    '0.35': {'vector': [0, 66, 0], 'easing': 'easeOutQuad'},
+                    '0.35': {'vector': [0, -66, 0], 'easing': 'easeOutQuad'},
                     '0.5': {'vector': door_out_r, 'easing': 'easeOutBack'}}}},
             'sound_effects': {'0.0': {'effect': 'door_open'}},
         },
