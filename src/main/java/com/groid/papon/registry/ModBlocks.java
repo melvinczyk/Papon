@@ -100,6 +100,12 @@ public final class ModBlocks {
             () -> new com.groid.papon.block.SoulVoidBlock(props(MapColor.COLOR_BLACK).sound(SoundType.SOUL_SAND).lightLevel(s -> 6).noOcclusion()
                     .dynamicShape()));
 
+    // ------------------------------------------------------------------ not the arena's
+    /** A trash can (crafted from iron): destroys what goes in (block/TrashCanBlock). Breakable, like a cauldron. */
+    public static final RegistryObject<Block> TRASH_CAN = REGISTRY.register("trash_can",
+            () -> new com.groid.papon.block.TrashCanBlock(BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(2.0F, 6.0F)
+                    .sound(SoundType.LANTERN).noOcclusion().requiresCorrectToolForDrops()));
+
     private static RegistryObject<Block> stone(String name, MapColor color) {
         return REGISTRY.register(name, () -> new Block(stoneProps(color)));
     }
@@ -117,9 +123,10 @@ public final class ModBlocks {
                 .sound(SoundType.MUD).pushReaction(PushReaction.BLOCK).isValidSpawn((s, l, p, e) -> false);
     }
 
-    /** Any block of the arena (or of the old potato dome): the only blocks a teardown removes. */
+    /** Any block of the arena (or of the old potato dome): the only blocks a teardown removes (never a player's trash can). */
     public static boolean isArena(BlockState s) {
-        return PaponMod.MOD_ID.equals(net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(s.getBlock()).getNamespace());
+        return PaponMod.MOD_ID.equals(net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(s.getBlock()).getNamespace())
+                && !s.is(TRASH_CAN.get());
     }
 
     private ModBlocks() {}

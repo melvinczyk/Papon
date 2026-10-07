@@ -921,5 +921,9 @@
   "message.papon.makima.done": "Makima: \"Good boy.\" She is already looking at someone else.",
   "message.papon.makima.take": "You put Makima back in the egg. She lets you.",
   "message.papon.makima.awaken.title": "Makima",
-  "message.papon.makima.awaken": "The pillow is breathing."
+  "message.papon.makima.awaken": "The pillow is breathing.",
+  "block.papon.trash_can": "Trash Can",
+  "block.papon.trash_can.tip.0": "Shift-click your trash in to feed it",
+  "block.papon.trash_can.tip.1": "It eats it and pays you in experience",
+  "container.papon.trash_can.hint": "Feed me trash!"
 }

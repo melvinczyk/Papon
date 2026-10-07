@@ -8,7 +8,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
-/** The coliseum's two blocks with something to draw: the flags and the stage's floodlights. */
+/** The coliseum's two blocks with something to draw (the flags and the stage's floodlights), and the trash can's pile. */
 public final class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> REGISTRY =
             DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, PaponMod.MOD_ID);
@@ -19,6 +19,10 @@ public final class ModBlockEntities {
     @SuppressWarnings("DataFlowIssue")
     public static final RegistryObject<BlockEntityType<StageLampBlockEntity>> STAGE_LAMP = REGISTRY.register("stage_lamp",
             () -> BlockEntityType.Builder.of(StageLampBlockEntity::new, ModBlocks.STAGE_LAMP.get()).build(null));
+
+    @SuppressWarnings("DataFlowIssue")
+    public static final RegistryObject<BlockEntityType<com.groid.papon.block.TrashCanBlockEntity>> TRASH_CAN = REGISTRY.register("trash_can",
+            () -> BlockEntityType.Builder.of(com.groid.papon.block.TrashCanBlockEntity::new, ModBlocks.TRASH_CAN.get()).build(null));
 
     private ModBlockEntities() {}
 }

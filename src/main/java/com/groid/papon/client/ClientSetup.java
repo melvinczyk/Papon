@@ -95,6 +95,19 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.DIE_GLOCKE.get(), DieGlockeRenderer::new);
         event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.ARENA_FLAG.get(), ArenaFlagRenderer::new);
         event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.STAGE_LAMP.get(), StageLampRenderer::new);
+        event.registerBlockEntityRenderer(com.groid.papon.registry.ModBlockEntities.TRASH_CAN.get(), TrashCanRenderer::new);
+    }
+
+    @SubscribeEvent
+    public static void clientSetup(net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent event) {
+        event.enqueueWork(() -> net.minecraft.client.gui.screens.MenuScreens.register(com.groid.papon.registry.ModMenus.TRASH_CAN.get(), TrashCanScreen::new));
+    }
+
+    /** Models no blockstate names: the trash can's lid and happy face (client/TrashCanRenderer). */
+    @SubscribeEvent
+    public static void registerModels(net.minecraftforge.client.event.ModelEvent.RegisterAdditional event) {
+        event.register(TrashCanRenderer.LID);
+        event.register(TrashCanRenderer.HAPPY);
     }
 
     private static void mesh(EntityRenderersEvent.RegisterRenderers event, EntityType<TacoCustomerEntity> type,

@@ -52,6 +52,10 @@ public final class ModItems {
             .food(new net.minecraft.world.food.FoodProperties.Builder().nutrition(6).saturationMod(0.75F)
                     .effect(() -> new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.REGENERATION, 100), 1F)
                     .build())));
+    /** The trash can (block/TrashCanBlock). */
+    public static final RegistryObject<Item> TRASH_CAN = REGISTRY.register("trash_can",
+            () -> new net.minecraft.world.item.BlockItem(ModBlocks.TRASH_CAN.get(), new Item.Properties()));
+
     /** The menu, in order. */
     public static final List<RegistryObject<Item>> TACOS = List.of(TACO_AL_PASTOR, TACO_CARNE_ASADA, TACO_POLLO, TACO_PAPA);
 

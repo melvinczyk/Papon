@@ -108,6 +108,9 @@ public final class AutoShot {
     /** -Pautoshot=glocke: Die Glocke on a slab at 6600 6600: four sides standing still, then running (the drums, the glow),
      *  a close-up of its window and one at night (papon_g*.png). */
     private static final boolean GLOCKE = MODE.equals("glocke");
+    /** -Pautoshot=trash: the trash can on a slab at 6800 6800: four sides, its window fed a stack (the happy face, the XP logged),
+     *  then the lid flapping as paper drops in (papon_t*.png). */
+    private static final boolean TRASH = MODE.equals("trash");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -179,6 +182,10 @@ public final class AutoShot {
         }
         if (GLOCKE) {
             glocke(mc);
+            return;
+        }
+        if (TRASH) {
+            trash(mc);
             return;
         }
         if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4 || CLIMAX || PHASES) {
@@ -1926,6 +1933,68 @@ public final class AutoShot {
         if (a == 390) run("data merge entity @e[type=papon:die_glocke,limit=1,sort=nearest] {Active:0b}");
         if (a == 560) shot(mc, "g31_night_off");
         if (a == 580) mc.stop();
+    }
+
+    private static int trashAt = -1;
+    private static Vec3 trashPos;
+
+    private static void trash(Minecraft mc) {
+        if (tick == 40) run("ride @s dismount", "gamemode creative", "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000",
+                "gamerule doMobSpawning false", "tp @s 6800 200 6800");
+        boolean there = Math.abs(mc.player.getX() - 6800) < 40 && Math.abs(mc.player.getZ() - 6800) < 40;
+        if (trashAt < 0) {
+            if (there && tick % 20 == 0) run("execute positioned 6800 0 6800 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 0 0");
+            if (there && tick > 80 && mc.player.getY() < 190 && !mc.player.getAbilities().flying) trashAt = tick;
+            return;
+        }
+        int a = tick - trashAt;
+        if (a == 10) {
+            run("execute at @s run fill ~-14 ~-1 ~-16 ~14 ~-1 ~6 polished_andesite", "execute at @s run fill ~-14 ~ ~-16 ~14 ~12 ~6 air",
+                    "kill @e[type=item]", "execute at @s run setblock ~ ~ ~-4 papon:trash_can[facing=south]");
+            trashPos = Vec3.atBottomCenterOf(mc.player.blockPosition().offset(0, 0, -4));
+        }
+        if (trashPos == null) return;
+        mc.options.hideGui = a > 30 && (a < 120 || a > 136);
+        Vec3 c = trashPos.add(0, 0.55, 0);
+        String at = String.format(java.util.Locale.ROOT, "%.1f %.1f %.1f", trashPos.x, trashPos.y, trashPos.z);
+        // four sides
+        int[] yaws = {0, 90, 180, 270};
+        for (int i = 0; i < 4; i++) {
+            double r = Math.toRadians(yaws[i] + 25);
+            if (a == 40 + i * 16) tpLook(trashPos.add(Math.sin(r) * 2.6, 0.1, Math.cos(r) * 2.6).add(0, -0.6, 0), c);
+            if (a == 50 + i * 16) shot(mc, "t0" + i + "_side_" + yaws[i]);
+        }
+        // the window: right-click it, shift-click a stack of dirt in, then watch it eat
+        if (a == 110) { run("gamemode survival", "clear @s", "give @s dirt 64", "give @s rotten_flesh 32", "xp set @s 0 points", "xp set @s 0 levels");
+            tpLook(trashPos.add(0, -0.6, 2.2), c); }
+        if (a == 120) {
+            var hit = new net.minecraft.world.phys.BlockHitResult(trashPos.add(0, 0.5, -0.4), net.minecraft.core.Direction.SOUTH,
+                    net.minecraft.core.BlockPos.containing(trashPos), false);
+            mc.gameMode.useItemOn(mc.player, net.minecraft.world.InteractionHand.MAIN_HAND, hit);
+        }
+        if (a == 126) shot(mc, "t10_window");
+        if (a == 130 && mc.player.containerMenu instanceof com.groid.papon.menu.TrashCanMenu m) {
+            // the hotbar's first slot is menu slot 28
+            mc.gameMode.handleInventoryMouseClick(m.containerId, 28, 0, net.minecraft.world.inventory.ClickType.QUICK_MOVE, mc.player);
+        }
+        if (a == 134) shot(mc, "t11_fed");
+        if (a == 140) mc.player.closeContainer();
+        if (a == 162) shot(mc, "t12_happy");
+        if (a == 166) shot(mc, "t13_happy");
+        if (a == 200) PaponMod.LOG.info("[autoshot] xp after a stack of dirt: {} points", mc.player.totalExperience);
+        if (a == 205) shot(mc, "t14_after");
+        // a stack thrown on the lid
+        if (a == 210) run("summon item " + up(at, 2.2) + " {Item:{id:\"minecraft:paper\",Count:8b}}");
+        for (int k = 0; k < 3; k++) if (a == 218 + k * 3) shot(mc, "t2" + k + "_flap");
+        if (a == 250) mc.stop();
+    }
+
+    private static String fmt(double v) { return String.format(java.util.Locale.ROOT, "%.1f", v); }
+
+    /** "x y z" with y raised. */
+    private static String up(String xyz, double dy) {
+        String[] p = xyz.split(" ");
+        return p[0] + " " + fmt(Double.parseDouble(p[1]) + dy) + " " + p[2];
     }
 
     private static void wildGiant(Minecraft mc) {
