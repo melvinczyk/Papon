@@ -5,6 +5,7 @@ import com.groid.papon.client.mesh.SkinnedMesh;
 import com.groid.papon.entity.MakimaEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -27,18 +28,28 @@ import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.model.data.EntityModelData;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Makima (entity/MakimaEntity): her rig-only GeckoLib model (geo/entity/makima_mesh) runs the animations, and the mesh
- * (meshes/makima.json, tools/gen_makima_mesh.py) is skinned on the CPU with each bone's pose as it is drawn, the way
- * mesh/MeshCrowdRenderer does it. With someone at her she is jolted along her body on every thrust (bounced on top in
- * {@link MakimaEntity.Position#COWGIRL}), in step with PillowClient.thrust; her mouth waters ({@link #drool}).
+ * (meshes/makima.json, tools/gen_makima_mesh.py: four bones a vertex) is skinned on the CPU with each bone's pose as it is
+ * drawn, the way mesh/MeshCrowdRenderer does it. With someone at her (2026-10-07):
+ *   her body takes every stroke   jolted along her body ({@link #applyRotations}), riding up and down on top; the back
+ *                                 arching, the head thrown back, the hips pushed, the knees rocking ({@link Model#moving})
+ *   what hangs moves after it     her braid (three links), bust and tie on damped springs ({@link Jiggle}) driven by the
+ *                                 stroke, a beat behind it; at the climax she shudders and arches
+ *   her mouth waters              strands of drool off her lips that stretch, snap and fall, a little puddle where they
+ *                                 land ({@link Drool}); hearts now and then, never in the rider's face
+ * Standing, her head and neck follow you; walking (she follows you) the stride runs at her speed.
  */
 public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
-    /** Her lips from the head bone's pivot (blocks, front -Z; tracked bone matrices are taken at the pivot): the geo's "mouth" locator less the head's pivot. */
-    private static final Vector4f MOUTH = new Vector4f(0F, 0.054F, -0.082F, 1F);
+    /** Her lips and her eyes from the head bone's pivot (blocks, front -Z; tracked bone matrices are taken at the pivot). */
+    private static final Vector4f MOUTH = new Vector4f(0F, 0.018F, -0.077F, 1F);
+    private static final ResourceLocation WHITE = PaponMod.id("textures/misc/white.png");
 
     private final Map<String, Matrix4f> poses = new HashMap<>();
     private final Map<String, Matrix3f> normalPoses = new HashMap<>();
@@ -46,11 +57,16 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
     private float[] nx = new float[0];
     private final Vector4f p = new Vector4f();
     private final Vector3f q = new Vector3f();
+    private static final Map<MakimaEntity, Jiggle> JIGGLE = new WeakHashMap<>();
+    private static final Map<MakimaEntity, Drool> DROOL = new WeakHashMap<>();
 
     public MakimaRenderer(EntityRendererProvider.Context ctx) {
         super(ctx, new Model());
         this.shadowRadius = 0.4F;
     }
+
+    /** The stroke's motion now: -1..1 (PillowClient.thrust on her clock), 1 held deep at the end. */
+    static float thrust(MakimaEntity e, float partial) { return MakimaRider.thrust(e, partial); }
 
     static class Model extends GeoModel<MakimaEntity> {
         private static final ResourceLocation GEO = PaponMod.id("geo/entity/makima_mesh.geo.json");
@@ -68,52 +84,88 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
 
         @Override
         public void setCustomAnimations(MakimaEntity e, long instanceId, AnimationState<MakimaEntity> state) {
-            if (e.getFirstPassenger() instanceof Player rider && e.act() != null) {
-                moving(e.posture(), rider.tickCount + state.getPartialTick());
+            float partial = state.getPartialTick();
+            Jiggle j = JIGGLE.computeIfAbsent(e, k -> new Jiggle());
+            if (e.getFirstPassenger() instanceof Player && e.act() != null) {
+                moving(e, partial, j);
                 return;
             }
-            // standing, her head follows you
-            CoreGeoBone head = getAnimationProcessor().getBone("head");
+            j.settle(e.tickCount + partial);
+            sway(j);
+            // standing (or walking after you), her head and neck follow you
             EntityModelData data = state.getData(DataTickets.ENTITY_MODEL_DATA);
-            if (head == null || data == null) return;
-            head.setRotX(head.getRotX() + data.headPitch() * 0.8F * Mth.DEG_TO_RAD);
-            head.setRotY(head.getRotY() + Mth.clamp(data.netHeadYaw(), -60, 60) * Mth.DEG_TO_RAD);
+            if (data == null) return;
+            float yaw = Mth.clamp(data.netHeadYaw(), -70, 70), pitch = Mth.clamp(data.headPitch(), -40, 50);
+            add("neck", pitch * 0.35F, yaw * 0.35F, 0);
+            add("head", pitch * 0.55F, yaw * 0.55F, 0);
         }
 
         /**
-         * Her body taking every thrust (in step with PillowClient.thrust, on top of the position's loop): the back arching,
-         * the head thrown back, the hips pushed, the knees rocking, the braid swinging a beat behind, quick breaths.
+         * Her body taking every stroke (on top of the position's loop): the back arching, the head thrown back, the hips
+         * pushed, the knees rocking, quick breaths; the climax a shudder and a long arch.
          */
-        private void moving(MakimaEntity.Position at, float t) {
-            float th = PillowClient.thrust(t), sq = PillowClient.squash(t), lag = PillowClient.thrust(t - 2.5F);
-            float breath = Mth.sin(t * 0.6F);
-            switch (at) {
+        private void moving(MakimaEntity e, float partial, Jiggle j) {
+            float t = e.tickCount + partial, s = e.stroke(partial);
+            float th = thrust(e, partial), sq = Math.max(0, th), lag = PillowClient.thrust(s - 2.5F);
+            float breath = Mth.sin(t * (0.5F + 0.12F * e.tempo()));
+            float hold = e.holding() ? 1 : 0, shake = MakimaRider.tremor(e, t);
+            j.drive(e, t, th);
+            switch (e.posture()) {
                 case MISSIONARY -> {
-                    add("chest", -6 * sq + 1.5F * breath, 0, 0);
-                    add("head", -10 * sq, 0, 0);
-                    add("leg_l", 7 * lag, 0, -4 * lag);
-                    add("leg_r", 7 * lag, 0, 4 * lag);
+                    add("spine", -4 * sq, 0, 0);
+                    add("chest", -6 * sq + 1.5F * breath - 14 * hold, 0, 0);
+                    add("neck", -6 * sq - 10 * hold, 0, 0);
+                    add("head", -8 * sq - 12 * hold + 4 * shake, 0, 0);
+                    add("leg_l", 6 * lag, 0, -4 * lag);
+                    add("leg_r", 6 * lag, 0, 4 * lag);
                     add("forearm_l", -8 * sq, 0, 0);
                     add("forearm_r", -8 * sq, 0, 0);
                 }
                 case DOGGY, BENT -> {
-                    add("torso", 5 * sq, 0, 0);
-                    add("chest", -7 * sq + 1.5F * breath, 0, 0);
-                    add("head", -12 * sq, 0, 0);
-                    add("braid", 12 * lag, 0, 16 * lag);
-                    add("arm_l", 5 * sq, 0, 0);
-                    add("arm_r", 5 * sq, 0, 0);
+                    add("torso", 4 * sq, 0, 0);
+                    add("spine", -3 * sq, 0, 0);
+                    add("chest", -6 * sq + 1.5F * breath - 12 * hold, 0, 0);
+                    add("neck", -5 * sq - 10 * hold, 0, 0);
+                    add("head", -10 * sq - 14 * hold + 5 * shake, 0, 0);
+                    add("arm_l", 4 * sq, 0, 0);
+                    add("arm_r", 4 * sq, 0, 0);
                 }
-                case COWGIRL -> {
-                    add("torso", 0, 0, 4 * Mth.sin(t * 0.45F));
-                    add("chest", -8 * Math.abs(th) + 1.5F * breath, 0, 0);
-                    add("head", -12 * sq, 0, 0);
-                    add("braid", -16 * lag, 0, 6 * lag);
+                case COWGIRL, REVERSE -> {
+                    float roll = Mth.sin(s * 0.45F);
+                    add("torso", 6 * th, 0, 4 * roll);
+                    add("spine", -3 * th, 0, -2 * roll);
+                    add("chest", -6 * Math.abs(th) + 1.5F * breath - 16 * hold, 0, 0);
+                    add("neck", -4 * sq - 10 * hold, 0, 0);
+                    add("head", -10 * sq - 14 * hold + 5 * shake, 0, 0);
                     add("forearm_l", -6 * sq, 0, 0);
                     add("forearm_r", -6 * sq, 0, 0);
+                    add("leg_l", 3 * th, 0, 0);
+                    add("leg_r", 3 * th, 0, 0);
+                }
+                case CARRY -> {
+                    add("torso", -5 * th, 0, 0);
+                    add("chest", -4 * sq + 1.5F * breath - 14 * hold, 0, 0);
+                    add("neck", -4 * sq - 8 * hold, 0, 0);
+                    add("head", -8 * sq - 14 * hold + 5 * shake, 0, 0);
+                    add("shin_l", 8 * lag, 0, 0);
+                    add("shin_r", 8 * lag, 0, 0);
                 }
                 default -> {}
             }
+            sway(j);
+        }
+
+        /** The springs into the bones: the braid's links, the bust, the tie. */
+        private void sway(Jiggle j) {
+            add("braid", 10 * j.braid[0], 0, 7 * j.side[0]);
+            add("braid2", 14 * j.braid[1], 0, 10 * j.side[1]);
+            add("braid3", 18 * j.braid[2], 0, 14 * j.side[2]);
+            for (String b : new String[]{"breast_l", "breast_r"}) {
+                add(b, 9 * j.bust, 0, 0);
+                CoreGeoBone bone = getAnimationProcessor().getBone(b);
+                if (bone != null) bone.setPosY(bone.getPosY() + 0.55F * j.bust);
+            }
+            add("tie", 14 * j.tie, 0, 6 * j.side[0]);
         }
 
         /** Adds degrees in the animation files' convention (GeckoLib flips X and Y from them). */
@@ -126,19 +178,87 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
         }
     }
 
+    /**
+     * What hangs off her, on damped springs (time in ticks, integrated per frame): each follows a target a beat behind it,
+     * overshoots, settles. The bust follows the stroke; the braid's three links follow each other (so a wave runs down it)
+     * and swing to the side too; the tie follows the bust.
+     */
+    static final class Jiggle {
+        final float[] braid = new float[3], braidV = new float[3], side = new float[3], sideV = new float[3];
+        float bust, bustV, tie, tieV;
+        private float last = Float.NaN;
+
+        /** Advances to time t (ticks) toward targets. */
+        private float step(float t) {
+            float dt = Float.isNaN(last) ? 0 : Mth.clamp(t - last, 0, 2);
+            last = t;
+            return dt;
+        }
+
+        void drive(MakimaEntity e, float t, float th) {
+            float dt = step(t);
+            float hard = 0.5F + 0.25F * e.tempo();
+            integrate(dt, -0.9F * th * hard, -0.3F * Mth.sin(t * 0.21F) * hard);
+        }
+
+        void settle(float t) {
+            integrate(step(t), 0, 0);
+        }
+
+        private void integrate(float dt, float bustTarget, float sideTarget) {
+            // sub-steps for stability (stiff springs, frame times up to two ticks)
+            int n = Math.max(1, (int) Math.ceil(dt / 0.25F));
+            float h = dt / n;
+            for (int i = 0; i < n; i++) {
+                float a = 1.1F * (bustTarget - bust) - 0.22F * bustV;
+                bustV += a * h;
+                bust += bustV * h;
+                float prev = bust * 0.8F, prevS = sideTarget;
+                for (int k = 0; k < 3; k++) {
+                    float ab = 0.55F * (prev - braid[k]) - 0.12F * braidV[k];
+                    braidV[k] += ab * h;
+                    braid[k] += braidV[k] * h;
+                    float as = 0.35F * (prevS - side[k]) - 0.1F * sideV[k];
+                    sideV[k] += as * h;
+                    side[k] += sideV[k] * h;
+                    prev = braid[k];
+                    prevS = side[k];
+                }
+                float at = 0.7F * (bust * 0.7F - tie) - 0.14F * tieV;
+                tieV += at * h;
+                tie += tieV * h;
+            }
+            bust = Mth.clamp(bust, -1.6F, 1.6F);
+            tie = Mth.clamp(tie, -1.5F, 1.5F);
+            for (int k = 0; k < 3; k++) {
+                braid[k] = Mth.clamp(braid[k], -1.8F, 1.8F);
+                side[k] = Mth.clamp(side[k], -1.5F, 1.5F);
+            }
+        }
+    }
+
     @Override
     protected void applyRotations(MakimaEntity e, PoseStack pose, float age, float yaw, float partial) {
-        // the thrust, in the world's axes: along her body toward her head, or up and down astride
-        if (e.getFirstPassenger() instanceof Player rider && e.act() != null) {
-            float t = rider.tickCount + partial, sq = PillowClient.squash(t);
-            if (e.posture() == MakimaEntity.Position.COWGIRL) {
-                pose.translate(0, 0.14F * Math.abs(PillowClient.thrust(t)), 0);
-            } else {
-                Vec3 f = e.facing();
-                pose.translate(-f.x * 0.07 * sq, 0, -f.z * 0.07 * sq);
+        // the stroke, in the world's axes: along her body toward her head, or up and down astride / held up
+        if (e.getFirstPassenger() instanceof Player && e.act() != null) {
+            float th = thrust(e, partial), sq = Math.max(0, th), t = e.tickCount + partial;
+            float shake = MakimaRider.tremor(e, t) * 0.012F;
+            Vec3 f = e.facing();
+            switch (e.posture()) {
+                case COWGIRL, REVERSE -> pose.translate(shake, 0.055F * (1 - th), shake);
+                case CARRY -> pose.translate(-f.x * 0.03 * sq + shake, 0.045F * (1 - th), -f.z * 0.03 * sq);
+                default -> pose.translate(-f.x * 0.07 * sq + shake, 0.01F * sq, -f.z * 0.07 * sq + shake);
             }
         }
         super.applyRotations(e, pose, age, yaw, partial);
+    }
+
+    @Override
+    public void render(MakimaEntity e, float yaw, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
+        shadowRadius = e.posture() == MakimaEntity.Position.STAND ? 0.4F : 0.85F;
+        super.render(e, yaw, partial, pose, buffers, light);
+        Drool d = DROOL.computeIfAbsent(e, k -> new Drool());
+        d.render(e, partial, pose, buffers, light);
     }
 
     @Override
@@ -160,7 +280,11 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
     public void renderFinal(PoseStack pose, MakimaEntity e, BakedGeoModel model, MultiBufferSource buffers, VertexConsumer buffer,
                             float partial, int light, int overlay, float r, float g, float b, float a) {
         super.renderFinal(pose, e, model, buffers, buffer, partial, light, overlay, r, g, b, a);
-        model.getBone("head").ifPresent(head -> drool(e, head));
+        model.getBone("head").ifPresent(head -> {
+            Drool d = DROOL.computeIfAbsent(e, k -> new Drool());
+            d.mouth = head.getWorldSpaceMatrix().transform(new Vector4f(MOUTH));
+            hearts(e, d.mouth);
+        });
         SkinnedMesh mesh = SkinnedMesh.get("makima");
         if (mesh == null || e.isInvisible()) return;
         Matrix4f[] m = new Matrix4f[mesh.bones.length];
@@ -170,17 +294,17 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
             n[i] = normalPoses.get(mesh.bones[i]);
             if (m[i] == null) return;
         }
-        int count = mesh.vertexCount();
+        int count = mesh.vertexCount(), k = mesh.influences;
         if (px.length < count * 3) {
             px = new float[count * 3];
             nx = new float[count * 3];
         }
         for (int v = 0; v < count; v++) {
             float sx = 0, sy = 0, sz = 0, tx = 0, ty = 0, tz = 0;
-            for (int k = 0; k < 2; k++) {
-                float w = mesh.weights[v * 2 + k];
+            for (int i = 0; i < k; i++) {
+                float w = mesh.weights[v * k + i];
                 if (w <= 0) continue;
-                int j = mesh.joints[v * 2 + k];
+                int j = mesh.joints[v * k + i];
                 m[j].transform(p.set(mesh.positions[v * 3], mesh.positions[v * 3 + 1], mesh.positions[v * 3 + 2], 1F));
                 n[j].transform(q.set(mesh.normals[v * 3], mesh.normals[v * 3 + 1], mesh.normals[v * 3 + 2]));
                 sx += p.x * w; sy += p.y * w; sz += p.z * w;
@@ -202,26 +326,152 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
     }
 
     private void put(VertexConsumer out, SkinnedMesh mesh, int v, int light, int overlay, float r, float g, float b, float a) {
-        out.vertex(px[v * 3], px[v * 3 + 1], px[v * 3 + 2]).color(r, g, b, a).uv(mesh.uvs[v * 2], mesh.uvs[v * 2 + 1])
-                .overlayCoords(overlay).uv2(light).normal(nx[v * 3], nx[v * 3 + 1], nx[v * 3 + 2]).endVertex();
+        out.vertex(px[v * 3], px[v * 3 + 1], px[v * 3 + 2], r, g, b, a, mesh.uvs[v * 2], mesh.uvs[v * 2 + 1], overlay, light,
+                nx[v * 3], nx[v * 3 + 1], nx[v * 3 + 2]);
     }
 
     /**
-     * Her mouth waters: a drop of drool off her lips (it hangs, falls and splashes) every few ticks while someone is with her,
-     * now and then while you stand close to her.
+     * Hearts over the two of you now and then (more the faster you go), from her head up: never within reach of the camera,
+     * so they never fill the rider's view.
      */
-    private static void drool(MakimaEntity e, GeoBone head) {
+    private static void hearts(MakimaEntity e, Vector4f mouth) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.isPaused() || mc.player == null) return;
-        int every = e.act() != null ? 5 : e.distanceToSqr(mc.player) < 16 ? 24 : 0;
-        if (every == 0 || e.tickCount - e.drooled < every) return;
-        e.drooled = e.tickCount;
-        Vector4f at = head.getWorldSpaceMatrix().transform(new Vector4f(MOUTH));
-        double jx = (e.getRandom().nextDouble() - 0.5) * 0.03, jz = (e.getRandom().nextDouble() - 0.5) * 0.03;
-        e.level().addParticle(ParticleTypes.DRIPPING_WATER, at.x + jx, at.y - 0.02, at.z + jz, 0, 0, 0);
-        if (e.act() != null && e.getRandom().nextInt(3) == 0) {
-            e.level().addParticle(ParticleTypes.FALLING_WATER, at.x - jx, at.y - 0.03, at.z - jz, 0, 0, 0);
+        if (mc.isPaused() || e.act() == null) return;
+        int every = 30 - 5 * e.tempo();
+        if (e.tickCount - e.hearted < every) return;
+        e.hearted = e.tickCount;
+        Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
+        for (int i = 0; i < 4; i++) {
+            double x = mouth.x + (e.getRandom().nextDouble() - 0.5) * 1.2, y = mouth.y + 0.4 + e.getRandom().nextDouble() * 0.5,
+                    z = mouth.z + (e.getRandom().nextDouble() - 0.5) * 1.2;
+            if (cam.distanceToSqr(x, y, z) < 1.6 * 1.6) continue;
+            e.level().addParticle(ParticleTypes.HEART, x, y, z, 0, 0.02, 0);
+            return;
         }
+    }
+
+    /**
+     * Her drool: a strand off her lips that stretches as it fills (swinging with her), snaps, and falls as a drop; where it
+     * lands, a small wet patch that dries. While someone is with her it never stops; standing, when you are close.
+     */
+    static final class Drool {
+        Vector4f mouth;
+        private float strand, strandMax = 0.1F, swing, swingV;
+        private Vec3 lastMouth;
+        private float last = Float.NaN;
+        private final List<float[]> drops = new ArrayList<>();      // x, y, z, vy, age
+        private final List<float[]> puddles = new ArrayList<>();    // x, y, z, size, age
+
+        void render(MakimaEntity e, float partial, PoseStack pose, MultiBufferSource buffers, int light) {
+            if (mouth == null) return;
+            Minecraft mc = Minecraft.getInstance();
+            float t = e.tickCount + partial;
+            float dt = Float.isNaN(last) ? 0 : Mth.clamp(t - last, 0, 3);
+            last = t;
+            if (mc.isPaused()) dt = 0;
+            Vec3 m = new Vec3(mouth.x, mouth.y, mouth.z);
+            boolean with = e.act() != null, near = mc.player != null && e.distanceToSqr(mc.player) < 16;
+            float grow = with ? 0.002F + 0.0008F * e.tempo() : near ? 0.0013F : 0;
+            // the strand fills; its tip swings as her head moves (a pendulum on the mouth's motion)
+            if (lastMouth != null && dt > 0) {
+                Vec3 v = m.subtract(lastMouth).scale(1 / dt);
+                swingV += (float) (-(v.x + v.z) * 0.6F) - 0.25F * swing * dt - 0.1F * swingV * dt;
+                swing += swingV * dt;
+                swing = Mth.clamp(swing, -0.6F, 0.6F);
+            }
+            lastMouth = m;
+            if (grow > 0 || strand > 0) strand += Math.max(grow, 0.0008F) * dt;
+            float ground = (float) e.getY() + 0.015F;
+            if (strand >= strandMax) {
+                // it snaps: a drop falls from the tip, a short thread stays on her lip
+                Vec3 tip = tip(m, strand);
+                drops.add(new float[]{(float) tip.x, (float) tip.y, (float) tip.z, -0.02F, 0});
+                strand = 0.012F;
+                strandMax = 0.06F + e.getRandom().nextFloat() * 0.12F;
+            } else if (grow == 0 && strand > 0) {
+                strand = Math.max(0, strand - 0.004F * dt);
+            }
+            for (int i = drops.size() - 1; i >= 0; i--) {
+                float[] d = drops.get(i);
+                d[3] -= 0.04F * dt;
+                d[1] += d[3] * dt;
+                d[4] += dt;
+                if (d[1] <= ground || d[4] > 60) {
+                    if (d[1] <= ground + 0.05F) puddles.add(new float[]{d[0], ground, d[2], 0.025F + e.getRandom().nextFloat() * 0.02F, 0});
+                    drops.remove(i);
+                }
+            }
+            for (int i = puddles.size() - 1; i >= 0; i--) {
+                float[] p = puddles.get(i);
+                p[4] += dt;
+                if (p[4] > 140 || puddles.size() > 12) puddles.remove(i);
+            }
+            draw(e, partial, m, pose, buffers, light);
+        }
+
+        private Vec3 tip(Vec3 m, float len) {
+            return m.add(swing * len * 0.6F, -len, 0);
+        }
+
+        private void draw(MakimaEntity e, float partial, Vec3 m, PoseStack pose, MultiBufferSource buffers, int light) {
+            Camera cam = Minecraft.getInstance().gameRenderer.getMainCamera();
+            Vec3 c = cam.getPosition(), o = e.getPosition(partial);
+            VertexConsumer out = buffers.getBuffer(RenderType.entityTranslucent(WHITE));
+            Matrix4f mat = pose.last().pose();
+            Matrix3f nm = pose.last().normal();
+            int lit = Math.max(light, 0xB000B0);
+            if (strand > 0.004F) {
+                // the strand: a ribbon facing the camera, thinning to a thread, a bead at its tip
+                Vec3 a = m, b = tip(m, strand);
+                Vec3 mid = a.lerp(b, 0.5).add(swing * strand * 0.15F, 0, 0);
+                ribbon(out, mat, nm, c, o, a, mid, 0.008F, 0.005F, lit);
+                ribbon(out, mat, nm, c, o, mid, b, 0.005F, 0.007F, lit);
+                bead(out, mat, nm, c, o, b, 0.012F + strand * 0.06F, 1.4F, lit);
+            }
+            for (float[] d : drops) bead(out, mat, nm, c, o, new Vec3(d[0], d[1], d[2]), 0.008F, 2.2F, lit);
+            for (float[] p : puddles) {
+                float k = 1 - p[4] / 140F, s = p[3] * (0.6F + 0.4F * Math.min(1, p[4] / 6F));
+                flat(out, mat, nm, o, new Vec3(p[0], p[1], p[2]), s, 0.45F * k, lit);
+            }
+        }
+
+        private static final float R = 0.82F, G = 0.9F, B = 1.0F, A = 0.78F;
+
+        private static void ribbon(VertexConsumer out, Matrix4f mat, Matrix3f nm, Vec3 cam, Vec3 o, Vec3 a, Vec3 b, float wa, float wb, int light) {
+            Vec3 d = b.subtract(a), side = d.cross(a.subtract(cam));
+            if (side.lengthSqr() < 1.0E-10) return;
+            side = side.normalize();
+            quad(out, mat, nm, o, a.add(side.scale(wa)), a.subtract(side.scale(wa)), b.subtract(side.scale(wb)), b.add(side.scale(wb)), A, light);
+        }
+
+        /** A drop: a billboard, stretched down by `stretch`. */
+        private static void bead(VertexConsumer out, Matrix4f mat, Matrix3f nm, Vec3 cam, Vec3 o, Vec3 at, float r, float stretch, int light) {
+            Vec3 view = at.subtract(cam);
+            Vec3 side = view.cross(new Vec3(0, 1, 0));
+            if (side.lengthSqr() < 1.0E-10) side = new Vec3(1, 0, 0);
+            side = side.normalize().scale(r);
+            Vec3 up = new Vec3(0, r * stretch, 0);
+            quad(out, mat, nm, o, at.add(side).add(up.scale(0.4)), at.subtract(side).add(up.scale(0.4)),
+                    at.subtract(side.scale(0.5)).subtract(up), at.add(side.scale(0.5)).subtract(up), A + 0.1F, light);
+        }
+
+        private static void flat(VertexConsumer out, Matrix4f mat, Matrix3f nm, Vec3 o, Vec3 at, float s, float alpha, int light) {
+            quad(out, mat, nm, o, at.add(-s, 0, -s), at.add(-s, 0, s), at.add(s, 0, s), at.add(s, 0, -s), alpha, light);
+        }
+
+        private static void quad(VertexConsumer out, Matrix4f mat, Matrix3f nm, Vec3 o, Vec3 a, Vec3 b, Vec3 c, Vec3 d, float alpha, int light) {
+            for (Vec3 v : new Vec3[]{a, b, c, d}) {
+                out.vertex(mat, (float) (v.x - o.x), (float) (v.y - o.y), (float) (v.z - o.z)).color(R, G, B, alpha).uv(0.5F, 0.5F)
+                        .overlayCoords(0, 10).uv2(light).normal(nm, 0, 1, 0).endVertex();
+            }
+        }
+    }
+
+    /** For the dev tour (client/dev/AutoShot): where her mouth is drawn and how long the strand is. */
+    public static String debugDrool(MakimaEntity e) {
+        Drool d = DROOL.get(e);
+        return d == null || d.mouth == null ? "none" : String.format("mouth %.3f %.3f %.3f (her %.2f %.2f %.2f) strand %.3f drops %d",
+                d.mouth.x, d.mouth.y, d.mouth.z, e.getX(), e.getY(), e.getZ(), d.strand, d.drops.size());
     }
 
     @Override
