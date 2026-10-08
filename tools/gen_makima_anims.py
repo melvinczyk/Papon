@@ -416,7 +416,7 @@ def side(p, s):
     return 1.0 if at(p, 'leg_' + s)[0] > at(p, 'torso')[0] else -1.0
 
 
-GLUTE_OUT = {'stand': (0, 0, 0), 'doggy': (0.1, -0.5, 0.6), 'bent': (0.1, -0.5, 0.6)}     # pixels the glutes are pushed out
+GLUTE_OUT = {'stand': (0, 0, 0), 'doggy': (0.05, -0.1, 0.4), 'bent': (0.05, -0.1, 0.4)}     # pixels the glutes are pushed out
 
 
 def glutes(p, push):

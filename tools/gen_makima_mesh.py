@@ -65,25 +65,25 @@ SHOULDER_BLEND = (-0.05, 0.075)     # metres along the upper arm from the should
 UPPER_ARM = 0.255       # metres: each upper arm made this long (shoulder to elbow: the elbow at her waist)
 FOREARM = 0.235         # and each forearm (elbow to wrist: the wrist at her crotch, the fingertips mid-thigh)
 ELBOW_REST = 55         # degrees the elbows are left bent at rest
-GLUTE = {'l': (0.076, 0.08, 0.775), 'r': (-0.068, 0.08, 0.775)}     # the middle of each buttock (inside it, as reshaped)
+GLUTE = {'l': (0.074, 0.075, 0.80), 'r': (-0.066, 0.075, 0.80)}     # the middle of each buttock (inside it, as reshaped)
 GLUTE_R = (0.085, 0.12, 0.09)       # the ellipsoid each is weighted over (x, y, z radii; z below the middle)
-GLUTE_UP = 0.14         # z radius above the middle: the weight runs up into the small of her back, tucks under into the thigh
+GLUTE_UP = 0.17         # z radius above the middle: the weight runs up into the small of her back, tucks under into the thigh
 # Her hips (2026-10-07, the user's reference: wide hips, a high round seat standing well out past the small of her back, a
 # fold under each cheek, a cinched waist). The model's seat stood 8 mm short of the small of her back (flat), her hips 30 cm
 # across. hips() moves everything but her arms through one smooth field (no seams between pieces: belt, loops, shirt tail).
 HIP_CX = 0.007          # her middle (the model's legs stand a little to her left)
-HIP_WIDEN = 0.16        # the hips and upper thighs widened by this much about her middle, most at HIP_Z
-HIP_Z = (0.48, 0.77, 0.83, 1.04)    # widening from nothing to full and back (thigh to waist)
+HIP_WIDEN = 0.15        # the hips and upper thighs widened by this much about her middle, most at HIP_Z
+HIP_Z = (0.50, 0.79, 0.88, 1.03)    # widening from nothing to full and back (thigh to waist)
 WAIST_CINCH = (0.10, 1.045, 0.05)   # the waist drawn in by this much (x and y) about its height, over this half-height
-CHEEK = {'l': (0.074, 0.775), 'r': (-0.066, 0.775)}      # each cheek's middle (x, z) on the back of the trousers
-CHEEK_R = (0.086, 0.125, 0.092)      # its reach across, above (up into the small of her back) and below (the fold)
-CHEEK_OUT = 0.066       # metres the middle of each cheek is pushed out behind her
-CHEEK_LIFT = 0.12       # and lifted by this much of that (a high seat), and turned outward by
+CHEEK = {'l': (0.072, 0.80), 'r': (-0.064, 0.80)}      # each cheek's middle (x, z) on the back of the trousers
+CHEEK_R = (0.088, 0.16, 0.088)      # its reach across, above (up into the small of her back) and below (the fold)
+CHEEK_OUT = 0.062       # metres the middle of each cheek is pushed out behind her
+CHEEK_LIFT = 0.3        # and lifted by this much of that (a high seat), and turned outward by
 CHEEK_SPREAD = 0.22
-FOLD = (0.014, 0.688, 0.03)        # the fold under each cheek: in by this much at this height over this half-height
-SWAY = (0.008, 0.965, 0.06)         # the small of her back drawn in (the curve down into the seat)
-CLEFT = (0.034, 0.026, 0.675, 0.89)   # the line between the cheeks: in by this much, this half-width, from/to these heights
-HIP_BLEND = (-0.05, 0.24)    # metres down the thigh from the hip joint over which the back of the hips turns thigh
+FOLD = (0.010, 0.705, 0.022)        # the fold under each cheek: in by this much at this height over this half-height
+SWAY = (0.014, 0.95, 0.055)         # the small of her back drawn in (the curve down into the seat)
+CLEFT = (0.016, 0.02, 0.70, 0.90)   # the line between the cheeks: in by this much, this half-width, from/to these heights
+HIP_BLEND = (-0.03, 0.17)    # metres down the thigh from the hip joint over which the back of the hips turns thigh
 # The overhaul (2026-10-07, the user: "the best-looking, most polished ... Makima"; "give body proportionality substantial
 # attention"): the sleeves were 9 cm across the upper arm and the forearm by the elbow (a broad, bulky shoulder line with
 # her arms down), the nose stood out 13 mm from her cheeks' line (a hard ridge in the game's top light), her eyes a little
