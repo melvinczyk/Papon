@@ -65,10 +65,24 @@ SHOULDER_BLEND = (-0.05, 0.075)     # metres along the upper arm from the should
 UPPER_ARM = 0.255       # metres: each upper arm made this long (shoulder to elbow: the elbow at her waist)
 FOREARM = 0.235         # and each forearm (elbow to wrist: the wrist at her crotch, the fingertips mid-thigh)
 ELBOW_REST = 55         # degrees the elbows are left bent at rest
-GLUTE = {'l': (0.066, 0.05, 0.795), 'r': (-0.062, 0.05, 0.795)}     # the middle of each buttock (inside it)
-GLUTE_R = (0.075, 0.11, 0.09)       # the ellipsoid each is filled out over (x, y, z radii; z below the middle)
-GLUTE_UP = 0.17         # z radius above the middle: the fill runs up into the small of her back, tucks under into the thigh
-GLUTE_FILL = 0.028      # metres the middle of each is lifted out of the trousers' back
+GLUTE = {'l': (0.074, 0.075, 0.80), 'r': (-0.066, 0.075, 0.80)}     # the middle of each buttock (inside it, as reshaped)
+GLUTE_R = (0.085, 0.12, 0.09)       # the ellipsoid each is weighted over (x, y, z radii; z below the middle)
+GLUTE_UP = 0.17         # z radius above the middle: the weight runs up into the small of her back, tucks under into the thigh
+# Her hips (2026-10-07, the user's reference: wide hips, a high round seat standing well out past the small of her back, a
+# fold under each cheek, a cinched waist). The model's seat stood 8 mm short of the small of her back (flat), her hips 30 cm
+# across. hips() moves everything but her arms through one smooth field (no seams between pieces: belt, loops, shirt tail).
+HIP_CX = 0.007          # her middle (the model's legs stand a little to her left)
+HIP_WIDEN = 0.15        # the hips and upper thighs widened by this much about her middle, most at HIP_Z
+HIP_Z = (0.50, 0.79, 0.88, 1.03)    # widening from nothing to full and back (thigh to waist)
+WAIST_CINCH = (0.10, 1.045, 0.05)   # the waist drawn in by this much (x and y) about its height, over this half-height
+CHEEK = {'l': (0.072, 0.80), 'r': (-0.064, 0.80)}      # each cheek's middle (x, z) on the back of the trousers
+CHEEK_R = (0.088, 0.16, 0.088)      # its reach across, above (up into the small of her back) and below (the fold)
+CHEEK_OUT = 0.062       # metres the middle of each cheek is pushed out behind her
+CHEEK_LIFT = 0.3        # and lifted by this much of that (a high seat), and turned outward by
+CHEEK_SPREAD = 0.22
+FOLD = (0.010, 0.705, 0.022)        # the fold under each cheek: in by this much at this height over this half-height
+SWAY = (0.014, 0.95, 0.055)         # the small of her back drawn in (the curve down into the seat)
+CLEFT = (0.016, 0.02, 0.70, 0.90)   # the line between the cheeks: in by this much, this half-width, from/to these heights
 HIP_BLEND = (-0.03, 0.17)    # metres down the thigh from the hip joint over which the back of the hips turns thigh
 # The overhaul (2026-10-07, the user: "the best-looking, most polished ... Makima"; "give body proportionality substantial
 # attention"): the sleeves were 9 cm across the upper arm and the forearm by the elbow (a broad, bulky shoulder line with
@@ -527,11 +541,47 @@ def glute_q(P, s):
     return np.linalg.norm(d, axis=1)
 
 
+def hips(P, tris, keep):
+    """The hips' field (HIP_*, WAIST_CINCH, CHEEK*, FOLD, SWAY): how far each vertex moves, times keep (0 on her arms)."""
+    x, y, z = P[:, 0] - HIP_CX, P[:, 1], P[:, 2]
+    a, b, c, d = HIP_Z
+    g = smoothstep(a, b, z) * (1 - smoothstep(c, d, z))
+    D = np.zeros_like(P)
+    D[:, 0] = x * HIP_WIDEN * g
+    w, wz, wh = WAIST_CINCH
+    k = w * np.exp(-((z - wz) / wh) ** 2)
+    D[:, 0] -= x * k
+    D[:, 1] -= (y + 0.015) * k
+    back = smoothstep(-0.01, 0.05, y)
+    bulge, side = np.zeros(len(P)), np.zeros(len(P))
+    for s in 'lr':
+        cx, cz = CHEEK[s]
+        cx += (cx - HIP_CX) * HIP_WIDEN
+        u = (x + D[:, 0] + HIP_CX - cx) / CHEEK_R[0]
+        v = (z - cz) / np.where(z > cz, CHEEK_R[1], CHEEK_R[2])
+        f = np.clip(1 - u * u - v * v, 0, 1) ** 1.25
+        side = np.where(f > bulge, np.clip(u, -1, 1), side)
+        bulge = np.maximum(bulge, f)
+    out = CHEEK_OUT * bulge * back
+    D[:, 1] += out
+    D[:, 2] += CHEEK_LIFT * out
+    D[:, 0] += CHEEK_SPREAD * out * side
+    for amt, h, r in (FOLD, SWAY):
+        D[:, 1] -= amt * np.exp(-((z - h) / r) ** 2) * back * (1 - smoothstep(0.05, 0.16, np.abs(x)) * (h == FOLD[1]))
+    D *= keep[:, None]
+    # smoothed over the surface so the low-poly back rounds out instead of faceting
+    Q = taubin(P + D, tris, np.clip(bulge * back * 2, 0, 1) * keep, steps=6)
+    # the line between the cheeks, cut after the smoothing (it would fill it back in)
+    amt, hw, lo, hi = CLEFT
+    Q[:, 1] -= amt * np.exp(-(x / hw) ** 2) * smoothstep(lo, lo + 0.04, z) * (1 - smoothstep(hi - 0.06, hi, z)) * back * keep
+    return Q - P
+
+
 LEVEL_D = {}     # per side, every vertex's distance along the model's own (level) upper arm from the shoulder joint
 
 
 def reshape(P, tris, mats):
-    """Her proportions (UPPER_ARM, FOREARM, ELBOW_REST, GLUTE_FILL) put on the model's rest shape, using a first rig of it
+    """Her proportions (UPPER_ARM, FOREARM, ELBOW_REST, hips()) put on the model's rest shape, using a first rig of it
     (the weights say what is arm, forearm and hand). Returns the new rest shape and, per side, the rotation each forearm and
     hand was turned by and where the wrist was (for gen_makima_anims to put her hands back where the model had them); the
     module's ELBOW moves with the arms."""
@@ -582,20 +632,10 @@ def reshape(P, tris, mats):
         E2 = Rd @ (E2 - S) + S
         ELBOW[s] = tuple(E2)
         info[s] = {'wrist': Rd @ (Wr - S) + S, 'turn': Rd @ rodrigues(axis, np.array([-np.radians(bend - ELBOW_REST)]))[0]}
-    # the glutes: the back of the trousers lifted along its normal, most in the middle of each buttock
-    N = np.zeros_like(P)
-    fn = np.cross(P[tris[:, 1]] - P[tris[:, 0]], P[tris[:, 2]] - P[tris[:, 0]])
-    for c in range(3):
-        np.add.at(N, tris[:, c], fn)
-    N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
     vm = np.zeros(len(P), int)
     vm[tris.ravel()] = np.repeat(mats, 3)
-    lift = np.zeros(len(P))
-    for s in 'lr':
-        q = glute_q(P, s)
-        lift = np.maximum(lift, np.where(q < 1, (1 - q * q) ** 2, 0))
-    lift *= (vm == TROUSER) * smoothstep(0.0, 0.5, N[:, 1])
-    out += GLUTE_FILL * lift[:, None] * (N * [0.35, 1, 0.25] + [0, 0, -0.25])
+    arms = sum(W[:, B[b]] for b in BONES if b.startswith(('arm_', 'forearm_', 'hand_')) or b in makima_hands.names('l') + makima_hands.names('r'))
+    out += hips(P, tris, np.clip(1 - arms * 1.5, 0, 1))
     return face_tune(out, vm), info
 
 
