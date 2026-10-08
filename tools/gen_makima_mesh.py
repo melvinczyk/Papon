@@ -37,6 +37,7 @@ from PIL import Image
 
 import makima_face
 import makima_hands
+import makima_look
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, 'src/main/resources/assets/papon')
@@ -56,6 +57,32 @@ INFLUENCES = 4          # bones per vertex (SkinnedMesh "influences")
 SIGMA = 0.034           # metres: how wide a joint's bend is spread over the surface
 TAU = 0.012             # metres over which a hard label prefers the nearer of two segments
 SHOULDER_BLEND = (-0.05, 0.075)     # metres along the upper arm from the shoulder joint over which the shirt turns arm
+# Her proportions (2026-10-07, the user: "the arms and legs still look weird and unnatural", "make her butt look fuller"):
+# the model's upper arms were 10 cm and its forearms 21 (her fingertips hung at her crotch, every elbow bent by her armpit),
+# its elbows bent 134 degrees in the rest pose (straightening them dragged the fold along), its seat flat (the small of her
+# back stood out further than her buttocks). The rest shape is reshaped before rigging (reshape()): each upper arm and
+# forearm lengthened, the elbow unbent to ELBOW_REST about its own joint and the crease smoothed, the glutes filled out.
+UPPER_ARM = 0.255       # metres: each upper arm made this long (shoulder to elbow: the elbow at her waist)
+FOREARM = 0.235         # and each forearm (elbow to wrist: the wrist at her crotch, the fingertips mid-thigh)
+ELBOW_REST = 55         # degrees the elbows are left bent at rest
+GLUTE = {'l': (0.066, 0.05, 0.795), 'r': (-0.062, 0.05, 0.795)}     # the middle of each buttock (inside it)
+GLUTE_R = (0.075, 0.11, 0.09)       # the ellipsoid each is filled out over (x, y, z radii; z below the middle)
+GLUTE_UP = 0.17         # z radius above the middle: the fill runs up into the small of her back, tucks under into the thigh
+GLUTE_FILL = 0.028      # metres the middle of each is lifted out of the trousers' back
+HIP_BLEND = (-0.03, 0.17)    # metres down the thigh from the hip joint over which the back of the hips turns thigh
+# The overhaul (2026-10-07, the user: "the best-looking, most polished ... Makima"; "give body proportionality substantial
+# attention"): the sleeves were 9 cm across the upper arm and the forearm by the elbow (a broad, bulky shoulder line with
+# her arms down), the nose stood out 13 mm from her cheeks' line (a hard ridge in the game's top light), her eyes a little
+# small for how far the bangs and lids cover them, her mouth's line wide. reshape() slims the arms about their bones (SLIM: shoulder, elbow, wrist
+# factors on the radius, eased between), brings the nose in (NOSE_KEEP of its height over the cheeks) and opens the eyes
+# (EYE_SCALE across the eye, faded out by EYE_FADE) and narrows the mouth (MOUTH_W); the arms are lowered at rest (ARM_DOWN).
+SLIM = {'arm': (0.88, 0.86), 'forearm': (0.86, 0.94)}      # radius factor at each end of the upper arm / forearm
+ARM_DOWN = 42           # degrees the arms are lowered at rest from the model's level T (an A-pose): her arms hang far more
+                        # often than they rise, and a shoulder turned 75 degrees from its rest ballooned the sleeve's top
+NOSE_KEEP = 0.62
+EYE_SCALE, EYE_FADE = 1.1, (0.02, 0.04)      # metres from each eye's centre: scaled fully within, none past
+MOUTH_W, MOUTH_FADE = 0.8, (0.012, 0.03)       # her painted mouth narrowed across (a small, closed anime mouth)
+BANGS_TIPS, BANGS_LIFT = (1.505, 1.462), 0.012     # the bangs' tips in front of each eye (between these heights) lifted
 
 # Joints in the model's metres (Z up, her front toward -Y, her left at +X). Measured off the mesh (slices of the trousers,
 # sleeves, shirt and hair); wrists come from the hands (wrist()).
@@ -84,7 +111,7 @@ LAP = (0.0, -0.08, 0.86)         # the front of her hips
 BONES = ['torso', 'spine', 'chest', 'neck', 'head', 'braid', 'braid2', 'braid3', 'breast_l', 'breast_r', 'tie',
          'shoulder_l', 'shoulder_r', 'arm_l', 'arm_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r',
          'leg_l', 'leg_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'] + makima_hands.names('l') + makima_hands.names('r') + [
-         'eye_l', 'eye_r']
+         'eye_l', 'eye_r', 'glute_l', 'glute_r']
 EYE_BONES = ('eye_l', 'eye_r')     # not in the geo: MakimaRenderer puts them on the head's pose, moved by her gaze
 
 
@@ -114,6 +141,9 @@ def recover():
     floor = HIP[2] - torso['pivot'][1] / PX
     nv, ni = m.get('base', (len(m['positions']) // 3, len(m['indices'])))
     R = np.array(m['positions'], float).reshape(-1, 3)[:nv]
+    if 'reshaped' in m:      # the model's own shape, before reshape()
+        e = m['reshaped']
+        R[e['v']] -= np.array(e['d'], float).reshape(-1, 3)
     N = np.array(m['normals'], float).reshape(-1, 3)[:nv]
     UV = np.array(m['uvs'], float).reshape(-1, 2)[:nv]
     _, first, inv = np.unique(np.round(np.hstack([R, N]), 3), axis=0, return_index=True, return_inverse=True)
@@ -374,10 +404,11 @@ def rig(P, tris, mats):
     for g in groups:
         if mat_of(g) == EYE and len(g) < 400 and P[g, 2].mean() > 1.3:
             rigid(g, 'eye_l' if P[g, 0].mean() > 0 else 'eye_r')
-    # knees and elbows bend far further than the rest (kneeling: 150 degrees): a narrower blend there keeps the front of
-    # the joint round instead of folding it flat
+    # knees bend far further than the rest (kneeling: 150 degrees): a narrower blend there keeps the front of the joint
+    # round instead of folding it flat; the elbows, half bent at rest (reshape()), bend either way from there and keep a
+    # wider one (narrow, straightening them left a step in the sleeve)
     for s in 'lr':
-        for a, b, lo, hi in (('leg_' + s, 'shin_' + s, 0.25, 0.75), ('arm_' + s, 'forearm_' + s, 0.12, 0.88)):
+        for a, b, lo, hi in (('leg_' + s, 'shin_' + s, 0.25, 0.75), ('arm_' + s, 'forearm_' + s, -0.25, 1.25)):
             tot = W[:, B[a]] + W[:, B[b]]
             k = tot > 1e-6
             f = smoothstep(lo, hi, W[k, B[b]] / tot[k])
@@ -390,7 +421,9 @@ def rig(P, tris, mats):
         a = np.subtract(ELBOW[s], SHOULDER[s])
         a /= np.linalg.norm(a)
         vs = shirt[(sg * P[shirt, 0] > 0.02) & (np.linalg.norm(P[shirt] - SHOULDER[s], axis=1) < 0.17)]
-        d = (P[vs] - SHOULDER[s]) @ a
+        # how far along the arm, measured with the arms level as the model has them (LEVEL_D, from reshape(): lowered,
+        # the plane tilted into the side of her chest and the arms dragged it)
+        d = LEVEL_D[s][vs] if s in LEVEL_D else (P[vs] - SHOULDER[s]) @ a
         vs, d = vs[d < 0.1], d[d < 0.1]
         free_w = 1 - W[vs, B['forearm_' + s]]
         arm = smoothstep(*SHOULDER_BLEND, d) * free_w
@@ -409,6 +442,40 @@ def rig(P, tris, mats):
         k = smoothstep(1.0, 0.3, np.linalg.norm(q, axis=1)) * smoothstep(-0.035, -0.06, P[body, 1])
         W[body] *= (1 - k)[:, None]
         W[body, B['breast_' + s]] += k
+    # the back of the hips (2026-10-07): from the seat down the back of the thigh the pelvis hands over to the thigh slowly
+    # (HIP_BLEND along the thigh), so a hip bent ninety degrees rounds over instead of folding at the buttock's crease; the
+    # front keeps its narrow blend (a crease belongs in her lap)
+    for s, sg, o in (('l', 1, 'r'), ('r', -1, 'l')):
+        th = unit(np.subtract(KNEE[s], HIPJ[s]))
+        mine, theirs = (W[trousers, B['leg_' + s]] + W[trousers, B['shin_' + s]],
+                        W[trousers, B['leg_' + o]] + W[trousers, B['shin_' + o]])
+        own = (mine > theirs) | ((mine == theirs) & (sg * P[trousers, 0] > 0))
+        vs = trousers[own & (P[trousers, 2] < HIPJ[s][2] + 0.08) & (P[trousers, 2] > KNEE[s][2])]
+        t = (P[vs] - HIPJ[s]) @ th
+        # only what lies straight behind the thigh's line (its sides follow the thigh: a lagging side flared out like a
+        # hem when the thighs part), and not the crotch's seam
+        off = P[vs] - HIPJ[s] - t[:, None] * th
+        back = smoothstep(0.55, 0.85, off[:, 1] / np.maximum(np.linalg.norm(off, axis=1), 1e-9))
+        back *= smoothstep(0.02, 0.055, sg * P[vs, 0])
+        leg = W[vs, B['leg_' + s]] + W[vs, B['shin_' + s]]
+        pel = W[vs, B['torso']] + W[vs, B['spine']]
+        want = smoothstep(*HIP_BLEND, t) * (leg + pel)
+        new_leg = leg + back * (np.minimum(want, leg + pel) - leg)
+        shin = np.where(leg > 0, W[vs, B['shin_' + s]] / np.maximum(leg, 1e-9), 0)
+        k = np.where(pel > 1e-9, W[vs, B['spine']] / np.maximum(pel, 1e-9), 0)
+        W[vs, B['leg_' + s]] = new_leg * (1 - shin)
+        W[vs, B['shin_' + s]] = new_leg * shin
+        W[vs, B['torso']] = (leg + pel - new_leg) * (1 - k)
+        W[vs, B['spine']] = (leg + pel - new_leg) * k
+    # the glutes (2026-10-07): two soft ellipsoids over the back of the trousers on bones of the pelvis's, so a bent hip
+    # leaves them round (the thighs no longer drag their lower half under) and the renderer can move them
+    for s in 'lr':
+        # a dome, not a plateau: moved, the middle goes furthest and the edges follow, so the cheek rounds out
+        q = glute_q(P[trousers], s)
+        k = np.clip(1 - (q / 1.1) ** 2, 0, 1) ** 1.3 * smoothstep(0.0, 0.045, P[trousers, 1])
+        k *= smoothstep(GLUTE[s][2] - 0.07, GLUTE[s][2] - 0.01, P[trousers, 2])     # under the cheek the thigh's
+        W[trousers] *= (1 - k)[:, None]
+        W[trousers, B['glute_' + s]] += k
     for big, g in copy:
         src = shirt if big == 'shirt' else trousers
         near = src[np.argmin(np.linalg.norm(P[src][None, :, :] - P[g][:, None, :], axis=2), axis=1)]
@@ -421,6 +488,210 @@ def rig(P, tris, mats):
     return W, joints, fingers, axes
 
 
+def unit(v):
+    v = np.asarray(v, float)
+    return v / np.linalg.norm(v)
+
+
+def rodrigues(axis, ang):
+    """Rotation matrices about `axis` by each of `ang` (radians, an array): (n, 3, 3)."""
+    a = unit(axis)
+    K = np.array([[0, -a[2], a[1]], [a[2], 0, -a[0]], [-a[1], a[0], 0]])
+    s, c = np.sin(ang)[:, None, None], np.cos(ang)[:, None, None]
+    return np.eye(3) + s * K + (1 - c) * (K @ K)
+
+
+def neighbours(n, tris):
+    e = np.concatenate([tris[:, [0, 1]], tris[:, [1, 2]], tris[:, [2, 0]]])
+    e = np.unique(np.sort(e, 1), axis=0)
+    import scipy.sparse as sp
+    A = sp.coo_matrix((np.ones(2 * len(e)), (np.concatenate([e[:, 0], e[:, 1]]), np.concatenate([e[:, 1], e[:, 0]]))),
+                      shape=(n, n)).tocsr()
+    return A, np.maximum(np.asarray(A.sum(1)).ravel(), 1)
+
+
+def taubin(P, tris, k, steps=12, lam=0.5, mu=-0.53):
+    """Smooths the vertices weighted by k (0..1 each: how free) toward their neighbours without shrinking them (Taubin)."""
+    A, deg = neighbours(len(P), tris)
+    X = P.copy()
+    for _ in range(steps):
+        for f in (lam, mu):
+            X = X + f * k[:, None] * ((A @ X) / deg[:, None] - X)
+    return X
+
+
+def glute_q(P, s):
+    """How far into each buttock's ellipsoid (0 its middle, 1 its edge): taller above the middle than below."""
+    d = (P - GLUTE[s]) / GLUTE_R
+    d[:, 2] = np.where(d[:, 2] > 0, d[:, 2] * GLUTE_R[2] / GLUTE_UP, d[:, 2])
+    return np.linalg.norm(d, axis=1)
+
+
+LEVEL_D = {}     # per side, every vertex's distance along the model's own (level) upper arm from the shoulder joint
+
+
+def reshape(P, tris, mats):
+    """Her proportions (UPPER_ARM, FOREARM, ELBOW_REST, GLUTE_FILL) put on the model's rest shape, using a first rig of it
+    (the weights say what is arm, forearm and hand). Returns the new rest shape and, per side, the rotation each forearm and
+    hand was turned by and where the wrist was (for gen_makima_anims to put her hands back where the model had them); the
+    module's ELBOW moves with the arms."""
+    LEVEL_D.clear()
+    W, joints, _, _ = rig(P, tris, mats)
+    B = {b: i for i, b in enumerate(BONES)}
+    for s in 'lr':
+        LEVEL_D[s] = (P - SHOULDER[s]) @ unit(np.subtract(ELBOW[s], SHOULDER[s]))
+    P = slim(P, W, joints, B)
+    out, info = P.copy(), {}
+    for s in 'lr':
+        S, E, Wr = np.array(SHOULDER[s]), np.array(ELBOW[s]), np.array(joints['wrist_' + s])
+        au, af = unit(E - S), unit(Wr - E)
+        Lu, Lf = np.linalg.norm(E - S), np.linalg.norm(Wr - E)
+        wa, wf = W[:, B['arm_' + s]], W[:, B['forearm_' + s]]
+        wh = W[:, B['hand_' + s]] + W[:, [B[b] for b in makima_hands.names(s)]].sum(1)
+        # longer: the upper arm stretched along itself, everything past the elbow carried out; then the forearm
+        t = np.clip((P - S) @ au / Lu, 0, 1)
+        tf = np.clip((P - E) @ af / Lf, 0, 1)
+        du, df = UPPER_ARM - Lu, FOREARM - Lf
+        out += du * (wa * t + wf + wh)[:, None] * au + df * (wf * tf + wh)[:, None] * af
+        E2 = E + du * au
+        # unbent about the elbow: what is below it turned toward the upper arm's line, the joint's band partly (its share of
+        # the forearm, spread a little over the sleeve so the turn is gradual)
+        chain = wa + wf + wh
+        free = chain > 0.02
+        below = np.where(free, (wf + wh) / np.maximum(chain, 1e-9), 0)
+        below = diffuse(P, tris, np.stack([1 - below, below], 1), free, 0.022)[:, 1] * np.clip(chain / 0.5, 0, 1)
+        bend = np.degrees(np.arccos(np.clip(au @ af, -1, 1)))
+        axis = unit(np.cross(au, af))
+        ang = -np.radians(bend - ELBOW_REST) * below
+        R = rodrigues(axis, ang)
+        k = below > 1e-4
+        out[k] = np.einsum('nij,nj->ni', R[k], out[k] - E2) + E2
+        # the crease of the model's bent elbow smoothed out of the band
+        band = (below > 0.02) & (below < 0.98)
+        out = taubin(out, tris, band * np.clip(1 - np.abs(below - 0.5) * 2, 0, 1) ** 0.5)
+        # lowered at the shoulder: the whole arm turned down about the shoulder joint, the shoulder's blend (the shirt's
+        # share of the arm) turning in part, then smoothed where it turned in part
+        share = np.clip(wa + wf + wh, 0, 1)
+        down = unit(np.cross(au, [0, 0, -1.0]))
+        R = rodrigues(down, np.radians(ARM_DOWN) * share)
+        k = share > 1e-4
+        out[k] = np.einsum('nij,nj->ni', R[k], out[k] - S) + S
+        part = (share > 0.02) & (share < 0.98)
+        out = taubin(out, tris, part * np.clip(1 - np.abs(share - 0.5) * 2, 0, 1) ** 0.5, steps=8)
+        Rd = rodrigues(down, np.array([np.radians(ARM_DOWN)]))[0]
+        E2 = Rd @ (E2 - S) + S
+        ELBOW[s] = tuple(E2)
+        info[s] = {'wrist': Rd @ (Wr - S) + S, 'turn': Rd @ rodrigues(axis, np.array([-np.radians(bend - ELBOW_REST)]))[0]}
+    # the glutes: the back of the trousers lifted along its normal, most in the middle of each buttock
+    N = np.zeros_like(P)
+    fn = np.cross(P[tris[:, 1]] - P[tris[:, 0]], P[tris[:, 2]] - P[tris[:, 0]])
+    for c in range(3):
+        np.add.at(N, tris[:, c], fn)
+    N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+    vm = np.zeros(len(P), int)
+    vm[tris.ravel()] = np.repeat(mats, 3)
+    lift = np.zeros(len(P))
+    for s in 'lr':
+        q = glute_q(P, s)
+        lift = np.maximum(lift, np.where(q < 1, (1 - q * q) ** 2, 0))
+    lift *= (vm == TROUSER) * smoothstep(0.0, 0.5, N[:, 1])
+    out += GLUTE_FILL * lift[:, None] * (N * [0.35, 1, 0.25] + [0, 0, -0.25])
+    return face_tune(out, vm), info
+
+
+def slim(P, W, joints, B):
+    """The sleeves and hands' wrists drawn in toward their bones (SLIM), as far as each vertex follows that bone."""
+    out = P.copy()
+    for s in 'lr':
+        S, E, Wr = np.array(SHOULDER[s]), np.array(ELBOW[s]), np.array(joints['wrist_' + s])
+        for bone, a, b in (('arm', S, E), ('forearm', E, Wr)):
+            d, L = unit(b - a), np.linalg.norm(b - a)
+            t = np.clip((P - a) @ d / L, 0, 1)
+            radial = (P - a) - np.outer((P - a) @ d, d)
+            f0, f1 = SLIM[bone]
+            f = f0 + (f1 - f0) * smoothstep(0, 1, t)
+            w = W[:, B[bone + '_' + s]]
+            out -= ((1 - f) * w)[:, None] * radial
+    return out
+
+
+def face_tune(P, vm):
+    """Her nose brought in toward her cheeks' line (NOSE_KEEP), her eyes opened (EYE_SCALE), her mouth narrowed (MOUTH_W),
+    and the tips of the locks of her bangs that hung over her eyes lifted (BANGS_LIFT: they reach her lids, not her irises;
+    the one between her eyes keeps its length; lifting whole locks bared the scalp painted on her forehead)."""
+    out = P.copy()
+    face = np.where(((vm == SKIN) | (vm == EYE)) & (P[:, 2] > 1.38) & (P[:, 1] < 0.0) & (np.abs(P[:, 0]) < 0.1))[0]
+    irises = np.where((vm == EYE) & (P[:, 2] > 1.4))[0]
+    c = {s: P[irises[np.sign(P[irises, 0] + 0.008) == sg]].mean(0) for s, sg in (('l', 1), ('r', -1))}
+    ex = unit(c['l'] - c['r'])
+    up = unit(np.array([0, 0, 1.0]) - ex[2] * ex)
+    fwd = np.cross(ex, up)          # toward her front (-y)
+    if fwd[1] > 0:
+        fwd = -fwd
+    mid = (c['l'] + c['r']) / 2
+    # the nose: each vertex on the ridge pulled back toward the cheeks' line at its height (the frontmost skin 22 mm aside)
+    Q = P[face] - mid
+    x, z, y = Q @ ex, Q @ up, Q @ fwd
+    ridge = np.where((np.abs(x) < 0.02) & (z < -0.008) & (z > -0.05))[0]
+    for i in ridge:
+        side = (np.abs(np.abs(x) - 0.022) < 0.004) & (np.abs(z - z[i]) < 0.004)
+        if not side.any():
+            continue
+        h = y[i] - y[side].max()
+        if h > 0:
+            k = smoothstep(0.02, 0.008, abs(x[i]))
+            out[face[i]] -= fwd * h * (1 - NOSE_KEEP) * k
+    # the mouth: narrowed across about its middle (at MOUTH's height), within a lens round it
+    Q = out[face] - (mid + up * (MOUTH[2] - mid[2]) / up[2])     # under the eyes' middle (her head leans a little)
+    qx, qz = Q @ ex, Q @ up
+    w = smoothstep(MOUTH_FADE[1], MOUTH_FADE[0], np.hypot(qx * 0.6, qz * 1.6)) * (1 - MOUTH_W)
+    out[face] -= (w * qx)[:, None] * ex
+    # the eyes: scaled across the face about each iris's centre
+    for s in 'lr':
+        Q = out[face] - c[s]
+        qx, qz = Q @ ex, Q @ up
+        r = np.hypot(qx, qz)
+        w = smoothstep(EYE_FADE[1], EYE_FADE[0], r) * (EYE_SCALE - 1)
+        out[face] += w[:, None] * (np.outer(qx, ex) + np.outer(qz, up))
+    bangs = np.where((vm == HAIR) & (P[:, 1] < -0.02) & (P[:, 2] > 1.43) & (P[:, 2] < BANGS_TIPS[0]))[0]
+    over = np.zeros(len(bangs))
+    for s in 'lr':
+        over = np.maximum(over, smoothstep(0.042, 0.024, np.abs((P[bangs] - c[s]) @ ex)))
+    out[bangs, 2] += smoothstep(*BANGS_TIPS, P[bangs, 2]) * BANGS_LIFT * over
+    return out
+
+
+# Anime shading (2026-10-07): the game lights entities from above, so the model's own normals left her lower face, the
+# underside of the nose and the cheeks' sides grey (ambient only) and her hair blotchy strand by strand. The face's normals
+# are bent toward a smooth shape in front of her head (TOON_FACE: forward, up, out from the head's middle) as an anime face is
+# lit, all but under the jaw (a shadow under the chin keeps her face off her neck); the hair's partly toward the head's own
+# roundness (TOON_HAIR).
+TOON_FACE = (0.55, 0.85, 0.3, 0.75)     # out from the head's middle, forward, up; how far the face's normals are bent
+TOON_HAIR = 0.5
+
+
+def toon(P, N, vm, face):
+    ex, ey, f = (np.asarray(a, float) for a in face['frame'])
+    eyes = np.array(list(face['eyes'].values()), float).mean(0)
+    mid = eyes - 0.065 * f - 0.012 * ey             # the head's middle: behind and a little below her eyes
+    R = P - mid
+    dist = np.linalg.norm(R, axis=1)
+    rad = R / np.maximum(dist, 1e-9)[:, None]
+    near = smoothstep(0.16, 0.12, dist)
+    o, fw, u, k = TOON_FACE
+    down = np.minimum(0, rad @ ey)[:, None]
+    want = o * (rad - 0.6 * down * ey) + fw * f + u * ey         # the lower face turned less toward the ground
+    want /= np.linalg.norm(want, axis=1, keepdims=True)
+    on_face = ((vm == SKIN) | (vm == EYE)) * near * smoothstep(-0.45, 0.4, rad @ f) * smoothstep(-0.8, -0.5, rad @ ey)
+    hair = (vm == HAIR) * near * smoothstep(-0.3, 0.0, rad @ ey)
+    w = np.maximum(on_face * k, hair * TOON_HAIR)
+    w_rad = np.where(vm == HAIR, 1.0, 0.0)[:, None]
+    inward = np.where((N * rad).sum(1) < 0, -1.0, 1.0)[:, None]     # the inside of a lock stays its own way round
+    target = want * (1 - w_rad) + rad * inward * w_rad
+    out = N * (1 - w)[:, None] + target * w[:, None]
+    return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-12)
+
+
 def to_rig(p, floor):
     p = np.asarray(p, float)
     return np.stack([p[..., 0], p[..., 2] - floor, p[..., 1]], -1) * PX
@@ -431,7 +702,7 @@ def atlas():
     for name, (x, y, s) in QUADS.items():
         src = Image.open(os.path.join(SRC, '001_makima_%s_mtl_BaseColor.png' % name)).convert('RGB')
         img.paste(src.resize((s, s), Image.LANCZOS), (x, y))
-    img.save(os.path.join(ASSETS, 'textures/entity/makima_mesh.png'), optimize=True)
+    img.save(makima_look.BASE, optimize=True)      # the model's own atlas, restyled by makima_look (on any machine)
 
 
 def swap(v):
@@ -440,13 +711,16 @@ def swap(v):
     return np.stack([v[..., 0], v[..., 2], v[..., 1]], -1)
 
 
-def export(P, tris, uvs, mats, W, floor, face, axes):
+def export(P, tris, uvs, mats, W, floor, face, axes, edit, turned):
     # smooth normals, area-weighted
     N = np.zeros_like(P)
     fn = np.cross(P[tris[:, 1]] - P[tris[:, 0]], P[tris[:, 2]] - P[tris[:, 0]])
     for k in range(3):
         np.add.at(N, tris[:, k], fn)
     N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-12)
+    vm = np.zeros(len(P), int)
+    vm[tris.ravel()] = np.repeat(mats, 3)
+    N = toon(P, N, vm, face)
     key, verts, out_uv, indices = {}, [], [], []
     for t, tri in enumerate(tris):
         x, y, s = QUADS[MATS[mats[t]]]
@@ -473,6 +747,7 @@ def export(P, tris, uvs, mats, W, floor, face, axes):
     groups = {'blush': [len(indices), len(blush)]}
     indices += blush
     pos = np.concatenate([to_rig(P[vi], floor), to_rig(X, floor)])
+    NX = toon(X, NX, np.full(len(X), SKIN), face)
     nrm = np.concatenate([N[vi][:, [0, 2, 1]], NX[:, [0, 2, 1]]])
     out_uv += [round(float(a), 5) for u, v in UVX for a in (u, 1 - v)]
     joints, wts = [], []
@@ -526,9 +801,17 @@ def export(P, tris, uvs, mats, W, floor, face, axes):
     # the fingers' axes in rig coordinates: the swap is a mirror, so +angle about the negated axis curls there
     hands = {s: {k: {'curl': flat(-swap(v['curl'])), 'spread': flat(-swap(v['spread'])), 'angle': round(v['angle'], 2),
                      'length': round(v['length'] * PX, 3)} for k, v in ax.items()} for s, ax in axes.items()}
+    # what reshape() moved (rig pixels per vertex: recover() takes it back off), and how each hand was turned from the
+    # model's pose with where its wrist was (gen_makima_anims stand(): her hands crossed as the model had them)
+    D = swap(edit[vi]) * PX
+    moved = np.where(np.abs(D).max(1) > 1e-4)[0]
+    Sw = np.array([[1, 0, 0], [0, 0, 1], [0, 1, 0]], float)
+    reshaped = {'v': moved.tolist(), 'd': [round(float(a), 4) for a in D[moved].ravel()],
+                'hands': {s: {'wrist': flat(to_rig(t['wrist'], floor)), 'turn': flat(Sw @ t['turn'] @ Sw)}
+                          for s, t in turned.items()}}
     mesh = {'credit': 'Makima: the user\'s model (makima_pose.fbx), rigged and atlased by tools/gen_makima_mesh.py',
             'texture': 'papon:textures/entity/makima_mesh.png', 'bones': BONES, 'corners': 3, 'influences': INFLUENCES,
-            'base': [nb, ib], 'groups': groups,
+            'base': [nb, ib], 'groups': groups, 'reshaped': reshaped,
             'positions': pos.round(3).flatten().tolist(), 'normals': nrm.round(3).flatten().tolist(), 'uvs': out_uv,
             'indices': indices, 'joints': joints, 'weights': wts, 'face': rig_face, 'hands': hands}
     with open(BUILT, 'w') as f:
@@ -552,6 +835,8 @@ def geo(joints, floor, fingers):
         {'name': 'breast_l', 'parent': 'chest', 'pivot': r(np.array(BREAST['l']) + [0, 0.05, 0])},
         {'name': 'breast_r', 'parent': 'chest', 'pivot': r(np.array(BREAST['r']) + [0, 0.05, 0])},
         {'name': 'tie', 'parent': 'chest', 'pivot': r(TIE[0])},
+        {'name': 'glute_l', 'parent': 'torso', 'pivot': r(GLUTE['l'])},
+        {'name': 'glute_r', 'parent': 'torso', 'pivot': r(GLUTE['r'])},
     ]
     for s in 'lr':
         bones += [
@@ -583,20 +868,22 @@ def geo(joints, floor, fingers):
 
 
 def main():
-    P, tris, uvs, mats, from_fbx = load()
-    floor = P[:, 2].min()
+    P0, tris, uvs, mats, from_fbx = load()
+    floor = P0[:, 2].min()
+    P, turned = reshape(P0, tris, mats)
     W, joints, fingers, axes = rig(P, tris, mats)
     geo(joints, floor, fingers)
     if from_fbx:
         atlas()
-    # the face rig (sampling the skin as the model has it), then its patches painted into the atlas's free corner
     png = os.path.join(ASSETS, 'textures/entity/makima_mesh.png')
+    makima_look.bake_hair(makima_look.look(makima_look.base()), P, tris, uvs, mats).save(png, optimize=True)
+    # the face rig (sampling the skin as the model has it), then its patches painted into the atlas's free corner
     x, y, s = QUADS['skin']
     skin = np.asarray(Image.open(png).convert('RGB'), float)[y:y + s, x:x + s] / 255
     groups, mat_of = pieces(P, tris, mats)
     face = makima_face.build(P, tris, uvs, mats, groups, mat_of, skin, MOUTH)
     makima_face.paint(Image.open(png).convert('RGBA'), face['colours']).save(png, optimize=True)
-    nv, nt = export(P, tris, uvs, mats, W, floor, face, axes)
+    nv, nt = export(P, tris, uvs, mats, W, floor, face, axes, P - P0, turned)
     print('makima mesh', nv, 'vertices,', nt, 'triangles; %.2f blocks tall' % ((P[:, 2].max() - floor) * PX / 16))
 
 

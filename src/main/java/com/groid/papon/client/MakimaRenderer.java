@@ -362,11 +362,14 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
         int[] idx = mesh.indices;
         int[] blush = mesh.groups.get("blush");
         int end = blush == null ? idx.length : blush[0];
+        boolean[] lit = irises(mesh);
+        int eyes = eyeLight(light);
         for (int t = 0; t < end; t += 3) {
-            put(out, mesh, idx[t], light, overlay, r, g, b, a);
-            put(out, mesh, idx[t + 1], light, overlay, r, g, b, a);
-            put(out, mesh, idx[t + 2], light, overlay, r, g, b, a);
-            put(out, mesh, idx[t + 2], light, overlay, r, g, b, a);
+            int lt = lit[t / 3] ? eyes : light;
+            put(out, mesh, idx[t], lt, overlay, r, g, b, a);
+            put(out, mesh, idx[t + 1], lt, overlay, r, g, b, a);
+            put(out, mesh, idx[t + 2], lt, overlay, r, g, b, a);
+            put(out, mesh, idx[t + 2], lt, overlay, r, g, b, a);
         }
         if (blush != null && face.blush > 0.02F) {
             // her blush over her cheeks, as strong as she is flushed
@@ -463,6 +466,32 @@ public class MakimaRenderer extends GeoEntityRenderer<MakimaEntity> {
         face.aiming = true;
         face.aimX = Mth.clamp((float) Math.atan2(h, f) / (28 * Mth.DEG_TO_RAD), -1, 1);
         face.aimY = Mth.clamp((float) Math.atan2(u, f) / (20 * Mth.DEG_TO_RAD), -1, 1);
+    }
+
+    /**
+     * Her irises (2026-10-07, the overhaul): the triangles textured from the atlas's eye square (gen_makima_mesh QUADS 'eyes':
+     * u 1792..2048, v 1024..1280 of 2048), found once per mesh. They keep some light of their own (eyeLight): her ringed gold
+     * eyes still read in shade and at night, faintly lit, as the anime draws them in the dark.
+     */
+    private static boolean[] irises(SkinnedMesh mesh) {
+        if (irisOf == mesh) return iris;
+        int[] idx = mesh.indices;
+        boolean[] out = new boolean[idx.length / 3];
+        for (int t = 0; t + 2 < idx.length; t += 3) {
+            float u = (mesh.uvs[idx[t] * 2] + mesh.uvs[idx[t + 1] * 2] + mesh.uvs[idx[t + 2] * 2]) / 3;
+            float v = (mesh.uvs[idx[t] * 2 + 1] + mesh.uvs[idx[t + 1] * 2 + 1] + mesh.uvs[idx[t + 2] * 2 + 1]) / 3;
+            out[t / 3] = u > 0.875F && v > 0.5F && v < 0.625F;
+        }
+        irisOf = mesh;
+        return iris = out;
+    }
+
+    private static SkinnedMesh irisOf;
+    private static boolean[] iris;
+
+    /** Block light at least 11 (of 15) on her irises. */
+    private static int eyeLight(int light) {
+        return Math.max(light & 0xFFFF, 0xB0) | (light & 0xFFFF0000);
     }
 
     private void put(VertexConsumer out, SkinnedMesh mesh, int v, int light, int overlay, float r, float g, float b, float a) {

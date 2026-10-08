@@ -185,9 +185,10 @@ def aim(pose, bone, rest_vec, want):
 SHRUG = (0.12, 0.3, 20)      # of the upper arm's swing the collarbone takes: lowering, raising or reaching; at most (deg)
 
 
-def arms(pose, targets):
+def arms(pose, targets, shrug=SHRUG):
     """Each side's wrist onto targets[side] = (wrist target, elbow pole), rig pixels of her frame; the collarbone lifted or
-    drawn forward with the arm (SHRUG), then the arm solved again from where the shoulder went."""
+    drawn forward with the arm (shrug: SHRUG unless given), then the arm solved again from where the shoulder went."""
+    SHRUG = shrug
     for s, (T, pole) in targets.items():
         solved = chain(pose, 'arm_' + s, 'forearm_' + s, 'wrist_' + s, T, pole)
         rest = copy(pose)
@@ -247,6 +248,57 @@ def hands(pose, grip, side=None):
     return pose
 
 
+def orient(pose, bone, R):
+    """Turns `bone` so its world rotation (her frame, from the rest pose) is R."""
+    pose = copy(pose)
+    pose[bone][0] = (0, 0, 0)
+    pose[bone][0] = euler(world(pose)[PARENT[bone]][:3, :3].T @ R)
+    return pose
+
+
+def frame(a, b):
+    """An orthonormal frame (columns) from a direction a and a second one b (made square to a)."""
+    a = a / np.linalg.norm(a)
+    b = b - (b @ a) * a
+    b /= np.linalg.norm(b)
+    return np.stack([a, b, np.cross(a, b)], 1)
+
+
+def palm(s):
+    """Her hand at rest (rig pixels): the fingers' direction and the palm's normal (the way the fingers curl)."""
+    d = LOC['finger_' + s] - PIV['hand_' + s]
+    d /= np.linalg.norm(d)
+    v = axis_rot(HANDS[s]['middle']['curl'], 20) @ d - d
+    return d, v - (v @ d) * d
+
+
+def twist_angle(R, u):
+    """How far R turns about the axis u (degrees, swing-twist)."""
+    w = math.sqrt(max(0.0, 1 + R[0, 0] + R[1, 1] + R[2, 2])) / 2
+    v = np.array([R[2, 1] - R[1, 2], R[0, 2] - R[2, 0], R[1, 0] - R[0, 1]]) / (4 * max(w, 1e-6))
+    u = u / np.linalg.norm(u)
+    return math.degrees(2 * math.atan2(v @ u, w))
+
+
+def hand_to(pose, s, fingers, palm_dir, roll=0.55):
+    """Her hand turned so its fingers run along `fingers` and its palm faces `palm_dir` (her frame), the forearm rolling
+    about itself for `roll` of the hand's twist (a wrist never wrings round on its own)."""
+    d0, v0 = palm(s)
+    return hand_rot(pose, s, frame(np.asarray(fingers, float), np.asarray(palm_dir, float)) @ frame(d0, v0).T, roll)
+
+
+def hand_rot(pose, s, Rh, roll=0.55):
+    """Her hand's world rotation set to Rh, the forearm rolled about itself for `roll` of the twist."""
+    M = world(pose)
+    u = LOC['wrist_' + s] - PIV['forearm_' + s]
+    rel = M['forearm_' + s][:3, :3].T @ Rh
+    tw = max(-100.0, min(100.0, twist_angle(rel, u)))
+    pose = copy(pose)
+    R = M['arm_' + s][:3, :3].T @ M['forearm_' + s][:3, :3] @ axis_rot(u, tw * roll)
+    pose['forearm_' + s][0] = euler(R)
+    return orient(pose, 'hand_' + s, Rh)
+
+
 def legs(pose, targets, toes=None):
     """Each side's ankle onto targets[side] = (ankle target, knee pole); the foot pointed along toes[side] (her frame)."""
     for s, (T, pole) in targets.items():
@@ -263,11 +315,11 @@ def normal_of(pose, bone, rest_normal):
     return n / np.linalg.norm(n)
 
 
-def hang(pose, links, out_normal_bone, out_normal, floor=0.6, stiff=(0.4, 0.15, 0.05), fall=None):
+def hang(pose, links, out_normal_bone, out_normal, floor=0.6, stiff=(0.4, 0.15, 0.05), fall=None, rest_out=False):
     """A chain of bones (braid, tie) hung toward the ground: each link's direction its rest direction blended toward `fall`
     (down, unless given: face down the braid falls off to one side of her neck) with `stiff` of the rest kept per link, held
-    off her body (never into the side `out_normal` faces, on `out_normal_bone`; None: no check) and off the floor (the
-    floor at `floor` pixels: along it instead)."""
+    off her body (never into the side `out_normal` faces, on `out_normal_bone`; None: no check; rest_out: never further in
+    than it lies at rest, the tie over her bust) and off the floor (the floor at `floor` pixels: along it instead)."""
     g = DOWN if fall is None else np.asarray(fall, float) / np.linalg.norm(fall)
     for k, (bone, tip) in enumerate(links):
         M = world(pose)
@@ -278,8 +330,9 @@ def hang(pose, links, out_normal_bone, out_normal, floor=0.6, stiff=(0.4, 0.15, 
         want = st * cur + (1 - st) * g
         if out_normal is not None:
             n = normal_of(pose, out_normal_bone, out_normal)
-            if want @ n < 0.2:
-                want = want - (want @ n - 0.2) * n
+            least = max(0.2, cur @ n) if rest_out else 0.2
+            if want @ n < least:
+                want = want - (want @ n - least) * n
         want /= np.linalg.norm(want)
         start = apply(M, PARENT[bone], PIV[bone])
         end = start + want * np.linalg.norm(rest)
@@ -322,7 +375,7 @@ def dress(pose, braid_fall=None):
     """The braid and the tie hung for whatever pose she is in (braid_fall: face down, which way it falls off her neck)."""
     pose = hang(pose, [('braid', 'braid2'), ('braid2', 'braid3'), ('braid3', 'braid_tip')], 'chest',
                 None if braid_fall is not None else (0, 0, 1), fall=braid_fall)
-    pose = hang(pose, [('tie', 'tie_tip')], 'chest', (0, 0, -1), stiff=(0.15,))
+    pose = hang(pose, [('tie', 'tie_tip')], 'chest', (0, 0, -1), stiff=(0.15,), rest_out=True)
     return pose
 
 
@@ -356,36 +409,76 @@ def missionary():
     return dress(hands(a, 'soft')), dress(hands(b, 'relaxed')), chest
 
 
+def side(p, s):
+    """Which way (along F's `side`) her `s` side lies in this pose: +1 her left as she stood, -1 when her root is turned
+    round (the old poses added her own left to a turned body: her legs crossed bent over, her elbows bent inward on all
+    fours)."""
+    return 1.0 if at(p, 'leg_' + s)[0] > at(p, 'torso')[0] else -1.0
+
+
+GLUTE_OUT = {'stand': (0, 0, 0), 'doggy': (0.05, -0.1, 0.4), 'bent': (0.05, -0.1, 0.4)}     # pixels the glutes are pushed out
+
+
+def glutes(p, push):
+    """Her glutes pushed out of her hips (rig pixels, the pelvis's frame: x out to each side, y up her back, z behind her):
+    bent over, they fill out round instead of being drawn flat over the bent hip."""
+    p = copy(p)
+    x, y, z = push
+    p['glute_l'][1] = (-x, y, z)        # GeckoLib flips position X: out to her left
+    p['glute_r'][1] = (x, y, z)
+    return p
+
+
 def doggy():
-    """On her knees and hands, hips up to the rider kneeling behind her, chest low, looking back over her shoulder; her root
-    turned away from them. A: both hands flat ahead of her shoulders; B: on her elbows, cheek near the ground."""
-    p = body({'root': (0, 180, 0), 'torso': (84, 0, 0), 'spine': (20, 0, 0), 'chest': (14, 0, 0), 'neck': (-40, -16, 0),
-              'head': (-34, -22, -6)})
-    p = place(p, 'seat', F(*(rider_front('doggy') + [-0.02, 0.0])))
-    p = kneel(p, toward=-1, spread=0.03)
-    def hand(s, ahead, up=0.04):
+    """On her knees and hands, her back arched so her seat is up to the rider kneeling behind her, looking back over her
+    shoulder; her root turned away from them. A: up on straight arms, hands flat under her shoulders; B: down on her
+    forearms, chest low, seat high."""
+    def body_at(torso, spine, chest, neck):
+        p = body({'root': (0, 180, 0), 'torso': (torso, 0, 0), 'spine': (spine, 0, 0), 'chest': (chest, 0, 0),
+                  'neck': (neck, -18, 0), 'head': (-26, -24, -6)})
+        p = place(p, 'seat', F(*(rider_front('doggy') + [-0.02, 0.0])))
+        return kneel(p, toward=-1, spread=0.09)
+
+    def ground(p, s, ahead, up=0.05):
         q = at(p, 'arm_' + s)
-        return np.array([q[0], (up + 0.04) * 16, q[2]]) + F(-ahead, 0, 0.03 * (1 if s == 'l' else -1))
-    a = arms(p, {s: (hand(s, 0.06), F(0.4, 0.2, sg)) for s, sg in SIDES})
-    b = arms(p, {s: (hand(s, 0.14, 0.05) + F(0, 0, 0.06 * sg), F(0.2, 0.6, sg * 1.2)) for s, sg in SIDES})
+        return np.array([q[0], up * 16, q[2]]) + F(-ahead, 0, 0.02 * side(p, s))
+    a = body_at(98, -10, -4, -46)
+    a = arms(a, {s: (ground(a, s, 0.03), F(0.6, 0, 0.5 * side(a, s))) for s in 'lr'})
+    b = body_at(100, 20, 16, -56)
+    b = arms(b, {s: (ground(b, s, ARM[s] / 16 * 0.5, 0.06), F(0.3, -1, 0.3 * side(b, s))) for s in 'lr'})
     for s in 'lr':
         a, b = plant(a, s, -1), plant(b, s, -1)
-    return dress(hands(a, 'flat'), FALL), dress(hands(b, 'flat'), FALL), at(p, 'chest')
+    a, b = glutes(a, GLUTE_OUT['doggy']), glutes(b, GLUTE_OUT['doggy'])
+    return dress(hands(a, 'flat'), FALL), dress(hands(b, 'flat'), FALL), at(a, 'chest')
 
 
 def bent():
-    """Standing, bent over at the hips with her feet apart and her knees bent so her hips meet the rider's, looking back at
-    them over her shoulder; root turned away. A: hands on her knees; B: one on a knee, the other reaching back for them."""
-    p = body({'root': (0, 180, 0), 'torso': (68, 0, 0), 'spine': (8, 0, 0), 'chest': (6, 0, 0), 'neck': (-30, -20, 0),
-              'head': (-28, -22, -4)})
+    """Standing bent over at the hips, her back arched so her seat is pushed up and out to the rider, feet planted wide with
+    the toes turned out and the knees bent over them (so her hips come down to theirs), looking back at them over her
+    shoulder; root turned away. A: hands on her knees; B: one on a knee, the other on her own seat, pulling it aside."""
+    p = body({'root': (0, 180, 0), 'torso': (70, 0, 0), 'spine': (-4, 0, 0), 'chest': (8, 0, 0), 'neck': (-34, -22, 0),
+              'head': (-24, -24, -4)})
     p = place(p, 'seat', F(*(rider_front('bent') + [-0.02, 0.0])))
-    p = legs(p, {s: (at(p, 'leg_' + s) * [1, 0, 1] + F(0.08, 0.1, 0.24 * sg), F(-1, 0.2, 0.25 * sg)) for s, sg in SIDES},
-             toes={s: F(-1, 0, 0.2 * sg) for s, sg in SIDES})
+    sd = {s: side(p, s) for s in 'lr'}
+    p = legs(p, {s: (at(p, 'leg_' + s) * [1, 0, 1] + F(0.1, 0.1, 0.1 * sd[s]), F(-1, 0.1, 0.4 * sd[s])) for s in 'lr'},
+             toes={s: F(-1, -0.05, 0.4 * sd[s]) for s in 'lr'})
 
-    def knee(s, sg):
-        return (at(p, 'shin_' + s) + F(-0.05, 0.05, -0.04 * sg), F(0.2, 0, sg))
-    a = arms(p, {s: knee(s, sg) for s, sg in SIDES})
-    b = arms(p, {'l': knee('l', 1), 'r': (at(p, 'seat') + F(-0.05, 0.08, -0.18), F(0, 0.8, -1))})
+    def knee(q, s):
+        """Her hand on the inside of her thigh just above the knee, fingers round it, the elbow out."""
+        T = at(q, 'shin_' + s) + F(0.02, 0.09, -0.05 * sd[s])
+        return T, F(0.3, 0.2, sd[s])
+
+    def on_knee(q, s):
+        return hand_to(q, s, F(-0.35, -1, 0.25 * sd[s]), F(0.5, -0.2, sd[s] * 0.6))
+    a = arms(p, {s: knee(p, s) for s in 'lr'})
+    for s in 'lr':
+        a = on_knee(a, s)
+    # B: her right hand back on her right buttock
+    g = at(p, 'glute_r') + F(0.1, 0.02, 0.02 * sd['r'])
+    b = arms(p, {'l': knee(p, 'l'), 'r': (g + F(-0.02, 0.06, 0), F(0.4, 1, sd['r'] * 0.8))})
+    b = on_knee(b, 'l')
+    b = hand_to(b, 'r', F(0.25, -1, -0.5 * sd['r']), F(-1, 0.1, 0))
+    a, b = glutes(a, GLUTE_OUT['bent']), glutes(b, GLUTE_OUT['bent'])
     return dress(hands(a, 'grip'), FALL), dress(hands(hands(b, 'grip', 'l'), 'soft', 'r'), FALL), at(p, 'chest')
 
 
@@ -424,9 +517,37 @@ def carry():
     return dress(hands(a, 'grip')), dress(hands(b, 'grip')), at(p, 'chest')
 
 
+# Her stance (2026-10-07, the overhaul: "graceful posture", "calm, confident, intimidating presence"): her weight on her
+# right leg, the hips rolled up on that side and the shoulders a touch against them, the left knee eased forward and in;
+# her hands loosely clasped in front of her (the left over the right), her head level (client/MakimaFace tilts it: her
+# look; a tilt here doubled it). STANCE: the
+# trunk's turns; HOLD: where the wrists go, blocks (ahead of the hips, up from them, aside).
+STANCE = {'torso': (0, -5, -3.5), 'spine': (1, 2, 2), 'chest': (-1.5, 2, 1.5), 'neck': (1, 0, 0), 'head': (0, -3, 0)}
+HOLD = {'l': (0.175, -0.1, 0.03), 'r': (0.155, -0.115, -0.045)}
+
+
 def stand():
-    """Standing, her hands crossed in front of her chest (the model's own pose: her control sign), the fingers eased."""
-    return dress(hands(body({}), 'sign'))
+    p = body(STANCE)
+    hip = {s: at(body({}), 'leg_' + s) for s in 'lr'}
+    p = legs(p, {'r': (hip['r'] * [1, 0, 1] + F(0.0, 0.1, 0.012), F(1, 0, 0.1)),
+                 'l': (hip['l'] * [1, 0, 1] + F(0.07, 0.1, -0.035), F(1, 0, -0.35))},
+             {'r': F(1, -0.15, -0.25), 'l': F(1, -0.25, 0.1)})
+    base = at(p, 'torso')
+    p = arms(p, {s: (base + F(*HOLD[s]), F(-0.4, -0.2, 1.0 * sg)) for s, sg in SIDES}, (0.0, 0.08, 6))     # shoulders down, back
+    # the hands across each other, palms in toward her, fingers falling toward the other side
+    p = hand_to(p, 'r', F(0.1, -0.7, 0.75), F(-1, 0, 0.1))
+    p = hand_to(p, 'l', F(0.05, -0.75, -0.7), F(-1, 0, -0.1))
+    return dress(hands(p, 'relaxed'))
+
+
+ARM = {s: (np.linalg.norm(PIV['forearm_' + s] - PIV['arm_' + s]) + np.linalg.norm(LOC['wrist_' + s] - PIV['forearm_' + s]))
+       for s in 'lr'}      # shoulder to wrist, rig pixels
+
+
+def hanging(p, s, sg, ahead=0.0, out=0.02, bend=0.93):
+    """A wrist target for an arm hanging at her side (`bend` of its full reach below the shoulder, `ahead` and `out` blocks),
+    the elbow pointing back."""
+    return at(p, 'arm_' + s) + F(ahead, -ARM[s] * bend / 16, out * sg), F(-1, 0, 0.25 * sg)
 
 
 # ---------------------------------------------------------------- animations
@@ -466,7 +587,7 @@ def loop(a, b, length, sway=None):
 
 def idle():
     base = stand()
-    life = {'chest': (-1.4, 0, 0), 'head': (2, 4, -2), 'torso': (0, 0, 1.5), 'spine': (0, 0, -0.8), 'braid': (2, 0, 1)}
+    life = {'chest': (-1.2, 0, 0), 'head': (1.5, 3, -1.5), 'torso': (0, 0, 1.0), 'spine': (0, 0, -0.6), 'braid': (2, 0, 1)}
 
     def pose_at(t):
         out = copy(base)
@@ -483,7 +604,6 @@ def walk():
     stride, lift = 0.36, 0.09
     base = body({'neck': (-4, 0, 0)})
     hipw = {s: at(base, 'leg_' + s) for s in 'lr'}
-    rest = {s: at(base, 'arm_' + s) for s in 'lr'}
 
     def pose_at(t):
         ph = t * 2 * math.pi
@@ -499,8 +619,11 @@ def walk():
             tg[s] = (hipw[s] * [1, 0, 1] + F(fwd, 0.1 + up, 0.0), F(1, 0, 0))
             toes[s] = F(1, -0.15 - up * 2, 0)
         p = legs(p, tg, toes)
+        # the arms hang loose, swinging against the legs, the elbows a little bent, the palms toward her thighs
         sw = {s: math.cos(ph + (math.pi if s == 'l' else 0)) for s in 'lr'}
-        p = arms(p, {s: (rest[s] + F(0.08 * sw[s], -0.33, 0.065 * sg), F(-1, 0, 0.3 * sg)) for s, sg in SIDES})
+        p = arms(p, {s: hanging(p, s, sg, 0.03 + 0.11 * sw[s], 0.035, 0.94 - 0.03 * max(0.0, sw[s])) for s, sg in SIDES})
+        for s, sg in SIDES:
+            p = hand_to(p, s, F(0.12 + 0.12 * sw[s], -1, 0.02 * sg), F(0.15, 0, -sg))
         return dress(hands(p, 'relaxed'))
     return keyset(pose_at, 1.0, [i / 8 for i in range(9)])
 
