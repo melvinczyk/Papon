@@ -5,6 +5,7 @@ fit (MakimaEntity.Fit) without starting the game.
 
   python tools/makima_view.py out.png <animation> [t=0] [views=side,34,front,top] [size=560x420] [rider=1]
                                         [face=look|calm|blink|...|smile:1,lid_up_l:0.5,...] [gaze=gx:gy] [lbs=1]
+                                        [light=mc|old] [hide=hair]
 
 Faces (makima_face.apply, the same as MakimaRenderer.Face) by preset name (FACES) or channel:weight pairs; gaze -1..1 each
 way (her irises slid toward her left / up). Skinning is dual quaternion, as in the game (lbs=1: linear, the old way).
@@ -34,8 +35,8 @@ VIEWS = {'side': (90, 8, 4.2, 0, 0.6, 0), 'side2': (-90, 8, 4.2, 0, 0.6, 0), '34
 
 # expressions as MakimaRenderer.Face sets them (its presets: keep in step)
 FACES = {
-    'calm': {'lid_up': 0.18, 'lid_lo': 0.06, 'smile': 0.15},
-    'look': {'lid_up': 0.42, 'lid_lo': 0.2, 'smile': 0.55, 'brow_down': 0.2},
+    'calm': {'lid_up': 0.16, 'lid_lo': 0.05, 'smile': 0.12},
+    'look': {'lid_up': 0.34, 'lid_lo': 0.17, 'smile': 0.55, 'brow_down': 0.18},
     'blink': {'lid_up': 1.0, 'lid_lo': 0.0},
     'eyesmile': {'lid_up': 0.62, 'lid_lo': 0.38, 'smile': 0.9, 'brow_raise': 0.3},
     'pleasure': {'lid_up': 0.55, 'lid_lo': 0.12, 'open': 0.45, 'brow_worry': 0.8, 'blush': 0.8},
@@ -193,6 +194,9 @@ def rider(fit):
     return out
 
 
+LIGHT = 'mc'       # light=old: the softer light this tool used before (2026-10-07: now the game's)
+
+
 def render(X, N, UV, tris, tex, extra, view, size, over=None):
     yaw, pitch, dist, tx, ty, tz = view
     W, H = size
@@ -212,7 +216,10 @@ def render(X, N, UV, tris, tex, extra, view, size, over=None):
 
     def draw(P, Nn, T, uv=None, color=None):
         sx, sy, cz = project(P)
-        shade = np.clip(0.4 + 0.6 * (np.abs(Nn @ L1) * 0.7 + np.clip(Nn @ L2, 0, 1) * 0.5), 0, 1)
+        if LIGHT == 'old':
+            shade = np.clip(0.4 + 0.6 * (np.abs(Nn @ L1) * 0.7 + np.clip(Nn @ L2, 0, 1) * 0.5), 0, 1)
+        else:       # the game's entity light: two fixed lights, 0.6 of them, 0.4 ambient
+            shade = np.minimum(1, 0.4 + 0.6 * (np.clip(Nn @ L1, 0, 1) + np.clip(Nn @ L2, 0, 1)))
         for a, b, c in T:
             if cz[a] < 0.05 or cz[b] < 0.05 or cz[c] < 0.05:
                 continue
@@ -319,6 +326,11 @@ def main():
     idx = np.array(mesh['indices'])
     run = mesh.get('groups', {}).get('blush', [len(idx), 0])
     tris = idx[:run[0]].reshape(-1, 3)
+    global LIGHT
+    LIGHT = opts.get('light', 'mc')
+    if opts.get('hide') == 'hair':     # the hair's quad of the atlas (gen_makima_mesh.QUADS): u < 0.5, v (down) > 0.5
+        cu, cv = UV[tris, 0].mean(1), UV[tris, 1].mean(1)
+        tris = tris[~((cu < 0.5) & (cv > 0.5))]
     blush_tris = idx[run[0]:run[0] + run[1]].reshape(-1, 3)
     expr = expression(opts['face']) if 'face' in opts else None
     gaze = tuple(float(a) for a in opts.get('gaze', '0:0').split(':'))

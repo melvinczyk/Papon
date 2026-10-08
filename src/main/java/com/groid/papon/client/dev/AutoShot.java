@@ -83,6 +83,10 @@ public final class AutoShot {
      *  turn (client/MakimaFace, -Dpapon.makima.face) from the front and three-quarters, a blink, then you staring at her
      *  until she gives you her look on her own (moods logged). */
     private static final boolean MAKIMA_FACE = MODE.equals("makimaface");
+    /** -Pautoshot=makimalook: Makima standing (papon_ml*.png): full length from the front, three-quarters, the side and the back,
+     *  waist up, her face from the front and three-quarters; then under a roof (shade) and at dusk. For judging her look in the
+     *  game's own light. */
+    private static final boolean MAKIMA_LOOK = MODE.equals("makimalook");
     /** -Pautoshot=state:STATE[:FORM]:t1,t2,...  a boss here (form 3 Ascended or 4 the Final Guardian), straight into STATE; the
      *  cutscene camera's view (or yours) shot at those ticks in it (papon_s_STATE_t.png). For checking one beat quickly. */
     private static final boolean STATE = MODE.startsWith("state:");
@@ -160,6 +164,10 @@ public final class AutoShot {
         }
         if (MAKIMA_FACE) {
             makimaFace(mc);
+            return;
+        }
+        if (MAKIMA_LOOK) {
+            makimaLook(mc);
             return;
         }
         if (SERPENTS) {
@@ -1447,11 +1455,55 @@ public final class AutoShot {
     private static int climaxAt;
     private static final String[] FACES = {"calm", "near", "look", "pleased", "pleasure", "climax", "dazed", "afterglow"};
 
+    /** -Pautoshot=makimalook: see {@link #MAKIMA_LOOK}. Each view: (name, camera offset from her feet, look-at height). */
+    private static final Object[][] LOOKS = {
+            {"front", new Vec3(0, 1.1, 2.6), 1.0}, {"34", new Vec3(1.8, 1.3, 1.9), 1.0}, {"side", new Vec3(2.6, 1.1, 0), 1.0},
+            {"back", new Vec3(-0.4, 1.2, -2.6), 1.0}, {"waist", new Vec3(0.25, 1.45, 1.45), 1.35},
+            {"face", new Vec3(0, 1.78, 0.55), 1.74}, {"face34", new Vec3(0.38, 1.8, 0.42), 1.74}};
+
+    private static void makimaLook(Minecraft mc) {
+        var makima = nearest(mc, com.groid.papon.entity.MakimaEntity.class);
+        switch (tick) {
+            case 40 -> run("gamemode survival", "effect clear @s", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+                    "effect give @s invisibility 600 1 true", "time set 6000", "gamerule doDaylightCycle false",
+                    "weather clear 100000", "gamerule doMobSpawning false", "kill @e[type=papon:makima]", "tp @s 4400 200 4400");
+            case 70 -> run("execute positioned 4400 0 4400 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 180 0");
+            case 90 -> {
+                var p = mc.player.blockPosition();
+                run("kill @e[type=papon:makima]",
+                        String.format("fill %d %d %d %d %d %d minecraft:smooth_stone", p.getX() - 6, p.getY() - 1, p.getZ() - 8, p.getX() + 6, p.getY() - 1, p.getZ() + 5),
+                        String.format("fill %d %d %d %d %d %d minecraft:air", p.getX() - 6, p.getY(), p.getZ() - 8, p.getX() + 6, p.getY() + 6, p.getZ() + 5),
+                        String.format("summon papon:makima %d.5 %d %d.5 {Rotation:[0f,0f]}", p.getX(), p.getY(), p.getZ() - 3));
+            }
+            default -> {}
+        }
+        if (makima == null || tick < 110) return;
+        // her front is +z (yaw 0); passes: noon, shade (a roof), dusk
+        String[] pass = {"day", "shade", "dusk"};
+        int per = LOOKS.length * 8 + 30, k = tick - 110, i = k / per, j = (k % per - 30) / 8, r = (k % per - 30) % 8;
+        if (i >= pass.length) {
+            if (tick == 110 + pass.length * per) mc.stop();
+            return;
+        }
+        Vec3 o = makima.position();
+        if (k % per == 0) {
+            var b = makima.blockPosition();
+            if (pass[i].equals("shade"))
+                run(String.format("fill %d %d %d %d %d %d minecraft:dark_oak_planks", b.getX() - 6, b.getY() + 5, b.getZ() - 8, b.getX() + 6, b.getY() + 5, b.getZ() + 5));
+            if (pass[i].equals("dusk"))
+                run(String.format("fill %d %d %d %d %d %d minecraft:air", b.getX() - 6, b.getY() + 5, b.getZ() - 8, b.getX() + 6, b.getY() + 5, b.getZ() + 5), "time set 12600");
+        }
+        if (k % per < 30 || j >= LOOKS.length) return;
+        Object[] v = LOOKS[j];
+        if (r == 0) camAt(mc, o.add((Vec3) v[1]), o.add(0, (Double) v[2], 0));
+        if (r == 6) shot(mc, "ml" + i + j + "_" + pass[i] + "_" + v[0]);
+    }
+
     /** -Pautoshot=makimaface: see {@link #MAKIMA_FACE}. */
     private static void makimaFace(Minecraft mc) {
         var makima = nearest(mc, com.groid.papon.entity.MakimaEntity.class);
         switch (tick) {
-            case 40 -> run("gamemode survival", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
+            case 40 -> run("gamemode survival", "effect clear @s", "effect give @s resistance 100000 4 true", "effect give @s saturation 100000 1 true",
                     "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000", "gamerule doMobSpawning false",
                     "kill @e[type=papon:makima]", "tp @s 4300 200 4300");
             case 70 -> run("execute positioned 4300 0 4300 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 180 0");

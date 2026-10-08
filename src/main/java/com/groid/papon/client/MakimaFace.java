@@ -349,9 +349,9 @@ public final class MakimaFace {
                     float u = Mth.clamp((e.tickCount - 12) / 30F, 0, 1);
                     yield new Targets(1 - 0.8F * u, 0.1F * (1 - u), 0.15F * u, 0, 0, 0, 0.2F * u, 0, 0, 3 * (1 - u));
                 }
-                case CALM -> new Targets(0.2F, 0.06F, 0.12F, 0, 0, 0, 0, 0, 0, 0);
-                case NEAR -> new Targets(0.24F, 0.1F, 0.3F, 0, 0, 0, 0, 0, 3 * tiltSide, 2);
-                case LOOK -> new Targets(0.42F, 0.2F, 0.55F, 0, 0, 0.18F, 0, 0, 15 * tiltSide, 7);
+                case CALM -> new Targets(0.16F, 0.05F, 0.12F, 0, 0, 0, 0, 0, 0, 0);
+                case NEAR -> new Targets(0.2F, 0.08F, 0.3F, 0, 0, 0, 0, 0, 3 * tiltSide, 2);
+                case LOOK -> new Targets(0.34F, 0.17F, 0.55F, 0, 0, 0.18F, 0, 0, 11 * tiltSide, 4);
                 case PLEASED -> new Targets(0.64F, 0.36F, 0.9F, 0, 0, 0, 0.3F, 0.5F, 5 * tiltSide, 0);
                 case PLEASURE -> new Targets(0.3F + 0.32F * h + 0.08F * k, 0.08F + 0.1F * h, 0.35F * (1 - h), 0.1F + 0.3F * h + 0.08F * k,
                         0.25F + 0.65F * h, 0, 0, 0.35F + 0.65F * h, 0, 0);
