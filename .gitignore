@@ -8,6 +8,7 @@ out/
 *.iml
 tools/.cache/
 tools/__pycache__/
+tools/out/
 tools/src/song/
 tools/src/voice/
 tools/src/crowd/
