@@ -882,6 +882,33 @@ def lamp_walk():
     return a
 
 
+def march(kind):
+    """0.8 s loop (the hired band, boss/HiredMariachiEntity: walking behind whoever holds El Requinto): lamp_walk's
+    brisk step with his instrument carried as he holds it ready (ready_<kind>), a bob and a sway on every step."""
+    a = state(M('march_' + kind, 0.8, True), True, True)
+    a.rot('leg_r', [(0, [-28, 0, 0]), (0.4, [28, 0, 0]), (0.8, [-28, 0, 0])])
+    a.rot('leg_l', [(0, [28, 0, 0]), (0.4, [-28, 0, 0]), (0.8, [28, 0, 0])])
+    a.pos('root', [(0, [0, 0, 0]), (0.2, [0, 0.8, 0]), (0.4, [0, 0, 0]), (0.6, [0, 0.8, 0]), (0.8, [0, 0, 0])])
+    if kind == 'guitar':
+        guitar_pose(a, 0)
+    elif kind == 'violin':
+        a.rot('arm_l', [(0, [-40, 10, -16])], 'lin')
+        a.rot('arm_r', [(0, [-20, -20, 6]), (0.4, [-8, -20, 6]), (0.8, [-20, -20, 6])])
+        a.rot('violin', [(0, [40, 0, 0])], 'lin')
+    elif kind == 'coro':
+        a.rot('arm_r', [(0, [-24, -10, 10]), (0.4, [-40, -10, 10]), (0.8, [-24, -10, 10])])
+        a.rot('arm_l', [(0, CORO['down']['rot'])], 'lin')
+    else:
+        a.rot('arm_r', [(0, [-30, -20, 6])], 'lin')
+        a.rot('arm_l', [(0, [-30, 20, -6])], 'lin')
+        a.rot('trumpet', [(0, [50, 0, 0])], 'lin')
+    stretch(a, 'arm_l', [(0, 1.2)])
+    stretch(a, 'arm_r', [(0, 1.2)])
+    a.rot('torso', [(0, [4, 0, -3]), (0.4, [4, 0, 3]), (0.8, [4, 0, -3])])
+    a.sound(0.0, 'step').sound(0.4, 'step')
+    return a
+
+
 def lamp_switch():
     """2.0 s. Up on his toes, the maraca hand up to the floodlight's chain, a tug (0.8 s: the light),
     a pleased little shake of the maraca at it, and back down."""
@@ -910,7 +937,8 @@ ALL = [sleep_a, sleep_b, sleep_c, startle, getup, resleep, jacket, hat, shades,
        lambda: nervous('nervous_a', 1), lambda: nervous('nervous_b', -1),
        jaw_drop, lambda: shocked('shocked_a', False), lambda: shocked('shocked_b', True),
        lambda: hype('guitar'), lambda: hype('trumpet'), lambda: hype('violin'), lambda: hype('coro'),
-       lambda: listen('listen_a', 0), lambda: listen('listen_b', 1), lambda: listen('listen_c', 2)]
+       lambda: listen('listen_a', 0), lambda: listen('listen_b', 1), lambda: listen('listen_c', 2),
+       lambda: march('guitar'), lambda: march('violin'), lambda: march('trumpet'), lambda: march('coro')]
 
 
 # the ones that start in a chair: written again sitting on the floor (everyone but Gordo)

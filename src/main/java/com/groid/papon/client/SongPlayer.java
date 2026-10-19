@@ -35,6 +35,8 @@ import java.util.Comparator;
  */
 public final class SongPlayer {
     private static final double RANGE = 96;
+    /** How near El Requinto's band you must be to hear its song. */
+    private static final double HIRED_RANGE = 40;
 
     @Nullable private static Song.Segment current;
     /** The song playing (phase two's or phase three's). */
@@ -287,7 +289,7 @@ public final class SongPlayer {
 
     /** How hard the music should hit for the fight as it is. */
     private static String wanted(@Nullable PaponBossEntity boss) {
-        if (boss == null) return "low";
+        if (boss == null) return "mid";              // no fight (El Requinto's band): the song just runs
         BossState s = boss.getBossState();
         float hp = boss.getHealth() / boss.getMaxHealth();
         if (s == BossState.STAGGER || s == BossState.EXIT_STUMBLE || s == BossState.QTE_BROKEN || s == BossState.GUARD) return "low";
@@ -316,8 +318,11 @@ public final class SongPlayer {
     @Nullable
     private static MariachiEntity singer(Minecraft mc) {
         AABB box = mc.player.getBoundingBox().inflate(RANGE);
+        // El Requinto's band (HiredMariachiEntity) plays on as it marches, heard only near it, and not at all with requintoMusic off
         return mc.level.getEntitiesOfClass(MariachiEntity.class, box, m -> m.getRole().singer() && m.songStart() != 0
-                        && (m.getBandState() == BandState.COUNT || m.getBandState() == BandState.PLAY || m.getBandState() == BandState.BOW)).stream()
+                        && (m.getBandState() == BandState.COUNT || m.getBandState() == BandState.PLAY || m.getBandState() == BandState.BOW
+                            || m.hired() && m.getBandState() == BandState.FOLLOW)
+                        && (!m.hired() || PaponConfig.REQUINTO_MUSIC.get() && m.distanceToSqr(mc.player) < HIRED_RANGE * HIRED_RANGE)).stream()
                 .min(Comparator.comparingDouble(m -> m.distanceToSqr(mc.player))).orElse(null);
     }
 

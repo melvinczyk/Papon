@@ -28,6 +28,10 @@ public final class PaponConfig {
     public static final ForgeConfigSpec.BooleanValue BOSS_MUSIC;
     public static final ForgeConfigSpec.IntValue MIRROR_PASSES;
     public static final ForgeConfigSpec.DoubleValue MIRROR_RESOLUTION;
+    public static final ForgeConfigSpec.BooleanValue REQUINTO_BUFFS;
+    public static final ForgeConfigSpec.IntValue REQUINTO_RANGE;
+    public static final ForgeConfigSpec.IntValue REQUINTO_KO_SECONDS;
+    public static final ForgeConfigSpec.BooleanValue REQUINTO_MUSIC;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -97,6 +101,16 @@ public final class PaponConfig {
                 .defineInRange("mirrorPasses", 2, 0, 3);
         MIRROR_RESOLUTION = b.comment("Sharpness of the mirrors' pictures (1 = 448 pixels across the rear-view one).")
                 .defineInRange("mirrorResolution", 1.0, 0.25, 4.0);
+        b.pop();
+        b.push("requinto");
+        REQUINTO_BUFFS = b.comment("El Requinto's band buffs whoever hired it, and players near them, by who is playing.")
+                .define("buffs", true);
+        REQUINTO_RANGE = b.comment("How far from the band's owner, in blocks, other players still get its buffs.")
+                .defineInRange("buffRange", 12, 0, 64);
+        REQUINTO_KO_SECONDS = b.comment("A band member caught by an explosion or a monster's blow runs off for this long (his buff with him).")
+                .defineInRange("knockoutSeconds", 60, 5, 600);
+        REQUINTO_MUSIC = b.comment("The full band of 13 plays \"Canción del Mariachi\" for players near it (client side).")
+                .define("music", true);
         b.pop();
         SPEC = b.build();
     }

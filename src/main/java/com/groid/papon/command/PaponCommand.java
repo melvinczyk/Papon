@@ -97,6 +97,9 @@ public final class PaponCommand {
                 .then(Commands.literal("boss").executes(PaponCommand::boss))
                 .then(Commands.literal("van").executes(PaponCommand::van))
                 .then(Commands.literal("serpents").executes(PaponCommand::serpents))
+                .then(Commands.literal("band").then(Commands.argument("what", StringArgumentType.word())
+                        .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"all", "next", "dismiss"}, b))
+                        .executes(c -> band(c, StringArgumentType.getString(c, "what")))))
                 .then(Commands.literal("giant").then(Commands.argument("move", StringArgumentType.word())
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"summon", "lunge", "grab", "swipe", "slam", "slam2", "laser", "stomp", "portal", "sink"}, b))
                         .executes(c -> giant(c, StringArgumentType.getString(c, "move")))))
@@ -108,6 +111,22 @@ public final class PaponCommand {
                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                 java.util.Arrays.stream(PaponBossEntity.Cutaway.values()).map(Enum::name), b))
                         .executes(c -> cutaway(c, StringArgumentType.getString(c, "who"))))));
+    }
+
+    /** El Requinto's band for whoever runs it: all thirteen at once, the next one, or everyone home. */
+    private static int band(CommandContext<CommandSourceStack> c, String what) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        net.minecraft.server.level.ServerPlayer p = c.getSource().getPlayerOrException();
+        switch (what) {
+            case "all" -> com.groid.papon.boss.HiredBand.hireAll(p);
+            case "next" -> com.groid.papon.boss.HiredBand.summon(p);
+            case "dismiss" -> com.groid.papon.boss.HiredBand.dismiss(p);
+            default -> {
+                c.getSource().sendFailure(Component.literal("all, next or dismiss"));
+                return 0;
+            }
+        }
+        c.getSource().sendSuccess(() -> Component.literal("Band: " + com.groid.papon.boss.HiredBand.hired(p) + "/13."), false);
+        return 1;
     }
 
     /** Quetzalcoatl and Kukulcan out of their smoke, to circle here (a look at them without the fight). */

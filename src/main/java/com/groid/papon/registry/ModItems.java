@@ -44,6 +44,10 @@ public final class ModItems {
     public static final RegistryObject<Item> BODY_PILLOW = REGISTRY.register("body_pillow",
             () -> new com.groid.papon.item.BodyPillowItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
 
+    /** The singer's requinto, for whoever beat Chef Papon: a weapon that hires the band out of work (boss/HiredBand). */
+    public static final RegistryObject<Item> REQUINTO = REGISTRY.register("requinto",
+            () -> new com.groid.papon.item.RequintoItem(new Item.Properties().rarity(Rarity.EPIC).fireResistant()));
+
     /** Chef Papon's tacos, free from his menu once he is beaten and back at the window (TacoVendorEntity). */
     public static final RegistryObject<Item> TACO_AL_PASTOR = taco("al_pastor", 8, 0.8F);
     public static final RegistryObject<Item> TACO_CARNE_ASADA = taco("carne_asada", 8, 0.9F);

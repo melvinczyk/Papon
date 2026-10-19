@@ -89,6 +89,7 @@ public final class ClientSetup {
         event.registerEntityRenderer(ModEntities.SKY_SERPENT.get(), SkySerpentRenderer::new);
         event.registerEntityRenderer(ModEntities.SALSA_DANCER.get(), SalsaDancerRenderer::new);
         event.registerEntityRenderer(ModEntities.MARIACHI.get(), MariachiRenderer::new);
+        event.registerEntityRenderer(ModEntities.HIRED_MARIACHI.get(), MariachiRenderer::new);
         event.registerEntityRenderer(ModEntities.COLISEUM_CROWD.get(), ColiseumCrowdRenderer::new);
         event.registerEntityRenderer(ModEntities.BODY_PILLOW.get(), BodyPillowRenderer::new);
         event.registerEntityRenderer(ModEntities.MAKIMA.get(), MakimaRenderer::new);

@@ -343,7 +343,7 @@ public final class MuertosSky {
                 }
             }
         }
-        List<MariachiEntity> band = new java.util.ArrayList<>(mc.level.getEntitiesOfClass(MariachiEntity.class, box, e -> true));
+        List<MariachiEntity> band = new java.util.ArrayList<>(mc.level.getEntitiesOfClass(MariachiEntity.class, box, e -> !e.hired()));
         band.sort(java.util.Comparator.comparingInt(e -> e.getRole().ordinal()));
         for (int i = 0; i < band.size(); i++) {
             float k = (t - PaponBossEntity.soulAt(i)) / BAND_FLIGHT;
