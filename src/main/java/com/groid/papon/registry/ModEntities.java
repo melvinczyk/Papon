@@ -176,6 +176,14 @@ public final class ModEntities {
                     .clientTrackingRange(12)
                     .build(PaponMod.id("mariachi").toString()));
 
+    /** El Requinto's band: the same mariachis, hired, walking behind whoever holds it (boss/HiredBand). */
+    public static final RegistryObject<EntityType<com.groid.papon.boss.HiredMariachiEntity>> HIRED_MARIACHI = REGISTRY.register("hired_mariachi",
+            () -> EntityType.Builder.<com.groid.papon.boss.HiredMariachiEntity>of(com.groid.papon.boss.HiredMariachiEntity::new, MobCategory.MISC)
+                    .sized(1.0F, 1.9F)
+                    .fireImmune()
+                    .clientTrackingRange(8)
+                    .build(PaponMod.id("hired_mariachi").toString()));
+
     public static final RegistryObject<EntityType<com.groid.papon.boss.ColiseumCrowdEntity>> COLISEUM_CROWD = REGISTRY.register("coliseum_crowd",
             () -> EntityType.Builder.<com.groid.papon.boss.ColiseumCrowdEntity>of(com.groid.papon.boss.ColiseumCrowdEntity::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F)

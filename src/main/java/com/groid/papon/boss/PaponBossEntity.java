@@ -3743,7 +3743,7 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
     /** The band, in stage order (singer first). */
     private List<MariachiEntity> band(ServerLevel level) {
         if (arena == null) return List.of();
-        List<MariachiEntity> l = new ArrayList<>(level.getEntitiesOfClass(MariachiEntity.class, arena.bounds(), Entity::isAlive));
+        List<MariachiEntity> l = new ArrayList<>(level.getEntitiesOfClass(MariachiEntity.class, arena.bounds(), m -> m.isAlive() && !m.hired()));
         l.sort(java.util.Comparator.comparingInt(m -> m.getRole().ordinal()));
         return l;
     }
@@ -14069,6 +14069,8 @@ public class PaponBossEntity extends Monster implements GeoEntity, Speech.Speake
                 // back behind his counter, a changed Papon; then Gerbin's presents (and everyone back to the truck)
                 if (truck != null && portalAt != null) com.groid.papon.entity.npc.TacoVendorEntity.reform(level, portalAt, truck);
                 com.groid.papon.entity.npc.GerbinEntity.reward(level, home != null ? home : position(), fighters);
+                // ...and the band, out of work now, gives each of them the singer's requinto (item/RequintoItem: it hires them)
+                for (ServerPlayer p : fighters) com.groid.papon.item.RequintoItem.give(p);
                 Fx.flash(level, position().add(0, 1, 0), 2.5F);
                 Fx.smoke(level, position().add(0, 1, 0), 6, 0.8, 1.4F, 0xEDE6DA);
                 Fx.chunks(level, position().add(0, 1, 0), 16, 0.35F, Fx.POTATO, 0.6);

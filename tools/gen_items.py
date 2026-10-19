@@ -9,6 +9,7 @@ Writes, under src/main/resources/assets/papon/:
   textures/item/tequila.png + models/item/tequila.json                       3D bottle (also the molotov)
   textures/item/caravan_keys.png + models/item/caravan_keys.json             flat icon
   textures/item/skyline_fob.png + models/item/skyline_fob.json               3D key fob (the Skyline's)
+  textures/item/requinto.png + models/item/requinto.json                     3D guitar (El Requinto, the band's)
 """
 import json
 import os
@@ -448,6 +449,166 @@ def skyline_fob_model():
     }
 
 
+# ---------------------------------------------------------------- El Requinto (the singer's guitar, the band's summoner)
+R_SPRUCE = (226, 186, 120)
+R_WOOD = (150, 92, 44)
+R_WOOD_DK = (104, 60, 28)
+R_WOOD_HI = (190, 128, 64)
+R_NECK = (60, 36, 20)
+R_GOLD = (228, 182, 70)
+R_SILVER = (206, 210, 218)
+
+
+def requinto_texture():
+    """64x64 (model UVs are a quarter of these pixels), the band's requinto (gen_band.requinto_cubes) up close. Regions:
+    the lower bout's top 0..40 x 0..32 (soundhole, gold rosette, the bridge's shadow), the upper bout's top 0..32 x
+    32..52, the sides 40..52 x 0..32 (dark binding along both edges), the back 52..64 x 0..32 (book-matched rosewood),
+    the upper bout's back 0..32 x 52..64, the fretboard 32..40 x 32..64 (silver frets closing up toward the body), the
+    neck's back 40..48 x 32..64, the headstock's face 48..60 x 32..44 (two slots, a gold potato inlay), a tuning peg
+    48..52 x 44..48, the bridge 52..60 x 44..48, a string 60..62 x 32..64."""
+    im = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+    px = im.load()
+
+    def grain(c, x, y, k=0.07, along='y'):
+        v = (x if along == 'y' else y)
+        n = ((v * 7 + (y if along == 'y' else x) // 9) % 5) / 4.0
+        return shade(c, 1 - k + 2 * k * n)
+
+    def spruce_top(x0, y0, x1, y1):
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                c = grain(R_SPRUCE, x, y, 0.05)
+                if x in (x0, x1 - 1) or y in (y0, y1 - 1):
+                    c = shade(R_WOOD_DK, 1.0)          # the binding round the edge
+                px[x, y] = c
+
+    spruce_top(0, 0, 40, 32)
+    spruce_top(0, 32, 32, 52)
+    # the soundhole at the waist end of the lower bout (texture top = the model's far end), its gold rosette, a dark rim
+    cx, cy = 20, 23
+    for y in range(0, 32):
+        for x in range(0, 40):
+            d = ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) ** 0.5
+            if d < 5.0:
+                px[x, y] = (34, 20, 12, 255) if d < 4.2 else shade(R_WOOD_DK, 0.8)
+            elif d < 7.4:
+                ring = int(d * 2) % 2
+                px[x, y] = shade(R_GOLD, 1.12 if ring else 0.86)
+    # the bridge's shadow, on the soundhole's side of it
+    for x in range(10, 30):
+        px[x, 10] = shade(R_SPRUCE, 0.78)
+    # sides: honey wood, dark binding along both edges
+    for y in range(0, 32):
+        for x in range(40, 52):
+            px[x, y] = shade(R_WOOD_DK, 1.0) if x in (40, 51) else grain(R_WOOD_HI, x, y, 0.06, 'x')
+    # backs: rosewood, book-matched down the middle with a light centre strip
+    for (x0, y0, x1, y1) in ((52, 0, 64, 32), (0, 52, 32, 64)):
+        mid = (x0 + x1) // 2
+        for y in range(y0, y1):
+            for x in range(x0, x1):
+                c = grain(R_WOOD, abs(x - mid), y, 0.09)
+                if x in (mid - 1, mid):
+                    c = shade(R_SPRUCE, 0.9)
+                px[x, y] = c
+    # the fretboard: dark, frets from the nut (the bottom of the region) closing up toward the body, pearl dots at the
+    # 5th, 7th and 9th
+    for y in range(32, 64):
+        for x in range(32, 40):
+            px[x, y] = grain(R_NECK, x, y, 0.08)
+    fret = 63.0
+    gap = 3.6
+    frets = []
+    while fret > 32:
+        frets.append(int(fret))
+        fret -= gap
+        gap *= 0.94
+    for i, y in enumerate(frets):
+        for x in range(32, 40):
+            px[x, y] = R_SILVER + (255,)
+        if i in (4, 6, 8) and i + 1 < len(frets):
+            yy = (y + frets[i + 1] + 1) // 2
+            px[35, yy] = px[36, yy] = (236, 232, 222, 255)
+    for y in range(32, 64):
+        for x in range(40, 48):
+            px[x, y] = grain(shade(R_NECK, 1.25), x, y, 0.06)
+    # the headstock: two slots, a gold potato inlay
+    for y in range(32, 44):
+        for x in range(48, 60):
+            c = grain(R_WOOD_DK, x, y, 0.07)
+            if x in (51, 56) and 34 <= y <= 41:
+                c = (24, 14, 8, 255)
+            px[x, y] = c
+    for x, y in ((53, 35), (54, 35), (52, 36), (53, 36), (54, 36), (55, 36), (53, 37), (54, 37), (54, 38)):
+        px[x, y] = R_GOLD + (255,)
+    px[53, 36] = shade(R_GOLD, 0.6)
+    for y in range(44, 48):
+        for x in range(48, 52):
+            px[x, y] = shade((240, 234, 220), 1.05 if y == 44 else 0.9)
+    for y in range(44, 48):
+        for x in range(52, 60):
+            px[x, y] = shade(R_WOOD_DK, 0.75 if y < 46 else 0.6)
+        px[55, y] = px[56, y] = (236, 232, 222, 255)
+    for y in range(32, 64):
+        for x in range(60, 62):
+            px[x, y] = shade(R_SILVER, 1.1 if x == 60 else 0.85)
+    return im
+
+
+def requinto_model():
+    """Neck down (the grip), body up: swung like a club, read as a guitar at a glance. Units: the lower bout 10 wide,
+    the whole thing 28 long (about a block and a half in the hand)."""
+    def f(u0, v0, u1, v1):
+        return {'uv': [u0 / 4, v0 / 4, u1 / 4, v1 / 4], 'texture': '#0'}
+
+    def box(name, a, b, front, side=None, end=None, back=None):
+        side = side or front
+        end = end or side
+        return {'name': name, 'from': a, 'to': b, 'faces': {
+            'south': front, 'north': back or front, 'east': side, 'west': side, 'up': end, 'down': end}}
+
+    side = f(40, 0, 52, 32)
+    neck = f(40, 32, 48, 64)
+    string = f(60, 32, 62, 64)
+    els = [
+        # the body: lower bout, the waist, the upper bout (a top of spruce, rosewood back, honey sides)
+        box('lower_bout', [3, 13, 6.5], [13, 21, 9.5], f(0, 0, 40, 32), side, side, f(52, 0, 64, 32)),
+        box('lower_round', [4, 21, 6.6], [12, 22.2, 9.4], f(4, 0, 36, 4), side, side, f(52, 0, 64, 4)),
+        box('waist', [4.2, 11.6, 6.6], [11.8, 13, 9.4], f(4, 28, 36, 32), side, side, f(52, 28, 64, 32)),
+        box('upper_bout', [4, 6.6, 6.5], [12, 11.6, 9.5], f(0, 32, 32, 52), side, side, f(0, 52, 32, 64)),
+        box('upper_round', [5, 5.8, 6.6], [11, 6.6, 9.4], f(4, 32, 28, 36), side, side, f(4, 52, 28, 56)),
+        # the bridge, its saddle, the strings from it up over the soundhole to the nut
+        box('bridge', [5.5, 18.6, 9.5], [10.5, 19.5, 10], f(52, 44, 60, 48)),
+        # the neck: the fretboard on its face, the grip behind
+        box('neck', [7, -3.2, 7.2], [9, 6.6, 8.8], f(32, 32, 40, 64), neck, neck, neck),
+        box('heel', [7.2, 5.6, 6.8], [8.8, 6.6, 9], neck),
+        # the headstock, its pegs out to both sides
+        box('head', [6.4, -6.4, 7.3], [9.6, -3.2, 8.7], f(48, 32, 60, 44), f(48, 32, 50, 44), f(48, 32, 60, 34), f(48, 32, 60, 44)),
+        box('nut', [6.9, -3.4, 8.8], [9.1, -3.1, 9.1], f(48, 44, 52, 48)),
+    ]
+    for i, y in enumerate((-5.9, -4.9, -3.9)):
+        els.append(box('peg_l%d' % i, [5.4, y, 7.6], [6.4, y + 0.6, 8.4], f(48, 44, 52, 48)))
+        els.append(box('peg_r%d' % i, [9.6, y, 7.6], [10.6, y + 0.6, 8.4], f(48, 44, 52, 48)))
+    for i, x in enumerate((7.25, 7.55, 7.85, 8.15, 8.45, 8.75)):
+        els.append(box('string_%d' % i, [x - 0.08, -3.2, 9.1], [x + 0.08, 19.0, 9.25], string))
+    return {
+        'credit': 'Generated by tools/gen_items.py',
+        'textures': {'0': 'papon:item/requinto', 'particle': 'papon:item/requinto'},
+        'elements': els,
+        'display': {
+            'gui': {'rotation': [0, 0, -45], 'translation': [0.5, 0.5, 0], 'scale': [0.55, 0.55, 0.55]},
+            'ground': {'translation': [0, 2, 0], 'scale': [0.4, 0.4, 0.4]},
+            'fixed': {'rotation': [0, 0, -45], 'translation': [0, 0, 0], 'scale': [0.7, 0.7, 0.7]},
+            'head': {'translation': [0, 12, 0], 'scale': [0.8, 0.8, 0.8]},
+            # gripped by the neck, the body up over the fist like a club, the strings out to the side
+            'thirdperson_righthand': {'rotation': [0, 90, 0], 'translation': [0, 6.5, 0.75], 'scale': [0.85, 0.85, 0.85]},
+            'thirdperson_lefthand': {'rotation': [0, -90, 0], 'translation': [0, 6.5, 0.75], 'scale': [0.85, 0.85, 0.85]},
+            # the face (soundhole, strings) toward you, the neck down into your fist
+            'firstperson_righthand': {'rotation': [0, -90, 25], 'translation': [1.13, 3.2, 1.13], 'scale': [0.45, 0.45, 0.45]},
+            'firstperson_lefthand': {'rotation': [0, 90, -25], 'translation': [1.13, 3.2, 1.13], 'scale': [0.45, 0.45, 0.45]},
+        },
+    }
+
+
 # ---------------------------------------------------------------- snooze particle
 SNOOZE = [
     "WWWWWWW.",
@@ -546,6 +707,8 @@ def main():
                     'models/item/caravan_keys.json'))
     print(save(skyline_fob_texture(), 'textures/item/skyline_fob.png'))
     print(save_json(skyline_fob_model(), 'models/item/skyline_fob.json'))
+    print(save(requinto_texture(), 'textures/item/requinto.png'))
+    print(save_json(requinto_model(), 'models/item/requinto.json'))
 
 
 if __name__ == '__main__':

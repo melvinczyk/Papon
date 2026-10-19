@@ -121,6 +121,9 @@ public final class AutoShot {
     /** -Pautoshot=trash: the trash can on a slab at 6800 6800: four sides, its window fed a stack (the happy face, the XP logged),
      *  then the lid flapping as paper drops in (papon_t*.png). */
     private static final boolean TRASH = MODE.equals("trash");
+    /** -Pautoshot=band: El Requinto's band on a slab at 7000 7000: the item in hand, all thirteen walking in, the formation
+     *  (front and side), the march, the count-in and the song, a creeper's knockout, the buffs logged, the bow home (papon_b*.png). */
+    private static final boolean BAND = MODE.equals("band");
     private static int tick;
     private static final Set<String> taken = new HashSet<>();
     private static int doneAt = -1;
@@ -204,6 +207,10 @@ public final class AutoShot {
         }
         if (TRASH) {
             trash(mc);
+            return;
+        }
+        if (BAND) {
+            band(mc);
             return;
         }
         if (COLISEUM || VOICE || ARENA || NIGHTS || PHASE3 || PHASE4 || CLIMAX || PHASES) {
@@ -2144,6 +2151,69 @@ public final class AutoShot {
         if (a == 390) run("data merge entity @e[type=papon:die_glocke,limit=1,sort=nearest] {Active:0b}");
         if (a == 560) shot(mc, "g31_night_off");
         if (a == 580) mc.stop();
+    }
+
+    private static int bandAt = -1;
+
+    private static void band(Minecraft mc) {
+        if (tick == 40) run("ride @s dismount", "gamemode creative", "time set 6000", "gamerule doDaylightCycle false", "weather clear 100000",
+                "gamerule doMobSpawning false", "papon band dismiss", "tp @s 7000 200 7000");
+        boolean there = Math.abs(mc.player.getX() - 7000) < 40 && Math.abs(mc.player.getZ() - 7000) < 40;
+        if (bandAt < 0) {
+            if (there && tick % 20 == 0) run("execute positioned 7000 0 7000 positioned over motion_blocking_no_leaves run tp @s ~ ~ ~ 180 0");
+            if (there && tick > 80 && mc.player.getY() < 190 && !mc.player.getAbilities().flying) bandAt = tick;
+            return;
+        }
+        int a = tick - bandAt;
+        if (a == 10) run("execute at @s run fill ~-20 ~-1 ~-40 ~20 ~-1 ~16 polished_andesite", "execute at @s run fill ~-20 ~ ~-40 ~20 ~7 ~16 air",
+                "kill @e[type=item]", "clear @s", "give @s papon:requinto", "effect clear @s");
+        mc.options.hideGui = a > 44 && a < 1300;
+        // the item: first person, then the band strummed in one by one (the first few), then all of them
+        if (a == 30) { mc.player.getInventory().selected = 0; mc.options.setCameraType(CameraType.FIRST_PERSON); }
+        if (a == 40) shot(mc, "b00_held");
+        if (a == 44) mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+        if (a == 50) shot(mc, "b01_held_front");
+        if (a == 60 || a == 90 || a == 120) run("papon band next");
+        if (a == 100) shot(mc, "b02_singer_walks_in");
+        if (a == 150) run("papon band all");
+        if (a == 175) shot(mc, "b03_walking_in");
+        if (a == 260) shot(mc, "b04_formation_front");
+        if (a == 262) logBand(mc, "formed");
+        // the count-in and the song (all thirteen playing: "¿Listos?" "¡LISTOOOS!", then the singer counts)
+        for (int k = 0; k < 4; k++) if (a == 290 + k * 40) shot(mc, "b1" + k + "_count");
+        if (a == 450) logBand(mc, "song");
+        if (a == 452) shot(mc, "b14_song");
+        // the march: walk off forward (north), the band keeping its rows behind
+        if (a >= 470 && a < 650) run("tp @s ~ ~ ~-0.2 180 0");
+        if (a == 540) shot(mc, "b20_march_front");
+        if (a == 580) { mc.options.setCameraType(CameraType.FIRST_PERSON); run("tp @s ~ ~ ~ 0 10"); }
+        if (a == 590) shot(mc, "b21_march_side");
+        if (a == 600) { mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT); run("tp @s ~ ~ ~ 180 0"); }
+        if (a == 660) shot(mc, "b22_settled");
+        if (a == 662) logBand(mc, "settled");
+        // the buffs, on the player (logged)
+        if (a == 700) logBand(mc, "buffs");
+        // a creeper among them: who gets knocked out runs off
+        if (a == 720) run("execute at @s run summon creeper ~ ~ ~5 {Fuse:1,ignited:1b,NoAI:1b}");
+        if (a == 726) shot(mc, "b30_boom");
+        if (a == 760) shot(mc, "b31_knocked_out");
+        if (a == 800) logBand(mc, "after the creeper");
+        // all of them back, then home: a bow, and off they walk
+        if (a == 810) run("papon band all");
+        if (a == 880) logBand(mc, "back");
+        if (a == 900) run("papon band dismiss");
+        if (a == 915) shot(mc, "b40_bow");
+        if (a == 960) shot(mc, "b41_off_home");
+        if (a == 1000) mc.stop();
+    }
+
+    private static void logBand(Minecraft mc, String when) {
+        var band = mc.level.getEntitiesOfClass(com.groid.papon.boss.HiredMariachiEntity.class, mc.player.getBoundingBox().inflate(40), e -> true);
+        StringBuilder sb = new StringBuilder();
+        for (var m : band) sb.append(String.format(java.util.Locale.ROOT, " %s:%s@%.1f", m.getRole(), m.getBandState(), m.distanceTo(mc.player)));
+        StringBuilder fx = new StringBuilder();
+        for (var e : mc.player.getActiveEffects()) fx.append(' ').append(e.getEffect().getDescriptionId().replace("effect.minecraft.", "")).append(' ').append(e.getAmplifier() + 1);
+        PaponMod.LOG.info("[band] {}: {} members{} | effects{} | absorption {}", when, band.size(), sb, fx, mc.player.getAbsorptionAmount());
     }
 
     private static int trashAt = -1;

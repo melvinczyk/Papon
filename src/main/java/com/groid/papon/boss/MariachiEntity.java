@@ -142,6 +142,14 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
 
     public BandRole getRole() { return BandRole.byId(entityData.get(DATA_ROLE)); }
 
+    protected void setRole(BandRole role) { entityData.set(DATA_ROLE, role.ordinal()); }
+
+    /** One of El Requinto's band (HiredMariachiEntity), not the coliseum's: the boss, his cutscenes and the stage leave him alone. */
+    public boolean hired() { return false; }
+
+    /** The hired band: the song stops (the singer's downbeat cleared, SongPlayer lets go of it). */
+    protected void clearSong() { entityData.set(DATA_SONG_START, 0); }
+
     public BandState getBandState() { return BandState.byId(stateId()); }
 
     /** The server tick (game time, low 31 bits) the song's first downbeat falls on; 0 before the count. */
@@ -306,7 +314,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
         if (getBandState() == BandState.PLAY || getBandState().ready() || getBandState().lamp()) setBandState(BandState.BOW);
     }
 
-    private void say(String line, int ticks) {
+    protected void say(String line, int ticks) {
         Speech.say(this, ChatFormatting.GOLD, "speech.papon.band." + line, false, false, Math.max(ticks, (int) Math.ceil(lineTicks(line) / voicePitch()) + 4));
     }
 
@@ -568,7 +576,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
             RawAnimation.begin().thenPlay("animation.mariachi.jaw_drop").thenLoop("animation.mariachi.shocked_b")};
 
     /** Gordo has the only chair; everyone else sleeps (and wakes, and dresses) sitting on the stage floor. */
-    private String chair(String name) { return getRole().dozer() ? name : name + "_floor"; }
+    private String chair(String name) { return getRole().dozer() && !hired() ? name : name + "_floor"; }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
@@ -579,7 +587,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
         BandRole role = getRole();
         String kind = role.animKind();
         RawAnimation next = switch (getBandState()) {
-            case SLEEP -> role.dozer() ? SLEEPS[1] : loop(chair("sleep_" + "abc".charAt(role.ordinal() % 3)));
+            case SLEEP -> role.dozer() && !hired() ? SLEEPS[1] : loop(chair("sleep_" + "abc".charAt(role.ordinal() % 3)));
             case STARTLE -> once(chair("startle"));
             case GETUP -> once(chair("getup"));
             case RESLEEP -> RESLEEP;
@@ -604,6 +612,7 @@ public class MariachiEntity extends TacoNpc implements Speech.Pitched {
             case SHOCKED -> SHOCKED[role.ordinal() % 3 == 1 ? 1 : 0];
             case HYPED -> loop("hype_" + kind);
             case LISTEN -> loop("listen_" + "abc".charAt(role.ordinal() % 3));
+            case FOLLOW -> loop("march_" + kind);
         };
         return event.setAndContinue(next);
     }

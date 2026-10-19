@@ -39,10 +39,11 @@ public class MariachiRenderer extends GeoEntityRenderer<MariachiEntity> {
         }
         boolean violin = role.instrument.equals("violin");
         model.getBone("bow").ifPresent(bone -> bone.setHidden(!violin));
-        model.getBone("mic_stand").ifPresent(bone -> bone.setHidden(!role.singer()));
+        // El Requinto's band walks: no mic stand or chair carried about (Gordo naps on the ground)
+        model.getBone("mic_stand").ifPresent(bone -> bone.setHidden(!role.singer() || m.hired()));
         model.getBone("shades").ifPresent(bone -> bone.setHidden(!role.singer()));
         // only Gordo (the guitarron, the one who dozes off again) has a chair
-        model.getBone("chair").ifPresent(bone -> bone.setHidden(!role.dozer()));
+        model.getBone("chair").ifPresent(bone -> bone.setHidden(!role.dozer() || m.hired()));
         super.preRender(pose, m, model, buffers, buffer, reRender, partialTick, light, overlay, r, g, b, a);
     }
 

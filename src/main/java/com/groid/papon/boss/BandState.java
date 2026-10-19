@@ -55,7 +55,9 @@ public enum BandState {
     /** Phase four: he has risen and the band is up on its toes, hyping each other up (no fear left in them; nothing played). */
     HYPED(0),
     /** Phase four, his story (2026-10-06, the user: "listening intently to what papon is saying"): still, leaning in, mouths shut. */
-    LISTEN(0);
+    LISTEN(0),
+    /** The hired band (HiredMariachiEntity): walking behind El Requinto's owner, his instrument carried ready (march_<kind>). */
+    FOLLOW(0);
 
     public final int duration;
 
@@ -73,6 +75,6 @@ public enum BandState {
     /** Up, dressed and holding his instrument. */
     public boolean ready() {
         return this == READY || this == COUNT || this == PLAY || this == BOW || this == SCARED || this == AWED || this == CATCH || this == NERVOUS
-                || this == SHOCKED || this == HYPED || this == LISTEN;
+                || this == SHOCKED || this == HYPED || this == LISTEN || this == FOLLOW;
     }
 }

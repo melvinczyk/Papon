@@ -606,7 +606,7 @@ public final class Cinematic {
         Vec3 body = b.position().add(0, b.getBbHeight() * 0.55, 0);
         Vec3 face = b.position().add(0, b.getBbHeight() * 0.78, 0);
         java.util.List<com.groid.papon.boss.MariachiEntity> band = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class,
-                b.getBoundingBox().inflate(64), e -> true);
+                b.getBoundingBox().inflate(64), e -> !e.hired());
         com.groid.papon.boss.MariachiEntity singer = band.stream().filter(m -> m.getRole().singer()).findFirst().orElse(null);
         Vec3 stage = band.isEmpty() ? b.position().add(f.scale(10))
                 : band.stream().map(Entity::position).reduce(Vec3.ZERO, Vec3::add).scale(1.0 / band.size());
@@ -867,7 +867,7 @@ public final class Cinematic {
         Vec3 moon = b.moonPos();
         Vec3 toMoon = moon.subtract(b.position()).normalize();
         java.util.List<com.groid.papon.boss.MariachiEntity> band = new java.util.ArrayList<>(mc.level.getEntitiesOfClass(
-                com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(120), e -> true));
+                com.groid.papon.boss.MariachiEntity.class, b.getBoundingBox().inflate(120), e -> !e.hired()));
         band.sort(java.util.Comparator.comparingInt(m -> m.getRole().ordinal()));
         com.groid.papon.boss.MariachiEntity singer = band.isEmpty() ? null : band.get(0);
         Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.stageYaw()) : new Vec3(0, 0, 1);
@@ -1404,7 +1404,7 @@ public final class Cinematic {
         // his face: the ascended model sits lower in its (bigger) box, so his eyes are lower down it
         Vec3 face = b.position().add(0, h * (b.isAscended() ? 0.62 : 0.69), 0);
         java.util.List<com.groid.papon.boss.MariachiEntity> band = mc.level.getEntitiesOfClass(com.groid.papon.boss.MariachiEntity.class,
-                b.getBoundingBox().inflate(64), e -> true);
+                b.getBoundingBox().inflate(64), e -> !e.hired());
         com.groid.papon.boss.MariachiEntity singer = band.stream().filter(m -> m.getRole().singer()).findFirst().orElse(null);
         Vec3 stageFacing = singer != null ? Vec3.directionFromRotation(0, singer.stageYaw()) : f.scale(-1);
         Vec3 stageSide = new Vec3(-stageFacing.z, 0, stageFacing.x);
